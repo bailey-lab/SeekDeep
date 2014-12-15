@@ -2,19 +2,34 @@
 *.slo
 *.lo
 *.o
-*.obj
 
-# Precompiled Headers
-*.gch
-*.pch
+# Compiled Dynamic libraries
+*.so
+*.dylib
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+
+*~
+*.out
+external/
+*.pyc
+TAGS
+\#*
+.\#*
+*.core
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
 
 # Compiled Dynamic libraries
 *.so
 *.dylib
 *.dll
-
-# Fortran module files
-*.mod
 
 # Compiled Static libraries
 *.lai
@@ -26,3 +41,14 @@
 *.exe
 *.out
 *.app
+
+bin/*
+compfile.mk
+external/*
+
+# Python 
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*.pyc
+docs/man
