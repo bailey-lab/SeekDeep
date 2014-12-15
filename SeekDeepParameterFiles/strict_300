@@ -1,0 +1,5 @@
+stopCheck:smallCutoff:1baseIndel:2baseIndel:>2baseIndel:HQMismatches:LQMismatches
+300:3:1:0:0:0:0
+300:3:2:1:0:0:1
+300:0:1:0:0:0:0
+300:0:2:1:0:0:1
