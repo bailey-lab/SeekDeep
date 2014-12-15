@@ -23,10 +23,10 @@ def main():
     
     if(args.prefix):
         prefix = args.prefix[0];
-        cmd = "setUpScripts/generateCompFile.py -prefix "  + prefix + " -installName SeekDeep -outFilename compfile.mk -externalLoc " + external + " -CC " + CC "  -CXX " + CXX " -neededLibs cppitertools,zi_lib,boost,r,bamtools,curl,bibseq,bibcpp -outname SeekDeep "
+        cmd = "setUpScripts/generateCompFile.py -prefix "  + prefix + " -installName SeekDeep -outFilename compfile.mk -externalLoc " + external + " -CC " + CC + "  -CXX " + CXX + " -neededLibs cppitertools,zi_lib,boost,r,bamtools,curl,bibseq,bibcpp -outname SeekDeep "
 
     else:
-        cmd = "setUpScripts/generateCompFile.py "  + " -installName SeekDeep -outFilename compfile.mk -externalLoc " + external + " -CC " + CC "  -CXX " + CXX "  -neededLibs cppitertools,zi_lib,boost,r,bamtools,curl,bibseq,bibcpp -outname SeekDeep "
+        cmd = "setUpScripts/generateCompFile.py "  + " -installName SeekDeep -outFilename compfile.mk -externalLoc " + external + " -CC " + CC + "  -CXX " + CXX  + "  -neededLibs cppitertools,zi_lib,boost,r,bamtools,curl,bibseq,bibcpp -outname SeekDeep "
 
     
     Utils.run(cmd)
