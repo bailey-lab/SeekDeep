@@ -6,7 +6,10 @@ import shutil, os, argparse, sys, stat
 class genHelper:
     @staticmethod
     def generateCompfileFull(outFileName, externalDirLoc, cc, cxx, outName, installDirName, installDirLoc, neededLibs):
-        availableLibs = ["CPPITERTOOLS","CPPPROGUTILS","ZI_LIB","BOOST","R","BAMTOOLS","CPPCMS","MATHGL","ARMADILLO","MLPACK","LIBLINEAR","PEAR","CURL","GTKMM", "BIBSEQ", "BIBCPP", "CATCH", "JSONCPP", "SEEKDEEP"]
+        availableLibs = ["CPPITERTOOLS","CPPPROGUTILS","ZI_LIB","BOOST","R","BAMTOOLS","CPPCMS","MATHGL","ARMADILLO",
+                         "MLPACK","LIBLINEAR","PEAR","CURL","GTKMM", "BIBSEQ", "BIBCPP", "SEEKDEEP", 
+                         "BIBSEQDEV", "BIBCPPDEV", "SEEKDEEPDEV", "CATCH", "JSONCPP",
+                          "TWOBIT", "SEQSERVER", "PSTREAMS"]
         neededLibs = map(lambda x:x.upper(), neededLibs)
         """@todo: Make some of these default to an envirnment CC and CXX and maybe even CXXFLAGS as well 
             @todo: Make availableLibs a more universal constant"""
@@ -14,7 +17,8 @@ class genHelper:
             f.write("CC = {CC}\n".format(CC = cc))
             f.write("CXX = {CXX}\n".format(CXX = cxx))
             f.write("CXXOUTNAME = {NAME_OF_PROGRAM}\n".format(NAME_OF_PROGRAM = outName))
-            f.write("CXXFLAGS = -std=c++11 -Wall\n")
+            #f.write("CXXFLAGS = -std=c++11 -Wall -ftemplate-depth=1024\n")
+            f.write("CXXFLAGS = -std=c++14 -Wall -ftemplate-depth=1024\n")
             f.write("CXXOPT += -O2 -funroll-loops -DNDEBUG  \n")
             f.write("ifneq ($(shell uname -s),Darwin)\n")
             f.write("\tCXXOPT += -march=native -mtune=native\n" )
@@ -35,7 +39,7 @@ class genHelper:
 
     @staticmethod            
     def determineCC(args):
-        defaultCC = "gcc-4.8"
+        defaultCC = "clang"
         if not args.CC:
             eCC = os.getenv("CC")
             if(eCC):
@@ -45,7 +49,7 @@ class genHelper:
         return defaultCC
     @staticmethod
     def determineCXX(args):
-        defaultCXX = "g++-4.8"
+        defaultCXX = "clang++"
         if not args.CXX:
             eCXX = os.getenv("CXX")
             if  eCXX:

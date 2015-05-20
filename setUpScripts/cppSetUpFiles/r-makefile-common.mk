@@ -1,9 +1,9 @@
 UNAME_S := $(shell uname -s)
 
 ifeq ($(UNAME_S),Darwin)
-    R_HOME := 		$(shell $(LOCAL_PATH)/R-devel/R.framework/Resources/bin/R RHOME)
+    R_HOME := 		$(shell $(LOCAL_PATH)/R/R.framework/Resources/bin/R RHOME)
 else
-    R_HOME := 		$(shell $(LOCAL_PATH)/R-devel/bin/R RHOME)
+    R_HOME := 		$(shell $(LOCAL_PATH)/R/bin/R RHOME)
 endif
 
 ## include headers and libraries for R

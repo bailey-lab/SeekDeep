@@ -1,7 +1,7 @@
 CC = gcc-4.9
 CXX = g++-4.8
 CXXOUTNAME = out
-CXXFLAGS = -std=c++11 -Wall
+CXXFLAGS = -std=c++1y -Wall
 CXXOPT += -O2 -funroll-loops -DNDEBUG  
 ifneq ($(shell uname -s),Darwin)
 	CXXOPT += -march=native -mtune=native

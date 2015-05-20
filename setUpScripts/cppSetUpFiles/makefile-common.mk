@@ -7,44 +7,49 @@ EXTTOOLS = -I$(EXT_PATH)
 SRC = -I./src/
 COMLIBS += $(LOCALTOOLS) $(EXTTOOLS) $(SRC)
 
-#bibcpp
-ifeq ($(USE_BIBCPP),1)
-	COMLIBS += -isystem$(LOCAL_PATH)/bibcpp/include
-	USE_JSONCPP=1
-	USE_BOOST=1
-	
-	#currently no compiled components so no need for library flags
-	#uncomment bellow in the future if there parts of the package need to be compiled
-	#LD_FLAGS += -Wl,-rpath,$(LOCAL_PATH)/bibcpp/lib \
-			-L$(LOCAL_PATH)/bibcpp/lib  \
-			-lbibcpp
+
+#TwoBit
+ifeq ($(USE_TWOBIT),1)
+	COMLIBS += -isystem$(LOCAL_PATH)/TwoBit/include
+	LD_FLAGS += -Wl,-rpath,$(LOCAL_PATH)/TwoBit/lib \
+			-L$(LOCAL_PATH)/TwoBit/lib  \
+			-lTwoBit
+endif
+
+
+#SeqServer
+ifeq ($(USE_SEQSERVER),1)
+	COMLIBS += -isystem$(LOCAL_PATH)/seqServer/include
+	USE_BIBSEQDEV=1
+	USE_CPPCMS=1
+	LD_FLAGS += -Wl,-rpath,$(LOCAL_PATH)/seqServer/lib \
+			-L$(LOCAL_PATH)/seqServer/lib  \
+			-lseqServer
 endif
 
 #SeekDeep
 ifeq ($(USE_SEEKDEEP),1)
 	COMLIBS += -isystem$(LOCAL_PATH)/SeekDeep/include
-	ifeq (,$(findstring $(COMLIBS),bibcpp))
-		COMLIBS += -isystem$(LOCAL_PATH)/bibcpp/include
-		USE_JSONCPP=1
-		USE_BOOST=1
-	endif
-	USE_BAMTOOLS=1
-	USE_R=1
-	USE_CURL=1
+	USE_BIBSEQ=1
 	LD_FLAGS += -Wl,-rpath,$(LOCAL_PATH)/SeekDeep/lib \
 			-L$(LOCAL_PATH)/SeekDeep/lib  \
 			-lSeekDeep
+endif
+
+#SeekDeepDev
+ifeq ($(USE_SEEKDEEPDEV),1)
+	COMLIBS += -isystem$(LOCAL_PATH)/SeekDeepDev/include
+	USE_BIBSEQDEV=1
+	LD_FLAGS += -Wl,-rpath,$(LOCAL_PATH)/SeekDeepDev/lib \
+			-L$(LOCAL_PATH)/SeekDeepDev/lib  \
+			-lSeekDeepDev
 endif
 
 
 #bibseq
 ifeq ($(USE_BIBSEQ),1)
 	COMLIBS += -isystem$(LOCAL_PATH)/bibseq/include
-	ifeq (,$(findstring $(COMLIBS),bibcpp))
-		COMLIBS += -isystem$(LOCAL_PATH)/bibcpp/include
-		USE_JSONCPP=1
-		USE_BOOST=1
-	endif
+	USE_BIBCPP=1
 	USE_ARMADILLO=1
 	USE_BAMTOOLS=1
 	USE_R=1
@@ -52,6 +57,44 @@ ifeq ($(USE_BIBSEQ),1)
 	LD_FLAGS += -Wl,-rpath,$(LOCAL_PATH)/bibseq/lib \
 			-L$(LOCAL_PATH)/bibseq/lib  \
 			-lbibseq
+endif
+
+#bibseqDev
+ifeq ($(USE_BIBSEQDEV),1)
+	COMLIBS += -isystem$(LOCAL_PATH)/bibseqDev/include
+	USE_BIBCPPDEV=1
+	USE_ARMADILLO=1
+	USE_BAMTOOLS=1
+	USE_R=1
+	USE_CURL=1
+	LD_FLAGS += -Wl,-rpath,$(LOCAL_PATH)/bibseqDev/lib \
+			-L$(LOCAL_PATH)/bibseqDev/lib  \
+			-lbibseqDev
+endif
+
+
+#bibcpp
+ifeq ($(USE_BIBCPP),1)
+	COMLIBS += -isystem$(LOCAL_PATH)/bibcpp/include
+	USE_JSONCPP=1
+	USE_BOOST=1
+	#currently no compiled components so no need for library flags
+	#uncomment bellow in the future if there parts of the package need to be compiled
+	#LD_FLAGS += -Wl,-rpath,$(LOCAL_PATH)/bibcpp/lib \
+			-L$(LOCAL_PATH)/bibcpp/lib  \
+			-lbibcpp
+endif
+
+#bibcppDev
+ifeq ($(USE_BIBCPPDEV),1)
+	COMLIBS += -isystem$(LOCAL_PATH)/bibcppDev/include
+	USE_JSONCPP=1
+	USE_BOOST=1
+	#currently no compiled components so no need for library flags
+	#uncomment bellow in the future if there parts of the package need to be compiled
+	#LD_FLAGS += -Wl,-rpath,$(LOCAL_PATH)/bibcppDev/lib \
+			-L$(LOCAL_PATH)/bibcppDev/lib  \
+			-lbibcppDev
 endif
 
 
@@ -92,9 +135,6 @@ ifeq ($(USE_ARMADILLO),1)
 endif
 
 
-
-
-
 #shark
 ifeq ($(USE_SHARK),1)
 	COMLIBS += -isystem$(LOCAL_PATH)/shark/include
@@ -116,11 +156,10 @@ endif
 #ZI_LIB
 ifeq ($(USE_ZI_LIB),1)
 	COMLIBS += -I$(LOCAL_PATH)/zi_lib
-	#CXXFLAGS += -DZI_USE_OPENMP
 	ifeq ($(UNAME_S),Darwin)
 
 	else
-		CXXFLAGS += -DZI_USE_OPENMP
+		#CXXFLAGS += -DZI_USE_OPENMP
     	LD_FLAGS += -lrt
 	endif
 endif
@@ -128,7 +167,7 @@ endif
 
 #bamtools
 ifeq ($(USE_BAMTOOLS),1)
-	COMLIBS += -I$(LOCAL_PATH)/bamtools/include/bamtools
+	COMLIBS += -isystem$(LOCAL_PATH)/bamtools/include/bamtools
 	LD_FLAGS += -Wl,-rpath,$(LOCAL_PATH)/bamtools/lib/bamtools \
 			-L$(LOCAL_PATH)/bamtools/lib/bamtools\
 			-lbamtools
@@ -167,7 +206,7 @@ ifeq ($(USE_R),1)
 endif
 
 ifeq ($(UNAME_S),Darwin)
-    #for dylib path fixing in macs, this gets rid of the name_size limit
+    #for dylib path fixing in macs, this gets rid of the name_size limit, which why the hell is there a name size limit
     LD_FLAGS += -headerpad_max_install_names
 endif
 
