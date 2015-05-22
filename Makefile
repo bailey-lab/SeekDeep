@@ -122,7 +122,7 @@ $(INSTALL_DIR)/bin/$(CXXOUTNAME):$(OBJ)
 
 .PHONY moveHeaders:
 moveHeaders: $(INSTALL_DIR)
-	setUpScripts/installHeaders.py -src src/ -dest $(INSTALL_DIR)/include/
+	setUpScripts/installHeaders.py -src src/ -dest $(INSTALL_DIR)/include/ -rmDir
 	
 .PHONY unitTest:
 unitTest: 

@@ -211,7 +211,7 @@ class Setup:
         self.__processArgs()
         
     def setup(self):
-        # if no compfile need to determine compiler 
+        # if no compfile need to determine compiler, will default to env CC and CXX
         if not self.args.compfile:
             self.CC = genHelper.determineCC(self.args)
             self.CXX = genHelper.determineCXX(self.args)
@@ -220,6 +220,8 @@ class Setup:
             if not set in self.setUps.keys():
                 print CT.boldBlack( "Unrecognized option ") + CT.boldRed(set)
             else:
+                if self.args.forceUpdate:
+                    self.rmDirsForLib(set)
                 self.__setup(set, self.setUps[set])
 
         for p in self.installed:
@@ -306,6 +308,23 @@ class Setup:
             self.CXX = args['CXX']
             if "clang" in self.CXX:
                 self.args.clang = True
+    
+    def rmDirsForLibs(self,libs):
+        for l in libs:
+            self.rmDirsForLib(l)
+    
+    def rmDirsForLib(self,lib):
+        if lib not in self.setUps:
+            print CT.boldBlack( "Unrecognized lib: ") + CT.boldRed(lib)
+        else:
+            p = self.__path(lib)
+            if p.build_dir:
+                print "Removing " + CT.boldBlack(p.build_dir)
+                Utils.rm_rf(p.build_dir)
+            if p.local_dir:
+                print "Removing " + CT.boldBlack(p.local_dir)
+                Utils.rm_rf(p.local_dir)
+    
 
     def __path(self, name):
         return self.paths.path(name)
@@ -372,6 +391,17 @@ make COMPFILE=compfile.mk -j {num_cores}
                                                            external=self.extDirLoc)
         cmd = " ".join(cmd.split())
         self.__buildFromGit(i, cmd)
+        
+    def __updateNjhProject(self,i):
+        cmd = """
+        python ./configure.py -CC {CC} -CXX {CXX} -externalLibDir {external} -prefix {localTop} 
+        && python ./setup.py -compfile compfile.mk
+        && make clean 
+        && make -j {num_cores} && make install""".format(localTop=shellquote(self.paths.install_dir),
+                                                          num_cores=self.num_cores(), CC=self.CC, CXX=self.CXX,
+                                                           external=self.extDirLoc)
+        cmd = " ".join(cmd.split())
+        self.__buildFromGit(i, cmd)
     
     
     def __buildFromGit(self, i, cmd):
@@ -397,6 +427,7 @@ make COMPFILE=compfile.mk -j {num_cores}
         except:
             Utils.rm_rf(i.local_dir)
             sys.exit(1)
+    
     
     def __git(self, i):
         cmd = "git clone {url} {d}".format(url=i.url, d=shellquote(i.local_dir))
@@ -623,11 +654,13 @@ def parse_args():
     parser.add_argument('-compfile', type=str, nargs=1)
     parser.add_argument('-libs', type=str, help="The libraries to install")
     parser.add_argument('-printLibs', action = "store_true", help="Print Available Libs")
+    parser.add_argument('-forceUpdate', action = "store_true", help="Remove already installed libs and re-install")
     parser.add_argument('-CC', type=str, nargs=1)
     parser.add_argument('-CXX', type=str, nargs=1)
     parser.add_argument('-instRPackageName',type=str, nargs=1)
     parser.add_argument('-instRPackageSource',type=str, nargs=1)
-    parser.add_argument('-addBashCompletion', dest = 'addBashCompletion', action = 'store_true' )
+    parser.add_argument('-addBashCompletion', dest = 'addBashCompletion', action = 'store_true')
+    
     return parser.parse_args()
 
 def main():

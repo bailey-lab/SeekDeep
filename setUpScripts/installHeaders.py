@@ -6,6 +6,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('-src', type=str, nargs=1, required =True)
     parser.add_argument('-dest', type=str, nargs=1, required =True)
+    parser.add_argument('-rmDir', action = "store_true", help = "Remove directory first")
     return parser.parse_args()
 
 def main():
@@ -15,6 +16,9 @@ def main():
         newDirName = dInfo[0].replace(args.src[0].rstrip('/'), args.dest[0].rstrip('/'))
         #print newDirName
         if not os.path.exists(newDirName):
+            os.mkdir(newDirName)
+        elif args.rmDir:
+            shutil.rmtree(newDirName)
             os.mkdir(newDirName)
         for f in dInfo[2]:
             if fnmatch.fnmatch(f, '*.h*'):
