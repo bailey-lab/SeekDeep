@@ -115,7 +115,8 @@ class Paths():
         return self.__package_dirs(url, "boost")
 
     def __armadillo(self):
-        url = "http://freefr.dl.sourceforge.net/project/arma/armadillo-4.000.2.tar.gz"
+        #url = "http://freefr.dl.sourceforge.net/project/arma/armadillo-4.000.2.tar.gz"
+        url = "http://freefr.dl.sourceforge.net/project/arma/armadillo-5.100.2.tar.gz"
         return self.__package_dirs(url, "armadillo")
 
     def __mlpack(self):
@@ -462,7 +463,8 @@ make COMPFILE=compfile.mk -j {num_cores}
 
     def boost(self):
         i = self.__path("boost")
-        boostLibs = "date_time,filesystem,iostreams,math,program_options,random,regex,serialization,signals,system,test,thread,log"
+        #boostLibs = "date_time,filesystem,iostreams,math,program_options,random,regex,serialization,signals,system,test,thread,log"
+        boostLibs = "filesystem,iostreams,system"
         if self.args.clang:
              if isMac():
                 cmd = """./bootstrap.sh --with-toolset=clang --prefix={local_dir} --with-libraries=""" + boostLibs + """
