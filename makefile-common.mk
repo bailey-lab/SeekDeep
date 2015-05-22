@@ -88,6 +88,7 @@ ifeq ($(USE_BIBCPP),1)
 	COMLIBS += -isystem$(LOCAL_PATH)/bibcpp/include
 	USE_JSONCPP=1
 	USE_BOOST=1
+	LD_FLAGS += -lpthread
 	#currently no compiled components so no need for library flags
 	#uncomment bellow in the future if there parts of the package need to be compiled
 	#LD_FLAGS += -Wl,-rpath,$(LOCAL_PATH)/bibcpp/lib \
@@ -100,6 +101,7 @@ ifeq ($(USE_BIBCPPDEV),1)
 	COMLIBS += -isystem$(LOCAL_PATH)/bibcppDev/include
 	USE_JSONCPP=1
 	USE_BOOST=1
+	LD_FLAGS += -lpthread
 	#currently no compiled components so no need for library flags
 	#uncomment bellow in the future if there parts of the package need to be compiled
 	#LD_FLAGS += -Wl,-rpath,$(LOCAL_PATH)/bibcppDev/lib \
