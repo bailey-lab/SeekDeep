@@ -124,8 +124,9 @@ ifeq ($(USE_BOOST),1)
 	COMLIBS += -isystem$(LOCAL_PATH)/boost/include
 	LD_FLAGS +=  -Wl,-rpath,$(LOCAL_PATH)/boost/lib \
 			-L$(LOCAL_PATH)/boost/lib  \
-			-lpthread -lboost_program_options -lboost_system -lboost_thread \
-			-lboost_filesystem -lboost_iostreams -lboost_regex -lboost_serialization
+			-lboost_system -lboost_filesystem -lboost_iostreams
+			#-lpthread -lboost_program_options -lboost_system -lboost_thread \
+			#-lboost_filesystem -lboost_iostreams -lboost_regex -lboost_serialization
 endif
 
 #cppcms
