@@ -110,7 +110,8 @@ class Paths():
         return self.__package_dirs(url, "R")
 
     def __boost(self):
-        url = "http://sourceforge.net/projects/boost/files/boost/1.57.0/boost_1_57_0.tar.gz"
+        #url = "http://sourceforge.net/projects/boost/files/boost/1.57.0/boost_1_57_0.tar.gz"
+        url = "http://sourceforge.net/projects/boost/files/boost/1.58.0/boost_1_58_0.tar.gz"
         return self.__package_dirs(url, "boost")
 
     def __armadillo(self):
@@ -127,7 +128,7 @@ class Paths():
 
     def __cppcms(self):
         url = "http://freefr.dl.sourceforge.net/project/cppcms/cppcms/1.0.5/cppcms-1.0.5.tar.bz2"
-        return self.__package_dirs(url, "cppcms")
+        return self.__package_dirs(url, "cppcms") 
 
     def __mathgl(self):
         url = "http://freefr.dl.sourceforge.net/project/mathgl/mathgl/mathgl%202.2.1/mathgl-2.2.1.tar.gz"
@@ -216,6 +217,8 @@ class Setup:
             self.CC = genHelper.determineCC(self.args)
             self.CXX = genHelper.determineCXX(self.args)
 
+        if "clang" in self.CXX:
+            self.args.clang = True
         for set in self.setUpsNeeded:
             if not set in self.setUps.keys():
                 print CT.boldBlack( "Unrecognized option ") + CT.boldRed(set)
@@ -306,8 +309,6 @@ class Setup:
             self.CC = args['CC']
         if 'CXX' in args:
             self.CXX = args['CXX']
-            if "clang" in self.CXX:
-                self.args.clang = True
     
     def rmDirsForLibs(self,libs):
         for l in libs:
@@ -461,28 +462,33 @@ make COMPFILE=compfile.mk -j {num_cores}
 
     def boost(self):
         i = self.__path("boost")
+        boostLibs = "date_time,filesystem,iostreams,math,program_options,random,regex,serialization,signals,system,test,thread,log"
         if self.args.clang:
              if isMac():
-                cmd = """./bootstrap.sh --with-toolset=clang --prefix={local_dir} --with-libraries=date_time,filesystem,iostreams,math,program_options,random,regex,serialization,signals,system,test,thread,log  &&  ./b2  -d 2 toolset=clang cxxflags=\"-stdlib=libc++ -std=c++14\" linkflags=\"-stdlib=libc++\" -j {num_cores} install &&  install_name_tool -change libboost_system.dylib {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_thread.dylib&&  install_name_tool -change libboost_system.dylib {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_filesystem.dylib""".format(local_dir=shellquote(i.local_dir).replace(' ', '\ '), num_cores=self.num_cores())
-                #cmd = """wget https://github.com/boostorg/atomic/commit/6bb71fdd.diff && wget https://github.com/boostorg/atomic/commit/e4bde20f.diff&&  wget https://gist.githubusercontent.com/philacs/375303205d5f8918e700/raw/d6ded52c3a927b6558984d22efe0a5cf9e59cd8c/0005-Boost.S11n-include-missing-algorithm.patch&&  patch -p2 -i 6bb71fdd.diff&&  patch -p2 -i e4bde20f.diff&&  patch -p1 -i 0005-Boost.S11n-include-missing-algorithm.patch&&  echo "using clang;  " >> tools/build/v2/user-config.jam&&  ./bootstrap.sh --with-toolset=clang --prefix={local_dir} --with-libraries=date_time,filesystem,iostreams,math,program_options,random,regex,serialization,signals,system,test,thread,log  &&  ./b2  -d 2 toolset=clang cxxflags=\"-stdlib=libc++\" linkflags=\"-stdlib=libc++\" -j {num_cores} install &&  install_name_tool -change libboost_system.dylib {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_thread.dylib&&  install_name_tool -change libboost_system.dylib {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_filesystem.dylib""".format(local_dir=shellquote(i.local_dir).replace(' ', '\ '), num_cores=self.num_cores())
+                cmd = """./bootstrap.sh --with-toolset=clang --prefix={local_dir} --with-libraries=""" + boostLibs + """
+                  &&  ./b2  -d 2 toolset=clang cxxflags=\"-stdlib=libc++ -std=c++14\" linkflags=\"-stdlib=libc++\" -j {num_cores} install 
+                  &&  install_name_tool -change libboost_system.dylib {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_thread.dylib
+                  &&  install_name_tool -change libboost_system.dylib {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_filesystem.dylib
+                  """.format(local_dir=shellquote(i.local_dir).replace(' ', '\ '), num_cores=self.num_cores())
+                #cmd = """wget https://github.com/boostorg/atomic/commit/6bb71fdd.diff && wget https://github.com/boostorg/atomic/commit/e4bde20f.diff&&  wget https://gist.githubusercontent.com/philacs/375303205d5f8918e700/raw/d6ded52c3a927b6558984d22efe0a5cf9e59cd8c/0005-Boost.S11n-include-missing-algorithm.patch&&  patch -p2 -i 6bb71fdd.diff&&  patch -p2 -i e4bde20f.diff&&  patch -p1 -i 0005-Boost.S11n-include-missing-algorithm.patch&&  echo "using clang;  " >> tools/build/v2/user-config.jam&&  ./bootstrap.sh --with-toolset=clang --prefix={local_dir} --with-libraries=""" + boostLibs + """  &&  ./b2  -d 2 toolset=clang cxxflags=\"-stdlib=libc++\" linkflags=\"-stdlib=libc++\" -j {num_cores} install &&  install_name_tool -change libboost_system.dylib {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_thread.dylib&&  install_name_tool -change libboost_system.dylib {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_filesystem.dylib""".format(local_dir=shellquote(i.local_dir).replace(' ', '\ '), num_cores=self.num_cores())
              else:
-                cmd = """./bootstrap.sh --with-toolset=clang --prefix={local_dir}  --with-libraries=date_time,filesystem,iostreams,math,program_options,random,regex,serialization,signals,system,test,thread,log &&  ./b2  -d 2 toolset=clang cxxflags=\"-std=c++14\" -j {num_cores} install""".format(local_dir=shellquote(i.local_dir).replace(' ', '\ '), num_cores=self.num_cores())
-                #cmd = """wget https://github.com/boostorg/atomic/commit/6bb71fdd.diff && wget https://github.com/boostorg/atomic/commit/e4bde20f.diff&&  wget https://gist.githubusercontent.com/philacs/375303205d5f8918e700/raw/d6ded52c3a927b6558984d22efe0a5cf9e59cd8c/0005-Boost.S11n-include-missing-algorithm.patch&&  patch -p2 -i 6bb71fdd.diff&&  patch -p2 -i e4bde20f.diff&&  patch -p1 -i 0005-Boost.S11n-include-missing-algorithm.patch&&  echo "using clang;  " >> tools/build/v2/user-config.jam&&  ./bootstrap.sh --with-toolset=clang --prefix={local_dir}  --with-libraries=date_time,filesystem,iostreams,math,program_options,random,regex,serialization,signals,system,test,thread,log &&  ./b2  -d 2 toolset=clang -j {num_cores} install""".format(local_dir=shellquote(i.local_dir).replace(' ', '\ '), num_cores=self.num_cores())
+                cmd = """./bootstrap.sh --with-toolset=clang --prefix={local_dir}  --with-libraries=""" + boostLibs + """ &&  ./b2  -d 2 toolset=clang cxxflags=\"-std=c++14\" -j {num_cores} install""".format(local_dir=shellquote(i.local_dir).replace(' ', '\ '), num_cores=self.num_cores())
+                #cmd = """wget https://github.com/boostorg/atomic/commit/6bb71fdd.diff && wget https://github.com/boostorg/atomic/commit/e4bde20f.diff&&  wget https://gist.githubusercontent.com/philacs/375303205d5f8918e700/raw/d6ded52c3a927b6558984d22efe0a5cf9e59cd8c/0005-Boost.S11n-include-missing-algorithm.patch&&  patch -p2 -i 6bb71fdd.diff&&  patch -p2 -i e4bde20f.diff&&  patch -p1 -i 0005-Boost.S11n-include-missing-algorithm.patch&&  echo "using clang;  " >> tools/build/v2/user-config.jam&&  ./bootstrap.sh --with-toolset=clang --prefix={local_dir}  --with-libraries=""" + boostLibs + """ &&  ./b2  -d 2 toolset=clang -j {num_cores} install""".format(local_dir=shellquote(i.local_dir).replace(' ', '\ '), num_cores=self.num_cores())
         elif self.CXX == "g++-4.8":
             if isMac():
-                cmd = """echo "using gcc : 4.8 : g++-4.8 ; " >> tools/build/v2/user-config.jam && ./bootstrap.sh --prefix={local_dir} --with-libraries=date_time,filesystem,iostreams,math,program_options,random,regex,serialization,signals,system,test,thread,log && ./b2 -d 2 toolset=darwin-4.8 -j {num_cores} install && install_name_tool -change libboost_system.dylib {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_thread.dylib&&  install_name_tool -change libboost_system.dylib {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_filesystem.dylib""".format(local_dir=shellquote(i.local_dir).replace(' ', '\ '), num_cores=self.num_cores())
+                cmd = """echo "using gcc : 4.8 : g++-4.8 ; " >> tools/build/v2/user-config.jam && ./bootstrap.sh --prefix={local_dir} --with-libraries=""" + boostLibs + """ && ./b2 -d 2 toolset=darwin-4.8 -j {num_cores} install && install_name_tool -change libboost_system.dylib {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_thread.dylib&&  install_name_tool -change libboost_system.dylib {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_filesystem.dylib""".format(local_dir=shellquote(i.local_dir).replace(' ', '\ '), num_cores=self.num_cores())
             else:
-                cmd = """./bootstrap.sh --with-toolset=gcc-4.8 --prefix={local_dir} --with-libraries=date_time,filesystem,iostreams,math,program_options,random,regex,serialization,signals,system,test,thread,log  && ./b2 -d 2 toolset=gcc-4.8 -j {num_cores} install""".format(local_dir=shellquote(i.local_dir).replace(' ', '\ '), num_cores=self.num_cores())
+                cmd = """./bootstrap.sh --with-toolset=gcc-4.8 --prefix={local_dir} --with-libraries=""" + boostLibs + """  && ./b2 -d 2 toolset=gcc-4.8 -j {num_cores} install""".format(local_dir=shellquote(i.local_dir).replace(' ', '\ '), num_cores=self.num_cores())
         elif self.CXX == "g++-4.9":
             if isMac():
-                cmd = """echo "using gcc : 4.9 : g++-4.9 ; " >> tools/build/v2/user-config.jam && ./bootstrap.sh --prefix={local_dir} --with-libraries=date_time,filesystem,iostreams,math,program_options,random,regex,serialization,signals,system,test,thread,log && ./b2 -d 2 toolset=darwin-4.9 -j {num_cores} install && install_name_tool -change libboost_system.dylib {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_thread.dylib&&  install_name_tool -change libboost_system.dylib {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_filesystem.dylib""".format(local_dir=shellquote(i.local_dir).replace(' ', '\ '), num_cores=self.num_cores())
+                cmd = """echo "using gcc : 4.9 : g++-4.9 ; " >> tools/build/v2/user-config.jam && ./bootstrap.sh --prefix={local_dir} --with-libraries=""" + boostLibs + """ && ./b2 -d 2 toolset=darwin-4.9 -j {num_cores} install && install_name_tool -change libboost_system.dylib {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_thread.dylib&&  install_name_tool -change libboost_system.dylib {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_filesystem.dylib""".format(local_dir=shellquote(i.local_dir).replace(' ', '\ '), num_cores=self.num_cores())
             else:
-                cmd = """./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=date_time,filesystem,iostreams,math,program_options,random,regex,serialization,signals,system,test,thread,log  && ./b2 -d 2 -j {num_cores} install""".format(local_dir=shellquote(i.local_dir).replace(' ', '\ '), num_cores=self.num_cores())
+                cmd = """./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """  && ./b2 -d 2 -j {num_cores} install""".format(local_dir=shellquote(i.local_dir).replace(' ', '\ '), num_cores=self.num_cores())
         elif self.CXX == "g++":
             if isMac():
-                cmd = """echo "using gcc : 4.9 : g++ ; " >> tools/build/v2/user-config.jam && ./bootstrap.sh --prefix={local_dir} --with-libraries=date_time,filesystem,iostreams,math,program_options,random,regex,serialization,signals,system,test,thread,log && ./b2 -d 2 toolset=darwin-4.9 -j {num_cores} install && install_name_tool -change libboost_system.dylib {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_thread.dylib&&  install_name_tool -change libboost_system.dylib {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_filesystem.dylib""".format(local_dir=shellquote(i.local_dir).replace(' ', '\ '), num_cores=self.num_cores())
+                cmd = """echo "using gcc : 4.9 : g++ ; " >> tools/build/v2/user-config.jam && ./bootstrap.sh --prefix={local_dir} --with-libraries=""" + boostLibs + """ && ./b2 -d 2 toolset=darwin-4.9 -j {num_cores} install && install_name_tool -change libboost_system.dylib {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_thread.dylib&&  install_name_tool -change libboost_system.dylib {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_filesystem.dylib""".format(local_dir=shellquote(i.local_dir).replace(' ', '\ '), num_cores=self.num_cores())
             else:
-                cmd = """./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=date_time,filesystem,iostreams,math,program_options,random,regex,serialization,signals,system,test,thread,log  && ./b2 cxxflags=\"-std=clib\" -d 2 toolset=gcc -j {num_cores} install""".format(local_dir=shellquote(i.local_dir).replace(' ', '\ '), num_cores=self.num_cores())
+                cmd = """./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """  && ./b2 cxxflags=\"-std=clib\" -d 2 toolset=gcc -j {num_cores} install""".format(local_dir=shellquote(i.local_dir).replace(' ', '\ '), num_cores=self.num_cores())
         cmd = " ".join(cmd.split())
         self.__build(i, cmd)
 
