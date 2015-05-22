@@ -27,6 +27,16 @@ ifeq ($(USE_SEQSERVER),1)
 			-lseqServer
 endif
 
+#njhRInside
+ifeq ($(USE_NJHRINSIDE),1)
+	COMLIBS += -isystem$(LOCAL_PATH)/njhRInside/include
+	USE_R=1
+	USE_CPPITERTOOLS=1
+	LD_FLAGS += -Wl,-rpath,$(LOCAL_PATH)/njhRInside/lib \
+			-L$(LOCAL_PATH)/njhRInside/lib  \
+			-lnjhRInside
+endif
+
 #SeekDeep
 ifeq ($(USE_SEEKDEEP),1)
 	COMLIBS += -isystem$(LOCAL_PATH)/SeekDeep/include

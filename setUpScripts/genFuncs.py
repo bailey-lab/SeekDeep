@@ -9,7 +9,7 @@ class genHelper:
         availableLibs = ["CPPITERTOOLS","CPPPROGUTILS","ZI_LIB","BOOST","R","BAMTOOLS","CPPCMS","MATHGL","ARMADILLO",
                          "MLPACK","LIBLINEAR","PEAR","CURL","GTKMM", "BIBSEQ", "BIBCPP", "SEEKDEEP", 
                          "BIBSEQDEV", "BIBCPPDEV", "SEEKDEEPDEV", "CATCH", "JSONCPP",
-                          "TWOBIT", "SEQSERVER", "PSTREAMS"]
+                          "TWOBIT", "SEQSERVER","NJHRINSIDE", "PSTREAMS"]
         neededLibs = map(lambda x:x.upper(), neededLibs)
         """@todo: Make some of these default to an envirnment CC and CXX and maybe even CXXFLAGS as well 
             @todo: Make availableLibs a more universal constant"""

@@ -2,7 +2,7 @@
 
 import os, glob, sys
 
-def fixHeader(fnp,namepsace):
+def fixHeader(fnp,namespace):
     q = open(fnp).read()
     with open(fnp, "w") as f:
         dump = False
@@ -32,7 +32,7 @@ def fixHeader(fnp,namepsace):
         if opened and not closed:
             f.write("\n} // namespace " + namespace + "\n")
 
-def fixCPP(fnp, namepsace):
+def fixCPP(fnp, namespace):
     q = open(fnp).read()
     with open(fnp, "w") as f:
         dump = False
@@ -63,7 +63,7 @@ def checkN(fnp):
         print fnp, "bad count", c
         raise Exception(fnp)
     
-def namepsaceSrcTree(sourceFolder):
+def namepsaceSrcTree(sourceFolder,namespace):
     for root, dirs, files in os.walk(sourceFolder):
         for fn in files:
             if fn == "main.cpp":
@@ -71,9 +71,16 @@ def namepsaceSrcTree(sourceFolder):
             fnp = os.path.join(root, fn)
             fnp = os.path.abspath(fnp)
             if fnp.endswith(".h") or fnp.endswith(".hpp"):
-                fixHeader(fnp)
+                fixHeader(fnp, namespace)
             elif fnp.endswith(".cpp"):
-                fixCPP(fnp)
+                fixCPP(fnp, namespace)
             else:
                 continue
             checkN(fnp)
+            
+if __name__ == "__main__":
+    if(len(sys.argv) < 3):
+        print "usage: " + "./namespace.py src namespace"
+    else:
+        namepsaceSrcTree(sys.argv[1],sys.argv[2])
+    

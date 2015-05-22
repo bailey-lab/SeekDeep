@@ -9,9 +9,9 @@ from color_text import ColorText as CT
 class Utils:
     @staticmethod
     def run_in_dir(cmd, d):
-        print CT.boldBlack("here")
+        #print CT.boldBlack("here")
         cmd = "cd " + Utils.shellquote(d) + " && " + cmd + " && cd -"
-        print CT.boldBlack("newcmd")
+        #print CT.boldBlack("newcmd")
         print CT.boldGreen(cmd)
         Utils.run(cmd)
 
