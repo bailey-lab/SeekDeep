@@ -75,7 +75,7 @@ ifeq ($(USE_BIBSEQDEV),1)
 	USE_BIBCPPDEV=1
 	USE_ARMADILLO=1
 	USE_BAMTOOLS=1
-	USE_R=1
+	#USE_R=1
 	USE_CURL=1
 	LD_FLAGS += -Wl,-rpath,$(LOCAL_PATH)/bibseqDev/lib \
 			-L$(LOCAL_PATH)/bibseqDev/lib  \

@@ -222,12 +222,17 @@ class Setup:
 
         if "clang" in self.CXX:
             self.args.clang = True
+        if self.args.forceUpdate:
+            for set in self.setUpsNeeded:
+                if not set in self.setUps.keys():
+                    print CT.boldBlack( "Unrecognized option ") + CT.boldRed(set)
+                else:
+                    self.rmDirsForLib(set)
+                        
         for set in self.setUpsNeeded:
             if not set in self.setUps.keys():
                 print CT.boldBlack( "Unrecognized option ") + CT.boldRed(set)
             else:
-                if self.args.forceUpdate:
-                    self.rmDirsForLib(set)
                 self.__setup(set, self.setUps[set])
 
         for p in self.installed:
