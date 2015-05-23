@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 
 import shutil, os, argparse, sys, stat
-from setUpScripts.utils import Utils
-from setUpScripts.genFuncs import genHelper
-
+sys.path.append("scripts/pyUtils")
+sys.path.append("scripts/setUpScripts")
+from utils import Utils
+from genFuncs import genHelper
 def main():
     name = "SeekDeep"
     libs = "bibseq"
