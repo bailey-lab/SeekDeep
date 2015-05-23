@@ -3,10 +3,12 @@
 # by purcaro@gmail.com
 
 import subprocess, sys, os, argparse
-from setUpScripts.utils import Utils
-from setUpScripts.genFuncs import genHelper 
 from collections import namedtuple
-from setUpScripts.color_text import ColorText as CT
+sys.path.append("scripts/pyUtils")
+sys.path.append("scripts/setUpScripts")
+from utils import Utils
+from genFuncs import genHelper 
+from color_text import ColorText as CT
 
 
 BuildPaths = namedtuple("BuildPaths", 'url build_dir build_sub_dir local_dir')
