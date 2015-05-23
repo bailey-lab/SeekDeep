@@ -38,11 +38,11 @@ COMMON = $(CXXFLAGS) $(CXXOPT) $(COMLIBS)
 ############ main
 .PHONY: all
 all: do_preReqs $(OBJ_DIR) $(BIN) 
-	setUpScripts/fixDyLinking_mac.sh bin $(EXT_PATH)
+	scripts/setUpScripts/fixDyLinking_mac.sh bin $(EXT_PATH)
 	
 .PHONY: dev
 dev: do_preReqs $(OBJ_DIR) $(BIN) $(PROTO) $(BIOALG) $(EULER) $(QTTEST) 
-	setUpScripts/fixDyLinking_mac.sh bin $(EXT_PATH)	
+	scripts/setUpScripts/fixDyLinking_mac.sh bin $(EXT_PATH)	
 
 $(OBJ_DIR):
 	mkdir -p $(OBJ_DIR)
@@ -60,7 +60,7 @@ $(BIN): $(OBJ)
 ############ remove the objects that were dependant the changed headers 
 .PHONY: do_script
 do_script:
-	setUpScripts/rmNeedToRecompile.py -obj $(OBJ_DIR) -src src/
+	scripts/setUpScripts/rmNeedToRecompile.py -obj $(OBJ_DIR) -src src/
 
 prerequisites: do_script
 
@@ -72,7 +72,7 @@ do_preReqs: prerequisites
 .PHONY: sharedLibrary
 sharedLibrary: $(OBJ_DIR) $(SOLIB)
 ifeq ($(UNAME_S), Darwin)
-	setUpScripts/fixDyLinking_mac.sh lib $(EXT_PATH)
+	scripts/setUpScripts/fixDyLinking_mac.sh lib $(EXT_PATH)
 endif
 
 $(SOLIB): $(OBJNOMAIN)
@@ -81,7 +81,7 @@ $(SOLIB): $(OBJNOMAIN)
 ############ dylibLibrary
 .PHONY: dylibLibrary
 dylibLibrary: $(OBJ_DIR) $(DYLIB)
-	setUpScripts/fixDyLinking_mac.sh lib $(EXT_PATH)
+	scripts/setUpScripts/fixDyLinking_mac.sh lib $(EXT_PATH)
 $(DYLIB): $(OBJNOMAIN)
 	$(CXX) $(CXXFLAGS) $(CXXOPT) -dynamiclib -o $@ $^ $(LD_FLAGS) 
 
@@ -97,8 +97,8 @@ clean:
 .PHONY: install
 install: $(INSTALL_DIR) moveHeaders $(OBJ_DIR) $(INSTALL_DIR)/lib/$(LIBNAME).so $(INSTALL_DIR)/lib/$(LIBNAME).dylib $(INSTALL_DIR)/bin/$(CXXOUTNAME) 
 ifeq ($(UNAME_S), Darwin)
-	setUpScripts/fixDyLinking_mac.sh $(INSTALL_DIR)/lib/ $(EXT_PATH)
-	setUpScripts/fixDyLinking_mac.sh $(INSTALL_DIR)/bin/ $(EXT_PATH)
+	scripts/setUpScripts/fixDyLinking_mac.sh $(INSTALL_DIR)/lib/ $(EXT_PATH)
+	scripts/setUpScripts/fixDyLinking_mac.sh $(INSTALL_DIR)/bin/ $(EXT_PATH)
 endif
 
 $(INSTALL_DIR):
@@ -122,11 +122,11 @@ $(INSTALL_DIR)/bin/$(CXXOUTNAME):$(OBJ)
 
 .PHONY moveHeaders:
 moveHeaders: $(INSTALL_DIR)
-	setUpScripts/installHeaders.py -src src/ -dest $(INSTALL_DIR)/include/ -rmDir
+	scripts/setUpScripts/installHeaders.py -src src/ -dest $(INSTALL_DIR)/include/ -rmDir
 	
 .PHONY unitTest:
 unitTest: 
-	setUpScripts/runUnitTest.sh $(COMPFILE) $(NCORETEST)
+	scripts/setUpScripts/runUnitTest.sh $(COMPFILE) $(NCORETEST)
 	
 	
 

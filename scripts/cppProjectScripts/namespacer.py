@@ -2,6 +2,9 @@
 
 import os, glob, sys
 
+
+'''@todo not yet functioning'''
+
 def fixHeader(fnp,namespace):
     q = open(fnp).read()
     with open(fnp, "w") as f:

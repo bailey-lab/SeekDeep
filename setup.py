@@ -157,7 +157,7 @@ class Paths():
     
     def __seqserver(self):
         url = "https://github.com/nickjhathaway/seqServer.git"
-        name = "seqserver"
+        name = "seqServer"
         return self.__package_dirs(url, name)
     
     def __njhRInside(self):

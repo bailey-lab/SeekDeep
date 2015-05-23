@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import fnmatch, subprocess, sys, os, argparse, re, copy
-
+sys.path.append(os.path.join(os.path.dirname(os.path.dirname(__file__)), "pyUtils"))
 from headInGraph import fileCollection
 from headInGraph import fileNode
 from headInGraph import headInGraph

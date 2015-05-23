@@ -28,7 +28,7 @@ class genHelper:
             f.write("CXXDEBUG = -g -gstabs+ \n")
             f.write("INSTALL_DIR={INSTALL_LOCATION}\n".format(INSTALL_LOCATION = os.path.join(installDirLoc,installDirName)))
             f.write("EXT_PATH=$(realpath {EXTERNAL})\n".format(EXTERNAL = externalDirLoc))
-            f.write("SCRIPTS_DIR=$(realpath scripts)\n")
+            #f.write("SCRIPTS_DIR=$(realpath scripts)\n")
             f.write("\n")
             for lib in availableLibs:
                 if lib in neededLibs:
@@ -57,3 +57,40 @@ class genHelper:
         else:
             defaultCXX = args.CXX[0]
         return defaultCXX
+    
+    @staticmethod
+    def parseNjhConfigureArgs():
+        parser = argparse.ArgumentParser()
+        parser.add_argument('-prefix', type=str, nargs=1)
+        parser.add_argument('-externalLibDir', type=str, nargs=1)
+        parser.add_argument('-CC', type=str, nargs=1)
+        parser.add_argument('-CXX', type=str, nargs=1)
+        return parser.parse_args()
+    
+    @staticmethod
+    def mkConfigCmd(name,libs, argv):
+        cmd = "./scripts/setUpScripts/njhConfigure.py -name {name} -libs {libs}".format(name=name, libs=libs)
+        if len(sys.argv) > 1:
+            cmd += " " + " ".join(sys.argv[1:])
+        return cmd
+
+
+    @staticmethod
+    def mkConfigFileStr(name, libs):
+        ret = """#!/usr/bin/env python
+import shutil, os, argparse, sys, stat
+from scripts.pyUtils.utils import Utils
+from scripts.setUpScripts.genFuncs import genHelper
+
+def main():
+    name = "{name}"
+    libs = "{libs}"
+    args = genHelper.parseNjhConfigureArgs()
+    cmd = genHelper.mkConfigCmd(name, libs, sys.argv)
+    Utils.run(cmd)
+    
+main()
+""".format(name = name, libs = libs)
+        return ret
+    
+    

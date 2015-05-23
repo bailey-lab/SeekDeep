@@ -88,6 +88,7 @@ ifeq ($(USE_BIBCPP),1)
 	COMLIBS += -isystem$(LOCAL_PATH)/bibcpp/include
 	USE_JSONCPP=1
 	USE_BOOST=1
+	LD_FLAGS += -lpthread
 	#currently no compiled components so no need for library flags
 	#uncomment bellow in the future if there parts of the package need to be compiled
 	#LD_FLAGS += -Wl,-rpath,$(LOCAL_PATH)/bibcpp/lib \
@@ -100,6 +101,7 @@ ifeq ($(USE_BIBCPPDEV),1)
 	COMLIBS += -isystem$(LOCAL_PATH)/bibcppDev/include
 	USE_JSONCPP=1
 	USE_BOOST=1
+	LD_FLAGS += -lpthread
 	#currently no compiled components so no need for library flags
 	#uncomment bellow in the future if there parts of the package need to be compiled
 	#LD_FLAGS += -Wl,-rpath,$(LOCAL_PATH)/bibcppDev/lib \
@@ -124,8 +126,9 @@ ifeq ($(USE_BOOST),1)
 	COMLIBS += -isystem$(LOCAL_PATH)/boost/include
 	LD_FLAGS +=  -Wl,-rpath,$(LOCAL_PATH)/boost/lib \
 			-L$(LOCAL_PATH)/boost/lib  \
-			-lpthread -lboost_program_options -lboost_system -lboost_thread \
-			-lboost_filesystem -lboost_iostreams -lboost_regex -lboost_serialization
+			-lboost_system -lboost_filesystem -lboost_iostreams
+			#-lpthread -lboost_program_options -lboost_system -lboost_thread \
+			#-lboost_filesystem -lboost_iostreams -lboost_regex -lboost_serialization
 endif
 
 #cppcms

@@ -25,7 +25,7 @@ def copySetUp(cwDir, distDir, overWrite=False):
             exit(1)
     else:
         shutil.copy(os.path.join(cwDir, "setup.py"), os.path.join(distDir, "setup.py"))
-    copyDir(os.path.join(cwDir + "setUpScripts"), os.path.join(distDir,"setUpScripts"), overWrite)
+    copyDir(os.path.join(cwDir + "scripts"), os.path.join(distDir,"scripts"), overWrite)
     
 
 def parse_args():

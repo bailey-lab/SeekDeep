@@ -3,6 +3,7 @@
 from __future__ import print_function
 import sys, os, argparse
 from sets import Set
+sys.path.append(os.path.join(os.path.dirname(os.path.dirname(__file__)), "pyUtils"))
 from color_text import ColorText as CT
 
 def warning(*objs):
