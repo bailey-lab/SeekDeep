@@ -55,6 +55,8 @@ class Paths():
         self.paths["seekdeepdev"] = self.__SeekDeepDev()
         self.paths["seqserver"] = self.__seqserver()
         self.paths["njhrinside"] = self.__njhRInside()
+        self.paths["dlib"] = self.__dlib()
+        self.paths["libsvm"] = self.__libsvm()
         self.paths["catch"] = self.__catch()
 
     def path(self, name):
@@ -126,7 +128,7 @@ class Paths():
         return self.__package_dirs(url, "mlpack")
 
     def __liblinear(self):
-        url = "http://www.csie.ntu.edu.tw/~cjlin/liblinear/liblinear-1.94.tar.gz"
+        url = "http://www.csie.ntu.edu.tw/~cjlin/liblinear/oldfiles/liblinear-1.94.tar.gz"
         return self.__package_dirs(url, "liblinear")
 
     def __cppcms(self):
@@ -136,6 +138,14 @@ class Paths():
     def __mathgl(self):
         url = "http://freefr.dl.sourceforge.net/project/mathgl/mathgl/mathgl%202.2.1/mathgl-2.2.1.tar.gz"
         return self.__package_dirs(url, "mathgl")
+    
+    def __dlib(self):
+        url = "http://freefr.dl.sourceforge.net/project/dclib/dlib/v18.7/dlib-18.7.tar.bz2"
+        return self.__package_dirs(url, "dlib")
+    
+    def __libsvm(self):
+        url = "http://www.csie.ntu.edu.tw/~cjlin/libsvm/oldfiles/libsvm-3.18.tar.gz"
+        return self.__package_dirs(url, "libsvm")
 
     def __bibseq(self):
         url = "https://github.com/bailey-lab/bibseq.git"
@@ -196,32 +206,25 @@ class Paths():
 
 class Setup:
     def __init__(self, args):
-        self.extDirLoc = ""
+        self.extDirLoc = "" # the location where the libraries will be installed
         #if no compile file set up and assume external is next to setup.py
         if not args.compfile:
             self.extDirLoc = os.path.abspath(os.path.join(os.path.dirname(__file__), "external"))
         else:
             self.extDirLoc = os.path.abspath(self.parseForExtPath(args.compfile[0]))
-        self.paths = Paths(self.extDirLoc)
-        self.args = args
-        self.setUps = {}
-        self.setUpsNeeded = []
-        self.installed = []
-        self.failedInstall = []
-        self.CC = ""
-        self.CXX = ""
-        self.externalLoc = ""
+        self.paths = Paths(self.extDirLoc) # path object to hold the paths for install
+        self.args = args # command line arguments parsed by argument parser
+        self.setUps = {} # all available set ups
+        self.setUpsNeeded = [] # the setups that need to be done
+        self.installed = [] # the setups that able to install
+        self.failedInstall = [] # the setups that failed
+        self.CC = "" # the c compilier being used
+        self.CXX = "" # the c++ compilier being used
+        self.njhProjects = ["bibcpp", "bibcppdev", "bibseq", "bibseqdev", "seekdeep", "seekdeepdev", "njhrinside", "seqserver"]
         self.__initSetUpFuncs()
         self.__processArgs()
         
     def setup(self):
-        # if no compfile need to determine compiler, will default to env CC and CXX
-        if not self.args.compfile:
-            self.CC = genHelper.determineCC(self.args)
-            self.CXX = genHelper.determineCXX(self.args)
-
-        if "clang" in self.CXX:
-            self.args.clang = True
         if self.args.forceUpdate:
             for set in self.setUpsNeeded:
                 if not set in self.setUps.keys():
@@ -264,7 +267,9 @@ class Setup:
                        "seqserver": self.seqserver,
                        "njhrinside": self.njhRInside,
                        "jsoncpp": self.jsoncpp,
-                       "pstreams": self.pstreams
+                       "pstreams": self.pstreams,
+                       "dlib": self.dlib,
+                       "libsvm": self.libsvm
                        }
     def printAvailableSetUps(self):
         self.__initSetUpFuncs()
@@ -282,6 +287,12 @@ class Setup:
         if self.args.compfile:
             self.parseSetUpNeeded(self.args.compfile[0])
             self.parserForCompilers(self.args.compfile[0])
+        # if no compfile need to determine compiler, will default to env CC and CXX
+        else:
+            self.CC = genHelper.determineCC(self.args)
+            self.CXX = genHelper.determineCXX(self.args)
+        if "clang" in self.CXX:
+            self.args.clang = True
 
     def parseForExtPath(self, fn):
         args = self.parseCompFile(fn)
@@ -372,12 +383,16 @@ make COMPFILE=compfile.mk -j {num_cores}
 
 
     def num_cores(self):
-        c = Utils.num_cores()
-        if c > 8:
-            return c/2
-        if 1 == c:
-            return 1
-        return c - 1
+        retCores = Utils.num_cores()
+        if self.args.numCores:
+            if not self.args.numCores > retCores:
+                retCores = self.args.numCores
+        else:
+            if retCores > 8:
+                retCores  = retCores/2
+            if 1 != retCores:
+                retCores -= 1
+        return retCores
 
     def __build(self, i, cmd):
         print "\t Getting file..."
@@ -391,7 +406,7 @@ make COMPFILE=compfile.mk -j {num_cores}
             sys.exit(1)
 
 
-    def __buildNjhProject(self,i):
+    def __buildNjhProject(self,libPaths):
         cmd = """
         python ./configure.py -CC {CC} -CXX {CXX} -externalLibDir {external} -prefix {localTop} 
         && python ./setup.py -compfile compfile.mk 
@@ -399,9 +414,9 @@ make COMPFILE=compfile.mk -j {num_cores}
                                                           num_cores=self.num_cores(), CC=self.CC, CXX=self.CXX,
                                                            external=self.extDirLoc)
         cmd = " ".join(cmd.split())
-        self.__buildFromGit(i, cmd)
+        self.__buildFromGit(libPaths, cmd)
         
-    def __updateNjhProject(self,i):
+    def updateNjhProject(self,lib):
         cmd = """
         python ./configure.py -CC {CC} -CXX {CXX} -externalLibDir {external} -prefix {localTop} 
         && python ./setup.py -compfile compfile.mk
@@ -410,8 +425,14 @@ make COMPFILE=compfile.mk -j {num_cores}
                                                           num_cores=self.num_cores(), CC=self.CC, CXX=self.CXX,
                                                            external=self.extDirLoc)
         cmd = " ".join(cmd.split())
-        self.__buildFromGit(i, cmd)
+        libPaths = self.__path(lib.lower())
+        self.__buildFromGit(libPaths, cmd)
     
+    def updateNjhProjects(self, libs):
+        for l in libs:
+            libLower = l.lower()
+            if libLower in self.njhProjects:
+                self.updateNjhProject(libLower)
     
     def __buildFromGit(self, i, cmd):
         if os.path.exists(i.build_dir):
@@ -476,9 +497,9 @@ make COMPFILE=compfile.mk -j {num_cores}
              if isMac():
                 cmd = """./bootstrap.sh --with-toolset=clang --prefix={local_dir} --with-libraries=""" + boostLibs + """
                   &&  ./b2  -d 2 toolset=clang cxxflags=\"-stdlib=libc++ -std=c++14\" linkflags=\"-stdlib=libc++\" -j {num_cores} install 
-                  &&  install_name_tool -change libboost_system.dylib {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_thread.dylib
                   &&  install_name_tool -change libboost_system.dylib {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_filesystem.dylib
                   """
+                  #&&  install_name_tool -change libboost_system.dylib {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_thread.dylib
                 #cmd = """wget https://github.com/boostorg/atomic/commit/6bb71fdd.diff && wget https://github.com/boostorg/atomic/commit/e4bde20f.diff&&  wget https://gist.githubusercontent.com/philacs/375303205d5f8918e700/raw/d6ded52c3a927b6558984d22efe0a5cf9e59cd8c/0005-Boost.S11n-include-missing-algorithm.patch&&  patch -p2 -i 6bb71fdd.diff&&  patch -p2 -i e4bde20f.diff&&  patch -p1 -i 0005-Boost.S11n-include-missing-algorithm.patch&&  echo "using clang;  " >> tools/build/v2/user-config.jam&&  ./bootstrap.sh --with-toolset=clang --prefix={local_dir} --with-libraries=""" + boostLibs + """  &&  ./b2  -d 2 toolset=clang cxxflags=\"-stdlib=libc++\" linkflags=\"-stdlib=libc++\" -j {num_cores} install &&  install_name_tool -change libboost_system.dylib {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_thread.dylib&&  install_name_tool -change libboost_system.dylib {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_filesystem.dylib""".format(local_dir=shellquote(i.local_dir).replace(' ', '\ '), num_cores=self.num_cores())
              else:
                 cmd = """./bootstrap.sh --with-toolset=clang --prefix={local_dir}  --with-libraries=""" + boostLibs + """ &&  ./b2  -d 2 toolset=clang cxxflags=\"-std=c++14\" -j {num_cores} install""".format(local_dir=shellquote(i.local_dir).replace(' ', '\ '), num_cores=self.num_cores())
@@ -597,9 +618,16 @@ make COMPFILE=compfile.mk -j {num_cores}
 
     def liblinear(self):
         i = self.__path('liblinear')
-        cmd = "make && mkdir -p {local_dir} && cp predict train {local_dir}".format(
-            local_dir=shellquote(i.local_dir))
-        cmd = " ".join(cmd.split())
+        cmd = """
+perl -p -i -e 's/if\(check_probability_model/if\(1 || check_probability_model/' linear.cpp &&
+make &&
+mkdir -p {local_dir} &&
+cp predict train {local_dir} &&
+make lib &&
+cp linear.h liblinear.so.1 README {local_dir} &&
+ln -s {local_dir}/liblinear.so.1 {local_dir}/liblinear.so
+""".format(local_dir=shellquote(i.local_dir))
+        cmd = " ".join(cmd.split("\n"))
         self.__build(i, cmd)
 
     def mlpack(self):
@@ -646,6 +674,21 @@ make COMPFILE=compfile.mk -j {num_cores}
         i = self.__path('cppitertools')
         cmd = "cd {d} && git checkout d4f79321842dd584f799a7d51d3e066a2cdb7cac".format(d=shellquote(i.local_dir))
         Utils.run(cmd)
+    
+    def dlib(self):
+        i = self.__path('dlib')
+        cmd = """
+mkdir {local_dir} &&
+cp -a * {local_dir}/
+""".format(local_dir=shellquote(i.local_dir), num_cores=self.num_cores())
+        cmd = " ".join(cmd.split('\n'))
+        self.__build(i, cmd)
+        
+    def libsvm(self):
+        i = self.__path('libsvm')
+        cmd = "make && make lib && mkdir -p {local_dir} && cp -a * {local_dir}".format(
+            local_dir=shellquote(i.local_dir))
+        self.__build(i, cmd)
 
     def cppprogutils(self):
         self.__git(self.__path('cppprogutils'))
@@ -671,12 +714,13 @@ def parse_args():
     parser.add_argument('-libs', type=str, help="The libraries to install")
     parser.add_argument('-printLibs', action = "store_true", help="Print Available Libs")
     parser.add_argument('-forceUpdate', action = "store_true", help="Remove already installed libs and re-install")
+    parser.add_argument('-updateNjhProjects', type = str, help="Remove already installed libs and re-install")
     parser.add_argument('-CC', type=str, nargs=1)
     parser.add_argument('-CXX', type=str, nargs=1)
     parser.add_argument('-instRPackageName',type=str, nargs=1)
     parser.add_argument('-instRPackageSource',type=str, nargs=1)
     parser.add_argument('-addBashCompletion', dest = 'addBashCompletion', action = 'store_true')
-    
+    parser.add_argument('-numCores', type=str)
     return parser.parse_args()
 
 def main():
@@ -688,6 +732,9 @@ def main():
     if(args.instRPackageSource):
         s.installRPackageSource(args.instRPackageSource[0])
         return 0
+    if args.updateNjhProjects:
+        projectsSplit = args.updateNjhProjects.split(",")
+        s.updateNjhProjects(projectsSplit)
     if args.printLibs:
         s.printAvailableSetUps()
     elif args.addBashCompletion:
