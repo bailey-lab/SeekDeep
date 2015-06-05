@@ -102,13 +102,13 @@ def main():
         neededLibs = args.neededLibs[0].split(",")
     genHelper.generateCompfileFull(os.path.join(projectOut, "compfile.mk"), external, CC, CXX, outname, installName, prefix, neededLibs)
     with open(os.path.join(projectOut, "configure.py"), "w") as configFile:
-        configFile.write(genHelper.mkConfigFileStr(outname, neededLibs))
+        configFile.write(genHelper.mkConfigFileStr(outname, args.neededLibs))
     os.chmod(os.path.join(projectOut, "configure.py"), stat.S_IXGRP | stat.S_IXOTH | stat.S_IXUSR | stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH | stat.S_IWUSR)
     exFrom = os.path.abspath(os.path.dirname(__file__))
-    cpSetUpCmd = exFrom + "/copySetUpFiles.py -from " + exFrom +"/../ -to " + projectOut
+    cpSetUpCmd = exFrom + "/copySetUpFiles.py -from " + exFrom +"/../../ -to " + projectOut
     print CT.boldBlack(cpSetUpCmd)
     Utils.run(cpSetUpCmd)
-    cpMakefilesCmd = "cp " + exFrom + "/cppSetUpFiles/*akefile* " + projectOut
+    cpMakefilesCmd = "cp " + exFrom + "/../cppSetUpFiles/*akefile* " + projectOut
     print CT.boldBlack(cpMakefilesCmd)
     Utils.run(cpMakefilesCmd)
     

@@ -8,6 +8,31 @@ SRC = -I./src/
 COMLIBS += $(LOCALTOOLS) $(EXTTOOLS) $(SRC)
 
 
+
+#dlib
+ifeq ($(USE_DLIB),1)
+	COMLIBS += -isystem$(LOCAL_PATH)/dlib/
+	#LD_FLAGS += -Wl,-rpath,$(LOCAL_PATH)/dlib/lib \
+	#		-L$(LOCAL_PATH)/dlib/lib  \
+	#		-ldlib
+endif
+
+#libsvm
+ifeq ($(USE_LIBSVM),1)
+	COMLIBS += -isystem$(LOCAL_PATH)/libsvm/
+	#LD_FLAGS += -Wl,-rpath,$(LOCAL_PATH)/dlib/lib \
+	#		-L$(LOCAL_PATH)/dlib/lib  \
+	#		-ldlib
+endif
+
+#TwoBit
+ifeq ($(USE_TWOBIT),1)
+	COMLIBS += -isystem$(LOCAL_PATH)/TwoBit/include
+	LD_FLAGS += -Wl,-rpath,$(LOCAL_PATH)/TwoBit/lib \
+			-L$(LOCAL_PATH)/TwoBit/lib  \
+			-lTwoBit
+endif
+
 #TwoBit
 ifeq ($(USE_TWOBIT),1)
 	COMLIBS += -isystem$(LOCAL_PATH)/TwoBit/include

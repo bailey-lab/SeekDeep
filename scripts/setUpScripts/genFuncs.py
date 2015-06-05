@@ -69,7 +69,10 @@ class genHelper:
     
     @staticmethod
     def mkConfigCmd(name,libs, argv):
-        cmd = "./scripts/setUpScripts/njhConfigure.py -name {name} -libs {libs}".format(name=name, libs=libs)
+        if libs == "":
+            cmd = "./scripts/setUpScripts/njhConfigure.py -name {name} ".format(name=name)
+        else:
+            cmd = "./scripts/setUpScripts/njhConfigure.py -name {name} -libs {libs}".format(name=name, libs=libs)
         if len(sys.argv) > 1:
             cmd += " " + " ".join(sys.argv[1:])
         return cmd
@@ -79,8 +82,10 @@ class genHelper:
     def mkConfigFileStr(name, libs):
         ret = """#!/usr/bin/env python
 import shutil, os, argparse, sys, stat
-from scripts.pyUtils.utils import Utils
-from scripts.setUpScripts.genFuncs import genHelper
+sys.path.append("scripts/pyUtils")
+sys.path.append("scripts/setUpScripts")
+from utils import Utils
+from genFuncs import genHelper
 
 def main():
     name = "{name}"
