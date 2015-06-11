@@ -11,7 +11,7 @@ Bioinformatic Tools for analyzing targeted amplicon sequencing developed by the 
 
 git clone https://github.com/bailey-lab/SeekDeep.git   
 cd SeekDeep  
-git checkout 1
+git checkout 1  
 ./configure.py  
 ./setup.py -compfile compfile.mk  
 make   
