@@ -622,8 +622,7 @@ make COMPFILE=compfile.mk -j {num_cores}
 
     def bibcpp(self):
         i = self.__path('bibcpp')
-        version = 1
-        self.__buildNjhProjectTag(i, version)
+        self.__buildNjhProject(i)
     
     def bibcppDev(self):
         i = self.__path('bibcppdev')
@@ -631,8 +630,7 @@ make COMPFILE=compfile.mk -j {num_cores}
 
     def bibseq(self):
         i = self.__path('bibseq')
-        version = 1
-        self.__buildNjhProjectTag(i, version)
+        self.__buildNjhProject(i)
         
     def bibseqDev(self):
         i = self.__path('bibseqdev')
