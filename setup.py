@@ -416,6 +416,16 @@ make COMPFILE=compfile.mk -j {num_cores}
         cmd = " ".join(cmd.split())
         self.__buildFromGit(libPaths, cmd)
         
+    def __buildNjhProjectTag(self,libPaths,tagName):
+        cmd = """
+        python ./configure.py -CC {CC} -CXX {CXX} -externalLibDir {external} -prefix {localTop} 
+        && python ./setup.py -compfile compfile.mk 
+        && make -j {num_cores} && make install""".format(localTop=shellquote(self.paths.install_dir),
+                                                          num_cores=self.num_cores(), CC=self.CC, CXX=self.CXX,
+                                                           external=self.extDirLoc)
+        cmd = " ".join(cmd.split())
+        self.__buildFromGitTag(libPaths, cmd,tagName)
+        
     def updateNjhProject(self,lib):
         cmd = """
         python ./configure.py -CC {CC} -CXX {CXX} -externalLibDir {external} -prefix {localTop} 
@@ -457,7 +467,56 @@ make COMPFILE=compfile.mk -j {num_cores}
         except:
             Utils.rm_rf(i.local_dir)
             sys.exit(1)
+            
+    def __buildFromGitBranch(self, i, cmd, branchName):
+        if os.path.exists(i.build_dir):
+            print "pulling from {url}".format(url=i.url)
+            pCmd = "git pull"
+            try:
+                Utils.run_in_dir(pCmd, i.build_dir)
+            except:
+                print "failed to pull from {url}".format(url=i.url)
+                sys.exit(1)
+        else:
+            print "cloning from {url}".format(url=i.url)
+            cCmd = "git clone -b "+ branchName + " --single-branch {url} {d}".format(url=i.url, d=i.build_dir)
+            try:
+                print self.paths.ext_build
+                Utils.run_in_dir(cCmd, self.paths.ext_build)
+            except:
+                print "failed to clone from {url}".format(url=i.url)
+                sys.exit(1)
+        try:
+            Utils.run_in_dir(cmd, i.build_dir)
+        except:
+            Utils.rm_rf(i.local_dir)
+            sys.exit(1)
     
+    def __buildFromGitTag(self, i, cmd, tagName):
+        if os.path.exists(i.build_dir):
+            print "pulling from {url}".format(url=i.url)
+            pCmd = "git pull"
+            try:
+                Utils.run_in_dir(pCmd, i.build_dir)
+            except:
+                print "failed to pull from {url}".format(url=i.url)
+                sys.exit(1)
+        else:
+            print "cloning from {url}".format(url=i.url)
+            cCmd = "git clone {url} {d}".format(url=i.url, d=i.build_dir)
+            tagCmd = "git checkout {tag}".format(tag=tagName)
+            try:
+                print self.paths.ext_build
+                Utils.run_in_dir(cCmd, self.paths.ext_build)
+                Utils.run_in_dir(tagCmd, i.build_dir)
+            except:
+                print "failed to clone from {url}".format(url=i.url)
+                sys.exit(1)
+        try:
+            Utils.run_in_dir(cmd, i.build_dir)
+        except:
+            Utils.rm_rf(i.local_dir)
+            sys.exit(1)
     
     def __git(self, i):
         cmd = "git clone {url} {d}".format(url=i.url, d=shellquote(i.local_dir))
@@ -563,7 +622,7 @@ make COMPFILE=compfile.mk -j {num_cores}
 
     def bibcpp(self):
         i = self.__path('bibcpp')
-        self.__buildNjhProject(i)
+        self.__buildNjhProjectTag(i)
     
     def bibcppDev(self):
         i = self.__path('bibcppdev')
