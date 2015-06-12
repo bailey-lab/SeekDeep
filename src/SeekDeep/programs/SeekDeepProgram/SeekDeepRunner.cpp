@@ -950,7 +950,7 @@ int SeekDeepRunner::extractor(MapStrStr inputCommands) {
   }
 
   // create aligner for primer identification
-  auto scoreMatrixMap = substituteMatrix::createDegenScoreMatrix(1,-1);
+  auto scoreMatrixMap = substituteMatrix::createDegenScoreMatrix(2,-2);
   gapScoringParameters gapPars(setUp.gapInfo_);
   substituteMatrix scoreMatrix(scoreMatrixMap);
   kmerMaps emptyMaps;

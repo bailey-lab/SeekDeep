@@ -1,4 +1,4 @@
-_bibSeqTools()
+_bibCppTools()
 {
     local cur prev opts base
     COMPREPLY=()
@@ -8,14 +8,14 @@ _bibSeqTools()
     	opts=$(for x in `${COMP_WORDS[0]} | grep ")" | sed "s/.*) //g"`; do echo ${x} ; done )
 		COMPREPLY=($(compgen -W "${opts}" -- ${cur}))
 	elif [[ ${cur} == -* ]]; then
-		flagopts=$(${COMP_WORDS[0]} ${COMP_WORDS[1]} -getFlags)
-		newopts=$(echo $flagopts | sed "s/,/ /g")
+		newopts=$(${COMP_WORDS[0]} ${COMP_WORDS[1]} -getFlags | column -t | cut -f 1 -d " " | cut -f 1 -d ,)
 		COMPREPLY=( $(compgen -W "${newopts}" -- ${cur}) )
     else
     	_filedir
     fi
    return 0
 }
+
 complete -F _bibSeqTools SeekDeep
 
 
