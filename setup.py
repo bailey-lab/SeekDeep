@@ -436,6 +436,17 @@ make COMPFILE=compfile.mk -j {num_cores}
         cmd = " ".join(cmd.split())
         self.__buildFromGitBranch(libPaths, cmd,branchName)
         
+    
+    def __buildNjhProjectBranch(self,libPaths,branchName):
+        cmd = """
+        python ./configure.py -CC {CC} -CXX {CXX} -externalLibDir {external} -prefix {localTop} 
+        && python ./setup.py -compfile compfile.mk 
+        && make -j {num_cores} && make install""".format(localTop=shellquote(self.paths.install_dir),
+                                                          num_cores=self.num_cores(), CC=self.CC, CXX=self.CXX,
+                                                           external=self.extDirLoc)
+        cmd = " ".join(cmd.split())
+        self.__buildFromGitTag(libPaths, cmd,branchName)
+        
     def updateNjhProject(self,lib):
         cmd = """
         python ./configure.py -CC {CC} -CXX {CXX} -externalLibDir {external} -prefix {localTop} 
