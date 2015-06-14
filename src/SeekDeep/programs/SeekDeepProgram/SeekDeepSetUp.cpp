@@ -1,3 +1,23 @@
+//
+// SeekDeep - A library for analyzing amplicon sequence data
+// Copyright (C) 2012, 2015 Nicholas Hathaway <nicholas.hathaway@umassmed.edu>,
+// Jeffrey Bailey <Jeffrey.Bailey@umassmed.edu>
+//
+// This file is part of SeekDeep.
+//
+// SeekDeep is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// SeekDeep is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with SeekDeep.  If not, see <http://www.gnu.org/licenses/>.
+//
 #include "SeekDeepSetUp.hpp"
 #include <bibcpp/bashUtils.h>
 namespace bibseq {
@@ -688,13 +708,13 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(
     std::cout << cleanOut(tempOut.str(), width_, indent_);
     tempOut.str(std::string());
     tempOut << bib::bashCT::bold << "Output Files:"<< bib::bashCT::reset << std::endl;
-    tempOut << bib::bashCT::boldBlack("selectedClustersInfo.tab.txt") << ": This contains the final haplotype information and replicate comparison results, it is a very large table, consult the SeekDeep (http://bib2.umassmed.edu/~hathawan/SeekDeep.html) website for details on what each column means" << std::endl;
+    tempOut << bib::bashCT::boldBlack("selectedClustersInfo.tab.txt") << ": This contains the final haplotype information and replicate comparison results, it is a very large table, consult the SeekDeep (http://baileylab.umassmed.edu/SeekDeep) website for details on what each column means" << std::endl;
     tempOut << bib::bashCT::boldBlack("allClustersInfo.tab.txt") << ": This table contains information on the final clustering process before final filtering is done (removal of chimrias, frac cut off, etc" << std::endl;
     tempOut << bib::bashCT::boldBlack("dotFiles") << ": This contains .dot files for the final haplotypes that can be converted by graphviz to a pdf of a psuedo-minimum spanning tree of the differences in the final haplotypes (cmd: neato -T pdf -o [FILE.dot]" << std::endl;
     tempOut << bib::bashCT::boldBlack("final") << ": This contains the final consensus of the final haplotypes after final filtering has been done" << std::endl;
     tempOut << "If population clustering was done there will be a directly called population" << std::endl;
-    tempOut << bib::bashCT::boldBlack("population/populationCluster.tab.txt") << ": This contains information on final haplotypes across the population (number of samples it appears in, etc.) see SeekDeep website (http://bib2.umassmed.edu/~hathawan/SeekDeep.html) for detail on all columns " << std::endl;
-    tempOut << bib::bashCT::boldBlack("population/PopUID.fastq") << ": The consensus sequences of the final haplotypes in the population, the prefix name is determine by the -experimentName flag (default PopUID), haplotypes are sorted by the number of samples they appear in, suffic is _f[FRAC] where [FRAC] is the average fraction it appears at in the samples" << std::endl;
+    tempOut << bib::bashCT::boldBlack("population/populationCluster.tab.txt") << ": This contains information on final haplotypes across the population (number of samples it appears in, etc.) see SeekDeep website (http://baileylab.umassmed.edu/SeekDeep) for detail on all columns " << std::endl;
+    tempOut << bib::bashCT::boldBlack("population/PopUID.fastq") << ": The consensus sequences of the final haplotypes in the population, the prefix name is determine by the -experimentName flag (default PopUID), haplotypes are sorted by the number of samples they appear in, suffix is _f[FRAC] where [FRAC] is the average fraction it appears at in the samples" << std::endl;
     std::cout << cleanOut(tempOut.str(), width_, indent_);
     tempOut.str(std::string());
     exit(0);

@@ -1,3 +1,24 @@
+//
+// SeekDeep - A library for analyzing amplicon sequence data
+// Copyright (C) 2012, 2015 Nicholas Hathaway <nicholas.hathaway@umassmed.edu>,
+// Jeffrey Bailey <Jeffrey.Bailey@umassmed.edu>
+//
+// This file is part of SeekDeep.
+//
+// SeekDeep is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// SeekDeep is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with SeekDeep.  If not, see <http://www.gnu.org/licenses/>.
+//
+
 #include "SeekDeepRunner.hpp"
 #include <bibcpp.h>
 #include <njhRInside.h>
@@ -797,10 +818,12 @@ int SeekDeepRunner::extractor(MapStrStr inputCommands) {
   setUp.setUpExtractor(pars);
 
   uint32_t readsNotMatchedToBarcode = 0;
+  if(!pars.checkingQCheck){
+    std::cout << "Quality Window Length: " << pars.qualityWindowLength << "\n";
+    std::cout << "Quality Window Step: " << pars.qualityWindowStep << "\n";
+    std::cout << "Quality Window Threshold: " << pars.qualityWindowThres << "\n";
+  }
 
-  std::cout << "Quality Window Length: " << pars.qualityWindowLength << "\n";
-  std::cout << "Quality Window Step: " << pars.qualityWindowStep << "\n";
-  std::cout << "Quality Window Threshold: " << pars.qualityWindowThres << "\n";
   // run log
   setUp.startARunLog(setUp.directoryName_);
   // parameter file
@@ -1148,7 +1171,7 @@ int SeekDeepRunner::extractor(MapStrStr inputCommands) {
     	if(read.seqBase_.on_){
     		stats.increaseCounts(fullname, read.seqBase_.name_, ExtractionStator::extractCase::GOOD);
         if(pars.rename){
-        	std::string oldName = read.seqBase_.name_;
+        	std::string oldName = replaceString(read.seqBase_.name_, "_Comp", "");
         	read.seqBase_.name_ = fullname + "." + leftPadNumStr(goodCounts[fullname],counts[barcodeName].first + counts[barcodeName].second);
         	if(containsSubString(oldName, "_Comp")){
         		read.seqBase_.name_.append("_Comp");
@@ -1278,7 +1301,7 @@ int SeekDeepRunner::qluster(MapStrStr inputCommands) {
   	adjustHomopolyerRuns = true;
   	useCompPerCutOff = true;
   }
-	setUp.setOption(compPerCutOff, "compPerCutOff", "Percentage of reads in one direction Cut Off");
+	setUp.setOption(compPerCutOff, "-compPerCutOff", "Percentage of reads in one direction Cut Off");
 	setUp.setOption(useCompPerCutOff, "-useCompPerCutOff",
 			"Throw out clusters that are made up reads of > "
 					+ estd::to_string(useCompPerCutOff * 100)
