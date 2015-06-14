@@ -35,6 +35,7 @@ install_name_tool -change libbooster.0.dylib $externalDir/local/cppcms/lib/libbo
 
 #armadillo
 install_name_tool -change libarmadillo.4.dylib $externalDir/local/armadillo/lib/libarmadillo.4.dylib $f
+install_name_tool -change libarmadillo.5.dylib $externalDir/local/armadillo/lib/libarmadillo.5.dylib $f
 
 #bamtools
 install_name_tool -change libbamtools.2.3.0.dylib $externalDir/local/bamtools/lib/bamtools/libbamtools.2.3.0.dylib $f

@@ -1,6 +1,6 @@
 //
 // SeekDeep - A library for analyzing amplicon sequence data
-// Copyright (C) 2012, 2014 Nicholas Hathaway <nicholas.hathaway@umassmed.edu>,
+// Copyright (C) 2012, 2015 Nicholas Hathaway <nicholas.hathaway@umassmed.edu>,
 // Jeffrey Bailey <Jeffrey.Bailey@umassmed.edu>
 //
 // This file is part of SeekDeep.
@@ -18,21 +18,23 @@
 // You should have received a copy of the GNU General Public License
 // along with SeekDeep.  If not, see <http://www.gnu.org/licenses/>.
 //
+//
+//  main.cpp
+//  SeekDeep
+//
+//  Created by Nicholas Hathaway on 8/11/13.
+//  Copyright (c) 2013 Nicholas Hathaway. All rights reserved.
+//
 
 
-#include "programs/SeekDeep.h"
+#include "SeekDeep.h"
 
 int main(int argc, char* argv[]) {
-	//std::cout << "Start " << std::endl;
-	try{
-  bibseq::SeekDeepRunner seqRunner;
-  if (argc > 1) {
-    return seqRunner.run(argc, argv);
-  }
-
-  seqRunner.listPrograms(std::cout);
-	}catch (std::exception & e) {
+	try {
+		bibseq::SeekDeepRunner seqRunner;
+		return seqRunner.run(argc, argv);
+	} catch (std::exception & e) {
 		std::cout << e.what() << std::endl;
 	}
-  return 0;
+	return 0;
 }
