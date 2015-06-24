@@ -645,8 +645,8 @@ make COMPFILE=compfile.mk -j {num_cores}
         i = self.__path('bibcpp')
         branch = "release/2"
         version = "2"
-        #self.__buildNjhProject(i)
-        self.__buildNjhProjectTag(i, version)
+        self.__buildNjhProject(i)
+        #self.__buildNjhProjectTag(i, version)
         #self.__buildNjhProjectBranch(i, branch)
     
     def bibcppDev(self):
@@ -657,8 +657,8 @@ make COMPFILE=compfile.mk -j {num_cores}
         i = self.__path('bibseq')
         branch = "release/2"
         version = "2"
-        #self.__buildNjhProject(i)
-        self.__buildNjhProjectTag(i, version)
+        self.__buildNjhProject(i)
+        #self.__buildNjhProjectTag(i, version)
         #self.__buildNjhProjectBranch(i, branch)
         
     def bibseqDev(self):
@@ -669,8 +669,8 @@ make COMPFILE=compfile.mk -j {num_cores}
         i = self.__path('seekdeep')
         branch = "release/2"
         version = "2"
-        #self.__buildNjhProject(i)
-        self.__buildNjhProjectTag(i, version)
+        self.__buildNjhProject(i)
+        #self.__buildNjhProjectTag(i, version)
         #self.__buildNjhProjectBranch(i, branch)
     
     def SeekDeepDev(self):
