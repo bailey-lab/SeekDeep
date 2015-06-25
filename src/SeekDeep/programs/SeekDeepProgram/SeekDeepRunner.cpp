@@ -22,19 +22,23 @@
 #include "SeekDeepRunner.hpp"
 #include <bibcpp.h>
 #include <njhRInside.h>
+#include "SeekDeep/programs/SeekDeepUtils.h"
+
 
 namespace bibseq {
 
 SeekDeepRunner::SeekDeepRunner()
-    : bib::progutils::programRunner({addFunc("extractor", extractor, false),
+    : bib::progutils::oneRing({addRing(SeekDeepUtilsRunner())},
+    								{addFunc("extractor", extractor, false),
 										 addFunc("sffExtractor", sffExtractor, false),
                      addFunc("processClusters", processClusters, false),
                      addFunc("qluster", qluster, false),
-                     addFunc("makeSampleDirectories", makeSampleDirectories, false),},
+                     addFunc("makeSampleDirectories", makeSampleDirectories, false),
+										 },
                     "SeekDeep") {}
 
 
-//template <class T>
+
 std::vector<readObject> splitVectorOnKDistSimpleAdd(
     const std::vector<readObject>& reads, const readObject& compareObject,uint32_t kLength, double kmerCutoff,
     std::vector<readObject>& badReads, uint32_t& splitCount) {
@@ -1220,45 +1224,9 @@ int SeekDeepRunner::extractor(MapStrStr inputCommands) {
   return 0;
 }
 
-/*
-auto runCollapse = [&](collapser col, std::vector<cluster> & clusVec,
-		runningParameters rPars, aligner & currentAlignerObj ){
-	 col.collapseWithParametersRegKmer(clusVec, rPars, currentAlignerObj);
 
-	 return;
-};*/
 
-template<typename T>
-uint32_t getMismatches(const T & read1,
-				const T & read2,
-				aligner alignerObj, bool weightHomopolymers){
-	alignerObj.alignVec(read1.seqBase_,read2.seqBase_, false);
-	alignerObj.profilePrimerAlignment(read1.seqBase_, read2.seqBase_, weightHomopolymers);
-	return alignerObj.comp_.hqMismatches_;
-};
 
-template<typename T>
-Json::Value getMinMismatchTreeJson(const std::vector<T> & reads, aligner & alignerObj,
-		uint32_t numThreads, bool weightHomopolymers,double hueStart, double hueStop,
-    double lumStart, double lumStop,
-    double satStart, double satStop, std::string backgroundColor){
-	std::function<uint32_t(const T & ,
-	  		const T &, aligner, bool)> misFun = getMismatches<T>;
-		auto misDistances = getDistanceCopy(reads, numThreads, misFun,
-				alignerObj, weightHomopolymers);
-	  readDistGraph<uint32_t> graphMis(misDistances, reads);
-		std::vector<std::string> names;
-	  for(const auto & n : graphMis.nodes_){
-	  	names.emplace_back(n->name_);
-	  }
-	  if(hueStop == 360 && hueStart == 0){
-	  	hueStop = 360 - (360.0/names.size());
-	  }
-		auto nameColors = bib::getColorsForNames(names, hueStart, hueStop,
-				lumStart, lumStop, satStop, satStart);
-	  Json::Value graphJson = graphMis.toJsonMismatchGraphAll(bib::color(backgroundColor), nameColors);
-	  return graphJson;
-}
 
 
 int SeekDeepRunner::qluster(MapStrStr inputCommands) {

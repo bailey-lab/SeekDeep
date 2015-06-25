@@ -28,3 +28,4 @@
  */
 
 #include "SeekDeep/programs/SeekDeepProgram.h"
+#include "SeekDeep/programs/SeekDeepUtils.h"

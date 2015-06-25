@@ -42,10 +42,39 @@ ifeq ($(USE_TWOBIT),1)
 endif
 
 
+
+
+#SeekDeep
+ifeq ($(USE_SEEKDEEP),1)
+	COMLIBS += -isystem$(LOCAL_PATH)/SeekDeep/include
+	USE_SEQSERVER=1
+	USE_NJHRINSIDE=1
+	USE_BIBSEQ=1
+	LD_FLAGS += -Wl,-rpath,$(LOCAL_PATH)/SeekDeep/lib \
+			-L$(LOCAL_PATH)/SeekDeep/lib  \
+			-lSeekDeep
+endif
+
+#SeekDeepDev
+ifeq ($(USE_SEEKDEEPDEV),1)
+	COMLIBS += -isystem$(LOCAL_PATH)/SeekDeepDev/include
+	USE_SEQSERVER=1
+	USE_NJHRINSIDE=1
+	USE_BIBSEQDEV=1
+	LD_FLAGS += -Wl,-rpath,$(LOCAL_PATH)/SeekDeepDev/lib \
+			-L$(LOCAL_PATH)/SeekDeepDev/lib  \
+			-lSeekDeepDev
+endif
+
 #SeqServer
 ifeq ($(USE_SEQSERVER),1)
 	COMLIBS += -isystem$(LOCAL_PATH)/seqServer/include
-	USE_BIBSEQDEV=1
+	ifeq ($(USE_SEEKDEEPDEV),1) 
+		USE_BIBSEQDEV=1
+	else
+		USE_BIBSEQ=1
+	endif
+
 	USE_CPPCMS=1
 	LD_FLAGS += -Wl,-rpath,$(LOCAL_PATH)/seqServer/lib \
 			-L$(LOCAL_PATH)/seqServer/lib  \
@@ -61,25 +90,6 @@ ifeq ($(USE_NJHRINSIDE),1)
 			-L$(LOCAL_PATH)/njhRInside/lib  \
 			-lnjhRInside
 endif
-
-#SeekDeep
-ifeq ($(USE_SEEKDEEP),1)
-	COMLIBS += -isystem$(LOCAL_PATH)/SeekDeep/include
-	USE_BIBSEQ=1
-	LD_FLAGS += -Wl,-rpath,$(LOCAL_PATH)/SeekDeep/lib \
-			-L$(LOCAL_PATH)/SeekDeep/lib  \
-			-lSeekDeep
-endif
-
-#SeekDeepDev
-ifeq ($(USE_SEEKDEEPDEV),1)
-	COMLIBS += -isystem$(LOCAL_PATH)/SeekDeepDev/include
-	USE_BIBSEQDEV=1
-	LD_FLAGS += -Wl,-rpath,$(LOCAL_PATH)/SeekDeepDev/lib \
-			-L$(LOCAL_PATH)/SeekDeepDev/lib  \
-			-lSeekDeepDev
-endif
-
 
 #bibseq
 ifeq ($(USE_BIBSEQ),1)

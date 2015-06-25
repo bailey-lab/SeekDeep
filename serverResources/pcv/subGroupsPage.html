@@ -1,0 +1,102 @@
+
+<!DOCTYPE HTML>
+<html>
+  <head>
+	<title>Population Info</title>
+	<link rel="stylesheet" href="http://code.jquery.com/ui/1.11.2/themes/smoothness/jquery-ui.css">
+	<script src="http://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+    <script src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.11.2/jquery-ui.min.js"></script>
+	<script src="/ssv/jsLibs"></script>
+	<script src="/ssv/jsOwn"></script>
+	<link rel="stylesheet" href="/ssv/cssLibs"></script>
+	<link rel="stylesheet" href="/ssv/cssOwn"></script>
+	<link href="http://getbootstrap.com/examples/theme/theme.css" rel="stylesheet">
+	<style>
+		.container {
+			padding-right: 15px;
+			padding-left: 15px;
+			margin-right: auto;
+			margin-left: 15px;
+			}
+	</style>
+  </head>
+  <body>
+    <script>
+    	$(document).ready(function(){
+    		//get current name from window location
+			var locSplit = window.location.toString().split(/[\/]+/);
+			var rName = locSplit[2];
+			var groupName = locSplit.pop();
+			var groupNames;
+			ajax("/" + rName + "/getGroupNames", function(gn){ groupNames = gn; });
+			var linkPreGroup = "/" + rName + "/showSubGroupsPage/";
+			d3.select("#groupsDropdownMenu")
+				.selectAll(".gDrop")
+				.data(groupNames)
+				.enter()
+					.append("li")
+					.append("a")
+						.attr("href",function(d){return linkPreGroup + d;} )
+						.text(function(d){return d;});
+			//get sample names and the table with the sample names
+			var sampNames;
+			ajax("/" + rName + "/getSubGroupsForGroup/" + groupName, function(mn){ sampNames = mn; });
+			var cols = 10;
+			var linkPre = "/" + rName + "/showGroupMainPage/" + groupName + "/";
+			var mouseOverC = "#999";
+			var mouseLeaveC = "#FFF";
+			var addTo = "#sampLinks";
+			createLinksTable(addTo, linkPre, sampNames,cols, mouseOverC, mouseLeaveC);
+			var projectName;
+			ajax('/' + rName + '/projectName', function(proj){ projectName = proj; });
+			$("title", "head").html(projectName);
+			$("#projName").html(projectName);
+			
+			//create the population table and populate it 
+			var popInfoTab;
+			ajax('/' + rName + '/getGroupPopInfos/' + groupName, function(tab){ popInfoTab = tab; });
+			var popTable = new njhTable("#popTable", popInfoTab, projectName + "_" + groupName  + "_popInfo", true);
+		});
+		
+    </script>
+        <!-- Fixed navbar -->
+    <nav class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+      <div class="container">
+        <div class="navbar-header">
+          <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          
+        </div>
+        <div id="navbar" class="navbar-collapse collapse">
+          <ul class="nav navbar-nav">
+            <li class=""><a href="/ssv">Home</a></li>
+            <li class=""><a href="/ssv/showExtractionInfo">Extraction Info</a></li>
+            <li class="Samples active">
+              <a href="./Theme Template for Bootstrap_files/Theme Template for Bootstrap.html" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">Groups<span class="caret"></span></a>
+              <ul id = "groupsDropdownMenu" class="dropdown-menu" role="menu"></ul>
+            </li>
+          </ul>
+        </div><!--/.nav-collapse -->
+      </div>
+    </nav>
+    <div class="container theme-showcase" role="main">
+		<div class="jumbotron"><h1 id="projName"></h1></div>
+		<div class="panel panel-primary">
+			<div class="panel-heading">
+				<h1>See Group</h1>
+			</div>
+			<div class="panel-body">
+				<div id= "sampLinks"></div>
+			</div>
+		</div>
+		<div class="panel panel-primary">
+			<div class="panel-heading"><h1>Population Infomation Table</h1></div>
+		</div>
+	    <div id = "popTable"></div>
+    </div>
+  </body>
+</html>
