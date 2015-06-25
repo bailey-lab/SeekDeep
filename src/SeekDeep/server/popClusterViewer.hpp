@@ -80,8 +80,11 @@ struct ExtractionInfo {
 	table profileBySampTab_;
 };
 
-ExtractionInfo collectExtractionInfo(const std::string & dirName, const std::string & indexToDir, const std::string & sampNames);
+ExtractionInfo collectExtractionInfo(const std::string & dirName,
+		const std::string & indexToDir, const std::string & sampNames);
 
+ExtractionInfo collectExtractionInfoDirectName(const std::string & dirName,
+		const std::string & indexToDir, const std::string & sampNames);
 
 namespace bfs = boost::filesystem;
 

@@ -28,6 +28,114 @@
 #include "popClusterViewer.hpp"
 
 namespace bibseq {
+ExtractionInfo collectExtractionInfoDirectName(const std::string & dirName,
+		const std::string & indexToDir, const std::string & sampNames) {
+	std::string nameDelim = "_extractor_";
+	VecStr dirs;
+	table indexNamesTab(indexToDir, "\t", true);
+	table mainTableExtractionProfile;
+	table mainTableExtractionStats;
+	std::unordered_map<std::string, std::string> nameToIndex;
+	for (const auto & row : indexNamesTab.content_) {
+		if (row.size() != 2) {
+			std::cerr << "Error in parsing " << indexToDir
+					<< ", should have two columns, not " << row.size() << std::endl;
+			std::cerr << vectorToString(row, "\t") << std::endl;
+			exit(1);
+		}
+		dirs.emplace_back(row[1]);
+		nameToIndex[row[1]] = row[0];
+	}
+	uint32_t count = 0;
+	VecStr oldProfileColNames;
+
+	VecStr oldStatsColNames;
+	table inTab(sampNames, "whitespace", false);
+	//goes sample name -> pairs of midname - index name
+	std::unordered_map<std::string, std::vector<std::pair<std::string, std::string>>> sampleDirWithSubDirs;
+	for(const auto & rowPos : iter::range(inTab.content_.size())){
+		const auto & row = inTab.content_[rowPos];
+		if(row.empty() || row[0].front() == '#'){
+			continue;
+		}
+		if (row.size() < 3) {
+			throw std::runtime_error { bib::err::F()
+					<< "setUpSampleDirs: rows should have at least 3 columns, row: "
+					<< rowPos << "has " << row.size() };
+		}
+		for(const auto & colPos : iter::range<uint32_t>(2,row.size())){
+			if(row[colPos] == "" || allWhiteSpaceStr(row[colPos])){
+				continue;
+			}
+			//Discrepancy  between people naming MID01 and MID1 so replacing MID0 with MID
+			sampleDirWithSubDirs[row[1]].emplace_back(replaceString(row[colPos], "MID0", "MID"), row[0]);
+		}
+	}
+
+	//extraction info by index by mid;
+	std::unordered_map<std::string, std::unordered_map<std::string, VecStr>> extractionInfo;
+
+	for (const auto &dir : dirs) {
+		auto fullDirName = bib::files::appendAsNeededRet(dirName, "/") + dir;
+		table inProfileTab(fullDirName + "/extractionProfile.tab.txt", "\t", true);
+		//i have accidentally added one more tab than is needed to
+		//extractionProfile which makes it so all rows have an empty
+		//at the end that correspond to any column names
+		for (auto & row : inProfileTab.content_) {
+			if (row.back() == "") {
+				row.erase(row.begin() + row.size() - 1);
+			}
+		}
+		table inStatsTab(fullDirName + "/extractionStats.tab.txt", "\t", true);
+		std::string indexName = nameToIndex[dir];
+		if (count == 0) {
+			oldStatsColNames = inStatsTab.columnNames_;
+			oldProfileColNames = inProfileTab.columnNames_;
+		}
+		inStatsTab.addColumn(VecStr { indexName }, "IndexName");
+		inProfileTab.addColumn(VecStr { indexName }, "IndexName");
+		for(const auto & row : inProfileTab.content_){
+			auto midName = row[inProfileTab.getColPos("name")];
+			auto midPos = midName.rfind("MID");
+			midName = replaceString(midName.substr(midPos), "MID0", "MID");
+			extractionInfo[row[inProfileTab.getColPos("IndexName")]][midName] = row;
+		}
+		if (count == 0) {
+			mainTableExtractionStats = inStatsTab;
+			mainTableExtractionProfile = inProfileTab;
+		} else {
+			mainTableExtractionStats.rbind(inStatsTab);
+			mainTableExtractionProfile.rbind(inProfileTab);
+		}
+		++count;
+	}
+
+	table outSampleInfo(catenateVectors(VecStr{"Sample"}, mainTableExtractionProfile.columnNames_));
+	for(const auto & samp : sampleDirWithSubDirs){
+		for(const auto & indexMidNames : samp.second){
+			auto addingRow = extractionInfo[indexMidNames.second][indexMidNames.first];
+			if(addingRow.empty()){
+				addingRow = std::vector<std::string>(mainTableExtractionProfile.content_.front().size(), "0");
+			}
+			addingRow[mainTableExtractionProfile.getColPos("IndexName")] = indexMidNames.second;
+			addingRow[mainTableExtractionProfile.getColPos("name")] = indexMidNames.first;
+			outSampleInfo.content_.emplace_back(catenateVectors(VecStr{samp.first}, addingRow));
+		}
+	}
+
+	auto outSampleColName = catenateVectors(VecStr{"Sample"}, catenateVectors(VecStr{"IndexName"}, oldProfileColNames));
+	auto profileColNames = catenateVectors(VecStr{"IndexName"}, oldProfileColNames);
+	auto statsColName = catenateVectors(VecStr{"IndexName"}, oldStatsColNames);
+
+
+	outSampleInfo = outSampleInfo.getColumns(outSampleColName);
+	outSampleInfo.sortTable("Sample", false);
+	mainTableExtractionProfile = mainTableExtractionProfile.getColumns(profileColNames);
+	mainTableExtractionStats = mainTableExtractionStats.getColumns(statsColName);
+	outSampleInfo.columnNames_[outSampleInfo.getColPos("name")] = "MidName";
+	outSampleInfo.setColNamePositions();
+	return ExtractionInfo(mainTableExtractionStats, mainTableExtractionProfile, outSampleInfo);
+}
 ExtractionInfo collectExtractionInfo(const std::string & dirName, const std::string & indexToDir, const std::string & sampNames){
 	std::string nameDelim = "_extractor_";
 	auto dirs = getNewestDirs(dirName, nameDelim);
@@ -172,7 +280,7 @@ pcv::pcv(cppcms::service& srv, std::map<std::string, std::string> config) :
 		for(const auto & dir : dirs){
 			std::cout << "Dir: " << dir << std::endl;
 		}
-		extractInfo_ = collectExtractionInfo(config["extractionDir"],config["indexToDir"], config["sampNames"]);
+		extractInfo_ = collectExtractionInfoDirectName(config["extractionDir"],config["indexToDir"], config["sampNames"]);
 	}
 
 
