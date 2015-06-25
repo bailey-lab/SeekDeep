@@ -18,6 +18,14 @@ cd SeekDeep
 ./setup.py -compfile compfile.mk  
 make   
 
+#To Install Version 2.1
+
+git clone https://github.com/bailey-lab/SeekDeep.git   
+cd SeekDeep  
+git checkout 2.1   
+./configure.py  
+./setup.py -compfile compfile.mk  
+make   
 
 #To Install Version 2
 
