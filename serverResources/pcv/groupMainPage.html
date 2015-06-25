@@ -1,0 +1,208 @@
+
+<!DOCTYPE HTML>
+<html>
+  <head>
+	<title>Population Info</title>
+	<link rel="stylesheet" href="http://code.jquery.com/ui/1.11.2/themes/smoothness/jquery-ui.css">
+	<script src="http://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+    <script src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.11.2/jquery-ui.min.js"></script>
+	<script src="/ssv/jsLibs"></script>
+	<script src="/ssv/jsOwn"></script>
+	<link rel="stylesheet" href="/ssv/cssLibs"></script>
+	<link rel="stylesheet" href="/ssv/cssOwn"></script>
+	<link href="http://getbootstrap.com/examples/theme/theme.css" rel="stylesheet">
+	<style>
+		.container {
+			padding-right: 15px;
+			padding-left: 15px;
+			margin-right: auto;
+			margin-left: 15px;
+			}
+	</style>
+  </head>
+  <body>
+    <script>
+    	$(document).ready(function(){
+    		//get current name from window location
+			var locSplit = window.location.toString().split(/[\/]+/);
+			var rName = locSplit[2];
+			var subGroupName = locSplit.pop();
+			var groupName = locSplit.pop();
+			//get sample names and the table with the sample names
+			var sampNames;
+			ajax('/' + rName + '/sampleNamesEncoding', function(sne){ sampNameEncoding = sne; });
+			ajax("/" + rName + "/groupSampleNames/" + groupName + "/" + subGroupName, function(mn){ sampNames = mn; });
+			var sampNameEncoding;
+			var encodedSampNames =[];
+	    	for (sampN in sampNames){
+	    		encodedSampNames.push(sampNameEncoding[sampNames[sampN]]);
+	    	}
+			ajax('/' + rName + '/groupSampInfo/' + groupName + "/" + subGroupName + "/" + encodedSampNames.join("DELIM"), function(tab){ mainPopInfoTab = tab; });
+			var cols = 10;
+			var linkPre = "/" + rName + "/individualSamplePage/";
+			var mouseOverC = "#999";
+			var mouseLeaveC = "#FFF";
+			var addTo = "#sampLinks";
+			createLinksTableDifferentLinks(addTo, linkPre, sampNames, encodedSampNames,cols, mouseOverC, mouseLeaveC);
+			//get the seq and color data for the sequence view of the population sequences 
+			var mainData;
+	        var baseColors = {};
+			ajax('/' + rName + '/groupPopSeqData/' + groupName + "/" + subGroupName, function(md){ mainData = md; });
+			ajax('/' + rName + '/baseColors', function(bc){ baseColors = bc; });
+			//get info on protein
+			var proteinMainData;
+	        var proteinColors = {};
+			ajax('/' + rName + '/groupPopProteinData/' + groupName + "/" + subGroupName, function(md){ proteinMainData = md; });
+			ajax('/' + rName + '/proteinColors', function(bc){ proteinColors = bc; });
+						//get the population information table from server
+			var popInfoTab;
+			ajax('/' + rName + '/groupPopInfo/' + groupName + "/" + subGroupName, function(tab){ popInfoTab = tab; });
+			//change title to current name
+			var projectName;
+			ajax('/' + rName + '/projectName', function(proj){ projectName = proj; });
+			$("title", "head").html(groupName + " : " + subGroupName) ;
+			$("#projName").html(groupName + " : " + subGroupName);
+			//create sample table 
+			var sampleTable =  new njhTable("#sampTable", mainPopInfoTab, projectName + "_" + groupName + "_" + subGroupName + "_sampInfo", false);	
+			
+			var sampleChart = new njhSampleChart("#sampleChartMaster", mainPopInfoTab,projectName + "_" + groupName + "_" + subGroupName + "_sampChart","s_Sample", "c_AveragedFrac","h_popUID", ["s_Sample", "h_popUID", "c_clusterID", "c_AveragedFrac"]);
+			//update the chart and table on click of the sample checkboxes
+			function updateChartOnClick() { 
+				//get all currently checked sample boxes and then update the current samples  
+			    var allVals = [];
+			    $('#sampNameMenu :checked').each(function() {
+			      allVals.push($(this).val());
+			    });
+			    var currentSampNames = _.intersection(sampNames, allVals);
+			    if(currentSampNames.length == 0){
+			    	mainPopInfoTab = {};
+			    }else{
+			    	var encodedCurrentSampNames =[];
+			    	for (sampN in currentSampNames){
+			    		encodedCurrentSampNames.push(sampNameEncoding[currentSampNames[sampN]]);
+			    	}
+			    	ajax('/' + rName + '/groupSampInfo/' + groupName + "/" + subGroupName + "/" + encodedCurrentSampNames.join("DELIM"), function(tab){ mainPopInfoTab = tab; });
+			    }
+			 	sampleTable.updateWithData(mainPopInfoTab);
+			 	sampleChart.updateWithData(mainPopInfoTab);
+			};
+			var sampMenu = new njhCheckboxMenu("#sampNameMenu", sampNames, updateChartOnClick);
+			//create SeqViewer for the population final sequences 
+			var cellWidth = 20;
+			var cellHeight = 25;
+			//rName + "/showMinTree 
+			/**@todo add in min tree for group */
+			var SeqViewer = new njhSeqView("#dnaViewer",  mainData, cellWidth, cellHeight, baseColors, true);
+	        var SeqViewerProtein = new njhSeqView("#proteinViewer",  proteinMainData, cellWidth, cellHeight, proteinColors, false);
+			function init(){
+				$(window).bind("resize", function(){
+					SeqViewer.updateCanvas();
+					SeqViewer.setUpSliders();
+					SeqViewer.paint();
+					SeqViewerProtein.updateCanvas();
+					SeqViewerProtein.setUpSliders();
+					SeqViewerProtein.paint();
+					//updateChart();
+				});
+				SeqViewer.setUp();
+				SeqViewer.paint();
+				SeqViewerProtein.setUp();
+				SeqViewerProtein.paint();
+			}
+			init();
+
+			
+			//create the population table and populate it
+			var popTable = new njhTable("#popTable", popInfoTab, projectName + "_" + groupName + "_" + subGroupName + "_popInfo", true);	
+			var groupNames;
+			ajax("/" + rName + "/getGroupNames", function(gn){ groupNames = gn; });
+			var linkPreGroup = "/" + rName + "/showSubGroupsPage/";
+			d3.select("#groupsDropdownMenu")
+				.selectAll(".gDrop")
+				.data(groupNames)
+				.enter()
+					.append("li")
+					.append("a")
+						.attr("href",function(d){return linkPreGroup + d;} )
+						.text(function(d){return d;});
+		});
+		
+    </script>
+        <!-- Fixed navbar -->
+    <nav class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+      <div class="container">
+        <div class="navbar-header">
+          <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          
+        </div>
+        <div id="navbar" class="navbar-collapse collapse">
+          <ul class="nav navbar-nav">
+            <li class=""><a href="/ssv">Home</a></li>
+            <li class=""><a href="/ssv/showExtractionInfo">Extraction Info</a></li>
+            <li class="Samples">
+              <a href="./Theme Template for Bootstrap_files/Theme Template for Bootstrap.html" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">Groups<span class="caret"></span></a>
+              <ul id = "groupsDropdownMenu" class="dropdown-menu" role="menu"></ul>
+            </li>
+          </ul>
+        </div><!--/.nav-collapse -->
+      </div>
+    </nav>
+    <div class="container theme-showcase" role="main">
+		<div class="jumbotron">
+			<h1 id="projName"></h1>
+		</div>
+		<div class="panel panel-info">
+			<div class="panel-heading">
+				<h1>See Extraction Stats</h1>
+			</div>
+			<div class="panel-body">
+				<div id= "linkToStats"><a href="/ssv/showExtractionInfo">Extraction Stats</a></div>
+			</div>
+		</div>
+		<div class="panel panel-primary">
+			<div class="panel-heading">
+				<h1>See Indivudal Sample Infos</h1>
+			</div>
+			<div class="panel-body">
+				<div id= "sampLinks"></div>
+			</div>
+		</div>
+		
+		<div class="panel panel-primary">
+			<div class="panel-heading"><h1>Sample Info Table</h1></div>
+		</div>
+	    <div id = "sampTable"></div>
+	    <div class="panel panel-primary" style="margin-top: 10px">
+			<div class="panel-heading">
+				<h1>Haplotypes Across Samples</h1>
+			</div>
+		</div>
+	    <div id = "sampNameMenu"></div>
+	    <div id = "sampleChartMaster"></div>
+
+	    <div class="panel panel-primary">
+			<div class="panel-heading">
+				<h1>Haplotypes Sequences</h1>
+			</div>
+		</div>
+		<div id = "dnaViewer"></div>
+	    <div class="panel panel-primary">
+			<div class="panel-heading">
+				<h1>Haplotypes Possible Protein Sequences</h1>
+			</div>
+		</div>
+		<div id = "proteinViewer"></div>
+	    <div class="panel panel-primary">
+			<div class="panel-heading">
+				<h1>Haplotype Infomation Table</h1>
+			</div>
+		</div>
+	    <div id = "popTable"></div>
+    
+  </body>
+</html>

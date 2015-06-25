@@ -19,35 +19,15 @@
 // You should have received a copy of the GNU General Public License
 // along with SeekDeep.  If not, see <http://www.gnu.org/licenses/>.
 //
-//
-//  SeekDeepRunner.hpp
-//  SeekDeep
-//
-//  Created by Nicholas Hathaway on 10/24/14.
-//  Copyright (c) 2014 Nicholas Hathaway. All rights reserved.
-//
+/*
+ * server.hpp
+ *
+ *  Created on: Jun 24, 2015
+ *      Author: nick
+ */
+
+#include "server/popClusterViewer.hpp"
 
 
 
-#include <bibcpp.h>
-#include "SeekDeep/programs/SeekDeepProgram/SeekDeepSetUp.hpp"
 
-namespace bibseq {
-
-class SeekDeepRunner : public  bib::progutils::oneRing {
-
- public:
-  SeekDeepRunner();
-
-
-  static int sffExtractor(MapStrStr inputCommands);
-  static int extractor(MapStrStr inputCommands);
-  static int qluster(MapStrStr inputCommands);
-  static int processClusters(MapStrStr inputCommands);
-  static int makeSampleDirectories(MapStrStr inputCommands);
-};
-}  // namespace bibseq
-
-#ifndef NOT_HEADER_ONLY
-#include "SeekDeepRunner.cpp"
-#endif

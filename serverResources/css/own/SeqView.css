@@ -1,0 +1,48 @@
+.SeqViewCanvasDiv {
+	position: relative;
+	clear: both;
+	/*top: 80px*/;
+	left: 10px;
+	/*box-shadow: 10px 10px 5px #888;*/
+	border-bottom-left-radius: 10px;
+	border-bottom-right-radius: 10px;
+}
+.SeqViewCanvasDiv .rightSlider {
+	position: relative;
+	float: right;
+	right: 10px;
+	top: 0;
+	width: 10;
+	height: 100%;
+	background: #000000;
+}
+.SeqViewCanvasDiv .bottomSlider {
+	/*position:absolute;*/
+	bottom: 0;
+	left: 0;
+	width: 100%;
+	height: 10px;
+	background: #000000;
+}
+.SeqViewCanvasDiv .pop-up {
+	display: none;
+	position: absolute;
+	width: 300px;
+	padding-left: 2px;
+	background: #eeeeee;
+	color: #000000;
+	border: 1px solid #1a1a1a;
+	font-size: 90%;
+	opacity: .85;
+}
+.SeqViewCanvasDiv .select {
+	/*display: none;*/
+	position: absolute;
+	width: 22px;
+	height: 27px;
+	background: #e6e6e6;
+	color: #000000;
+	border: 2px solid #000000;
+	opacity: .50;
+}
+

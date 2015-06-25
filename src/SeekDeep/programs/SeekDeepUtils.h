@@ -20,34 +20,12 @@
 // along with SeekDeep.  If not, see <http://www.gnu.org/licenses/>.
 //
 //
-//  SeekDeepRunner.hpp
-//  SeekDeep
+
+//  SeekDeepUtils.h
 //
-//  Created by Nicholas Hathaway on 10/24/14.
-//  Copyright (c) 2014 Nicholas Hathaway. All rights reserved.
+//  Created by Nick Hathaway on 2015/06/24.
+//  Copyright (c) 2015 Nick Hathaway. All rights reserved.
 //
 
-
-
-#include <bibcpp.h>
-#include "SeekDeep/programs/SeekDeepProgram/SeekDeepSetUp.hpp"
-
-namespace bibseq {
-
-class SeekDeepRunner : public  bib::progutils::oneRing {
-
- public:
-  SeekDeepRunner();
-
-
-  static int sffExtractor(MapStrStr inputCommands);
-  static int extractor(MapStrStr inputCommands);
-  static int qluster(MapStrStr inputCommands);
-  static int processClusters(MapStrStr inputCommands);
-  static int makeSampleDirectories(MapStrStr inputCommands);
-};
-}  // namespace bibseq
-
-#ifndef NOT_HEADER_ONLY
-#include "SeekDeepRunner.cpp"
-#endif
+#include "SeekDeep/programs/SeekDeepUtils/SeekDeepUtilsSetUp.hpp"
+#include "SeekDeep/programs/SeekDeepUtils/SeekDeepUtilsRunner.hpp"
