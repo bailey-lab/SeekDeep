@@ -425,16 +425,6 @@ make COMPFILE=compfile.mk -j {num_cores}
                                                            external=self.extDirLoc)
         cmd = " ".join(cmd.split())
         self.__buildFromGitTag(libPaths, cmd,tagName)
-    
-    def __buildNjhProjectBranch(self,libPaths,branchName):
-        cmd = """
-        python ./configure.py -CC {CC} -CXX {CXX} -externalLibDir {external} -prefix {localTop} 
-        && python ./setup.py -compfile compfile.mk 
-        && make -j {num_cores} && make install""".format(localTop=shellquote(self.paths.install_dir),
-                                                          num_cores=self.num_cores(), CC=self.CC, CXX=self.CXX,
-                                                           external=self.extDirLoc)
-        cmd = " ".join(cmd.split())
-        self.__buildFromGitBranch(libPaths, cmd,branchName)
         
     
     def __buildNjhProjectBranch(self,libPaths,branchName):
@@ -635,7 +625,7 @@ make COMPFILE=compfile.mk -j {num_cores}
 
     def bamtools(self):
         i = self.__path('bamtools')
-        cmd = """mkdir -p build && cd build && CC={CC} CXX={CXX} cmake -DCMAKE_INSTALL_PREFIX:PATH={local_dir} .. 
+        cmd = """git checkout v2.4.0 && mkdir -p build && cd build && CC={CC} CXX={CXX} cmake -DCMAKE_INSTALL_PREFIX:PATH={local_dir} .. 
         && make -j {num_cores} install""".format(
             local_dir=shellquote(i.local_dir), num_cores=self.num_cores(), CC=self.CC, CXX=self.CXX)
         cmd = " ".join(cmd.split())
@@ -672,6 +662,7 @@ make COMPFILE=compfile.mk -j {num_cores}
         self.__buildNjhProject(i)
         #self.__buildNjhProjectTag(i, version)
         #self.__buildNjhProjectBranch(i, branch)
+    
     
     def SeekDeepDev(self):
         i = self.__path('seekdeepdev')
