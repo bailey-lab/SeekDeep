@@ -645,11 +645,11 @@ make COMPFILE=compfile.mk -j {num_cores}
 
     def bibseq(self):
         i = self.__path('bibseq')
-        branch = "release/2"
-        version = "2"
-        self.__buildNjhProject(i)
+        branch = "release/2.1"
+        version = "2.1"
+        #self.__buildNjhProject(i)
         #self.__buildNjhProjectTag(i, version)
-        #self.__buildNjhProjectBranch(i, branch)
+    	self.__buildNjhProjectBranch(i, branch)
         
     def bibseqDev(self):
         i = self.__path('bibseqdev')
