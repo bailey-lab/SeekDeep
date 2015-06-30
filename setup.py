@@ -645,11 +645,11 @@ make COMPFILE=compfile.mk -j {num_cores}
 
     def bibseq(self):
         i = self.__path('bibseq')
-        branch = "release/2"
-        version = "2"
-        self.__buildNjhProject(i)
-        #self.__buildNjhProjectTag(i, version)
-        #self.__buildNjhProjectBranch(i, branch)
+        branch = "release/2.1"
+        version = "2.1"
+        #self.__buildNjhProject(i)
+        self.__buildNjhProjectTag(i, version)
+    	#self.__buildNjhProjectBranch(i, branch)
         
     def bibseqDev(self):
         i = self.__path('bibseqdev')
@@ -657,10 +657,10 @@ make COMPFILE=compfile.mk -j {num_cores}
         
     def SeekDeep(self):
         i = self.__path('seekdeep')
-        branch = "release/2"
-        version = "2"
-        self.__buildNjhProject(i)
-        #self.__buildNjhProjectTag(i, version)
+        branch = "release/2.1.1"
+        version = "2.1.1"
+        #self.__buildNjhProject(i)
+        self.__buildNjhProjectTag(i, version)
         #self.__buildNjhProjectBranch(i, branch)
     
     
@@ -670,7 +670,11 @@ make COMPFILE=compfile.mk -j {num_cores}
         
     def seqserver(self):
         i = self.__path('seqserver')
-        self.__buildNjhProject(i)
+        branch = "release/1.1"
+        version = "1.1"
+        #self.__buildNjhProject(i)
+        self.__buildNjhProjectTag(i, version)
+        #self.__buildNjhProjectBranch(i, branch)
         
     def njhRInside(self):
         i = self.__path('njhrinside')

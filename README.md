@@ -18,11 +18,11 @@ cd SeekDeep
 ./setup.py -compfile compfile.mk  
 make   
 
-#To Install Version 2.1
+#To Install Version 2.1.1  
 
 git clone https://github.com/bailey-lab/SeekDeep.git   
 cd SeekDeep  
-git checkout 2.1   
+git checkout 2.1.1   
 ./configure.py  
 ./setup.py -compfile compfile.mk  
 make   
@@ -47,6 +47,7 @@ git checkout 1
 make   
 
 
+#Dependecnies
 Need to have g++-4.9, g++-5, or clang++ compiler, the default assumption is clang++, can change by giving -CC and -CXX to ./congifure.py  
 For example  
 
@@ -55,6 +56,8 @@ for g++-4.9
 for clang  
 ./configure.py -CC clang -CXX clang++  
 
+
+Also though SeekDeep does not use cmake, several of the libraries it uses do depend on cmake so it needs to be present 
 
 #Bash Completion  
 
