@@ -659,9 +659,9 @@ make COMPFILE=compfile.mk -j {num_cores}
         i = self.__path('seekdeep')
         branch = "release/2.1.1"
         version = "2.1.1"
-        self.__buildNjhProject(i)
-        #self.__buildNjhProjectTag(i, version)
-        self.__buildNjhProjectBranch(i, branch)
+        #self.__buildNjhProject(i)
+        self.__buildNjhProjectTag(i, version)
+        #self.__buildNjhProjectBranch(i, branch)
     
     
     def SeekDeepDev(self):
