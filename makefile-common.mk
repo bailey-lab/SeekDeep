@@ -69,12 +69,12 @@ endif
 #SeqServer
 ifeq ($(USE_SEQSERVER),1)
 	COMLIBS += -isystem$(LOCAL_PATH)/seqServer/include
-	ifeq ($(USE_SEEKDEEPDEV),1) 
+	ifeq ($(USE_BIBSEQDEV),1)
 		USE_BIBSEQDEV=1
+		USE_BIBSEQ=0
 	else
 		USE_BIBSEQ=1
 	endif
-
 	USE_CPPCMS=1
 	LD_FLAGS += -Wl,-rpath,$(LOCAL_PATH)/seqServer/lib \
 			-L$(LOCAL_PATH)/seqServer/lib  \
@@ -110,6 +110,7 @@ ifeq ($(USE_BIBSEQDEV),1)
 	USE_BIBCPPDEV=1
 	USE_ARMADILLO=1
 	USE_BAMTOOLS=1
+	USE_BIBSEQ=0
 	#USE_R=1
 	USE_CURL=1
 	LD_FLAGS += -Wl,-rpath,$(LOCAL_PATH)/bibseqDev/lib \

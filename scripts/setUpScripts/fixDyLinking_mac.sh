@@ -39,6 +39,7 @@ install_name_tool -change libarmadillo.5.dylib $externalDir/local/armadillo/lib/
 
 #bamtools
 install_name_tool -change libbamtools.2.3.0.dylib $externalDir/local/bamtools/lib/bamtools/libbamtools.2.3.0.dylib $f
+install_name_tool -change libbamtools.2.4.0.dylib $externalDir/local/bamtools/lib/bamtools/libbamtools.2.4.0.dylib $f
 
 #boost libraries
 install_name_tool -change libboost_program_options.dylib $externalDir/local/boost/lib/libboost_program_options.dylib $f
