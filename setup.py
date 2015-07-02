@@ -4,6 +4,7 @@
 
 import subprocess, sys, os, argparse
 from collections import namedtuple
+import shutil
 sys.path.append("scripts/pyUtils")
 sys.path.append("scripts/setUpScripts")
 from utils import Utils
@@ -293,6 +294,8 @@ class Setup:
             self.CXX = genHelper.determineCXX(self.args)
         if "clang" in self.CXX:
             self.args.clang = True
+        else:
+            self.args.clang = False
 
     def parseForExtPath(self, fn):
         args = self.parseCompFile(fn)
@@ -560,9 +563,23 @@ make COMPFILE=compfile.mk -j {num_cores}
             Utils.run(cmd)
 
     def boost(self):
+        print "start"
         i = self.__path("boost")
         #boostLibs = "date_time,filesystem,iostreams,math,program_options,random,regex,serialization,signals,system,test,thread,log"
         boostLibs = "filesystem,iostreams,system"
+        if isMac():
+            print "here"
+            setUpDir = os.path.dirname(os.path.abspath(__file__))
+            gccJamLoc =  os.path.join(setUpDir, "scripts/etc/boost/gcc.jam")
+            gccJamOutLoc = os.path.abspath("{build_dir}/tools/build/src/tools/gcc.jam".format(build_dir = i.build_sub_dir))
+            print gccJamLoc
+            print gccJamOutLoc
+            installNameToolCmd  = """ 
+            && install_name_tool -change $(otool -L {local_dir}/lib/libboost_filesystem.dylib | egrep -o "\\S.*libboost_system.dylib") {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_filesystem.dylib
+            && install_name_tool -id {local_dir}/lib/libboost_filesystem.dylib {local_dir}/lib/libboost_filesystem.dylib
+            && install_name_tool -id {local_dir}/lib/libboost_iostreams.dylib {local_dir}/lib/libboost_iostreams.dylib
+            && install_name_tool -id {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_system.dylib
+            """.format(local_dir=i.local_dir)
         if self.args.clang:
              if isMac():
                 cmd = """./bootstrap.sh --with-toolset=clang --prefix={local_dir} --with-libraries=""" + boostLibs + """
@@ -576,21 +593,43 @@ make COMPFILE=compfile.mk -j {num_cores}
                 #cmd = """wget https://github.com/boostorg/atomic/commit/6bb71fdd.diff && wget https://github.com/boostorg/atomic/commit/e4bde20f.diff&&  wget https://gist.githubusercontent.com/philacs/375303205d5f8918e700/raw/d6ded52c3a927b6558984d22efe0a5cf9e59cd8c/0005-Boost.S11n-include-missing-algorithm.patch&&  patch -p2 -i 6bb71fdd.diff&&  patch -p2 -i e4bde20f.diff&&  patch -p1 -i 0005-Boost.S11n-include-missing-algorithm.patch&&  echo "using clang;  " >> tools/build/v2/user-config.jam&&  ./bootstrap.sh --with-toolset=clang --prefix={local_dir}  --with-libraries=""" + boostLibs + """ &&  ./b2  -d 2 toolset=clang -j {num_cores} install""".format(local_dir=shellquote(i.local_dir).replace(' ', '\ '), num_cores=self.num_cores())
         elif self.CXX == "g++-4.8":
             if isMac():
-                cmd = """echo "using gcc : 4.8 : g++-4.8 ; " >> tools/build/v2/user-config.jam && ./bootstrap.sh --prefix={local_dir} --with-libraries=""" + boostLibs + """ && ./b2 -d 2 toolset=darwin-4.8 -j {num_cores} install && install_name_tool -change libboost_system.dylib {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_thread.dylib&&  install_name_tool -change libboost_system.dylib {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_filesystem.dylib""".format(local_dir=shellquote(i.local_dir).replace(' ', '\ '), num_cores=self.num_cores())
+                cmd = "cp " + gccJamLoc + "  " + gccJamOutLoc + """ && echo "using gcc : 4.8 : g++-4.8 : <linker-type>darwin ;" >> project-config.jam && ./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
+                 && ./b2 --toolset=gcc-4.8 -j {num_cores} install 
+                 """ + installNameToolCmd
             else:
-                cmd = """./bootstrap.sh --with-toolset=gcc-4.8 --prefix={local_dir} --with-libraries=""" + boostLibs + """  && ./b2 -d 2 toolset=gcc-4.8 -j {num_cores} install""".format(local_dir=shellquote(i.local_dir).replace(' ', '\ '), num_cores=self.num_cores())
+                cmd = """echo "using gcc : 4.8 : g++-4.8;" >> project-config.jam && ./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
+                 && ./b2 --toolset=gcc-4.8 -j {num_cores} install 
+                 """
         elif self.CXX == "g++-4.9":
             if isMac():
-                cmd = """echo "using gcc : 4.9 : g++-4.9 ; " >> tools/build/v2/user-config.jam && ./bootstrap.sh --prefix={local_dir} --with-libraries=""" + boostLibs + """ && ./b2 -d 2 toolset=darwin-4.9 -j {num_cores} install && install_name_tool -change libboost_system.dylib {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_thread.dylib&&  install_name_tool -change libboost_system.dylib {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_filesystem.dylib""".format(local_dir=shellquote(i.local_dir).replace(' ', '\ '), num_cores=self.num_cores())
+                cmd = "cp " + gccJamLoc + "  " + gccJamOutLoc + """ && echo "using gcc : 4.9 : g++-4.9 : <linker-type>darwin ;" >> project-config.jam && ./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
+                 && ./b2 --toolset=gcc-4.9 -j {num_cores} install 
+                 """ + installNameToolCmd
             else:
-                cmd = """./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """  && ./b2 -d 2 -j {num_cores} install""".format(local_dir=shellquote(i.local_dir).replace(' ', '\ '), num_cores=self.num_cores())
+                cmd = """echo "using gcc : 4.9 : g++-4.9;" >> project-config.jam && CC={CC} CXX={CXX} ./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
+                 && CC={CC} CXX={CXX}  ./b2 --toolset=gcc-4.9 -j {num_cores} install 
+                 """
+        elif self.CXX == "g++-5":
+            if isMac():
+                cmd = """echo "using gcc : 5 : g++-5;" >> project-config.jam && CC={CC} CXX={CXX} ./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
+                 && CC={CC} CXX={CXX} ./b2 --toolset=gcc-5 -j {num_cores} install 
+                 """ + installNameToolCmd
+            else:
+                cmd = """./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
+                  && ./b2 -d 2 -j {num_cores} install"""
         elif self.CXX == "g++":
             if isMac():
-                cmd = """echo "using gcc : 4.9 : g++ ; " >> tools/build/v2/user-config.jam && ./bootstrap.sh --prefix={local_dir} --with-libraries=""" + boostLibs + """ && ./b2 -d 2 toolset=darwin-4.9 -j {num_cores} install && install_name_tool -change libboost_system.dylib {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_thread.dylib&&  install_name_tool -change libboost_system.dylib {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_filesystem.dylib""".format(local_dir=shellquote(i.local_dir).replace(' ', '\ '), num_cores=self.num_cores())
+                cmd = "cp " + gccJamLoc + "  " + gccJamOutLoc + """ && echo "using gcc : 4.9 : g++ : <linker-type>darwin ;" >> project-config.jam && ./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
+                 && ./b2 --toolset=gcc-4.9 -j {num_cores} install 
+                 """ + installNameToolCmd
             else:
-                cmd = """./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """  && ./b2 cxxflags=\"-std=clib\" -d 2 toolset=gcc -j {num_cores} install""".format(local_dir=shellquote(i.local_dir).replace(' ', '\ '), num_cores=self.num_cores())
+                cmd = """echo "using gcc : 4.9 : g++;" >> project-config.jam && ./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
+                 && ./b2 --toolset=gcc-4.9 -j {num_cores} install 
+                 """
+        
         cmd = " ".join(cmd.split())
-        cmd = cmd.format(local_dir=shellquote(i.local_dir).replace(' ', '\ '), num_cores=self.num_cores())
+        cmd = cmd.format(local_dir=shellquote(i.local_dir).replace(' ', '\ '), num_cores=self.num_cores(), CC=self.CC, CXX=self.CXX)
+        print cmd
         self.__build(i, cmd)
 
     def pear(self):
@@ -645,11 +684,11 @@ make COMPFILE=compfile.mk -j {num_cores}
 
     def bibseq(self):
         i = self.__path('bibseq')
-        branch = "release/2.1"
-        version = "2.1"
-        #self.__buildNjhProject(i)
-        self.__buildNjhProjectTag(i, version)
-    	#self.__buildNjhProjectBranch(i, branch)
+        branch = "release/2"
+        version = "2"
+        self.__buildNjhProject(i)
+        #self.__buildNjhProjectTag(i, version)
+        #self.__buildNjhProjectBranch(i, branch)
         
     def bibseqDev(self):
         i = self.__path('bibseqdev')
@@ -657,10 +696,10 @@ make COMPFILE=compfile.mk -j {num_cores}
         
     def SeekDeep(self):
         i = self.__path('seekdeep')
-        branch = "release/2.1.1"
-        version = "2.1.1"
-        #self.__buildNjhProject(i)
-        self.__buildNjhProjectTag(i, version)
+        branch = "release/2"
+        version = "2"
+        self.__buildNjhProject(i)
+        #self.__buildNjhProjectTag(i, version)
         #self.__buildNjhProjectBranch(i, branch)
     
     
@@ -670,11 +709,11 @@ make COMPFILE=compfile.mk -j {num_cores}
         
     def seqserver(self):
         i = self.__path('seqserver')
-        branch = "release/1.1"
-        version = "1.1"
+        branch = "develop"
+        version = "2"
         #self.__buildNjhProject(i)
-        self.__buildNjhProjectTag(i, version)
-        #self.__buildNjhProjectBranch(i, branch)
+        #self.__buildNjhProjectTag(i, version)
+        self.__buildNjhProjectBranch(i, branch)
         
     def njhRInside(self):
         i = self.__path('njhrinside')
