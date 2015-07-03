@@ -231,6 +231,36 @@ ifeq ($(USE_GTKMM),1)
 	COMLIBS += `pkg-config gtkmm-3.0 --cflags`
 endif
 
+
+#mongocxx  
+ifeq ($(USE_MONGOCXX),1)
+	COMLIBS += -isystem$(LOCAL_PATH)/mongocxx/include/mongocxx/v0.3 \
+	-isystem$(LOCAL_PATH)/mongocxx/include/bsoncxx/v0.3 
+	LD_FLAGS += -Wl,-rpath,$(LOCAL_PATH)/mongocxx/lib \
+			-L$(LOCAL_PATH)/mongocxx/lib  \
+			-lmongocxx -lbsoncxx 
+	USE_MONGOC=1
+endif
+
+
+
+#mongoc  
+ifeq ($(USE_MONGOC),1)
+	COMLIBS += -isystem$(LOCAL_PATH)/mongoc/include/libbson-1.0 \
+	-isystem$(LOCAL_PATH)/mongoc/include/libmongoc-1.0
+	LD_FLAGS += -Wl,-rpath,$(LOCAL_PATH)/mongoc/lib \
+			-L$(LOCAL_PATH)/mongoc/lib \
+			-lssl -lcrypto -lmongoc-1.0 -lbson-1.0
+	ifeq ($(UNAME_S),Darwin)
+
+	else
+   		LD_FLAGS += -lrt
+	endif
+endif
+
+
+
+
 #ml_pack
 ifeq ($(USE_MLPACK),1)
 	ifeq ($(UNAME_S),Darwin)

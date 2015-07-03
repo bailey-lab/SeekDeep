@@ -58,6 +58,8 @@ class Paths():
         self.paths["njhrinside"] = self.__njhRInside()
         self.paths["dlib"] = self.__dlib()
         self.paths["libsvm"] = self.__libsvm()
+        self.paths["mongoc"] = self.__mongoc()
+        self.paths["mongocxx"] = self.__mongocxx()
         self.paths["catch"] = self.__catch()
 
     def path(self, name):
@@ -84,6 +86,16 @@ class Paths():
     def __jsoncpp(self):
         url = "https://github.com/open-source-parsers/jsoncpp.git"
         name = "jsoncpp"
+        return self.__package_dirs(url, name)
+    
+    def __mongoc(self):
+        url = "https://github.com/mongodb/mongo-c-driver"
+        name = "mongoc"
+        return self.__package_dirs(url, name)
+    
+    def __mongocxx(self):
+        url = "https://github.com/mongodb/mongo-cxx-driver"
+        name = "mongocxx"
         return self.__package_dirs(url, name)
 
     def __cppitertools(self):
@@ -270,7 +282,9 @@ class Setup:
                        "jsoncpp": self.jsoncpp,
                        "pstreams": self.pstreams,
                        "dlib": self.dlib,
-                       "libsvm": self.libsvm
+                       "libsvm": self.libsvm,
+                       "mongoc": self.mongoc,
+                       "mongocxx": self.mongocxx
                        }
     def printAvailableSetUps(self):
         self.__initSetUpFuncs()
@@ -360,7 +374,9 @@ class Setup:
             try:
                 builder_f()
                 self.installed.append(name)
-            except:
+            except Exception as inst:
+                print type(inst)
+                print inst 
                 print "failed to install " + name
                 self.failedInstall.append(name)
 
@@ -493,7 +509,7 @@ make COMPFILE=compfile.mk -j {num_cores}
                 sys.exit(1)
         else:
             print "cloning from {url}".format(url=i.url)
-            cCmd = "git clone -b "+ branchName + " --single-branch {url} {d}".format(url=i.url, d=i.build_dir)
+            cCmd = "git clone -b "+ branchName + " {url} {d}".format(url=i.url, d=i.build_dir)
             try:
                 print self.paths.ext_build
                 Utils.run_in_dir(cCmd, self.paths.ext_build)
@@ -583,13 +599,13 @@ make COMPFILE=compfile.mk -j {num_cores}
         if self.args.clang:
              if isMac():
                 cmd = """./bootstrap.sh --with-toolset=clang --prefix={local_dir} --with-libraries=""" + boostLibs + """
-                  &&  ./b2  -d 2 toolset=clang cxxflags=\"-stdlib=libc++ -std=c++14\" linkflags=\"-stdlib=libc++\" -j {num_cores} install 
+                  &&  ./b2  toolset=clang cxxflags=\"-stdlib=libc++ -std=c++14\" linkflags=\"-stdlib=libc++\" -j {num_cores} install 
                   &&  install_name_tool -change libboost_system.dylib {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_filesystem.dylib
                   """
                   #&&  install_name_tool -change libboost_system.dylib {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_thread.dylib
                 #cmd = """wget https://github.com/boostorg/atomic/commit/6bb71fdd.diff && wget https://github.com/boostorg/atomic/commit/e4bde20f.diff&&  wget https://gist.githubusercontent.com/philacs/375303205d5f8918e700/raw/d6ded52c3a927b6558984d22efe0a5cf9e59cd8c/0005-Boost.S11n-include-missing-algorithm.patch&&  patch -p2 -i 6bb71fdd.diff&&  patch -p2 -i e4bde20f.diff&&  patch -p1 -i 0005-Boost.S11n-include-missing-algorithm.patch&&  echo "using clang;  " >> tools/build/v2/user-config.jam&&  ./bootstrap.sh --with-toolset=clang --prefix={local_dir} --with-libraries=""" + boostLibs + """  &&  ./b2  -d 2 toolset=clang cxxflags=\"-stdlib=libc++\" linkflags=\"-stdlib=libc++\" -j {num_cores} install &&  install_name_tool -change libboost_system.dylib {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_thread.dylib&&  install_name_tool -change libboost_system.dylib {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_filesystem.dylib""".format(local_dir=shellquote(i.local_dir).replace(' ', '\ '), num_cores=self.num_cores())
              else:
-                cmd = """./bootstrap.sh --with-toolset=clang --prefix={local_dir}  --with-libraries=""" + boostLibs + """ &&  ./b2  -d 2 toolset=clang cxxflags=\"-std=c++14\" -j {num_cores} install""".format(local_dir=shellquote(i.local_dir).replace(' ', '\ '), num_cores=self.num_cores())
+                cmd = """./bootstrap.sh --with-toolset=clang --prefix={local_dir}  --with-libraries=""" + boostLibs + """ &&  ./b2 toolset=clang cxxflags=\"-std=c++14\" -j {num_cores} install""".format(local_dir=shellquote(i.local_dir).replace(' ', '\ '), num_cores=self.num_cores())
                 #cmd = """wget https://github.com/boostorg/atomic/commit/6bb71fdd.diff && wget https://github.com/boostorg/atomic/commit/e4bde20f.diff&&  wget https://gist.githubusercontent.com/philacs/375303205d5f8918e700/raw/d6ded52c3a927b6558984d22efe0a5cf9e59cd8c/0005-Boost.S11n-include-missing-algorithm.patch&&  patch -p2 -i 6bb71fdd.diff&&  patch -p2 -i e4bde20f.diff&&  patch -p1 -i 0005-Boost.S11n-include-missing-algorithm.patch&&  echo "using clang;  " >> tools/build/v2/user-config.jam&&  ./bootstrap.sh --with-toolset=clang --prefix={local_dir}  --with-libraries=""" + boostLibs + """ &&  ./b2  -d 2 toolset=clang -j {num_cores} install""".format(local_dir=shellquote(i.local_dir).replace(' ', '\ '), num_cores=self.num_cores())
         elif self.CXX == "g++-4.8":
             if isMac():
@@ -615,8 +631,9 @@ make COMPFILE=compfile.mk -j {num_cores}
                  && CC={CC} CXX={CXX} ./b2 --toolset=gcc-5 -j {num_cores} install 
                  """ + installNameToolCmd
             else:
-                cmd = """./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
-                  && ./b2 -d 2 -j {num_cores} install"""
+                cmd = """echo "using gcc : 5 : g++-5;" >> project-config.jam && CC={CC} CXX={CXX} ./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
+                 && CC={CC} CXX={CXX}  ./b2 --toolset=gcc-5 -j {num_cores} install 
+                 """
         elif self.CXX == "g++":
             if isMac():
                 cmd = "cp " + gccJamLoc + "  " + gccJamOutLoc + """ && echo "using gcc : 4.9 : g++ : <linker-type>darwin ;" >> project-config.jam && ./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
@@ -726,6 +743,24 @@ make COMPFILE=compfile.mk -j {num_cores}
             local_dir=shellquote(i.local_dir), num_cores=self.num_cores(),CC=self.CC, CXX=self.CXX)
         cmd = " ".join(cmd.split())
         self.__buildFromGit(i, cmd)
+        
+    def mongoc(self):
+        i = self.__path('mongoc')
+        cmd = """sed -i.bak s/git:/http:/g .gitmodules && CC={CC} CXX={CXX} ./autogen.sh --prefix={local_dir}
+        && make  && make install""".format(
+            local_dir=shellquote(i.local_dir), num_cores=self.num_cores(),CC=self.CC, CXX=self.CXX)
+        cmd = " ".join(cmd.split())
+        branchName = "1.2.0-dev"
+        self.__buildFromGitBranch(i, cmd, branchName)
+        
+    def mongocxx(self):
+        i = self.__path('mongocxx')
+        cmd = """cd build && CC={CC} CXX={CXX} PKG_CONFIG_PATH={ext_dir}/local/mongoc/lib/pkgconfig:$PKG_CONFIG_PATH cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX={local_dir} .. 
+        && make && make install""".format(
+            local_dir=i.local_dir, num_cores=self.num_cores(),CC=self.CC, CXX=self.CXX, ext_dir=self.extDirLoc)
+        cmd = " ".join(cmd.split())
+        branchName = "master"
+        self.__buildFromGitBranch(i, cmd, branchName)
     
     def cppcms(self):
         i = self.__path('cppcms')

@@ -102,7 +102,10 @@ def main():
         neededLibs = args.neededLibs[0].split(",")
     genHelper.generateCompfileFull(os.path.join(projectOut, "compfile.mk"), external, CC, CXX, outname, installName, prefix, neededLibs)
     with open(os.path.join(projectOut, "configure.py"), "w") as configFile:
-        configFile.write(genHelper.mkConfigFileStr(outname, args.neededLibs[0]))
+        if(args.neededLibs):
+            configFile.write(genHelper.mkConfigFileStr(outname, args.neededLibs[0]))
+        else:
+            configFile.write(genHelper.mkConfigFileStr(outname, ""))
     os.chmod(os.path.join(projectOut, "configure.py"), stat.S_IXGRP | stat.S_IXOTH | stat.S_IXUSR | stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH | stat.S_IWUSR)
     exFrom = os.path.abspath(os.path.dirname(__file__))
     cpSetUpCmd = exFrom + "/copySetUpFiles.py -from " + exFrom +"/../../ -to " + projectOut
