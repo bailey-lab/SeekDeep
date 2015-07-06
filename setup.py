@@ -747,7 +747,7 @@ make COMPFILE=compfile.mk -j {num_cores}
     def mongoc(self):
         i = self.__path('mongoc')
         cmd = """sed -i.bak s/git:/http:/g .gitmodules && CC={CC} CXX={CXX} ./autogen.sh --prefix={local_dir}
-        && make  && make install""".format(
+        && make -j {num_cores}  && make install""".format(
             local_dir=shellquote(i.local_dir), num_cores=self.num_cores(),CC=self.CC, CXX=self.CXX)
         cmd = " ".join(cmd.split())
         branchName = "1.2.0-dev"
@@ -756,7 +756,7 @@ make COMPFILE=compfile.mk -j {num_cores}
     def mongocxx(self):
         i = self.__path('mongocxx')
         cmd = """cd build && CC={CC} CXX={CXX} PKG_CONFIG_PATH={ext_dir}/local/mongoc/lib/pkgconfig:$PKG_CONFIG_PATH cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX={local_dir} .. 
-        && make && make install""".format(
+        && make -j {num_cores} && make install""".format(
             local_dir=i.local_dir, num_cores=self.num_cores(),CC=self.CC, CXX=self.CXX, ext_dir=self.extDirLoc)
         cmd = " ".join(cmd.split())
         branchName = "master"
@@ -901,6 +901,9 @@ def main():
     elif args.addBashCompletion:
         if(os.path.isdir("./bashCompletes")):
             cmd = "cat bashCompletes/* >> ~/.bash_completion"
+            Utils.run(cmd)
+        if(os.path.isdir("./bash_completion.d")):
+            cmd = "cat bash_completion.d/* >> ~/.bash_completion"
             Utils.run(cmd)
     else:
         s.setup()
