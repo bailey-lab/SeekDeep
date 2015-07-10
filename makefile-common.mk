@@ -97,7 +97,6 @@ ifeq ($(USE_BIBSEQ),1)
 	USE_BIBCPP=1
 	USE_ARMADILLO=1
 	USE_BAMTOOLS=1
-	USE_R=1
 	USE_CURL=1
 	LD_FLAGS += -Wl,-rpath,$(LOCAL_PATH)/bibseq/lib \
 			-L$(LOCAL_PATH)/bibseq/lib  \
@@ -126,7 +125,7 @@ ifeq ($(USE_BIBCPP),1)
 	USE_BOOST=1
 	LD_FLAGS += -lpthread
 	#currently no compiled components so no need for library flags
-	#uncomment bellow in the future if there parts of the package need to be compiled
+	#uncomment below in the future if there parts of the package need to be compiled
 	#LD_FLAGS += -Wl,-rpath,$(LOCAL_PATH)/bibcpp/lib \
 			-L$(LOCAL_PATH)/bibcpp/lib  \
 			-lbibcpp
@@ -139,7 +138,7 @@ ifeq ($(USE_BIBCPPDEV),1)
 	USE_BOOST=1
 	LD_FLAGS += -lpthread
 	#currently no compiled components so no need for library flags
-	#uncomment bellow in the future if there parts of the package need to be compiled
+	#uncomment below in the future if there parts of the package need to be compiled
 	#LD_FLAGS += -Wl,-rpath,$(LOCAL_PATH)/bibcppDev/lib \
 			-L$(LOCAL_PATH)/bibcppDev/lib  \
 			-lbibcppDev
@@ -231,6 +230,36 @@ ifeq ($(USE_GTKMM),1)
 	LD_FLAGS += `pkg-config gtkmm-3.0 --libs`
 	COMLIBS += `pkg-config gtkmm-3.0 --cflags`
 endif
+
+
+#mongocxx  
+ifeq ($(USE_MONGOCXX),1)
+	COMLIBS += -isystem$(LOCAL_PATH)/mongocxx/include/mongocxx/v0.3 \
+	-isystem$(LOCAL_PATH)/mongocxx/include/bsoncxx/v0.3 
+	LD_FLAGS += -Wl,-rpath,$(LOCAL_PATH)/mongocxx/lib \
+			-L$(LOCAL_PATH)/mongocxx/lib  \
+			-lmongocxx -lbsoncxx 
+	USE_MONGOC=1
+endif
+
+
+
+#mongoc  
+ifeq ($(USE_MONGOC),1)
+	COMLIBS += -isystem$(LOCAL_PATH)/mongoc/include/libbson-1.0 \
+	-isystem$(LOCAL_PATH)/mongoc/include/libmongoc-1.0
+	LD_FLAGS += -Wl,-rpath,$(LOCAL_PATH)/mongoc/lib \
+			-L$(LOCAL_PATH)/mongoc/lib \
+			-lssl -lcrypto -lmongoc-1.0 -lbson-1.0
+	ifeq ($(UNAME_S),Darwin)
+
+	else
+   		LD_FLAGS += -lrt
+	endif
+endif
+
+
+
 
 #ml_pack
 ifeq ($(USE_MLPACK),1)
