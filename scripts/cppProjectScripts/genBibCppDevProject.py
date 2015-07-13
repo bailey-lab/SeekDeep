@@ -41,7 +41,7 @@ def addSetUpPyCompletes(dest, outFilename):
 
 def genMultiRingBashCompleteStr(programNames):
     ret =  """
-_bibcppTools()
+_bibCppTools()
 {
     local cur prev opts base
     COMPREPLY=()
@@ -51,11 +51,24 @@ _bibcppTools()
         opts=$(for x in `${COMP_WORDS[0]} | grep ")" | sed "s/.*) //g"`; do echo ${x} ; done )
         COMPREPLY=($(compgen -W "${opts}" -- ${cur}))
     elif [[ ${cur} == -* ]]; then
-        flagopts=$(${COMP_WORDS[0]} ${COMP_WORDS[1]} -getFlags)
-        newopts=$(echo $flagopts | sed "s/,/ /g")
-        COMPREPLY=( $(compgen -W "${newopts}" -- ${cur}) )
+        if [[ ${COMP_WORDS[1]} == batch* ]]; then
+            rest="${COMP_WORDS[@]:1:${#COMP_WORDS[@]} }"
+            if [[ $rest != *"-getFlags"* ]]; then
+                  rest="$rest -getFlags"
+            fi
+            newopts=$(${COMP_WORDS[0]} $rest | column -t | cut -f 1 -d " " | cut -f 1 -d ,)
+            COMPREPLY=( $(compgen -W "${newopts}" -- ${cur}) )
+        else
+            newopts=$(${COMP_WORDS[0]} ${COMP_WORDS[1]} -getFlags | column -t | cut -f 1 -d " " | cut -f 1 -d ,)
+            COMPREPLY=( $(compgen -W "${newopts}" -- ${cur}) )
+        fi
     else
-        _filedir
+        if [[ ${prev} == -run ]]; then
+            opts=$(for x in `${COMP_WORDS[0]} | grep ")" | sed "s/.*) //g"`; do echo ${x} ; done )
+            COMPREPLY=($(compgen -W "${opts}" -- ${cur}))
+        else
+            _filedir
+        fi
     fi
    return 0
 }

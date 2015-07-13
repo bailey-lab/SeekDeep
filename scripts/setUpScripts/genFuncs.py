@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
 import shutil, os, argparse, sys, stat
-
+sys.path.append(os.path.join(os.path.dirname(os.path.dirname(__file__)), "pyUtils"))
+from utils import Utils
 
 class genHelper:
     @staticmethod
@@ -39,7 +40,9 @@ class genHelper:
 
     @staticmethod            
     def determineCC(args):
-        defaultCC = "clang"
+        defaultCC = "clang-3.5"
+        if Utils.isMac():
+            defaultCC = "clang"
         if not args.CC:
             eCC = os.getenv("CC")
             if(eCC):
@@ -49,7 +52,9 @@ class genHelper:
         return defaultCC
     @staticmethod
     def determineCXX(args):
-        defaultCXX = "clang++"
+        defaultCXX = "clang++-3.5"
+        if Utils.isMac():
+            defaultCXX = "clang++"
         if not args.CXX:
             eCXX = os.getenv("CXX")
             if  eCXX:
