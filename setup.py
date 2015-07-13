@@ -666,7 +666,7 @@ make COMPFILE=compfile.mk -j {num_cores}
                 && make -j {num_cores}
                 && make install
                 && echo 'install.packages(c(\"gridExtra\", \"ape\", \"ggplot2\", \"seqinr\",\"Rcpp\", \"RInside\", \"devtools\"),
-                 repos=\"http://cran.us.r-project.org\")' | $({local_dir}/R.framework/Resources/bin/R RHOME)/bin/R --slave --vanilla
+                 repos=\"http://cran.us.r-project.org\", Ncpus = {num_cores})' | $({local_dir}/R.framework/Resources/bin/R RHOME)/bin/R --slave --vanilla
                 """.format(local_dir=shellquote(i.local_dir).replace(' ', '\ '), num_cores=self.num_cores(), CC=self.CC, CXX=self.CXX)
         else:
             cmd = """
@@ -674,7 +674,7 @@ make COMPFILE=compfile.mk -j {num_cores}
                 && make -j {num_cores}
                 && make install
                 && echo 'install.packages(c(\"gridExtra\", \"ape\", \"ggplot2\", \"seqinr\",\"Rcpp\", \"RInside\",\"devtools\"),
-                 repos=\"http://cran.us.r-project.org\")' | $({local_dir}/bin/R RHOME)/bin/R --slave --vanilla
+                 repos=\"http://cran.us.r-project.org\", Ncpus = {num_cores})' | $({local_dir}/bin/R RHOME)/bin/R --slave --vanilla
             """.format(local_dir=shellquote(i.local_dir).replace(' ', '\ '), num_cores=self.num_cores(), CC=self.CC, CXX=self.CXX)
         cmd = " ".join(cmd.split())
         self.__build(i, cmd)
