@@ -19,7 +19,7 @@ def shellquote(s):
     return "'" + s.replace("'", "'\\''") + "'"
 
 def isMac():
-    return sys.platform == "darwin"
+    return Utils.isMac()
 
 class Paths():
     '''class to hold and setup all the necessary paths for 
@@ -690,7 +690,7 @@ make COMPFILE=compfile.mk -j {num_cores}
     def bibcpp(self):
         i = self.__path('bibcpp')
         branch = "develop"
-        version = "2"
+        version = "2.1"
         #self.__buildNjhProject(i)
         #self.__buildNjhProjectTag(i, version)
         self.__buildNjhProjectBranch(i, branch)
@@ -702,7 +702,7 @@ make COMPFILE=compfile.mk -j {num_cores}
     def bibseq(self):
         i = self.__path('bibseq')
         branch = "develop"
-        version = "2"
+        version = "2.1"
         #self.__buildNjhProject(i)
         #self.__buildNjhProjectTag(i, version)
         self.__buildNjhProjectBranch(i, branch)
@@ -714,7 +714,7 @@ make COMPFILE=compfile.mk -j {num_cores}
     def SeekDeep(self):
         i = self.__path('seekdeep')
         branch = "develop"
-        version = "2"
+        version = "2.1.1"
         #self.__buildNjhProject(i)
         #self.__buildNjhProjectTag(i, version)
         self.__buildNjhProjectBranch(i, branch)
@@ -862,12 +862,7 @@ def ubuntu(self):
         pkgs = """libbz2-dev python2.7-dev cmake libpcre3-dev zlib1g-dev libgcrypt11-dev libicu-dev
 python doxygen doxygen-gui auctex xindy graphviz libcurl4-openssl-dev""".split()
 
-def startSrc():
-    if not os.path.isdir("src/"):
-        os.mkdir("src/")
-    if not os.path.isfile("src/main.cpp"):
-        cmd = "./scripts/genHelloWorldCpp.sh src/main.cpp"
-        Utils.run(cmd)
+
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -879,7 +874,7 @@ def parse_args():
     parser.add_argument('-CC', type=str, nargs=1)
     parser.add_argument('-CXX', type=str, nargs=1)
     parser.add_argument('-instRPackageName',type=str, nargs=1)
-    parser.add_argument('-instRPackageSource',type=str, nargs=1)
+    parser.add_argument('-instRPackageSource',type=str, nargs=1) 
     parser.add_argument('-addBashCompletion', dest = 'addBashCompletion', action = 'store_true')
     parser.add_argument('-numCores', type=str)
     return parser.parse_args()
@@ -887,6 +882,36 @@ def parse_args():
 def main():
     args = parse_args()
     s = Setup(args)
+    ccWhich = Utils.which(s.CC)
+    cxxWhich = Utils.which(s.CXX)
+    cmakeWhich = Utils.which("cmake")
+    if not ccWhich or not cxxWhich or not cmakeWhich:
+        if not ccWhich:
+            print CT.boldRed("Could not find c compiler " + CT.purple + s.CC)
+            if args.compfile:
+                print "Change CC in " + args.compfile
+            else:
+                print "Can supply another c compiler by using -CC [option] or by defining bash environmental CC "
+            print ""
+        if not cxxWhich:
+            print CT.boldRed("Could not find c++ compiler " + CT.purple + s.CXX)
+            if args.compfile:
+                print "Change CXX in " + args.compfile
+            else:
+                print "Can supply another c++ compiler by using -CXX [option] or by defining bash environmental CXX "
+            print ""
+        if not cmakeWhich:
+            print CT.boldRed("Could not find " + CT.purple + "cmake")
+            if Utils.isMac():
+                print "If you have brew install via, brew update && brew install cmake, otherwise you can follow instructions from http://www.cmake.org/install/"
+            else:
+                print "On ubuntu to install latest cmake do the following"
+                print "sudo add-apt-repository ppa:george-edison55/cmake-3.x"
+                print "sudo apt-get update"
+                print "sudo apt-get install cmake"
+        return 1
+        
+    
     if(args.instRPackageName):
         s.installRPackageName(args.instRPackageName[0])
         return 0
