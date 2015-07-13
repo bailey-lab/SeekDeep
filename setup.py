@@ -666,7 +666,7 @@ make COMPFILE=compfile.mk -j {num_cores}
                 && make -j {num_cores}
                 && make install
                 && echo 'install.packages(c(\"gridExtra\", \"ape\", \"ggplot2\", \"seqinr\",\"Rcpp\", \"RInside\", \"devtools\"),
-                 repos=\"http://cran.us.r-project.org\")' | $({local_dir}/R.framework/Resources/bin/R RHOME)/bin/R --slave --vanilla
+                 repos=\"http://cran.us.r-project.org\", Ncpus = {num_cores})' | $({local_dir}/R.framework/Resources/bin/R RHOME)/bin/R --slave --vanilla
                 """.format(local_dir=shellquote(i.local_dir).replace(' ', '\ '), num_cores=self.num_cores(), CC=self.CC, CXX=self.CXX)
         else:
             cmd = """
@@ -674,7 +674,7 @@ make COMPFILE=compfile.mk -j {num_cores}
                 && make -j {num_cores}
                 && make install
                 && echo 'install.packages(c(\"gridExtra\", \"ape\", \"ggplot2\", \"seqinr\",\"Rcpp\", \"RInside\",\"devtools\"),
-                 repos=\"http://cran.us.r-project.org\")' | $({local_dir}/bin/R RHOME)/bin/R --slave --vanilla
+                 repos=\"http://cran.us.r-project.org\", Ncpus = {num_cores})' | $({local_dir}/bin/R RHOME)/bin/R --slave --vanilla
             """.format(local_dir=shellquote(i.local_dir).replace(' ', '\ '), num_cores=self.num_cores(), CC=self.CC, CXX=self.CXX)
         cmd = " ".join(cmd.split())
         self.__build(i, cmd)
@@ -689,11 +689,11 @@ make COMPFILE=compfile.mk -j {num_cores}
 
     def bibcpp(self):
         i = self.__path('bibcpp')
-        branch = "develop"
+        branch = "release/2"
         version = "2"
-        #self.__buildNjhProject(i)
+        self.__buildNjhProject(i)
         #self.__buildNjhProjectTag(i, version)
-        self.__buildNjhProjectBranch(i, branch)
+        #self.__buildNjhProjectBranch(i, branch)
     
     def bibcppDev(self):
         i = self.__path('bibcppdev')
@@ -701,11 +701,11 @@ make COMPFILE=compfile.mk -j {num_cores}
 
     def bibseq(self):
         i = self.__path('bibseq')
-        branch = "develop"
+        branch = "release/2"
         version = "2"
-        #self.__buildNjhProject(i)
+        self.__buildNjhProject(i)
         #self.__buildNjhProjectTag(i, version)
-        self.__buildNjhProjectBranch(i, branch)
+        #self.__buildNjhProjectBranch(i, branch)
         
     def bibseqDev(self):
         i = self.__path('bibseqdev')
@@ -713,11 +713,11 @@ make COMPFILE=compfile.mk -j {num_cores}
         
     def SeekDeep(self):
         i = self.__path('seekdeep')
-        branch = "develop"
+        branch = "release/2"
         version = "2"
-        #self.__buildNjhProject(i)
+        self.__buildNjhProject(i)
         #self.__buildNjhProjectTag(i, version)
-        self.__buildNjhProjectBranch(i, branch)
+        #self.__buildNjhProjectBranch(i, branch)
     
     
     def SeekDeepDev(self):
