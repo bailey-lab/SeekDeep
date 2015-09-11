@@ -45,8 +45,8 @@ def main():
             graph.addNode(os.path.basename(file).replace(".", "_"), fileNode.cppColor, "internal", statbuf.st_mtime, max(1, int(float(os.path.getsize(file))/max(sizes) * 50) ))
         else:
             graph.addNode(os.path.basename(file).replace(".", "_"), fileNode.headerColor, "internal", statbuf.st_mtime, max(1, int(float(os.path.getsize(file))/max(sizes) * 50)) )
-    pattern = re.compile("#include.*\".*\.h")
-    patternSystem = re.compile("#include.*\<.*\>")
+    pattern = re.compile("^[\w]*#include.*\".*\.h")
+    patternSystem = re.compile("^[\w]*#include.*\<.*\>")
     for file in allFiles:
         for i, line in enumerate(open(file)):
             for match in re.finditer(pattern, line):

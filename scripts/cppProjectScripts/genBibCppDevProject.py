@@ -74,7 +74,7 @@ _bibCppTools()
 }
 """
     for name in programNames:
-        ret += "complete -F _bibcppTools {programName}\n".format(programName = name)
+        ret += "complete -F _bibCppTools {programName}\n".format(programName = name)
     return ret
 
 def addMultiRingComletes(dest,programNames, outFilename):
