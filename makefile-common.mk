@@ -2,12 +2,7 @@ UNAME_S := $(shell uname -s)
 LOCAL_PATH = $(EXT_PATH)/local
 #LD_FLAGS += 
 #defaults for most progjects
-LOCALTOOLS = -I$(LOCAL_PATH)
-EXTTOOLS = -I$(EXT_PATH)
-SRC = -I./src/
-COMLIBS += $(LOCALTOOLS) $(EXTTOOLS) $(SRC)
-
-
+COMLIBS += -I./src/
 
 #dlib
 ifeq ($(USE_DLIB),1)
@@ -31,17 +26,9 @@ ifeq ($(USE_TWOBIT),1)
 	LD_FLAGS += -Wl,-rpath,$(LOCAL_PATH)/TwoBit/lib \
 			-L$(LOCAL_PATH)/TwoBit/lib  \
 			-lTwoBit
+	USE_CPPPROGUTILS=1
+	USE_CPPITERTOOLS=1
 endif
-
-#TwoBit
-ifeq ($(USE_TWOBIT),1)
-	COMLIBS += -isystem$(LOCAL_PATH)/TwoBit/include
-	LD_FLAGS += -Wl,-rpath,$(LOCAL_PATH)/TwoBit/lib \
-			-L$(LOCAL_PATH)/TwoBit/lib  \
-			-lTwoBit
-endif
-
-
 
 
 #SeekDeep
@@ -124,11 +111,13 @@ ifeq ($(USE_BIBCPP),1)
 	USE_JSONCPP=1
 	USE_BOOST=1
 	LD_FLAGS += -lpthread
+	USE_CPPITERTOOLS=1
+	USE_PSTREAMS=1
 	#currently no compiled components so no need for library flags
 	#uncomment below in the future if there parts of the package need to be compiled
 	#LD_FLAGS += -Wl,-rpath,$(LOCAL_PATH)/bibcpp/lib \
-			-L$(LOCAL_PATH)/bibcpp/lib  \
-			-lbibcpp
+			#-L$(LOCAL_PATH)/bibcpp/lib  \
+			#-lbibcpp
 endif
 
 #bibcppDev
@@ -137,14 +126,32 @@ ifeq ($(USE_BIBCPPDEV),1)
 	USE_JSONCPP=1
 	USE_BOOST=1
 	LD_FLAGS += -lpthread
+	USE_CPPITERTOOLS=1
+	USE_PSTREAMS=1
 	#currently no compiled components so no need for library flags
 	#uncomment below in the future if there parts of the package need to be compiled
 	#LD_FLAGS += -Wl,-rpath,$(LOCAL_PATH)/bibcppDev/lib \
-			-L$(LOCAL_PATH)/bibcppDev/lib  \
-			-lbibcppDev
+			#-L$(LOCAL_PATH)/bibcppDev/lib  \
+			#-lbibcppDev
 endif
 
 
+#CPPPROGUTILS
+ifeq ($(USE_CPPPROGUTILS),1)
+	COMLIBS += -I$(LOCAL_PATH)/cppprogutils
+	LD_FLAGS += -lpthread
+	USE_CPPITERTOOLS=1
+endif
+
+#CPPITERTOOLS
+ifeq ($(USE_CPPITERTOOLS),1)
+	COMLIBS += -I$(LOCAL_PATH)/cppitertools
+endif
+
+#PSTREAMS
+ifeq ($(USE_PSTREAMS),1)
+	COMLIBS += -I$(LOCAL_PATH)/pstreams
+endif
 
 #jsoncpp
 ifeq ($(USE_JSONCPP),1)
@@ -191,10 +198,7 @@ ifeq ($(USE_SHARK),1)
 		-lshark
 endif
 
-#CPPPROGUTILS
-ifeq ($(USE_CPPPROGUTILS),1)
-	COMLIBS += -I$(LOCAL_PATH)/cppprogutils
-endif
+
 
 #CATCH
 ifeq ($(USE_CATCH),1)
@@ -279,10 +283,13 @@ ifeq ($(USE_QT5),1)
     	COMLIBS += -I/usr/local/opt/qt5/include
 	endif
 endif
+
+#R
 ifeq ($(USE_R),1)
 	include $(ROOT)/r-makefile-common.mk
 endif
 
+#Mac specific
 ifeq ($(UNAME_S),Darwin)
     #for dylib path fixing in macs, this gets rid of the name_size limit, which why the hell is there a name size limit
     LD_FLAGS += -headerpad_max_install_names

@@ -38,11 +38,9 @@ COMMON = $(CXXFLAGS) $(CXXOPT) $(COMLIBS)
 ############ main
 .PHONY: all
 all: do_preReqs $(OBJ_DIR) $(BIN) 
+ifeq ($(UNAME_S), Darwin)
 	scripts/setUpScripts/fixDyLinking_mac.sh bin $(EXT_PATH)
-	
-.PHONY: dev
-dev: do_preReqs $(OBJ_DIR) $(BIN) $(PROTO) $(BIOALG) $(EULER) $(QTTEST) 
-	scripts/setUpScripts/fixDyLinking_mac.sh bin $(EXT_PATH)	
+endif
 
 $(OBJ_DIR):
 	mkdir -p $(OBJ_DIR)
@@ -81,7 +79,9 @@ $(SOLIB): $(OBJNOMAIN)
 ############ dylibLibrary
 .PHONY: dylibLibrary
 dylibLibrary: $(OBJ_DIR) $(DYLIB)
+ifeq ($(UNAME_S), Darwin)
 	scripts/setUpScripts/fixDyLinking_mac.sh lib $(EXT_PATH)
+endif
 $(DYLIB): $(OBJNOMAIN)
 	$(CXX) $(CXXFLAGS) $(CXXOPT) -dynamiclib -o $@ $^ $(LD_FLAGS) 
 
@@ -128,6 +128,10 @@ moveHeaders: $(INSTALL_DIR)
 unitTest: 
 	scripts/setUpScripts/runUnitTest.sh $(COMPFILE) $(NCORETEST)
 	
-	
+
+######### docs
+.PHONY: docs
+docs:docs/Doxygen
+	doxygen docs/Doxygen
 
 	
