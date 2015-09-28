@@ -709,11 +709,11 @@ make COMPFILE=compfile.mk -j {num_cores}
 
     def bibcpp(self):
         i = self.__path('bibcpp')
-        branch = "develop"
+        branch = "release/2"
         version = "2"
-        #self.__buildBibProject(i)
+        self.__buildBibProject(i)
         #self.__buildBibProjectTag(i, version)
-        self.__buildBibProjectBranch(i, branch)
+        #self.__buildBibProjectBranch(i, branch)
     
     def bibcppDev(self):
         i = self.__path('bibcppdev')
@@ -721,11 +721,11 @@ make COMPFILE=compfile.mk -j {num_cores}
 
     def bibseq(self):
         i = self.__path('bibseq')
-        branch = "develop"
+        branch = "release/2"
         version = "2"
-        #self.__buildBibProject(i)
+        self.__buildBibProject(i)
         #self.__buildBibProjectTag(i, version)
-        self.__buildBibProjectBranch(i, branch)
+        #self.__buildBibProjectBranch(i, branch)
         
     def twobit(self):
         i = self.__path('twobit')
@@ -889,7 +889,9 @@ cp -a * {local_dir}/
         self.__build(i, cmd)
 
     def cppprogutils(self):
-        self.__git(self.__path('cppprogutils'))
+        branch = "develop"
+        version = "2"
+        self.__gitTag(self.__path('cppprogutils'), branch)
 
     def catch(self):
         self.__git(self.__path('catch'))

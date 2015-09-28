@@ -12,14 +12,17 @@ class genHelper:
                          "BIBSEQDEV", "BIBCPPDEV", "SEEKDEEPDEV", "CATCH", "JSONCPP",
                           "TWOBIT", "SEQSERVER","NJHRINSIDE", "PSTREAMS", "MONGOC", "MONGOCXX"]
         neededLibs = map(lambda x:x.upper(), neededLibs)
-        """@todo: Make some of these default to an envirnment CC and CXX and maybe even CXXFLAGS as well 
-            @todo: Make availableLibs a more universal constant"""
+        """
+            @todo: Make some of these default to an envirnment CC and CXX and maybe even CXXFLAGS as well 
+            @todo: Make availableLibs a more universal constant
+        """
         with open(outFileName, "w") as f:
             f.write("CC = {CC}\n".format(CC = cc))
             f.write("CXX = {CXX}\n".format(CXX = cxx))
             f.write("CXXOUTNAME = {NAME_OF_PROGRAM}\n".format(NAME_OF_PROGRAM = outName))
-            #f.write("CXXFLAGS = -std=c++11 -Wall -ftemplate-depth=1024\n")
-            f.write("CXXFLAGS = -std=c++14 -Wall -ftemplate-depth=1024\n")
+            #f.write("CXXFLAGS = -std=c++11\n")
+            f.write("CXXFLAGS = -std=c++14\n")
+            f.write("CXXFLAGS += -Wall -ftemplate-depth=1024\n")
             f.write("CXXOPT += -O2 -funroll-loops -DNDEBUG  \n")
             f.write("ifneq ($(shell uname -s),Darwin)\n")
             f.write("\tCXXOPT += -march=native -mtune=native\n" )

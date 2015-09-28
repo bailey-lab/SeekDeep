@@ -30,6 +30,6 @@ _bibCppTools()
    return 0
 }
 
-complete -F _bibSeqTools SeekDeep
+complete -F _bibCppTools SeekDeep
 
 
