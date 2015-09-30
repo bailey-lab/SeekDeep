@@ -9,9 +9,15 @@ class genHelper:
     def generateCompfileFull(outFileName, externalDirLoc, cc, cxx, outName, installDirName, installDirLoc, neededLibs):
         availableLibs = ["CPPITERTOOLS","CPPPROGUTILS","ZI_LIB","BOOST","R","BAMTOOLS","CPPCMS","MATHGL","ARMADILLO",
                          "MLPACK","LIBLINEAR","PEAR","CURL","GTKMM", "BIBSEQ", "BIBCPP", "SEEKDEEP", 
-                         "BIBSEQDEV", "BIBCPPDEV", "SEEKDEEPDEV", "CATCH", "JSONCPP",
+                         "BIBSEQDEV", "SEEKDEEPDEV", "CATCH", "JSONCPP",
                           "TWOBIT", "SEQSERVER","NJHRINSIDE", "PSTREAMS", "MONGOC", "MONGOCXX"]
-        neededLibs = map(lambda x:x.upper(), neededLibs)
+        neededLibraries = {}
+        for lib in neededLibs:
+            if ":" in lib:
+                libSplit = lib.split(":")
+                neededLibraries[libSplit[0].upper()] = libSplit[1]
+            else:
+                neededLibraries[lib.upper()] = ""
         """
             @todo: Make some of these default to an envirnment CC and CXX and maybe even CXXFLAGS as well 
             @todo: Make availableLibs a more universal constant
@@ -35,10 +41,14 @@ class genHelper:
             #f.write("SCRIPTS_DIR=$(realpath scripts)\n")
             f.write("\n")
             for lib in availableLibs:
-                if lib in neededLibs:
-                    f.write("USE_{LIB} = 1\n".format(LIB = lib))
+                if lib in neededLibraries:
+                    if neededLibraries[lib] == "":
+                        f.write("USE_{LIB} = 1\n".format(LIB = lib))
+                    else:
+                        f.write("USE_{LIB} = 1#{BRANCH}\n".format(LIB = lib, BRANCH = neededLibraries[lib]))
                 else:
                     f.write("USE_{LIB} = 0\n".format(LIB = lib))
+                    
 
 
     @staticmethod            

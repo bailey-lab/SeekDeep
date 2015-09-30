@@ -33,6 +33,7 @@ class Paths():
         
         Utils.mkdir(self.ext_tars) #tar storage directory
         Utils.mkdir(self.ext_build) #build directory
+        Utils.mkdir(self.install_dir) #local directory
         self.paths = {} #dictionary to hold path infos
         self.paths["zi_lib"] = self.__zi_lib()
         self.paths["pstreams"] = self.__pstreams()
@@ -52,7 +53,6 @@ class Paths():
         self.paths["bibcpp"] = self.__bibcpp()
         self.paths["seekdeep"] = self.__SeekDeep()
         self.paths["bibseqdev"] = self.__bibseqDev()
-        self.paths["bibcppdev"] = self.__bibcppDev()
         self.paths["seekdeepdev"] = self.__SeekDeepDev()
         self.paths["seqserver"] = self.__seqserver()
         self.paths["njhrinside"] = self.__njhRInside()
@@ -119,11 +119,6 @@ class Paths():
         return self.__package_dirs(url, "pear")
 
     def __r(self):
-        #url = "ftp://ftp.stat.math.ethz.ch/Software/R/R-devel.tar.gz"
-        #url = "http://cran.r-project.org/src/base/R-3/R-3.2.0.tar.gz"
-        #url = "http://cran.r-project.org/src/base/R-3/R-3.1.0.tar.gz"
-        #url = "http://cran.r-project.org/src/base/R-3/R-3.1.1.tar.gz"
-        #url = "http://cran.r-project.org/src/base/R-3/R-3.1.2.tar.gz"
         url = "http://cran.r-project.org/src/base/R-3/R-3.1.3.tar.gz"
         return self.__package_dirs(url, "R")
 
@@ -133,7 +128,6 @@ class Paths():
         return self.__package_dirs(url, "boost")
 
     def __armadillo(self):
-        #url = "http://freefr.dl.sourceforge.net/project/arma/armadillo-4.000.2.tar.gz"
         url = "http://freefr.dl.sourceforge.net/project/arma/armadillo-5.100.2.tar.gz"
         return self.__package_dirs(url, "armadillo")
 
@@ -195,11 +189,6 @@ class Paths():
         url = "https://github.com/nickjhathaway/njhRInside.git"
         name = "njhRInside"
         return self.__package_dirs(url, name)
-
-    def __bibcppDev(self):
-        url = "https://github.com/umass-bib/bibcppDev.git"
-        name = "bibcppDev"
-        return self.__package_dirs(url, name)
     
     def __bibcpp(self):
         url = "https://github.com/umass-bib/bibcpp.git"
@@ -234,24 +223,24 @@ class Setup:
         self.paths = Paths(self.extDirLoc) # path object to hold the paths for install
         self.args = args # command line arguments parsed by argument parser
         self.setUps = {} # all available set ups
-        self.setUpsNeeded = [] # the setups that need to be done
+        self.setUpsNeeded = {} # the setups that need to be done
         self.installed = [] # the setups that able to install
         self.failedInstall = [] # the setups that failed
         self.CC = "" # the c compilier being used
         self.CXX = "" # the c++ compilier being used
-        self.bibProjects = ["bibcpp", "bibcppdev", "bibseq", "bibseqdev", "seekdeep", "seekdeepdev", "njhrinside", "seqserver", "twobit"]
+        self.bibProjects = ["bibcpp", "bibseq", "bibseqdev", "seekdeep", "seekdeepdev", "njhrinside", "seqserver", "twobit"]
         self.__initSetUpFuncs()
         self.__processArgs()
         
     def setup(self):
         if self.args.forceUpdate:
-            for set in self.setUpsNeeded:
+            for set in self.setUpsNeeded.keys():
                 if not set in self.setUps.keys():
                     print CT.boldBlack( "Unrecognized option ") + CT.boldRed(set)
                 else:
                     self.rmDirsForLib(set)
                         
-        for set in self.setUpsNeeded:
+        for set in self.setUpsNeeded.keys():
             if not set in self.setUps.keys():
                 print CT.boldBlack( "Unrecognized option ") + CT.boldRed(set)
             else:
@@ -282,7 +271,6 @@ class Setup:
                        "bibcpp": self.bibcpp,
                        "bibseqdev": self.bibseqDev,
                        "seekdeepdev": self.SeekDeepDev,
-                       "bibcppdev": self.bibcppDev,
                        "seqserver": self.seqserver,
                        "njhrinside": self.njhRInside,
                        "jsoncpp": self.jsoncpp,
@@ -307,7 +295,11 @@ class Setup:
         if self.args.libs:
             inLibs = self.args.libs.split(",")
             for lib in inLibs:
-                self.setUpsNeeded.append(lib.lower())
+                if ":" not in lib.lower():
+                    self.setUpsNeeded[lib.lower()] = ""
+                else:
+                    libSplit = lib.split(":")
+                    self.setUpsNeeded[libSplit[0].lower()] = libSplit[1]
         if self.args.compfile:
             self.parseSetUpNeeded(self.args.compfile[0])
             self.parserForCompilers(self.args.compfile[0])
@@ -336,8 +328,12 @@ class Setup:
         args = self.parseCompFile(fn)
         for k,v in args.iteritems():
             if k.startswith("USE_"):
-                if '1' == v:
-                    self.setUpsNeeded.append(k[4:].lower())
+                if "#" in v:
+                    valSplit = v.split("#")
+                    if valSplit[0] == '1':
+                        self.setUpsNeeded[k[4:].lower()] = valSplit[1]
+                elif '1' == v:
+                    self.setUpsNeeded[k[4:].lower()] = ""
 
     def parseCompFile(self, fn):
         ret = {}
@@ -711,19 +707,21 @@ make COMPFILE=compfile.mk -j {num_cores}
         i = self.__path('bibcpp')
         branch = "release/2"
         version = "2"
-        self.__buildBibProject(i)
+        if "bibcpp" in self.setUpsNeeded and self.setUpsNeeded["bibcpp"] != "":
+            self.__buildBibProjectBranch(i, self.setUpsNeeded["bibcpp"])
+        else:    
+            self.__buildBibProject(i)
         #self.__buildBibProjectTag(i, version)
         #self.__buildBibProjectBranch(i, branch)
-    
-    def bibcppDev(self):
-        i = self.__path('bibcppdev')
-        self.__buildBibProject(i)
 
     def bibseq(self):
         i = self.__path('bibseq')
         branch = "release/2"
         version = "2"
-        self.__buildBibProject(i)
+        if "bibseq" in self.setUpsNeeded and self.setUpsNeeded["bibseq"] != "":
+            self.__buildBibProjectBranch(i, self.setUpsNeeded["bibseq"])
+        else:    
+            self.__buildBibProject(i)
         #self.__buildBibProjectTag(i, version)
         #self.__buildBibProjectBranch(i, branch)
         
@@ -731,42 +729,78 @@ make COMPFILE=compfile.mk -j {num_cores}
         i = self.__path('twobit')
         branch = "develop"
         version = "1.1"
-        #self.__buildBibProject(i)
+        if "twobit" in self.setUpsNeeded and self.setUpsNeeded["twobit"] != "":
+            self.__buildBibProjectBranch(i, self.setUpsNeeded["twobit"])
+        else:    
+            self.__buildBibProject(i)
         #self.__buildBibProjectTag(i, version)
-        self.__buildBibProjectBranch(i, branch)
+        #self.__buildBibProjectBranch(i, branch)
         
     def bibseqDev(self):
         i = self.__path('bibseqdev')
-        self.__buildBibProject(i)
+        branch = "develop"
+        version = "1.1"
+        if "bibseqdev" in self.setUpsNeeded and self.setUpsNeeded["bibseqdev"] != "":
+            self.__buildBibProjectBranch(i, self.setUpsNeeded["bibseqdev"])
+        else:    
+            self.__buildBibProject(i)
+        #self.__buildBibProjectTag(i, version)
+        #self.__buildBibProjectBranch(i, branch)
         
     def SeekDeep(self):
         i = self.__path('seekdeep')
         branch = "release/2"
         version = "2"
-        self.__buildBibProject(i)
+        if "seekdeep" in self.setUpsNeeded and self.setUpsNeeded["seekdeep"] != "":
+            self.__buildBibProjectBranch(i, self.setUpsNeeded["seekdeep"])
+        else:    
+            self.__buildBibProject(i)
         #self.__buildBibProjectTag(i, version)
         #self.__buildBibProjectBranch(i, branch)
     
     
     def SeekDeepDev(self):
         i = self.__path('seekdeepdev')
-        self.__buildBibProject(i)
+        branch = "master"
+        version = "0"
+        if "seekdeepdev" in self.setUpsNeeded and self.setUpsNeeded["seekdeepdev"] != "":
+            self.__buildBibProjectBranch(i, self.setUpsNeeded["seekdeepdev"])
+        else:    
+            self.__buildBibProject(i)
+        #self.__buildBibProjectTag(i, version)
+        #self.__buildBibProjectBranch(i, branch)
         
     def seqserver(self):
         i = self.__path('seqserver')
         branch = "develop"
         version = "2"
-        #self.__buildBibProject(i)
+        if "seqserver" in self.setUpsNeeded and self.setUpsNeeded["seqserver"] != "":
+            self.__buildBibProjectBranch(i, self.setUpsNeeded["seqserver"])
+        else:    
+            self.__buildBibProject(i)
         #self.__buildBibProjectTag(i, version)
-        self.__buildBibProjectBranch(i, branch)
+        #self.__buildBibProjectBranch(i, branch)
         
     def njhRInside(self):
         i = self.__path('njhrinside')
         branch = "develop"
         version = "2"
-        #self.__buildBibProject(i)
+        if "njhrinside" in self.setUpsNeeded and self.setUpsNeeded["njhrinside"] != "":
+            self.__buildBibProjectBranch(i, self.setUpsNeeded["njhrinside"])
+        else:    
+            self.__buildBibProject(i)
         #self.__buildBibProjectTag(i, version)
-        self.__buildBibProjectBranch(i, branch)
+        #self.__buildBibProjectBranch(i, branch)
+        
+    def cppprogutils(self):
+        branch = "develop"
+        version = "2"
+        if "cppprogutils" in self.setUpsNeeded and self.setUpsNeeded["cppprogutils"] != "":
+            self.__gitTag(i, self.setUpsNeeded["cppprogutils"])
+        else:    
+            self.__git(i)
+        #self.__gitTag(i, version)
+        #self.__gitTag(i, branch)
     
     def jsoncpp(self):
         i = self.__path('jsoncpp')
@@ -887,11 +921,6 @@ cp -a * {local_dir}/
         cmd = "make && make lib && mkdir -p {local_dir} && cp -a * {local_dir}".format(
             local_dir=shellquote(i.local_dir))
         self.__build(i, cmd)
-
-    def cppprogutils(self):
-        branch = "develop"
-        version = "2"
-        self.__gitTag(self.__path('cppprogutils'), branch)
 
     def catch(self):
         self.__git(self.__path('catch'))
