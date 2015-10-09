@@ -93,7 +93,7 @@ endif
 #bibseqDev
 ifeq ($(USE_BIBSEQDEV),1)
 	COMLIBS += -isystem$(LOCAL_PATH)/bibseqDev/include
-	USE_BIBCPPDEV=1
+	USE_BIBCPP=1
 	USE_ARMADILLO=1
 	USE_BAMTOOLS=1
 	USE_BIBSEQ=0
@@ -119,22 +119,6 @@ ifeq ($(USE_BIBCPP),1)
 			#-L$(LOCAL_PATH)/bibcpp/lib  \
 			#-lbibcpp
 endif
-
-#bibcppDev
-ifeq ($(USE_BIBCPPDEV),1)
-	COMLIBS += -isystem$(LOCAL_PATH)/bibcppDev/include
-	USE_JSONCPP=1
-	USE_BOOST=1
-	LD_FLAGS += -lpthread
-	USE_CPPITERTOOLS=1
-	USE_PSTREAMS=1
-	#currently no compiled components so no need for library flags
-	#uncomment below in the future if there parts of the package need to be compiled
-	#LD_FLAGS += -Wl,-rpath,$(LOCAL_PATH)/bibcppDev/lib \
-			#-L$(LOCAL_PATH)/bibcppDev/lib  \
-			#-lbibcppDev
-endif
-
 
 #CPPPROGUTILS
 ifeq ($(USE_CPPPROGUTILS),1)

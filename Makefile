@@ -44,6 +44,7 @@ TESTDIR=test
 CXXFLAGS += $(ENV_CXXFLAGS)
 #CXXFLAGS += -Wno-missing-braces
 COMMON = $(CXXFLAGS) $(CXXOPT) $(COMLIBS)
+-include do_preReqs
 
 ############ default for calling make with no arguments
 all: do_preReqs $(OBJ_DIR) $(BIN) 

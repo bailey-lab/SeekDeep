@@ -470,14 +470,25 @@ make COMPFILE=compfile.mk -j {num_cores}
                                                           num_cores=self.num_cores(), CC=self.CC, CXX=self.CXX,
                                                            external=self.extDirLoc)
         cmd = " ".join(cmd.split())
-        libPaths = self.__path(lib.lower())
-        self.__buildFromGit(libPaths, cmd)
+        if ":" in lib:
+            libsplit = lib.split(":")
+            libPaths = self.__path(libsplit[0].lower())
+            self.__buildFromGitBranch(libPaths, cmd, libsplit[1])
+        else:
+            libPaths = self.__path(lib.lower())
+            self.__buildFromGit(libPaths, cmd)
+
     
     def updateBibProjects(self, libs):
         for l in libs:
             libLower = l.lower()
-            if libLower in self.bibProjects:
-                self.updateBibProject(libLower)
+            if ":" in libLower:
+                libLowerSplit = libLower.split(":")
+                if libLowerSplit[0] in self.bibProjects:
+                    self.updateBibProject(libLower)
+            else:
+                if libLower in self.bibProjects:
+                    self.updateBibProject(libLower)
     
     def __buildFromGit(self, i, cmd):
         if os.path.exists(i.build_dir):
