@@ -29,62 +29,10 @@
 #include <seqServer/apps/seqApp.hpp>
 #include <seqServer/utils.h>
 #include <bibcpp.h>
-
+#include "popClusterModel.hpp"
 
 
 namespace bibseq {
-
-template<typename T>
-uint32_t getMismatches(const T & read1,
-				const T & read2,
-				aligner alignerObj, bool weightHomopolymers){
-	alignerObj.alignVec(read1.seqBase_,read2.seqBase_, false);
-	alignerObj.profilePrimerAlignment(read1.seqBase_, read2.seqBase_, weightHomopolymers);
-	return alignerObj.comp_.hqMismatches_;
-};
-
-template<typename T>
-Json::Value getMinMismatchTreeJson(const std::vector<T> & reads, aligner & alignerObj,
-		uint32_t numThreads, bool weightHomopolymers,double hueStart, double hueStop,
-    double lumStart, double lumStop,
-    double satStart, double satStop, std::string backgroundColor){
-	std::function<uint32_t(const T & ,
-	  		const T &, aligner, bool)> misFun = getMismatches<T>;
-		auto misDistances = getDistanceCopy(reads, numThreads, misFun,
-				alignerObj, weightHomopolymers);
-	  readDistGraph<uint32_t> graphMis(misDistances, reads);
-		std::vector<std::string> names;
-	  for(const auto & n : graphMis.nodes_){
-	  	names.emplace_back(n->name_);
-	  }
-	  if(hueStop == 360 && hueStart == 0){
-	  	hueStop = 360 - (360.0/names.size());
-	  }
-		auto nameColors = bib::getColorsForNames(names, hueStart, hueStop,
-				lumStart, lumStop, satStop, satStart);
-	  Json::Value graphJson = graphMis.toJsonMismatchGraphAll(bib::color(backgroundColor), nameColors);
-	  return graphJson;
-}
-
-struct ExtractionInfo {
-	ExtractionInfo(const table & allStatsTab, const table & allprofileTab,
-			const table & profileBySampTab) :
-			allStatsTab_(allStatsTab), allProfileTab_(allprofileTab), profileBySampTab_(
-					profileBySampTab) {
-
-	}
-	ExtractionInfo(){}
-
-	table allStatsTab_;
-	table allProfileTab_;
-	table profileBySampTab_;
-};
-
-ExtractionInfo collectExtractionInfo(const std::string & dirName,
-		const std::string & indexToDir, const std::string & sampNames);
-
-ExtractionInfo collectExtractionInfoDirectName(const std::string & dirName,
-		const std::string & indexToDir, const std::string & sampNames);
 
 namespace bfs = boost::filesystem;
 
@@ -92,120 +40,89 @@ class pcv: public bibseq::seqApp {
 private:
 
 
-	struct popInfo {
-		popInfo(){}
-		popInfo(const table & sampTable, const table & popTable,
-				const std::vector<readObject> & popReads,
-				const std::vector<readObject> & popReadsTranslated) :
-				sampTable_(sampTable), popTable_(popTable), popReads_(popReads), popReadsTranslated_(
-						popReadsTranslated) {
-			clusteredSampleNames_ = sampTable_.getColumnLevels("s_Name");
-			bib::sort(clusteredSampleNames_);
-		}
-		table sampTable_;
-		table popTable_;
-		std::vector<readObject> popReads_;
-		std::vector<readObject> popReadsTranslated_;
-		VecStr clusteredSampleNames_;
-	};
-
-	table sampTable_;
-	table popTable_;
-	VecStr clusteredSampleNames_;
-	double fracCutOff_ = 0;
-
-	std::unordered_map<std::string, std::unordered_map<std::string, popInfo>> groupInfos_;
-	std::unordered_map<std::string, std::unordered_map<std::string, std::string>> groupInfosDirNames_;
-
-	VecStr allSampleNames_;
-	std::string projectName_;
-
-	std::string rootName_;
-	std::string mainDir_;
-
-
-	ExtractionInfo extractInfo_;
-
 	std::map<std::string, std::string> config_;
+	std::string configDir_;
+	std::string rootName_;
+	std::map<std::string, pcm> projectModels_;
 
 
-	std::unordered_map<std::string, Json::Value> sampleMinTreeDataCache_;
-	Json::Value minTreeData_;
-	bool calculatedTreeData_ = false;
-
-	std::unordered_map<std::string, uint32_t> sampNameToCodedNum_;
-	std::unordered_map<uint32_t, std::string> codedNumToSampName_;
-
-	static bfs::path make_path(const bfs::path fn) {
-		return fn;
-	}
 
 public:
 	pcv(cppcms::service& srv, std::map<std::string, std::string> config);
 
 	virtual VecStr requiredOptions() const{
-		return VecStr{"mainDir", "resources", "projectName"};
+		return VecStr{"configDir", "resources"};
 	}
 
-	void loadInPopSeqs();
+	void jsPcv();
+	void cssPcv();
 
-	void setFracCutOff();
-	void getFracCutOff();
+	void projectsNames();
+
+	void loadInProjects();
+
+	void setFracCutOff(std::string shortProjName);
+	void getFracCutOff(std::string shortProjName);
 
 	//html
 	//main page
 	void mainPage();
-	void individualSamplePage(std::string sampName);
+	void mainProjectPage(std::string shortProjName);
+	void individualSamplePage(std::string shortProjName,std::string sampName);
 
+	void projectName(std::string shortProjName);
 	//json
-	void getProjectName();
-	void getSampleNames();
-	void getAllSampleNames();
-	void getSampleNamesEncoding();
+	void getSampleNames(std::string shortProjName);
+	void getAllSampleNames(std::string shortProjName);
+	void getSampleNamesEncoding(std::string shortProjName);
 
-	void getEncodingForSampleNames();
+	void getEncodingForSampleNames(std::string shortProjName);
 
-	std::string decodeSampEncoding(const std::string& sampName);
-	void getSampInfo(std::string sampNames);
-	void getPosSeqData();
-	void getPopInfo();
-
-	void getPopProtenData();
+	void getSampInfo  				(std::string shortProjName);
+	void getPosSeqData				(std::string shortProjName);
+	void getPopInfo   				(std::string shortProjName);
+	void getPosSeqDataForSamps(std::string shortProjName);
+	void getPopInfoForSamps   (std::string shortProjName);
 
 
-	void showExtractionInfo();
-	void getIndexExtractionInfo();
-	void getSampleExtractionInfo(std::string sampNames);
+
+	void showExtractionInfo     (std::string shortProjName);
+	void getIndexExtractionInfo (std::string shortProjName);
+	void getSampleExtractionInfo(std::string shortProjName);
 
 
-	void showMinTree();
-	void getMinTreeData();
+	void showMinTree            (std::string shortProjName);
+	void getMinTreeData         (std::string shortProjName);
 
-	void getSeqData(std::string sampName);
-	void getProteinData(std::string sampName);
+	void getSeqData             (std::string shortProjName, std::string sampName);
 
-	void showMinTreeForSample(std::string sampName);
-	void getMinTreeDataForSample(std::string sampName);
+	void showMinTreeForSample   (std::string shortProjName, std::string sampName);
+	void getMinTreeDataForSample(std::string shortProjName, std::string sampName);
 
 	//group info
-	void getGroupPopInfo(std::string group, std::string subGroup);
-	void getGroupPopSeqData(std::string group, std::string subGroup);
-	void getGroupPopProtenData(std::string group, std::string subGroup);
-	void getGroupSampInfo(std::string group, std::string subGroup, std::string sampName);
-	void getGroupSampleNames(std::string group, std::string subGroup);
+	void getGroupPopInfo     			 (std::string shortProjName, std::string group, std::string subGroup);
+	void getGroupPopSeqData  			 (std::string shortProjName, std::string group, std::string subGroup);
+	void getGroupPopInfoForSamps	 (std::string shortProjName, std::string group, std::string subGroup);
+	void getGroupPopSeqDataForSamps(std::string shortProjName, std::string group, std::string subGroup);
+	void getGroupSampInfo    			 (std::string shortProjName, std::string group, std::string subGroup);
+	void getGroupSampleNames 			 (std::string shortProjName, std::string group, std::string subGroup);
 
-	void showGroupMainPage(std::string group, std::string subGroup);
-	void showSubGroupsPage(std::string group);
-	void getSubGroupsForGroup(std::string group);
+	void showGroupMainPage   (std::string shortProjName, std::string group, std::string subGroup);
+	void showSubGroupsPage   (std::string shortProjName, std::string group);
+	void getSubGroupsForGroup(std::string shortProjName, std::string group);
 
-	void getGroupNames();
-	bool setUpGroup(std::string group, std::string subGroup);
+	void getGroupNames(std::string shortProjName);
 
 
-	void getGroupPopInfos(std::string group);
+	void getGroupPopInfos(std::string shortProjName, std::string group);
+
+	bool hasProject(const std::string shortProjName);
+
+	virtual void main(std::string url);
 
 };
 
+int genProjectConfig(std::map<std::string, std::string> inputCommands);
 int popClusteringViewer(std::map<std::string, std::string> inputCommands);
 
 

@@ -37,6 +37,8 @@ class SeekDeepUtilsRunner : public bib::progutils::programRunner {
   SeekDeepUtilsRunner();
   
   static int dryRunQaulityFiltering(MapStrStr inputCommands);
+	static int runMultipleCommands(MapStrStr inputCommands);
 
 };
+
 } // namespace bibseq
