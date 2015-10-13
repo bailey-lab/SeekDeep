@@ -15,6 +15,13 @@ function drawLine(sx, sy, ex, ey, width) {
 	context.stroke();
 }
 
+
+function setToArray(set) {
+	var array_var = [];
+	set.forEach(function(element){array_var.push(element)});
+	return array_var;
+}
+
 function ajax(url, func) {
 	$.ajax({
 		url : url,
@@ -25,6 +32,26 @@ function ajax(url, func) {
 		}
 	});
 }
+
+function ajaxRet(url){
+	var data;
+	ajax(url, function(d){ data = d});
+	return data;
+}
+
+function ajaxPost(url, data, func) {
+	$.ajax({
+		type: 'POST',
+        url: url,
+        datatype : 'json',
+        async : false,
+        data: data,
+		success: function(ct) {
+			func(ct);
+		}
+    });
+}
+
 
 function ajaxAsync(url, func) {
 	$.ajax({
@@ -131,6 +158,9 @@ function addDiv(parentId, childName) {
 	$("<div id =\"" + childName + "\"></div>").appendTo(parentId);
 };
 
+function addH1(selector, text){
+	d3.select(selector).append("h1").text(text);
+}
 
 var sort_by = function(field, reverse, primer){
 	//from http://stackoverflow.com/questions/979256/sorting-an-array-of-javascript-objects
@@ -142,3 +172,34 @@ var sort_by = function(field, reverse, primer){
    };
 };
 
+function arrayContains(arr, val){
+	return (arr.indexOf(val) > -1);
+}
+
+
+function addSvgSaveButton(buttonId, topSvg) {
+	d3.select(buttonId).append("a").attr("id", "imgDownload");
+	d3.select(buttonId).on(
+			"click",
+			function() {
+				var html = $(
+						d3.select(topSvg).attr("version", 1.1).attr("xmlns",
+								"http://www.w3.org/2000/svg").node()).clone()
+						.wrap('<p/>').parent().html();
+				;
+				// add the svg information to a and then click it to trigger the
+				// download
+				var imgsrc = 'data:image/svg+xml;base64,' + btoa(html);
+				d3.select("#imgDownload").attr("download", "graph.svg");
+				d3.select("#imgDownload").attr("href", imgsrc);
+				var a = $("#imgDownload")[0];
+				a.click();
+			});
+}
+
+function setHeadTitle(title){
+	if(!$("title", "head").length){
+		$("head").append("<title></title>");
+	}
+	$("title", "head").html(title);
+}

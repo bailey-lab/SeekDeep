@@ -95,7 +95,7 @@ function njhSampleChart(masterDivId, masterData, downLoadStubName, xCol, yCol,co
 	yMax = Math.round((yMax + 0.00001) * 1000) / 1000
 		
 	
-	console.log(yMax);
+	//console.log(yMax);
 	//set up the x domain for the current sample names 
 	this.x.domain(this.masterData["tab"].map(function(d) { return d[self.xCol]; }));
 	this.y.domain([0,yMax]);

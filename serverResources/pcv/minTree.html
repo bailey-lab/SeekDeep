@@ -25,19 +25,16 @@
 			createMainPageNavBar("#topNav", rName);
 			addMainDiv("body", false);
 			setHeadTitle(rName);
-			addPanelWithDiv("#mainContent","projectsLinks", "All Projects");
-			//get project names 
-			var projectsNames;
-			ajax("/" + rName + "/projectsNames", function(mn){ projectsNames = mn; });
-			var cols = 10;
-			var linkPre = "/" + rName + "/mainProjectPage/";
-			var mouseOverC = "#999";
-			var mouseLeaveC = "#FFF";
-			var addTo = "#projectsLinks";
-			createLinksTable(addTo, linkPre, projectsNames,8, mouseOverC, mouseLeaveC);
-			
+			d3.select("#mainContent").append("button").attr("id", "save_svg").text("Save as Svg");
+			d3.select("#mainContent").append("svg").attr("id", "mainTree");
+			var jsonDat = "MIN_TREE_JSON_LINK";
+			var add = "#mainTree";
+			drawPsuedoMinTree(jsonDat, add);
+			var bName = "#save_svg";
+			addSvgSaveButton(bName, add);
 		});
-		
     </script>
   </body>
 </html>
+
+
