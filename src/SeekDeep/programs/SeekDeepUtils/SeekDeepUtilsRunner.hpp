@@ -36,7 +36,7 @@ class SeekDeepUtilsRunner : public bib::progutils::programRunner {
  public:
   SeekDeepUtilsRunner();
   
-  static int dryRunQaulityFiltering(MapStrStr inputCommands);
+  static int dryRunQualityFiltering(MapStrStr inputCommands);
 	static int runMultipleCommands(MapStrStr inputCommands);
 
 };

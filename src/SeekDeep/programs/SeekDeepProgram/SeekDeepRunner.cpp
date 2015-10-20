@@ -880,8 +880,16 @@ int SeekDeepRunner::extractor(MapStrStr inputCommands) {
 	}
   auto barcodeFiles = bib::files::listAllFiles(unfilteredByBarcodesDir,false, VecStr{});
 	kmerInfo compareInfo;
+	std::map<std::string, kmerInfo> compareInfos;
   if (pars.screenForPossibleContamination) {
   	compareInfo = kmerInfo(compareObject.seqBase_.seq_, pars.contaminationKLen, false);
+  }
+  if(pars.multipleTargets && pars.screenForPossibleContamination){
+  	readObjectIO readerCon;
+  	readerCon.read(bib::files::getExtension(pars.compareSeqFilename), pars.compareSeqFilename);
+  	for(const auto & read : readerCon.reads){
+  		compareInfos[read.seqBase_.name_] = kmerInfo(read.seqBase_.seq_, pars.contaminationKLen, false);
+  	}
   }
 
 
@@ -992,12 +1000,27 @@ int SeekDeepRunner::extractor(MapStrStr inputCommands) {
   		//look for possible contamination
       if (pars.screenForPossibleContamination) {
       	kmerInfo compareInfo(compareObject.seqBase_.seq_, pars.contaminationKLen, false);
-      	readChecker::checkReadOnKmerComp(read.seqBase_, compareInfo,pars.contaminationKLen, pars.kmerCutOff, true);
-      	if(!read.seqBase_.on_){
-      		stats.increaseCounts(fullname, read.seqBase_.name_, ExtractionStator::extractCase::CONTAMINATION);
-      		readOuts[outPos[fullname + "contamination"]]->write(read);
-      		continue;
+      	if(pars.multipleTargets){
+      		if(compareInfos.find(primerName) != compareInfos.end()){
+          	readChecker::checkReadOnKmerComp(read.seqBase_, compareInfos[primerName],pars.contaminationKLen, pars.kmerCutOff, true);
+          	if(!read.seqBase_.on_){
+          		stats.increaseCounts(fullname, read.seqBase_.name_, ExtractionStator::extractCase::CONTAMINATION);
+          		readOuts[outPos[fullname + "contamination"]]->write(read);
+          		continue;
+          	}
+      		}else{
+      			std::cerr << "Error in screening for contamination, multiple targets turned on but no contamination found for " << primerName << std::endl;
+      			std::cerr << "Options are: " << vectorToString(getVectorOfMapKeys(compareInfos), ",") << std::endl;
+      		}
+      	}else{
+        	readChecker::checkReadOnKmerComp(read.seqBase_, compareInfo,pars.contaminationKLen, pars.kmerCutOff, true);
+        	if(!read.seqBase_.on_){
+        		stats.increaseCounts(fullname, read.seqBase_.name_, ExtractionStator::extractCase::CONTAMINATION);
+        		readOuts[outPos[fullname + "contamination"]]->write(read);
+        		continue;
+        	}
       	}
+
       }
 
       //min len

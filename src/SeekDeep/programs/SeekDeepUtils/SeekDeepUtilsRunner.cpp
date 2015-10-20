@@ -31,13 +31,13 @@
 namespace bibseq {
 
 SeekDeepUtilsRunner::SeekDeepUtilsRunner()
-    : bib::progutils::programRunner({addFunc("dryRunQaulityFiltering", dryRunQaulityFiltering, false),
+    : bib::progutils::programRunner({addFunc("dryRunQualityFiltering", dryRunQualityFiltering, false),
 																		 addFunc("popClusteringViewer", popClusteringViewer, false),
 																		 addFunc("genProjectConfig", genProjectConfig, false),
 																		 addFunc("runMultipleCommands", runMultipleCommands, false)},
                     "SeekDeepUtils") {}
                     
-int SeekDeepUtilsRunner::dryRunQaulityFiltering(MapStrStr inputCommands){
+int SeekDeepUtilsRunner::dryRunQualityFiltering(MapStrStr inputCommands){
 	seqSetUp setUp(inputCommands);
 	setUp.processDefaultReader(true);
 	std::string qualWindow;

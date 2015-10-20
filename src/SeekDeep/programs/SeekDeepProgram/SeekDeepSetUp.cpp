@@ -201,11 +201,12 @@ void SeekDeepSetUp::setUpExtractor(
   }
   if (setOption(screenForPossibleContaimination, "-contamination",
                 "Screening For Contamination")) {
-  	if (! processSeq(compareSeq, "-compareSeq,-seq", "Comparison Sequence For Contamination ", true) ) {
+  	if (! processSeq(compareSeq, "-compareSeq", "Comparison Sequence For Contamination ", true) ) {
   	      warnings_.emplace_back(
   	          "Need to have -compareSeq if checking for contamination");
   	 }
   }
+
   setOption(qualWindowTrim, "-qualWindowTrim", "Trim To Qual Window");
   setOption(smallFragmentCutOff, "-smallFragmentCutOff", "Small Fragment Cut Off Size");
   gapInfo_.gapOpen_ = 7.0;
@@ -400,6 +401,12 @@ void SeekDeepSetUp::setUpExtractor(extractorPars & pars) {
 					"Need to have -compareSeq if checking for contamination");
 		}
 	}
+  setOption(pars.multipleTargets, "--multipleTargets", "Id file contains multiple targets");
+  if(pars.multipleTargets){
+  	if(pars.screenForPossibleContamination){
+  		commands_.lookForOption(pars.compareSeqFilename, "-compareSeq");
+  	}
+  }
   setOption(pars.qualWindowTrim, "-qualWindowTrim", "Trim To Qual Window");
   setOption(pars.smallFragmentCutoff, "-smallFragmentCutOff", "Small Fragment Cut Off Size");
   gapInfo_.gapOpen_ = 7;

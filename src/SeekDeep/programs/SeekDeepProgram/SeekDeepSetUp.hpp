@@ -89,6 +89,9 @@ struct extractorPars{
   bool checkingQCheck = false;
   double qualCheckCutOff = 0.75;
   std::string sampleName = "";
+  std::string compareSeqFilename = "";
+  bool multipleTargets = false;
+
 };
 
 struct clusterDownPars {
