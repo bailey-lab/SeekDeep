@@ -990,7 +990,7 @@ int SeekDeepRunner::extractor(MapStrStr inputCommands) {
 	  	}
 			if (pars.screenForPossibleContamination) {
 				auto contamOutOpts = setUp.ioOptions_;
-				contamOutOpts.outFilename_ = contaminationDir + barcodeName;
+				contamOutOpts.outFilename_ = contaminationDir + fullname;
 	  		if(!bib::in(fullname + "contamination", outPos)){
 		  		outPos[fullname + "contamination"] = readOuts.size();
 		  		readOuts.emplace_back(std::make_unique<readObjectIOOpt>(contamOutOpts));
