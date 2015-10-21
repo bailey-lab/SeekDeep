@@ -1127,7 +1127,7 @@ int SeekDeepRunner::extractor(MapStrStr inputCommands) {
       //max len
 			if (pars.multipleTargets) {
 				if (multipleLenCutOffs.find(primerName) != multipleLenCutOffs.end()) {
-					readChecker::checkReadLenAbove(read.seqBase_,
+					readChecker::checkReadLenBellow(read.seqBase_,
 							multipleLenCutOffs[primerName].maxLen_, true);
 				} else {
 					readChecker::checkReadLenBellow(read.seqBase_, pars.maxLength, true);
