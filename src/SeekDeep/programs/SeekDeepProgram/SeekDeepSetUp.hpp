@@ -92,6 +92,8 @@ struct extractorPars{
   std::string compareSeqFilename = "";
   bool multipleTargets = false;
 
+  std::string multipleLenCutOffFilename = "";
+
 };
 
 struct clusterDownPars {

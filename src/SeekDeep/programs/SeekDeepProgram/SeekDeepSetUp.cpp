@@ -407,9 +407,10 @@ void SeekDeepSetUp::setUpExtractor(extractorPars & pars) {
   		commands_.lookForOption(pars.compareSeqFilename, "-compareSeq");
   	}
   }
+  setOption(pars.multipleLenCutOffFilename, "--lenCutOffs", "Length cut offs for when extracting multiple targets");
   setOption(pars.qualWindowTrim, "-qualWindowTrim", "Trim To Qual Window");
   setOption(pars.smallFragmentCutoff, "-smallFragmentCutOff", "Small Fragment Cut Off Size");
-  gapInfo_.gapOpen_ = 7;
+  gapInfo_.gapOpen_ = 5;
   gapInfo_.gapExtend_ = 1;
   gap_ = "5,1";
   gapInfo_.gapRightOpen_ = 0;
