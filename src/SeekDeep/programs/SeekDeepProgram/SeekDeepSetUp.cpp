@@ -465,6 +465,8 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
     		"into them though they can still collapse into larger clusters" << std::endl;
     tempOut << "Alternatively if the -onPerId is used, this parameter flag can contain percent idendities instead" << std::endl;
     tempOut << "example: " << std::endl;
+    std::cout << cleanOut(tempOut.str(), width_, indent_);
+    tempOut.str(std::string());
     std::cout << "100:3:.99" << std::endl;
     std::cout << "100:3:.99" << std::endl;
     std::cout << "100:3:.98" << std::endl;
@@ -671,8 +673,6 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
                " included in final analysis, defaults to all the runs included "
                "in the sample" << std::endl;
     tempOut << bib::bashCT::bold << "Population clustering options"<< bib::bashCT::reset << std::endl;
-    tempOut << "-population : do a population clustering across the samples "
-               "as well" << std::endl;
     tempOut << "-popPar [option] : Separate population paramters for "
                "clustering will default to the parameters given for the "
                "between sample clustering" << std::endl;
@@ -699,9 +699,9 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
     tempOut << "SeekDeep processClusters -fasta output.fasta "
                "-par pars.txt" << std::endl;
     tempOut << "SeekDeep processClusters -fasta output.fasta "
-               "-par pars.txt -population" << std::endl;
+               "-par pars.txt" << std::endl;
     tempOut << "SeekDeep processClusters -fasta output.fasta -par "
-               "pars.txt -popPar otherPars.txt -population" << std::endl;
+               "pars.txt -popPar otherPars.txt" << std::endl;
     std::cout << cleanOut(tempOut.str(), width_, indent_);
     tempOut.str(std::string());
     tempOut << bib::bashCT::bold << "Output Files:"<< bib::bashCT::reset << std::endl;
