@@ -51,9 +51,9 @@ void SeekDeepSetUp::setUpExtractor(
         << "2) -id [option]: Full name of the id file with primers and Ids info"
         << std::endl;
 
-    tempOut << "\tThe id file should be whitespace delimited (tabs or just simply spaces) and contains the "
+    tempOut << "\tThe id file should be tab delimited and contains the "
                "primer and reverse primer and MIDs if the data is multiplex, "
-               "example bellow" << std::endl;
+               "example below" << std::endl;
     std::cout << cleanOut(tempOut.str(), width_, indent_);
     tempOut.str(std::string());
     std::cout << "\tgene	forwardPrimer	reversePrimer" << std::endl;
@@ -115,7 +115,7 @@ void SeekDeepSetUp::setUpExtractor(
                "contamination, a comparison sequence needs to be supplied if "
                "this is turned on" << std::endl;
     tempOut << "2) -compareSeq [option]: A comparison sequence to which the "
-               "reads are compared and if the alignment score falls bellow "
+               "reads are compared and if the alignment score falls below "
                "zero the read is considered contamination, therefore this "
                "flag only works if you are extracting sequences that are at "
                "least similar to each other and won't be confused as "
@@ -201,11 +201,12 @@ void SeekDeepSetUp::setUpExtractor(
   }
   if (setOption(screenForPossibleContaimination, "-contamination",
                 "Screening For Contamination")) {
-  	if (! processSeq(compareSeq, "-compareSeq,-seq", "Comparison Sequence For Contamination ", true) ) {
+  	if (! processSeq(compareSeq, "-compareSeq", "Comparison Sequence For Contamination ", true) ) {
   	      warnings_.emplace_back(
   	          "Need to have -compareSeq if checking for contamination");
   	 }
   }
+
   setOption(qualWindowTrim, "-qualWindowTrim", "Trim To Qual Window");
   setOption(smallFragmentCutOff, "-smallFragmentCutOff", "Small Fragment Cut Off Size");
   gapInfo_.gapOpen_ = 7.0;
@@ -235,7 +236,7 @@ void SeekDeepSetUp::setUpExtractor(extractorPars & pars) {
 
     tempOut << "\tThe id file should be tab delimited and contains the "
                "primer and reverse primer and MIDs if the data is multiplex, "
-               "example bellow" << std::endl;
+               "example below" << std::endl;
     std::cout << cleanOut(tempOut.str(), width_, indent_);
     tempOut.str(std::string());
     std::cout << "\tgene	forwardPrimer	reversePrimer" << std::endl;
@@ -253,10 +254,8 @@ void SeekDeepSetUp::setUpExtractor(extractorPars & pars) {
     tempOut << "-multiplex : Whether the id file is multiplex with "
                "multiple MIDs, the program will assume only primers are "
                "given if this is not switched on" << std::endl;
-    tempOut << "-variableStart[option]: If the primers and barcodes aren't directly at the beginning of"
-    		" the sequence this can be given to extend the search up this position" << std::endl;
     tempOut << "-checkComplement : Check the complement of the sequences "
-               "for the barcodes and primers as well" << std::endl;
+               "for the barcodes as well" << std::endl;
     tempOut << "-rename : Rename the sequence to the associated primers and mids "<< std::endl;
     tempOut << bib::bashCT::boldBlack("Quality filtering options") << std::endl;
     tempOut << " -minLen [option]: The minimum length for the read to be "
@@ -267,26 +266,20 @@ void SeekDeepSetUp::setUpExtractor(extractorPars & pars) {
                "given separated by commas and in the order of windowSize, "
                "windowStep, and windowMinimumThres, ex. 50,5,20 (default)"
             << std::endl;
-    tempOut << "-qualCheck [option]:	Alternative to using using a sliding quality window threshold and is good "
-    		"with illumina, this methods filters reads where the fraction of their qualities fall bellow this value, "
-    		"use in conjunction with -qualcheckCutOff, eg. setting -qualCheck 25 -qualCheckCutOff 0.75 would filter"
-    		" off reads if less than 75% of their qualities were above 25; default " << pars.qualCheck << std::endl;
-    tempOut << "-qualCheckCutOff [option]: Cut Off for fraction of bases above qual "
-    		"check of "<< pars.qualCheck << "; default=" << pars.qualCheckCutOff << std::endl;
+    tempOut << "-qualCheck	Qual Check Level; default" << pars.qualCheck << std::endl;
+    tempOut << "-qualCheckCutOff	Cut Off for fraction of bases above qual check of "<< pars.qualCheck << "; default=" << pars.qualCheckCutOff << std::endl;
     tempOut << " -numberOfNs [option]: the number of N's(the symbol for "
                "unknown base) to be allowed in sequence, defaults to 0"
             << std::endl;
     tempOut << " -samllFragmentCutOff [option]: the size cutoff for a "
                "sequence to be considered simply a fragment, defaults to 50"
             << std::endl;
-
     tempOut << bib::bashCT::bold << "Options for looking for primers"<< bib::bashCT::reset << std::endl;
     tempOut << "-noReverse: if you don't want to look for the reverse "
                "primer as well as the forward primer, will default to "
                "looking for both" << std::endl;
     tempOut << "-rPrimerCoverage [option] : fraction of the reverse "
-               "primer that needs to be present, defaults to " << pars.rPrimerErrors.distances_.queryCoverage_
-							 <<"  so at least "
+               "primer that needs to be present, defaults to " << pars.rPrimerErrors.distances_.queryCoverage_ <<"  so at least "
                "half of the primer needs to be present" << std::endl;
     tempOut << "-rPrimerMismatches [option] : Number of mismatches to allow in reverse primer "
                ", defaults to " << pars.rPrimerErrors.hqMismatches_ << std::endl;
@@ -307,7 +300,11 @@ void SeekDeepSetUp::setUpExtractor(extractorPars & pars) {
                "reads are compared and and if they are dissimilar enough they will be removed as contamination" << std::endl;
     tempOut << "-contaminationKLen [option]:	Contamination Kmer Length, defaults to " <<  pars.contaminationKLen << std::endl;
     tempOut << "-kmerCutOff [option]:	Kmer cut off for contamination check, defaults to " <<  pars.kmerCutOff  << std::endl;
-
+    tempOut << bib::bashCT::bold << "Options for when extracting with multiple targets"<< bib::bashCT::reset << std::endl;
+    tempOut << "--multipleTargets : A flag to indicate you are extracting on multiple targets" << std::endl;
+    tempOut << "--lenCutOffs [option]: a filename containing specific cut offs for each target need three columns, target,minlen,and maxlen."
+    		"  If target is not found here length cut offs will default to options assoiciated with -minLen and -maxLen"<< std::endl;
+    tempOut << "-compareSeq [option]: When the --multipleTargets flag is on this can be a fasta or fastq file containing a different seq for each target" << std::endl;
     std::cout << cleanOut(tempOut.str(), width_, indent_);
     tempOut.str(std::string());
     std::cout << "examples: " << std::endl
@@ -319,10 +316,10 @@ void SeekDeepSetUp::setUpExtractor(extractorPars & pars) {
                  "-fastq reads.fastq -id idFile.tab.txt" << std::endl;
     tempOut.str(std::string());
     tempOut << bib::bashCT::bold << "Output Files:"<< bib::bashCT::reset << std::endl;
-    tempOut << bib::bashCT::boldBlack("extractionProfile.tab.txt") << ": This breaks down the filtering per final extraction sequence file" << std::endl;
-    tempOut << bib::bashCT::boldBlack("extractionStats.tab.txt") << ": This has info how the whole extraction went" << std::endl;
-    tempOut << bib::bashCT::boldBlack("seqFiles") << ": Extracted files will be named [PrimerName][MIDNAME].fastq, if not multiplexed then just [PrimerName].fastq" << std::endl;
-    tempOut << bib::bashCT::boldBlack("filteredOff") << ": Reads that failed filtering will be found in this directory along with reads that don't match any supplied barcodes and/or primers" << std::endl;
+    tempOut << "extractionProfile.tab.txt: This breaks down the filtering per final extraction sequence file" << std::endl;
+    tempOut << "extractionStats.tab.txt: This has info how the whole extraction went" << std::endl;
+    tempOut << "seqFiles: Extracted files will be named [PrimerName][MIDNAME].fastq, if not multiplexed then just [PrimerName][MIDNAME].fastq" << std::endl;
+    tempOut << "filteredOff: Reads that failed filtering will be found in this directory along with reads that don't match any supplied barcodes and/or primers" << std::endl;
     std::cout << cleanOut(tempOut.str(), width_, indent_);
     tempOut.str(std::string());
     exit(0);
@@ -343,7 +340,8 @@ void SeekDeepSetUp::setUpExtractor(extractorPars & pars) {
   setOption(pars.rPrimerErrors.twoBaseIndel_, "-rTwoBaseIndels", "Number Of Two base indels to allow in reverse primer");
   //rPrimerErrors.largeBaseIndel_ = .99;
 
-
+  setOption(pars.sampleName, "--sampleName", "A name to append to the output files");
+  processAlnInfoInput();
 
   setOption(pars.rename, "-rename", "Rename With Barcode Names");
   setOption(pars.barcodeErrors, "-barcodeErrors", "Errors Allowed in Barcode");
@@ -407,24 +405,29 @@ void SeekDeepSetUp::setUpExtractor(extractorPars & pars) {
 					"Need to have -compareSeq if checking for contamination");
 		}
 	}
+  setOption(pars.multipleTargets, "--multipleTargets", "Id file contains multiple targets");
+  if(pars.multipleTargets){
+  	if(pars.screenForPossibleContamination){
+  		commands_.lookForOption(pars.compareSeqFilename, "-compareSeq");
+  	}
+  }
+  setOption(pars.multipleLenCutOffFilename, "--lenCutOffs", "Length cut offs for when extracting multiple targets");
   setOption(pars.qualWindowTrim, "-qualWindowTrim", "Trim To Qual Window");
   setOption(pars.smallFragmentCutoff, "-smallFragmentCutOff", "Small Fragment Cut Off Size");
-  gapInfo_.gapOpen_ = 7;
+  gapInfo_.gapOpen_ = 5;
   gapInfo_.gapExtend_ = 1;
-  gap_ = "7,1";
+  gap_ = "5,1";
+  gapInfo_.gapRightOpen_ = 0;
+  gapInfo_.gapRightExtend_ = 0;
+  gapRight_ = "0,0";
+  gapInfo_.gapLeftOpen_ = 0;
+  gapInfo_.gapLeftExtend_ = 0;
+  gapLeft_ = "0,0";
   processGap();
   finishSetUp(std::cout);
 }
 
-void SeekDeepSetUp::setUpClusterDown(
-    std::string& qualRep, std::string& parameters, bool& extra,
-    std::map<int, std::vector<double>>& iteratorMap, bool& smallestFirst,
-    bool& markChimeras, double& parFreqs, bool& bestMatch, int& bestMatchCheck,
-    bool& snapShots, std::string& sortBy, bool& additionalOut,
-    std::string& additonalOutLocationFile, bool& collapsingTandems,
-    bool& kmerCheckingOnAlignProfile, bool& condensedCollapse,
-    bool& removeLowQualBases, int& lowQualityCutOff,
-    bool& adjustHomopolyerRuns, bool & onPerId) {
+void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
   // input file info
   ioOptions_.outFilename_ = "output";
   ioOptions_.lowerCaseBases_ = "remove";
@@ -466,6 +469,8 @@ void SeekDeepSetUp::setUpClusterDown(
     		"into them though they can still collapse into larger clusters" << std::endl;
     tempOut << "Alternatively if the -onPerId is used, this parameter flag can contain percent idendities instead" << std::endl;
     tempOut << "example: " << std::endl;
+    std::cout << cleanOut(tempOut.str(), width_, indent_);
+    tempOut.str(std::string());
     std::cout << "100:3:.99" << std::endl;
     std::cout << "100:3:.99" << std::endl;
     std::cout << "100:3:.98" << std::endl;
@@ -483,13 +488,13 @@ void SeekDeepSetUp::setUpClusterDown(
     tempOut << bib::bashCT::bold << "Alignment comparison options"<< bib::bashCT::reset << std::endl;
     printQualThresUsage(tempOut);
     printAlignmentUsage(tempOut);
-    printKmerUsage(tempOut);
+    printKmerProfilingUsage(tempOut);
     printAlnInfoDirUsage(tempOut);
     printAdditionaInputUsage(tempOut, ioOptions_.lowerCaseBases_);
     tempOut << "-qualRep [option] : Sets the quality for the identical clusters, "
                "Options are median (default), average, bestQual, or worst"
             << std::endl;
-    tempOut << "-qualTrim [option]: Will trim off any bases bellow this "
+    tempOut << "-qualTrim [option]: Will trim off any bases below this "
                "quality, mainly used to trim bases with a quality of 1 (80% "
                "chance of error) by setting this to 2" << std::endl;
     tempOut << "-adjustHomopolyerRuns : Will take average quality across "
@@ -507,7 +512,7 @@ void SeekDeepSetUp::setUpClusterDown(
     tempOut << bib::bashCT::bold << "Technology Specific flags"<< bib::bashCT::reset << std::endl;
     tempOut << "-useCompPerCutOff: This turns on filtering off clustering that have reads that only come from one direction, only should be used if reads were extracted in both direction like in ion torrent" << std::endl;
     tempOut << "-ionTorrent : This turns on several of the previously mentioned flags as they are beneficial for ion torrent data, turns on -qualTrim,-adjustHomopolyerRuns, and -useCompPerCutOff" << std::endl;
-    tempOut << bib::bashCT::bold << "Percent Identity Flags"<< bib::bashCT::reset << std::endl;
+    tempOut << bib::bashCT::bold << "Percent Identity Falgs"<< bib::bashCT::reset << std::endl;
     tempOut << "-onPerId: cluster on percent identity rather than specific errors" << std::endl;
 
     printReferenceComparisonUsage(tempOut);
@@ -516,91 +521,109 @@ void SeekDeepSetUp::setUpClusterDown(
     std::cout << "examples" << std::endl;
     std::cout << "\tSeekDeep " << commands_["-program"] <<" -fasta MID1.fasta -qual "
                  "MID1.fasta.qual -par par" << std::endl;
-    std::cout << "\tSeekDeep " << commands_["-program"] <<" -fastq MID1.fastq -par par"
+    std::cout << "\tSeekDeep " << commands_["-program"] <<" -fastq MID1.fastq -par par -local"
               << std::endl;
-    std::cout << "\tSeekDeep " << commands_["-program"] <<" -fastq MID1.fastq -par par -runCutOff 0.2%"
-              << std::endl;
-    std::cout << "\tSeekDeep " << commands_["-program"] <<" -fastq MID1.fastq -par par -runCutOff 5"
-              << std::endl;
-    std::cout << "\tSeekDeep " << commands_["-program"] <<" -fastq MID1.fastq -par par -runCutOff 0.1%,2"
-              << std::endl;
-    std::cout << "\tSeekDeep " << commands_["-program"] <<" -stub MID1 -par par "
+    std::cout << "\tSeekDeep " << commands_["-program"] <<" -stub MID1 -par par -local "
                  "-qualThres 25,20" << std::endl;
     std::cout << cleanOut(tempOut.str(), width_, indent_);
     tempOut.str(std::string());
     tempOut << bib::bashCT::bold << "Output Files:"<< bib::bashCT::reset << std::endl;
-    tempOut << bib::bashCT::boldBlack("output.fastq") << ": This is the final clusters with their consensus sequence, the sequences are named so that the suffif _t[NUM] where NUM is the number of reads that fell into that cluster" << std::endl;
-    tempOut << bib::bashCT::boldBlack("outputInfo.tab.txt") << ": This contains cluster number info for each cluster" << std::endl;
-    tempOut << bib::bashCT::boldBlack("clusters") << ": A seq file is available for each final cluster that contains all the sequences that clustered into this cluster" << std::endl;
-    tempOut << bib::bashCT::boldBlack("internalSnpInfo") << ": A table of internal snps frequencies is available for each cluster in case overcollapsing is suspected" << std::endl;
+    tempOut << "output.fastq: This is the final clusters with their consensus sequence, the sequences are named so that the suffif _t[NUM] where NUM is the number of reads that fell into that cluster" << std::endl;
+    tempOut << "outputInfo.tab.txt: This contains cluster number info for each cluster" << std::endl;
+    tempOut << "clusters: A seq file is available for each final cluster that contains all the sequences that clustered into this cluster" << std::endl;
+    tempOut << "internalSnpInfo: A table of internal snps frequencies is available for each cluster in case overcollapsing is suspected" << std::endl;
     std::cout << cleanOut(tempOut.str(), width_, indent_);
     tempOut.str(std::string());
     exit(0);
   }
-  setOption(onPerId, "-onPerId", "Cluster on Percent Identity Instead");
   processDefaultReader(true);
-  if(setOption(parameters, "-par", "ParametersFilename", true)){
-  	if(onPerId){
-  		processIteratorMapOnPerId(parameters, iteratorMap);
-  	}else{
-  		processIteratorMap(parameters, iteratorMap);
-  	}
+  setOption(pars.parameters, "-par", "ParametersFilename", true);
+  setOption(pars.ionTorrent, "-ionTorrent", "Flag to indicate reads are ion torrent and therefore turns on -useCompPerCutOff,-adjustHomopolyerRuns, and -qualTrim");
+  if(pars.ionTorrent){
+  	pars.removeLowQualBases = true;
+  	adjustHomopolyerRuns_ = true;
+  	pars.useCompPerCutOff = true;
   }
+	setOption(pars.compPerCutOff, "compPerCutOff", "Percentage of reads in one direction Cut Off");
+	setOption(pars.useCompPerCutOff, "-useCompPerCutOff",
+			"Throw out clusters that are made up reads of > "
+					+ estd::to_string(pars.useCompPerCutOff * 100)
+					+ "% of reads in only one direction, used with Ion Torrent Reads");
 
-  //setOption(condensedCollapse, "-condensedCollapse", "condensedCollapse");
-  setBoolOptionFalse(condensedCollapse, "-noCondensedCollapse", "condensedCollapse");
-  if (setOption(removeLowQualBases, "-qualTrim", "Remove Low Quality Bases")) {
-    setOption(lowQualityCutOff, "-qualTrim", "LowQualityCutOff");
-  }
-  setOption(adjustHomopolyerRuns,
-            "-adjustHomopolyerRuns,-adjustHRuns,-adjustHPRuns",
-            "AdjustHomopolyerRunsToBeSameQual");
+	setOption(pars.diffCutOffStr, "-diffCutOffs", "Difference Cutoff to form Nuc Comp Clusters");
+
+  pars.diffCutOffVec = vecStrToVecNum<double>(tokenizeString(pars.diffCutOffStr,","));
+
+  setOption(pars.findBest, "-findBestNuc", "Find Best Nucleotide Cluster");
+  setOption(pars.useNucComp, "-useNucComp","Cluster on Nucleotide Composition First");
+
+  setOption(pars.useMinLenNucComp, "-useMinLenNucComp", "Use Nucleotide Composition of Only Front of seqs");
+
+  setOption(pars.startWithSingles,
+                  "-startWithSingles",
+                  "Start The Clustering With Singletons, rather then adding them afterwards");
+  setOption(pars.fdrCutOff, "-fdrCutOff", "False_discovery_cutoff");
+  setOption(pars.pValueCutOff, "-pValueCutOff", "pValueCutOff");
+  setOption(pars.printSimClusters, "-printSimClusters,-printSim",
+                  "printSimClusters");
+
+
+  setOption(pars.sim, "-sim", "sim");
+	setOption(pars.runTimes, "-runTimes", "runTimes");
+
+  setOption(pars.createMinTree, "--createMinTree",
+  		"Create Psudo minimum Spanning Trees For Mismatches for Final Clusters");
+  setOption(pars.useKmerBinning, "-useKmerBinning",
+                  "useKmerBinning");
+  setOption(pars.kmerCutOff, "-kmerCutOff",
+                  "kmerCutOff");
+  setOption(pars.kCompareLen, "-kCompareLen",
+                  "kCompareLen");
+
+  setOption(pars.leaveOutSinglets, "-leaveOutSinglets", "Leave out singlet clusters out of all analysis");
+  setOption(pars.onPerId, "-onPerId", "Cluster on Percent Identity Instead");
+
+  pars.removeLowQualBases = setOption(pars.lowQualityCutOff, "-qualTrim", "LowQualityCutOff");
+  setOption(pars.qualRep, "-qualRep", "QualityRepresentative_for_unique_clusters");
+  setOption(pars.extra, "-extra", "Extra");
+  setOption(pars.markChimeras, "-markChimeras", "MarkChimeras");
+  setOption(pars.parFreqs, "-parfreqs", "Parent_freq_multiplier_cutoff");
+
+  setOption(pars.snapShots, "-snapshots", "OutputSnapShots");
+  setOption(pars.sortBy, "-sortBy", "SortClustersBy");
+  pars.additionalOut = setOption(pars.additionalOutLocationFile, "-additionalOut",
+      "AdditionalOutFilename");
+  setOption(pars.collapsingTandems, "-collapseTandems", "CollapsingTandems");
+
+  setOption(pars.noAlign_, "--noAlignCompare", "Do comparisons without aligning");
+
   processVerbose();
-  processScoringPars();
-  setOption(qualRep, "-qualRep", "QualityRepresentative_for_unique_clusters");
-  setOption(extra, "-extra", "Extra");
-  setBoolOptionFalse(smallestFirst, "-largestfirst",
-                     "CompareSmallestClustersFirst");
-  setOption(bestMatch, "-bestMatch", "FindBestMatch");
-  setBoolOptionFalse(bestMatch, "-matchFirst,-firstMatch", "FindBestMatch");
-  setOption(bestMatchCheck, "-bestmatchcheck", "BestMatchCheckNumber");
-
-  setOption(markChimeras, "-markChimeras", "MarkChimeras");
-  setOption(parFreqs, "-parfreqs", "Parent_freq_multiplier_cutoff");
+  processDebug();
   processRefFilename();
-  setOption(snapShots, "-snapshots", "OutputSnapShots");
-  setOption(sortBy, "-sortBy", "SortClustersBy");
-  if (setOption(additionalOut, "-additionalOut", "AdditionalOutputing")) {
-    setOption(additonalOutLocationFile, "-additionalOut",
-              "AdditionalOutFilename", true);
-  }
-  setOption(collapsingTandems, "-collapseTandems", "CollapsingTandems");
-  setOption(kmerCheckingOnAlignProfile, "-checkKmerAlnProfile",
-            "Leaving_out_low_kmersMismatches");
-
   bool mustMakeDirectory = true;
   processDirectoryOutputName(mustMakeDirectory);
-  processQualThres();
-  processGap();
-  if (!failed_ && !commands_.containsFlagCaseInsensitive("-flags") &&
-      !commands_.containsFlagCaseInsensitive("-getFlags")) {
-    std::cout << "p: " << primaryQual_ << std::endl;
-    std::cout << "s: " << secondaryQual_ << std::endl;
-    std::cout << "go: " << gapInfo_.gapOpen_ << std::endl;
-    std::cout << "ge: " << gapInfo_.gapExtend_ << std::endl;
-  }
+	processAlignerDefualts();
+	pars.smallReadSize = kLength_ * 2;
+	setOption(pars.smallReadSize, "--smallReadSize", "A cut off to remove small reads");
+	if (!failed_ && !commands_.containsFlagCaseInsensitive("-flags")
+			&& !commands_.containsFlagCaseInsensitive("-getFlags")) {
+		if (pars.onPerId) {
+			processIteratorMapOnPerId(pars.parameters, pars.iteratorMap);
+		} else {
+			processIteratorMap(pars.parameters, pars.iteratorMap);
+		}
+		if (verbose_) {
+			std::cout << "p: " << primaryQual_ << std::endl;
+			std::cout << "s: " << secondaryQual_ << std::endl;
+			std::cout << "go: " << gapInfo_.gapOpen_ << std::endl;
+			std::cout << "ge: " << gapInfo_.gapExtend_ << std::endl;
+		}
+	}
   finishSetUp(std::cout);
 
 }
 
-void SeekDeepSetUp::setUpMultipleSampleCluster(
-    std::string& parameters, bool& extra, int& cutOff,
-    std::map<int, std::vector<double>>& iteratorMap, bool& population,
-    double& fracCutoff, bool& smallestFirst, bool& bestMatch,
-    int& bestMatchCheck, bool& checkChimeras, double& parFreqs,
-    std::string& parametersPopulation, bool& differentPar,
-    std::map<int, std::vector<double>>& popIteratorMap, bool& popBoth,
-    bool& keepChimeras, std::string& experimentName, uint32_t& runsRequired, bool & onPerId) {
+void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
   // parse the command line options
   if (needsHelp()) {
     std::stringstream tempOut;
@@ -642,28 +665,8 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(
     tempOut << "-onPerId : Cluster reads on percent identity rather"
     		" than specific errors, format of parameters file would have to change,"
     		" see SeekDeep qluster -help for details" << std::endl;
-    tempOut << "-experimentName [option] : Name prefix to give to the final population haplotypes, "
-    		"defaults to PopUID" << std::endl;
-    tempOut << "--groupingsFile [option] : This is an optional file that give groupings information "
-    		"for the samples in the analysis to output additional information.  The first column contains"
-    		" the sample names and each additional column is another grouping category" << std::endl;
-    tempOut << "For example if the analysis contained Control1,Control2,Child1,Child2,Adult1,Adult2 "
-    		"a groupings file might look like bellow" << std::endl;
-    std::cout << cleanOut(tempOut.str(), width_, indent_);
-    tempOut.str(std::string());
-    std::cout << "samples  type    age" << std::endl;
-    std::cout << "control1 control control" << std::endl;
-    std::cout << "control2 control control" << std::endl;
-    std::cout << "Child1   patient child" << std::endl;
-    std::cout << "Child2   patient child" << std::endl;
-    std::cout << "Adult1   patient adult" << std::endl;
-    std::cout << "Adult2   patient adult" << std::endl;
-    tempOut << "This will create a directory called groups and two additional group directories "
-    		"type and age and then further subgroup directories in there.  Each final directory will "
-    		"contain info on the specifc samples for that group and the population haplotypes found "
-    		"in that group." << std::endl;
-    tempOut << "This is still a fairly new feature and will be expanded upon in future releases, "
-    		"things to come would be outputting statically analysis between the different groups" << std::endl;
+    tempOut << "-experimentName [option] : Name prefix to give to the final population haplotypes, defaults to PopUID" << std::endl;
+
     tempOut << bib::bashCT::boldBlack("Final analysis inclusion criteria") << std::endl;
     tempOut
         << "-fracCutOff [option] : The fraction threshold to be "
@@ -674,8 +677,6 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(
                " included in final analysis, defaults to all the runs included "
                "in the sample" << std::endl;
     tempOut << bib::bashCT::bold << "Population clustering options"<< bib::bashCT::reset << std::endl;
-    tempOut << "-population : do a population clustering across the samples "
-               "as well" << std::endl;
     tempOut << "-popPar [option] : Separate population paramters for "
                "clustering will default to the parameters given for the "
                "between sample clustering" << std::endl;
@@ -702,83 +703,92 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(
     tempOut << "SeekDeep processClusters -fasta output.fasta "
                "-par pars.txt" << std::endl;
     tempOut << "SeekDeep processClusters -fasta output.fasta "
-               "-par pars.txt -population" << std::endl;
+               "-par pars.txt" << std::endl;
     tempOut << "SeekDeep processClusters -fasta output.fasta -par "
-               "pars.txt -popPar otherPars.txt -population" << std::endl;
+               "pars.txt -popPar otherPars.txt" << std::endl;
     std::cout << cleanOut(tempOut.str(), width_, indent_);
     tempOut.str(std::string());
     tempOut << bib::bashCT::bold << "Output Files:"<< bib::bashCT::reset << std::endl;
-    tempOut << bib::bashCT::boldBlack("selectedClustersInfo.tab.txt") << ": This contains the final haplotype information and replicate comparison results, it is a very large table, consult the SeekDeep (http://baileylab.umassmed.edu/SeekDeep) website for details on what each column means" << std::endl;
-    tempOut << bib::bashCT::boldBlack("allClustersInfo.tab.txt") << ": This table contains information on the final clustering process before final filtering is done (removal of chimrias, frac cut off, etc" << std::endl;
-    tempOut << bib::bashCT::boldBlack("dotFiles") << ": This contains .dot files for the final haplotypes that can be converted by graphviz to a pdf of a psuedo-minimum spanning tree of the differences in the final haplotypes (cmd: neato -T pdf -o [FILE.dot]" << std::endl;
-    tempOut << bib::bashCT::boldBlack("final") << ": This contains the final consensus of the final haplotypes after final filtering has been done" << std::endl;
-    tempOut << "If population clustering was done there will be a directly called population" << std::endl;
-    tempOut << bib::bashCT::boldBlack("population/populationCluster.tab.txt") << ": This contains information on final haplotypes across the population (number of samples it appears in, etc.) see SeekDeep website (http://baileylab.umassmed.edu/SeekDeep) for detail on all columns " << std::endl;
-    tempOut << bib::bashCT::boldBlack("population/PopUID.fastq") << ": The consensus sequences of the final haplotypes in the population, the prefix name is determine by the -experimentName flag (default PopUID), haplotypes are sorted by the number of samples they appear in, suffix is _f[FRAC] where [FRAC] is the average fraction it appears at in the samples" << std::endl;
+    tempOut << "selectedClustersInfo.tab.txt: This contains the final haplotype information and replicate comparison results, it is a very large table, consult the SeekDeep (http://bib2.umassmed.edu/~hathawan/SeekDeep.html) website for details on what each column means" << std::endl;
+    tempOut << "allClustersInfo.tab.txt: " << std::endl;
+    tempOut << "dotFiles: " << std::endl;
+    tempOut << "final: " << std::endl;
+    tempOut << "population/populationCluster.tab.txt: " << std::endl;
+    tempOut << "population/PopUID.fastq: " << std::endl;
+    tempOut << "" << std::endl;
     std::cout << cleanOut(tempOut.str(), width_, indent_);
     tempOut.str(std::string());
     exit(0);
   }
-  setOption(onPerId, "-onPerId", "Cluster on Percent Identity Instead");
+  setOption(pars.ionTorrent, "-ionTorrent", "Flag to indicate reads are ion torrent and therefore turns on -useCompPerCutOff,-adjustHomopolyerRuns, and -qualTrim");
+  if(pars.ionTorrent){
+  	pars.removeLowQualBases = true;
+  	adjustHomopolyerRuns_ = true;
+  }
+
+  pars.removeLowQualBases = setOption(pars.lowQualityCutOff, "-qualTrim", "LowQualityCutOff");
+  setOption(pars.writeExcludedOriginals, "--writeExcludedOriginals", "Write out the excluded Originals");
+  setOption(pars.chiCutOff, "--chiCutOff", "The Fraction of a cluster to determine if it chimeric");
+  setOption(pars.recheckChimeras, "--recheckChimeras", "Re Check chimeras after replicate comparison");
+  setOption(pars.eventBasedRef, "-eventBasedRef", "Do Event Based Ref Count");
+  setOption(pars.grayScale, "-gray", "grayScale");
+  setOption(pars.sat, "-sat", "sat");
+  setOption(pars.lum, "-lum", "lum");
+  setOption(pars.customCutOffs, "--custumCutOffs", "Two Column Table, first column is sample name, second is a custom frac cut off, if sample not found will default to -fracCutOff");
+  setOption(pars.previousPopFilename, "-previousPop", "previousPopFilename");
+  setOption(pars.groupingsFile, "--groupingsFile", "A file to sort samples into different groups");
+  setOption(pars.investigateChimeras, "--investigateChimeras", "Check to see if a chimera appears as a high variant in another sample");
+  processDebug();
+  processVerbose();
+  setOption(pars.onPerId, "-onPerId", "Cluster on Percent Identity Instead");
   // input file info
   ioOptions_.lowerCaseBases_ = "upper";
   processDefaultReader(true);
-  setOption(parameters, "-par", "ParametersFileName", true);
-  processAlnInfoInput();
-  setOption(runsRequired, "-runsRequired", "runsRequired");
-  setOption(experimentName, "-experimentName", "ExperimentName");
-  setOption(cutOff, "-cutoff", "Cluster Size Cut Off");
+  setOption(pars.parameters, "-par", "ParametersFileName", true);
+
+  setOption(pars.runsRequired, "-runsRequired", "runsRequired");
+  setOption(pars.experimentName, "-experimentName", "ExperimentName");
+  setOption(pars.clusterCutOff, "-clusterCutOff", "Cluster Size Cut Off");
   processDirectoryOutputName("clusters_" + getCurrentDate(), true);
-  processVerbose();
-  processScoringPars();
-  setOption(extra, "-extra", "ExtraOutput");
+
+
+  setOption(pars.extra, "-extra", "ExtraOutput");
   processRefFilename();
-  setOption(population, "-population", "PopulationClustering");
-  setOption(fracCutoff, "-fraccutoff", "PopulationClusteringFractionCutoff");
-  if (setOption(parametersPopulation, "-poppar",
-                "ParametersForPopulationCollapse")) {
-    differentPar = true;
-  }
-
-  if (!setOption(popBoth, "-popBoth", "PopBoth")) {
-    setOption(popBoth, "-popAll", "PopAll");
-  }
-
-  setBoolOptionFalse(smallestFirst, "-largestFirst",
-                     "Check_smallestClustersFirst");
-  setOption(bestMatch, "-bestMatch", "FindingBestMatch");
-  setOption(bestMatchCheck, "-bestMatchCheck", "BestMatchCheck");
-  setOption(checkChimeras, "-markChimeras", "MarkChimeras");
-  setOption(keepChimeras, "-keepChimeras", "KeepChimeras");
-  setOption(parFreqs, "-parfreqs", "ParentFrequence_multiplier_cutoff");
-
-  processKmerOptions();
-  // get the qualities
-  processQualThres();
-  processGap();
-  if (!failed_ && !commands_.containsFlagCaseInsensitive("-flags") &&
+  setOption(pars.noPopulation, "-noPopulation", "Don't do Population Clustering");
+  setOption(pars.fracCutoff, "-fracCutOff", "PopulationClusteringFractionCutoff");
+	pars.differentPar = setOption(pars.parametersPopulation, "-popPar",
+			"ParametersForPopulationCollapse");
+  setOption(pars.checkChimeras, "-markChimeras", "MarkChimeras");
+  setOption(pars.keepChimeras, "-keepChimeras", "KeepChimeras");
+  setOption(pars.parFreqs, "-parFreqs", "ParentFrequence_multiplier_cutoff");
+  processAlignerDefualts();
+  if (debug_ && !failed_ && !commands_.containsFlagCaseInsensitive("-flags") &&
       !commands_.containsFlagCaseInsensitive("-getFlags")) {
     std::cout << "p: " << primaryQual_ << std::endl;
     std::cout << "s: " << secondaryQual_ << std::endl;
     std::cout << "go: " << gapInfo_.gapOpen_ << std::endl;
     std::cout << "ge: " << gapInfo_.gapExtend_ << std::endl;
   }
-  // read in the paramteres from the parameters file
+	if (!failed_ && !commands_.containsFlagCaseInsensitive("-flags")
+			&& !commands_.containsFlagCaseInsensitive("-getFlags")) {
+	  // read in the parameters from the parameters file
+	  if(pars.onPerId){
+	  	 processIteratorMapOnPerId(pars.parameters, pars.iteratorMap);
+	  }else{
+	  	 processIteratorMap(pars.parameters, pars.iteratorMap);
+	  }
+	  if(pars.differentPar){
+	    if(pars.onPerId){
+	    	processIteratorMapOnPerId(pars.parametersPopulation, pars.popIteratorMap);
+	    }else{
+	    	processIteratorMap(pars.parametersPopulation, pars.popIteratorMap);
+	    }
+	  }else{
+	  	pars.popIteratorMap = pars.iteratorMap;
+	  }
+	}
   finishSetUp(std::cout);
-  if(onPerId){
-  	 processIteratorMapOnPerId(parameters, iteratorMap);
-  }else{
-  	 processIteratorMap(parameters, iteratorMap);
-  }
-  if(differentPar){
-    if(onPerId){
-    	processIteratorMapOnPerId(parametersPopulation, popIteratorMap);
-    }else{
-    	processIteratorMap(parametersPopulation, popIteratorMap);
-    }
-  }else{
-  	popIteratorMap = iteratorMap;
-  }
+
 }
 
 
@@ -795,7 +805,7 @@ void SeekDeepSetUp::setUpMakeSampleDirectories(
               << std::endl;
     tempStream << "-dout [option], name of the main directory to create"
               << std::endl;
-    tempStream << "File should be tab delimited and a few examples are bellow" << std::endl;
+    tempStream << "File should be tab delimited and a few examples are below" << std::endl;
     tempStream << "File should have at least three columns" << std::endl;
     tempStream << "Where first column is the name of the index or sff file "
                  "used, second column is the sample names, and all following "
@@ -834,4 +844,4 @@ void SeekDeepSetUp::setUpMakeSampleDirectories(
   finishSetUp(std::cout);
 }
 
-}  // namespace bib
+}  // namespace bibseq

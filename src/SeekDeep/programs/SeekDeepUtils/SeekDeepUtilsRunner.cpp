@@ -31,11 +31,13 @@
 namespace bibseq {
 
 SeekDeepUtilsRunner::SeekDeepUtilsRunner()
-    : bib::progutils::programRunner({addFunc("dryRunQaulityFiltering", dryRunQaulityFiltering, false),
-																		 addFunc("popClusteringViewer", popClusteringViewer, false)},
+    : bib::progutils::programRunner({addFunc("dryRunQualityFiltering", dryRunQualityFiltering, false),
+																		 addFunc("popClusteringViewer", popClusteringViewer, false),
+																		 addFunc("genProjectConfig", genProjectConfig, false),
+																		 addFunc("runMultipleCommands", runMultipleCommands, false)},
                     "SeekDeepUtils") {}
                     
-int SeekDeepUtilsRunner::dryRunQaulityFiltering(MapStrStr inputCommands){
+int SeekDeepUtilsRunner::dryRunQualityFiltering(MapStrStr inputCommands){
 	seqSetUp setUp(inputCommands);
 	setUp.processDefaultReader(true);
 	std::string qualWindow;
@@ -115,5 +117,91 @@ int SeekDeepUtilsRunner::dryRunQaulityFiltering(MapStrStr inputCommands){
 	qualChecksTab.outPutContentOrganized(std::cout);
 	return 0;
 }
-                    
+
+
+
+int SeekDeepUtilsRunner::runMultipleCommands(MapStrStr inputCommands) {
+	seqSetUp setUp(inputCommands);
+	std::string filename = "";
+	std::string logFile = "log";
+	uint32_t numThreads = 1;
+
+	setUp.setOption(numThreads, "--numThreads", "Number of threads to use");
+	setUp.setOption(logFile, "--logFile", "Name of a file to log the output of the commands");
+	setUp.setOption(filename, "--cmdFile",
+			"Name of the file, first line is command with REPLACETHIS, the next lines are the cmd to run with that line replacing REPLACETHIS", true);
+	setUp.processVerbose();
+	setUp.processWritingOptions();
+	setUp.processDebug();
+	if(setUp.needsHelp()){
+		std::cout << "Input cmdFile should start with CMD: and then command and "
+				"each line after that should be some sort of replacement string to run the commnd" << std::endl;
+		std::cout << "Example" << std::endl;
+		std::cout << "CMD:echo hello REPLACETHIS1 from REPLACETHIS2" << std::endl;
+		std::cout << "REPLACETHIS1:nick,jon,mike" << std::endl;
+		std::cout << "REPLACETHIS2:world,everyone" << std::endl;
+		setUp.printFlags(std::cout);
+		exit(1);
+	}
+	if(setUp.commands_.containsFlagCaseInsensitive("--gen")){
+		std::cout << "CMD:echo hello REPLACETHIS1 from REPLACETHIS2" << std::endl;
+		std::cout << "REPLACETHIS1:nick,jon,mike" << std::endl;
+		std::cout << "REPLACETHIS2:world,everyone" << std::endl;
+		exit(1);
+	}
+	setUp.finishSetUp(std::cout);
+	std::ofstream outFile;
+	openTextFile(outFile, logFile, ".json", setUp.ioOptions_);
+	std::ifstream inFile(filename);
+	if(!inFile){
+		std::cerr << bib::bashCT::boldRed("Error in opening "  + filename) << std::endl;
+		exit(1);
+	}
+	std::string cmd;
+	VecStr cmds;
+	std::string line;
+	std::map<std::string, VecStr> replacements;
+
+	while(std::getline(inFile, line)){
+		if(line == ""){
+			continue;
+		}
+		auto toks = tokenizeString(line, ":");
+		if(toks.size()!= 2){
+			std::cerr << "Error in processing line: " << line << std::endl;
+			exit(1);
+		}
+		if(toks.front() == "CMD"){
+			cmd = toks.back();
+		}else{
+			replacements[toks.front()] = tokenizeString(toks.back(), ",");
+		}
+	}
+	for(const auto & r : replacements){
+		if(cmds.empty()){
+			for(const auto & subR : r.second){
+				cmds.emplace_back(replaceString(cmd, r.first, subR));
+			}
+		}else{
+			VecStr newCmds;
+			for(const auto & c : cmds){
+				for(const auto & subR : r.second){
+					newCmds.emplace_back(replaceString(c, r.first, subR));
+				}
+			}
+			cmds = newCmds;
+		}
+	}
+	if(setUp.verbose_){
+		printVector(cmds, "\n");
+	}
+
+  auto allRunOutputs = bib::sys::runCmdsThreaded(cmds, numThreads, setUp.verbose_, setUp.debug_);
+	Json::Value cmdsLog;
+  for(const auto & out : allRunOutputs){
+  	cmdsLog.append(out.toJson());
+  }
+	outFile << cmdsLog << std::endl;
+	return 0;
+}
 } // namespace bibseq

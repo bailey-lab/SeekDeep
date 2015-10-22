@@ -28,4 +28,5 @@
 
 
 #include "SeekDeep/programs.h"
+#include "SeekDeep/server.h"
 

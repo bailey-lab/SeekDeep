@@ -1,0 +1,53 @@
+_bibCppTools()
+{
+    local cur prev opts base
+    COMPREPLY=()
+    cur="${COMP_WORDS[COMP_CWORD]}"
+    prev="${COMP_WORDS[COMP_CWORD-1]}"
+    if [[ $COMP_CWORD -lt 2 ]] ; then
+    	opts=$(for x in `${COMP_WORDS[0]} | grep ")" | sed "s/.*) //g"`; do echo ${x} ; done )
+		COMPREPLY=($(compgen -W "${opts}" -- ${cur}))
+	elif [[ ${cur} == -* ]]; then
+		if [[ ${COMP_WORDS[1]} == batch* ]]; then
+			rest="${COMP_WORDS[@]:1:${#COMP_WORDS[@]} }"
+			if [[ $rest != *"-getFlags"* ]]; then
+  				rest="$rest -getFlags"
+			fi
+			newopts=$(${COMP_WORDS[0]} $rest | column -t | cut -f 1 -d " " | cut -f 1 -d ,)
+			COMPREPLY=( $(compgen -W "${newopts}" -- ${cur}) )
+		else
+			newopts=$(${COMP_WORDS[0]} ${COMP_WORDS[1]} -getFlags | column -t | cut -f 1 -d " " | cut -f 1 -d ,)
+			COMPREPLY=( $(compgen -W "${newopts}" -- ${cur}) )
+    	fi
+    else
+    	if [[ ${prev} == -run ]]; then
+    		opts=$(for x in `${COMP_WORDS[0]} | grep ")" | sed "s/.*) //g"`; do echo ${x} ; done )
+			COMPREPLY=($(compgen -W "${opts}" -- ${cur}))
+    	else
+    		_filedir
+    	fi
+    fi
+   return 0
+}
+
+complete -F _bibCppTools SeekDeep
+
+
+_setUpPys()
+{
+    local cur prev opts base
+    COMPREPLY=()
+    cur="${COMP_WORDS[COMP_CWORD]}"
+    prev="${COMP_WORDS[COMP_CWORD-1]}"
+    if [[ ${cur} == -* ]]; then
+    	opts=$(for x in `${COMP_WORDS[0]} -h | grep " -" | sed "s/^. *-/-/g" | sed "s/   .*//g" | sed "s/, / /g"`; do echo ${x} ; done )
+		COMPREPLY=($(compgen -W "${opts}" -- ${cur}))
+    else
+    	_filedir
+    fi
+   return 0
+}
+
+complete -F _setUpPys setup.py
+complete -F _setUpPys configure.py
+

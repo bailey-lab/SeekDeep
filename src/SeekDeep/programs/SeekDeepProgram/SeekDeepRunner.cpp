@@ -27,25 +27,27 @@
 
 namespace bibseq {
 
+
 SeekDeepRunner::SeekDeepRunner()
-    : bib::progutils::oneRing({addRing(SeekDeepUtilsRunner())},
+    : bib::progutils::oneRing({addRing<SeekDeepUtilsRunner>()},
     								{addFunc("extractor", extractor, false),
 										 addFunc("sffExtractor", sffExtractor, false),
                      addFunc("processClusters", processClusters, false),
                      addFunc("qluster", qluster, false),
+										 addFunc("clusterDown", qluster, true),
                      addFunc("makeSampleDirectories", makeSampleDirectories, false),
 										 },
                     "SeekDeep") {}
 
-
-
-std::vector<readObject> splitVectorOnKDistSimpleAdd(
-    const std::vector<readObject>& reads, const readObject& compareObject,uint32_t kLength, double kmerCutoff,
-    std::vector<readObject>& badReads, uint32_t& splitCount) {
-	std::vector<readObject> ret;
-	kmerInfo compareInfo(compareObject.seqBase_.seq_, kLength);
+template <typename T>
+std::vector<T> splitVectorOnKDistSimpleAdd(
+    const std::vector<T>& reads, const T& compareObject,uint32_t kLength, double kmerCutoff,
+    std::vector<T>& badReads, uint32_t& splitCount) {
+	std::vector<T> ret;
+	kmerInfo compareInfo(compareObject.seqBase_.seq_, kLength, false);
   for (const auto& read : reads) {
-  	kmerInfo currentInfo(read.seqBase_.seq_, kLength);
+  	//readChecker::checkReadOnKmerComp(read.seqBase_, compareInfo,pars.contaminationKLen, pars.kmerCutOff, true);
+  	kmerInfo currentInfo(read.seqBase_.seq_, kLength, false);
   	auto dist = compareInfo.compareKmers(currentInfo);
   	if(dist.second < kmerCutoff){
       ++splitCount;
@@ -562,13 +564,17 @@ int SeekDeepRunner::sffExtractor(MapStrStr inputCommands) {
         	}else if (maxFlowCutoff <= 400){
         		mothurExtractFlowNum = 400;
         	}
-          reader.write(filteredReads.first, tempNameGood, "mothurData",
-                       setUp.ioOptions_.overWriteFile_,
-                       setUp.ioOptions_.exitOnFailureToWrite_, mothurExtractFlowNum);
+        	readObjectIOOptions options = setUp.ioOptions_;
+        	options.outFilename_ = tempNameGood;
+        	options.outFormat_ = "mothurData";
+        	options.extra_ = mothurExtractFlowNum;
+          reader.write(filteredReads.first, options);
       	}
-        reader.write(filteredReads.first, tempNameGood, "pyroData",
-                     setUp.ioOptions_.overWriteFile_,
-                     setUp.ioOptions_.exitOnFailureToWrite_, maxFlowCutoff);
+      	readObjectIOOptions options = setUp.ioOptions_;
+      	options.outFilename_ = tempNameGood;
+      	options.outFormat_ = "pyroData";
+      	options.extra_ = maxFlowCutoff;
+        reader.write(filteredReads.first, options);
       }
 
       reader.write(filteredReads.second, badDir + currentMidGeneName + "_bad",
@@ -683,151 +689,21 @@ int SeekDeepRunner::sffExtractor(MapStrStr inputCommands) {
 
 
 
-
-
-
-
-
-class ExtractionStator {
-public:
-  struct extractCounts {
-  	//good,bad, and contamination should add up to total
-  	//badReverse_,containsNs, minLenBad_,maxLenBad_, qualityFailed_ should add up to bad
-  	uint32_t good_ = 0;
-
-  	uint32_t bad_ = 0;
-
-  	uint32_t badReverse_ = 0;
-
-  	uint32_t containsNs_ = 0;
-  	uint32_t minLenBad_ = 0;
-  	uint32_t maxLenBad_ = 0;
-  	uint32_t qualityFailed_ = 0;
-
-  	uint32_t contamination_ = 0;
-
-  	uint32_t getTotal()const{
-  		return good_ + bad_ + contamination_;
-  	}
-  };
-
-  enum class extractCase{
-  	GOOD,BADREVERSE,CONTAINSNS,MINLENBAD,MAXLENBAD,QUALITYFAILED,CONTAMINATION
-  };
-
-  std::map<std::string,std::map<bool,extractCounts>> counts_;
-  std::map<std::string,std::map<bool,uint32_t>> failedForward_;
-
-  void increaseFailedForward(const std::string & midName, const std::string & seqName){
-  	bool rComp = containsSubString(seqName, "_Comp");
-  	++failedForward_[midName][rComp];
-  }
-
-  void increaseCounts(const std::string & midName, const std::string & seqName, extractCase eCase){
-  	bool rComp = containsSubString(seqName, "_Comp");
-  	switch (eCase) {
-			case extractCase::GOOD:
-				++counts_[midName][rComp].good_;
-				break;
-			case extractCase::BADREVERSE:
-				++counts_[midName][rComp].bad_;
-				++counts_[midName][rComp].badReverse_;
-				break;
-			case extractCase::CONTAINSNS:
-				++counts_[midName][rComp].bad_;
-				++counts_[midName][rComp].containsNs_;
-				break;
-			case extractCase::MINLENBAD:
-				++counts_[midName][rComp].bad_;
-				++counts_[midName][rComp].minLenBad_;
-				break;
-			case extractCase::MAXLENBAD:
-				++counts_[midName][rComp].bad_;
-				++counts_[midName][rComp].maxLenBad_;
-				break;
-			case extractCase::QUALITYFAILED:
-				++counts_[midName][rComp].bad_;
-				++counts_[midName][rComp].qualityFailed_;
-				break;
-			case extractCase::CONTAMINATION:
-				++counts_[midName][rComp].contamination_;
-				break;
-			default:
-				std::cerr << bib::bashCT::boldRed("shouldn't be happending...")<< std::endl;
-				break;
-		}
-  }
-  void outStatsPerName(std::ostream & out, const std::string & delim){
-
-  	for(auto & mid : counts_){
-  		uint32_t totalReads = mid.second[true].getTotal() + mid.second[false].getTotal();
-  		uint32_t totalGoodReads = mid.second[true].good_ + mid.second[false].good_;
-  		uint32_t totalBadReads = mid.second[true].bad_ + mid.second[false].bad_;
-  		uint32_t totalContam = mid.second[true].contamination_ + mid.second[false].contamination_;
-  		uint32_t totalBadRev = mid.second[true].badReverse_ + mid.second[false].badReverse_;
-  		uint32_t totalConN = mid.second[true].containsNs_ + mid.second[false].containsNs_;
-  		uint32_t totalMinLen = mid.second[true].minLenBad_ + mid.second[false].minLenBad_;
-  		uint32_t totalMaxLen = mid.second[true].maxLenBad_ + mid.second[false].maxLenBad_;
-  		uint32_t totalQualFail = mid.second[true].qualityFailed_ + mid.second[false].qualityFailed_;
-  		out << vectorToString(toVecStr(mid.first, totalReads,
-					getPercentageString(totalGoodReads, totalReads),
-  				getPercentageString(mid.second[false].good_, totalReads),
-					getPercentageString(mid.second[true].good_, totalReads),
-					getPercentageString(totalBadReads, totalReads),
-					getPercentageString(totalBadRev, totalBadReads),
-					getPercentageString(totalConN, totalBadReads),
-					getPercentageString(totalMinLen, totalBadReads),
-					getPercentageString(totalMaxLen, totalBadReads),
-					getPercentageString(totalQualFail, totalBadReads),
-					getPercentageString(totalContam, totalReads)), delim) << "\n";
-
-  	}
-  }
-
-  void outTotalStats(std::ostream & out, const std::string & delim,
-			uint32_t total, uint32_t readsNoBarcode, uint32_t smallFrags) {
-		uint32_t totalBadReads = 0;
-		uint32_t totalGoodReads = 0;
-		uint32_t totalContam = 0;
-		uint32_t totalFailedForward = 0;
-		for(auto & ff : failedForward_){
-			totalFailedForward += ff.second[true] + ff.second[false];
-		}
-		for (auto & mid : counts_) {
-			totalGoodReads += mid.second[true].good_ + mid.second[false].good_;
-			totalBadReads += mid.second[true].bad_ + mid.second[false].bad_;
-			totalContam += mid.second[true].contamination_
-					+ mid.second[false].contamination_;
-		}
-		out << vectorToString(toVecStr(total,
-				getPercentageString(readsNoBarcode, total),
-				getPercentageString(smallFrags, total),
-				getPercentageString(totalFailedForward, total),
-				getPercentageString(totalBadReads, total),
-				getPercentageString(totalGoodReads, total),
-				getPercentageString(totalContam, total)), delim) << "\n";
-	}
-
-};
-
-
-
-
-
-
-
 int SeekDeepRunner::extractor(MapStrStr inputCommands) {
 	SeekDeepSetUp setUp(inputCommands);
 	extractorPars pars;
   setUp.setUpExtractor(pars);
 
   uint32_t readsNotMatchedToBarcode = 0;
-  if(!pars.checkingQCheck){
+  if(pars.checkingQCheck){
+    std::cout << "Quality Check: " << pars.qualCheck << "\n";
+    std::cout << "Quality Check Cut Off: " << pars.qualCheckCutOff << "\n";
+    std::cout << "Q" << pars.qualCheck << ">" << pars.qualCheckCutOff << "\n";
+  }else{
     std::cout << "Quality Window Length: " << pars.qualityWindowLength << "\n";
     std::cout << "Quality Window Step: " << pars.qualityWindowStep << "\n";
     std::cout << "Quality Window Threshold: " << pars.qualityWindowThres << "\n";
   }
-
   // run log
   setUp.startARunLog(setUp.directoryName_);
   // parameter file
@@ -883,7 +759,11 @@ int SeekDeepRunner::extractor(MapStrStr inputCommands) {
   std::map<std::string, uint32_t> midOutsPostions;
   std::vector<std::unique_ptr<readObjectIOOpt>> midOuts;
   std::map<std::string, std::pair<uint32_t, uint32_t>> counts;
-
+	if(pars.multiplex && pars.barcodeErrors > 0){
+		if(setUp.debug_){
+			std::cout << "Allowing " << pars.barcodeErrors << " errors in barcode" << std::endl;
+		}
+	}
   if(pars.multiplex){
     for(const auto & mid : determinator->mids_){
       auto midOpts = setUp.ioOptions_;
@@ -937,8 +817,14 @@ int SeekDeepRunner::extractor(MapStrStr inputCommands) {
 
 		midPos currentMid;
 		if(pars.multiplex){
-			currentMid = determinator->fullDetermine(read,
-					pars.variableStart, pars.variableStop, pars.checkComplement, pars.barcodesBothEnds);
+			if(pars.barcodeErrors > 0){
+				currentMid = determinator->fullDetermine(read,
+									pars.variableStart, pars.variableStop, pars.checkComplement, pars.barcodesBothEnds,
+									pars.barcodeErrors);
+			}else{
+				currentMid = determinator->fullDetermine(read,
+									pars.variableStart, pars.variableStop, pars.checkComplement, pars.barcodesBothEnds);
+			}
 		}else{
 			currentMid = midPos("all", 0,0);
 		}
@@ -977,15 +863,14 @@ int SeekDeepRunner::extractor(MapStrStr inputCommands) {
   }
 
   // create aligner for primer identification
-  auto scoreMatrixMap = substituteMatrix::createDegenScoreMatrix(2,-2);
+  auto scoreMatrix = substituteMatrix::createDegenScoreMatrixNoNInRef();
   gapScoringParameters gapPars(setUp.gapInfo_);
-  substituteMatrix scoreMatrix(scoreMatrixMap);
   kmerMaps emptyMaps;
   int primaryQual = 20, secondayQual = 15;
   bool countEndGaps = true;
 	aligner alignObj = aligner(maxReadSize, gapPars, scoreMatrix, emptyMaps,
 			primaryQual, setUp.qualThresWindow_, secondayQual, countEndGaps);
-
+	processAlnInfoInput(alignObj, setUp.alnInfoDirName_);
 	if(pars.noForwardPrimer){
 		if(primerTable.content_.size() > 1){
 			std::cerr << "Error, if noForwardPrimer is turned on can only supply one gene name, curently have: " << primerTable.content_.size() << std::endl;
@@ -995,10 +880,50 @@ int SeekDeepRunner::extractor(MapStrStr inputCommands) {
 	}
   auto barcodeFiles = bib::files::listAllFiles(unfilteredByBarcodesDir,false, VecStr{});
 	kmerInfo compareInfo;
+	kmerInfo compareInfoRev;
+	std::map<std::string, kmerInfo> compareInfos;
+	std::map<std::string, kmerInfo> compareInfosRev;
+	struct lenCutOffs{
+		uint32_t minLen_;
+		uint32_t maxLen_;
+	};
+	std::map<std::string, lenCutOffs> multipleLenCutOffs;
+	if(pars.multipleTargets){
+		table lenCutTab = table(pars.multipleLenCutOffFilename, "whitespace", true);
+		bib::for_each(lenCutTab.columnNames_, [](std::string & str){ stringToLower(str);});
+		lenCutTab.setColNamePositions();
+		if(!bib::in(std::string("target"), lenCutTab.columnNames_) ||
+			 !bib::in(std::string("minlen"), lenCutTab.columnNames_) ||
+			 !bib::in(std::string("maxlen"), lenCutTab.columnNames_)){
+			std::stringstream ss;
+			ss << "need to have columns " << "target,minlen, and maxlen" << " when reading in a table for multiple cut off lengths" << std::endl;
+			ss << "only have " << vectorToString(lenCutTab.columnNames_, ",") << std::endl;
+			throw std::runtime_error{bib::bashCT::boldRed(ss.str())};
+		}
+		for(const auto & row : lenCutTab.content_){
+			multipleLenCutOffs[row[lenCutTab.getColPos("target")]] = {bib::lexical_cast<uint32_t>(row[lenCutTab.getColPos("minlen")]),bib::lexical_cast<uint32_t>(row[lenCutTab.getColPos("maxlen")]) };
+		}
+	}
   if (pars.screenForPossibleContamination) {
-  	compareInfo = kmerInfo(compareObject.seqBase_.seq_, pars.contaminationKLen);
+  	compareInfo = kmerInfo(compareObject.seqBase_.seq_, pars.contaminationKLen, false);
+  	auto rev = compareObject;
+  	rev.seqBase_.reverseComplementRead(true, true);
+  	compareInfoRev = kmerInfo(rev.seqBase_.seq_, pars.contaminationKLen, false);
   }
-  ExtractionStator stats;
+  if(pars.multipleTargets && pars.screenForPossibleContamination){
+  	readObjectIO readerCon;
+  	readerCon.read(bib::files::getExtension(pars.compareSeqFilename), pars.compareSeqFilename);
+  	for(const auto & read : readerCon.reads){
+  		compareInfos[read.seqBase_.name_] = kmerInfo(read.seqBase_.seq_, pars.contaminationKLen, false);
+    	auto rev = read;
+    	rev.seqBase_.reverseComplementRead(true, true);
+    	compareInfosRev[read.seqBase_.name_] = kmerInfo(rev.seqBase_.seq_, pars.contaminationKLen, false);
+  	}
+  }
+
+
+
+  ExtractionStator stats = ExtractionStator(count, readsNotMatchedToBarcode, smallFragmentCount);
   std::map<std::string, uint32_t> goodCounts;
   for(const auto & f : barcodeFiles){
 
@@ -1007,16 +932,21 @@ int SeekDeepRunner::extractor(MapStrStr inputCommands) {
   		//no reads extracted for barcode so skip filtering step
   		continue;
   	}
-  	std::cout << bib::bashCT::boldGreen("Filtering on barcode: "+ barcodeName) << std::endl;
+  	if(pars.multiplex){
+  		std::cout << bib::bashCT::boldGreen("Filtering on barcode: "+ barcodeName) << std::endl;
+  	}else{
+  		std::cout << bib::bashCT::boldGreen("Filtering") << std::endl;
+  	}
+
   	auto format = bib::files::getExtension(f.first.string());
   	auto barcodeOpts = setUp.ioOptions_;
   	barcodeOpts.firstName_ = f.first.string();
   	barcodeOpts.inFormat_ = format;
   	readObjectIOOpt barcodeIn(barcodeOpts);
   	barcodeIn.openIn();
+
   	std::vector<std::unique_ptr<readObjectIOOpt>> readOuts;
   	std::map<std::string, uint32_t> outPos;
-
 
   	{
   		auto unrecogPrimerOutOpts = setUp.ioOptions_;
@@ -1024,7 +954,6 @@ int SeekDeepRunner::extractor(MapStrStr inputCommands) {
   		outPos["unrecognized"] = readOuts.size();
   		readOuts.emplace_back(std::make_unique<readObjectIOOpt>(unrecogPrimerOutOpts));
   	}
-  	//readObject readObj;
   	uint32_t barcodeCount = 1;
   	for(const auto & out : readOuts){
   		out->openOut();
@@ -1044,6 +973,12 @@ int SeekDeepRunner::extractor(MapStrStr inputCommands) {
 			} else {
 				if(pars.multiplex){
 					primerName = pDetermine.determineForwardPrimer(read, 0, alignObj, pars.fPrimerErrors,!pars.forwardPrimerToUpperCase,setUp.weightHomopolymers_);
+					if(primerName == "unrecognized" && pars.checkComplement){
+						primerName = pDetermine.determineWithReversePrimer(read, 0, alignObj, pars.fPrimerErrors,!pars.forwardPrimerToUpperCase,setUp.weightHomopolymers_);
+						if(read.seqBase_.on_){
+							foundInReverse = true;
+						}
+					}
 				}else{
 					uint32_t start = 0;
 					if(pars.variableStart){
@@ -1067,6 +1002,8 @@ int SeekDeepRunner::extractor(MapStrStr inputCommands) {
 			std::string fullname = primerName;
 			if(pars.multiplex){
 				fullname += barcodeName;
+			}else if (pars.sampleName != ""){
+				fullname += pars.sampleName;
 			}
 	  	{
 	  		auto badDirOutOpts = setUp.ioOptions_;
@@ -1088,31 +1025,72 @@ int SeekDeepRunner::extractor(MapStrStr inputCommands) {
 	  	}
 			if (pars.screenForPossibleContamination) {
 				auto contamOutOpts = setUp.ioOptions_;
-				contamOutOpts.outFilename_ = contaminationDir + barcodeName;
-				outPos[fullname + "contamination"] = readOuts.size();
-				readOuts.emplace_back(std::make_unique<readObjectIOOpt>(contamOutOpts));
+				contamOutOpts.outFilename_ = contaminationDir + fullname;
+	  		if(!bib::in(fullname + "contamination", outPos)){
+		  		outPos[fullname + "contamination"] = readOuts.size();
+		  		readOuts.emplace_back(std::make_unique<readObjectIOOpt>(contamOutOpts));
+		  		readOuts.back()->openOut();
+	  		}
 			}
-      //min len
-    	readChecker::checkReadLenAbove(read.seqBase_, pars.minLen, true);
+  		//look for possible contamination
+      if (pars.screenForPossibleContamination) {
+      	kmerInfo compareInfo(compareObject.seqBase_.seq_, pars.contaminationKLen, false);
+      	if(pars.multipleTargets){
+      		if(compareInfos.find(primerName) != compareInfos.end()){
+      			if(foundInReverse){
+      				readChecker::checkReadOnKmerComp(read.seqBase_, compareInfosRev[primerName],pars.contaminationKLen, pars.kmerCutOff, true);
+      			}else{
+      				readChecker::checkReadOnKmerComp(read.seqBase_, compareInfos[primerName],pars.contaminationKLen, pars.kmerCutOff, true);
+      			}
+
+          	if(!read.seqBase_.on_){
+          		stats.increaseCounts(fullname, read.seqBase_.name_, ExtractionStator::extractCase::CONTAMINATION);
+          		readOuts[outPos[fullname + "contamination"]]->write(read);
+          		continue;
+          	}
+      		}else{
+      			std::cerr << "Error in screening for contamination, multiple targets turned on but no contamination found for " << primerName << std::endl;
+      			std::cerr << "Options are: " << vectorToString(getVectorOfMapKeys(compareInfos), ",") << std::endl;
+      		}
+      	}else{
+      		if(foundInReverse){
+      			readChecker::checkReadOnKmerComp(read.seqBase_, compareInfoRev,pars.contaminationKLen, pars.kmerCutOff, true);
+      		}else{
+      			readChecker::checkReadOnKmerComp(read.seqBase_, compareInfo,pars.contaminationKLen, pars.kmerCutOff, true);
+      		}
+        	if(!read.seqBase_.on_){
+        		stats.increaseCounts(fullname, read.seqBase_.name_, ExtractionStator::extractCase::CONTAMINATION);
+        		readOuts[outPos[fullname + "contamination"]]->write(read);
+        		continue;
+        	}
+      	}
+
+      }
+
+			//min len
+			if (pars.multipleTargets) {
+				if (multipleLenCutOffs.find(primerName) != multipleLenCutOffs.end()) {
+					readChecker::checkReadLenAbove(read.seqBase_,
+							multipleLenCutOffs[primerName].minLen_, true);
+				} else {
+					readChecker::checkReadLenAbove(read.seqBase_, pars.minLen, true);
+				}
+			} else {
+				readChecker::checkReadLenAbove(read.seqBase_, pars.minLen, true);
+			}
     	if(!read.seqBase_.on_){
     		stats.increaseCounts(fullname, read.seqBase_.name_, ExtractionStator::extractCase::MINLENBAD);
     		readOuts[outPos[fullname + "bad"]]->write(read);
     		continue;
     	}
-      //max len
-    	readChecker::checkReadLenBellow(read.seqBase_, pars.maxLength, true);
-    	if(!read.seqBase_.on_){
-    		stats.increaseCounts(fullname, read.seqBase_.name_, ExtractionStator::extractCase::MAXLENBAD);
-    		readOuts[outPos[fullname + "bad"]]->write(read);
-    		continue;
-    	}
+
 
   		//reverse
       if (!pars.noReversePrimer) {
       	if(foundInReverse){
-      		pDetermine.checkForForwardPrimerInRev(read, primerName, alignObj, pars.rPrimerErrors,!pars.reversePrimerToUpperCase, setUp.weightHomopolymers_);
+      		pDetermine.checkForForwardPrimerInRev(read, primerName, alignObj, pars.rPrimerErrors,!pars.reversePrimerToUpperCase, setUp.weightHomopolymers_,pars.variableStop,false);
       	}else{
-      		pDetermine.checkForReversePrimer(read, primerName, alignObj, pars.rPrimerErrors,!pars.reversePrimerToUpperCase, setUp.weightHomopolymers_);
+      		pDetermine.checkForReversePrimer(read, primerName, alignObj, pars.rPrimerErrors,!pars.reversePrimerToUpperCase, setUp.weightHomopolymers_, pars.variableStop,false);
       	}
 
       	if(!read.seqBase_.on_){
@@ -1122,20 +1100,28 @@ int SeekDeepRunner::extractor(MapStrStr inputCommands) {
       		continue;
       	}
       }
+      //min len again becuase the reverse primer search trims to the reverse primer so it could be short again
+			if (pars.multipleTargets) {
+				if (multipleLenCutOffs.find(primerName) != multipleLenCutOffs.end()) {
+					readChecker::checkReadLenAbove(read.seqBase_,
+							multipleLenCutOffs[primerName].minLen_, true);
+				} else {
+					readChecker::checkReadLenAbove(read.seqBase_, pars.minLen, true);
+				}
+			} else {
+				readChecker::checkReadLenAbove(read.seqBase_, pars.minLen, true);
+			}
+    	if(!read.seqBase_.on_){
+    		stats.increaseCounts(fullname, read.seqBase_.name_, ExtractionStator::extractCase::MINLENBAD);
+    		readOuts[outPos[fullname + "bad"]]->write(read);
+    		continue;
+    	}
+
       //if found in the reverse direction need to re-orient now
       if(foundInReverse){
       	read.seqBase_.reverseComplementRead(true,true);
       }
-  		//look for possible contamination
-      if (pars.screenForPossibleContamination) {
-      	kmerInfo compareInfo(compareObject.seqBase_.seq_, pars.contaminationKLen);
-      	readChecker::checkReadOnKmerComp(read.seqBase_, compareInfo,pars.contaminationKLen, pars.kmerCutOff, true);
-      	if(!read.seqBase_.on_){
-      		stats.increaseCounts(fullname, read.seqBase_.name_, ExtractionStator::extractCase::CONTAMINATION);
-      		readOuts[outPos[fullname + "contamination"]]->write(read);
-      		continue;
-      	}
-      }
+
   		//contains n
       readChecker::checkReadOnSeqContaining(read.seqBase_, "N", pars.numberOfNs, true);
     	if(!read.seqBase_.on_){
@@ -1143,20 +1129,24 @@ int SeekDeepRunner::extractor(MapStrStr inputCommands) {
     		readOuts[outPos[fullname + "bad"]]->write(read);
     		continue;
     	}
-      //min len
-    	readChecker::checkReadLenAbove(read.seqBase_,pars.minLen, true);
-    	if(!read.seqBase_.on_){
-    		stats.increaseCounts(fullname, read.seqBase_.name_, ExtractionStator::extractCase::MINLENBAD);
-    		readOuts[outPos[fullname + "bad"]]->write(read);
-    		continue;
-    	}
+
       //max len
-    	readChecker::checkReadLenBellow(read.seqBase_, pars.maxLength, true);
+			if (pars.multipleTargets) {
+				if (multipleLenCutOffs.find(primerName) != multipleLenCutOffs.end()) {
+					readChecker::checkReadLenBellow(read.seqBase_,
+							multipleLenCutOffs[primerName].maxLen_, true);
+				} else {
+					readChecker::checkReadLenBellow(read.seqBase_, pars.maxLength, true);
+				}
+			} else {
+				readChecker::checkReadLenBellow(read.seqBase_, pars.maxLength, true);
+			}
     	if(!read.seqBase_.on_){
     		stats.increaseCounts(fullname, read.seqBase_.name_, ExtractionStator::extractCase::MAXLENBAD);
     		readOuts[outPos[fullname + "bad"]]->write(read);
     		continue;
     	}
+
       //quality
     	if(pars.checkingQCheck){
       	readChecker::checkReadQualCheck(read.seqBase_, pars.qualCheck, pars.qualCheckCutOff, true);
@@ -1167,11 +1157,13 @@ int SeekDeepRunner::extractor(MapStrStr inputCommands) {
     			readChecker::checkReadOnQualityWindow(read.seqBase_, pars.qualityWindowLength, pars.qualityWindowStep, pars.qualityWindowThres, true);
     		}
     	}
+
     	if(!read.seqBase_.on_){
     		stats.increaseCounts(fullname, read.seqBase_.name_, ExtractionStator::extractCase::QUALITYFAILED);
     		readOuts[outPos[fullname + "bad"]]->write(read);
     		continue;
     	}
+
     	if(read.seqBase_.on_){
     		stats.increaseCounts(fullname, read.seqBase_.name_, ExtractionStator::extractCase::GOOD);
         if(pars.rename){
@@ -1216,9 +1208,19 @@ int SeekDeepRunner::extractor(MapStrStr inputCommands) {
       << ")\tfailedForwardPrimer\tfailedQualityFiltering\tused";
   extractionStatsFile << "\tcontamination";
   extractionStatsFile << std::endl;
-  stats.outTotalStats(extractionStatsFile, "\t", count, readsNotMatchedToBarcode, smallFragmentCount);
+  stats.outTotalStats(extractionStatsFile, "\t");
+  std::ofstream failedForwadFile;
+  openTextFile(failedForwadFile, setUp.directoryName_ + "failedForwad.tab.txt",
+               ".txt", false, false);
+  failedForwadFile << "MidName\ttotalFailed\tfailedInFor\tfailedInRev" << std::endl;
+  stats.outFailedForwardStats(failedForwadFile, "\t");
+
   if(!setUp.debug_){
   	bib::files::rmDirForce(unfilteredReadsDir);
+  }
+  if(setUp.writingOutAlnInfo_){
+  	setUp.rLog_ << "Number of alignments done" << "\n";
+  	alignObj.alnHolder_.write(setUp.outAlnInfoDirName_, setUp.verbose_);
   }
   setUp.logRunTime(std::cout);
   return 0;
@@ -1226,135 +1228,32 @@ int SeekDeepRunner::extractor(MapStrStr inputCommands) {
 
 
 
-
-
-
 int SeekDeepRunner::qluster(MapStrStr inputCommands) {
-  // parameters
-  std::string parameters = "";
-  bool snapShots = false, extra = false;
-  std::string qualRep = "median", sortBy = "totalCount";
-  bool smallestFirst = true, bestMatch = true, markChimeras = false;
-  int bestMatchCheck = 10;
-  double parFreqs = 2;
-  bool collapsingTandems = false;
-  bool kmerCheckingOnAlignProfile = false;
-  bool additionalOut = false;
-  std::string additionalOutLocationFile = "";
-  std::map<int, std::vector<double>> iteratorMap;
-  bool removeLowQualBases = false;
-  int lowQualityCutOff = 3;
-  bool adjustHomopolyerRuns = false;
-  bool condensedCollapse = true;
-  bool skipOnLetterCounterDifference = false;
-  double fractionDifferenceCutOff = 0.1;
   SeekDeepSetUp setUp(inputCommands);
-  uint32_t runTimes = 100;
-  bool sim = false;
-  bool printSimClusters = false;
-  double pValueCutOff = 0.01;
-  double fdrCutOff = 0.01;
-  bool removeSingletons = false;
-  bool debug = false;
-  bool createMinTree = false;
-  std::string diffCutOffStr = "0.1";
-  bool findBest = true;
-  std::string alphabetStr = "A,C,G,T";
-  double compPerCutOff = .98;
-  bool useCompPerCutOff = false;
-  bool ionTorrent = false;
-  setUp.setOption(ionTorrent, "-ionTorrent", "Flag to indicate reads are ion torrent and therefore turns on -useCompPerCutOff,-adjustHomopolyerRuns, and -qualTrim");
-  if(ionTorrent){
-  	removeLowQualBases = true;
-  	adjustHomopolyerRuns = true;
-  	useCompPerCutOff = true;
-  }
-	setUp.setOption(compPerCutOff, "-compPerCutOff", "Percentage of reads in one direction Cut Off");
-	setUp.setOption(useCompPerCutOff, "-useCompPerCutOff",
-			"Throw out clusters that are made up reads of > "
-					+ estd::to_string(useCompPerCutOff * 100)
-					+ "% of reads in only one direction, used with Ion Torrent Reads");
+  // parameters
+  clusterDownPars pars;
 
-	setUp.setOption(diffCutOffStr, "-diffCutOffs", "diffCutOff");
-
-  std::vector<double> diffCutOffVec = vecStrToVecNum<double>(tokenizeString(diffCutOffStr,","));
-  bool keepCondensed = false;
-  setUp.setOption(keepCondensed, "-keepCondensed", "keepCondensed");
-  setUp.setOption(findBest, "-findBest","findBest");
-  setUp.setBoolOptionFalse(findBest, "-findNucFirst,-findFirstNuc,-firstNuc","findBest");
-  setUp.setOption(alphabetStr, "-alph,-alphabet","alphabetStr");
-  std::vector<char> alphabet = processAlphStrVecChar(alphabetStr, ",");
-  bool useNucComp = false;
-  setUp.setOption(useNucComp, "-useNucComp", "useNucComp");
-  bool useMinLenNucComp = false;
-  setUp.setOption(useMinLenNucComp, "-useMinLenNucComp", "useMinLenNucComp");
-  setUp.setOption(debug, "-debug", "debug");
-  setUp.debug_ = debug;
-  setUp.setOption(removeSingletons,
-                  "-startWithoutSingles",
-                  "Start Clustering Without Singles");
-  setUp.setOption(fdrCutOff, "-fdrCutOff", "False_discovery_cutoff");
-  setUp.setOption(pValueCutOff, "-pValueCutOff", "pValueCutOff");
-  setUp.setOption(printSimClusters, "-printSimClusters,-printSim",
-                  "printSimClusters");
-
-
-  setUp.setOption(sim, "-sim", "sim");
-  setUp.setOption(runTimes, "-runTimes", "runTimes");
-  setUp.setOption(skipOnLetterCounterDifference, "-skip",
-                  "skipOnLetterCounterDifference");
-  setUp.setOption(fractionDifferenceCutOff, "-skipCutOff",
-                  "fractionDifferenceCutOff");
-  setUp.processAlnInfoInput();
-  setUp.setOption(createMinTree, "--createMinTree",
-  		"Create Psudo minimum Spanning Trees For Mismatches for Final Clusters");
-  //bool leaveOutSinglets = false;
-  //setUp.setOption(leaveOutSinglets, "-leaveOutSinglets", "Leave out singlet clusters out of all analysis");
-  bool onPerId = false;
-	std::string backgroundColor = "#000000";
-
-	double hueStart = 0;
-	double hueStop = 360;
-	double satStart = 1.0;
-	double satStop = 1.0;
-	double lumStart = 0.5;
-	double lumStop = 0.5;
-	setUp.setOption(backgroundColor, "-b,--backgroundColor", "Hex String for the color for the Background");
-	setUp.setOption(hueStart, "--hueStart", "Hue Start for the color of Reads");
-	setUp.setOption(hueStop, "--hueStop", "Hue Stop for the color of Reads");
-	setUp.setOption(satStart, "--satStart", "Sat Start for the color of Reads");
-	setUp.setOption(satStop, "--satStop", "Sat Stop for the color of Reads");
-	setUp.setOption(lumStart, "--lumStart", "Lum Start for the color of Reads");
-	setUp.setOption(lumStop, "--lumStop", "Lum Stop for the color of Reads");
-	setUp.processKmerOptions();
-	uint32_t smallReadSize = setUp.kLength_ * 2;
-	setUp.setOption(smallReadSize, "--smallReadSize", "A cut off to remove small reads");
-  setUp.setUpClusterDown(
-      qualRep, parameters, extra, iteratorMap, smallestFirst, markChimeras,
-      parFreqs, bestMatch, bestMatchCheck, snapShots, sortBy, additionalOut,
-      additionalOutLocationFile, collapsingTandems, kmerCheckingOnAlignProfile,
-      condensedCollapse, removeLowQualBases, lowQualityCutOff,
-      adjustHomopolyerRuns, onPerId);
+  setUp.setUpClusterDown(pars);
   Json::Value metaData;
   auto analysisDirPath = bib::files::bfs::canonical(setUp.directoryName_);
   metaData["analysisDirPath"] = analysisDirPath.string();
   // print out the parameters read in
-  if(useNucComp){
+  if(pars.useNucComp && setUp.verbose_){
   	std::cout << "Nucleotide Composition Binning cut offs" << std::endl;
-  	printVector(diffCutOffVec, ", ", std::cout);
+  	printVector(pars.diffCutOffVec, ", ", std::cout);
   }
   // read in the sequences
   readObjectIO reader;
   reader.read(setUp.ioOptions_);
-  auto splitOnSize = readVecSplitter::splitVectorBellowLength(reader.reads, smallReadSize);
+  auto splitOnSize = readVecSplitter::splitVectorBellowLength(reader.reads, pars.smallReadSize);
   reader.reads = splitOnSize.first;
   if(!splitOnSize.second.empty()){
   	readObjectIO::write(splitOnSize.second, setUp.directoryName_ + "smallReads", setUp.ioOptions_);
   }
-  if (removeLowQualBases) {
-    readVec::allRemoveLowQualityBases(reader.reads, lowQualityCutOff);
+  if (pars.removeLowQualBases) {
+    readVec::allRemoveLowQualityBases(reader.reads, pars.lowQualityCutOff);
   }
-  if (adjustHomopolyerRuns) {
+  if (setUp.adjustHomopolyerRuns_) {
     readVec::allAdjustHomopolymerRunsQualities(reader.reads);
   }
   bool containsCompReads = false;
@@ -1364,7 +1263,7 @@ int SeekDeepRunner::qluster(MapStrStr inputCommands) {
     containsCompReads = true;
   }
 
-  readVecSorter::sortReadVector(reader.reads, sortBy);
+  readVecSorter::sortReadVector(reader.reads, pars.sortBy);
   // get the count of reads read in and the max length so far
   int counter = readVec::getTotalReadCount(reader.reads);
   uint64_t maxSize = 0;
@@ -1378,56 +1277,58 @@ int SeekDeepRunner::qluster(MapStrStr inputCommands) {
   // calculate the runCutoff if necessary
   processRunCutoff(setUp.runCutoff_, setUp.runCutOffString_,
                    readVec::getTotalReadCount(reader.reads));
-
-  std::cout << "Kmer Low Frequency Error Cut off Is: " << setUp.runCutoff_ << std::endl;
-  //std::cout << "qaul run cut off is " << setUp.qualRunCutoff_ << std::endl;
-
+  if(setUp.verbose_ && !pars.onPerId ){
+  	std::cout << "Kmer Low Frequency Error Cut off Is: " << setUp.runCutoff_ << std::endl;
+  }
   // make the runLog, this is what is seen on the terminal screen at run time
   setUp.startARunLog(setUp.directoryName_);
   // parameter file
-  setUp.writeParametersFile(setUp.directoryName_ + "parametersUsed.txt", false,
-                            false);
+  setUp.writeParametersFile(setUp.directoryName_ + "parametersUsed.txt", false,true);
   // read in the paramteres from the parameters file
   setUp.rLog_ << "Parameters used" << "\n";
-  table parTab(parameters, ":");
+  table parTab(pars.parameters, ":");
   parTab.outPutContents(setUp.rLog_.runLogFile_, ":");
-
-  std::cout << "Reading clusters from " << setUp.ioOptions_.firstName_ << " "
-            << setUp.ioOptions_.secondName_ << std::endl;
+  if(setUp.verbose_){
+    std::cout << "Reading clusters from " << setUp.ioOptions_.firstName_ << " "
+              << setUp.ioOptions_.secondName_ << std::endl;
+    std::cout << "Read in " << counter << " reads" << std::endl;
+  }
   setUp.rLog_ << "Reading clusters from " << setUp.ioOptions_.firstName_
                   << " " << setUp.ioOptions_.secondName_ << "\n";
-  std::cout << "Read in " << counter << " reads" << std::endl;
   setUp.rLog_ << "Read in " << counter << " reads" << "\n";
-
   // create cluster vector
   std::vector<identicalCluster> identicalClusters;
   std::vector<cluster> clusters;
   if (setUp.ioOptions_.processed_) {
     clusters = baseCluster::convertVectorToClusterVector<cluster>(reader.reads);
   } else {
-    identicalClusters = clusterCollapser::collapseIdenticalReads(
-        reader.reads, qualRep, setUp.ioOptions_.lowerCaseBases_);
-    clusters =
-        baseCluster::convertVectorToClusterVector<cluster>(identicalClusters);
+  	identicalClusters = clusterCollapser::collapseIdenticalReads(
+        reader.reads, pars.qualRep, setUp.ioOptions_.lowerCaseBases_);
+    for(const auto & read : identicalClusters){
+    	clusters.push_back(cluster(readObject(read.seqBase_)));
+    }
+  	//clusters = baseCluster::convertVectorToClusterVector<cluster>(identicalClusters);
   }
-  std::cout << "Unique clusters numbers: " << clusters.size() << std::endl;
-  setUp.rLog_ << "Unique clusters numbers: " << clusters.size()
-                  << "\n";
-  readVecSorter::sortReadVector(clusters, sortBy);
+
+  if(setUp.verbose_){
+  	std::cout << "Unique clusters numbers: " << clusters.size() << std::endl;
+  }
+  setUp.rLog_ << "Unique clusters numbers: " << clusters.size() << "\n";
+  std::sort(clusters.begin(), clusters.end());
+  //readVecSorter::sortReadVector(clusters, sortBy);
+
   kmerMaps kMaps = kmerCalculator::indexKmerMpas(
       clusters, setUp.kLength_, setUp.runCutoff_,
       setUp.expandKmerPos_, setUp.expandKmerSize_);
   // create aligner class object
-  gapScoringParameters gapPars(setUp.gapInfo_);
-  gapPars.setIdentifer();
-  aligner alignerObj = aligner(maxSize, gapPars, setUp.scoring_, kMaps, setUp.primaryQual_,
+  aligner alignerObj = aligner(maxSize, setUp.gapInfo_, setUp.scoring_, kMaps, setUp.primaryQual_,
                                setUp.secondaryQual_, setUp.qualThresWindow_,
                                setUp.countEndGaps_);
-  if(setUp.verbose_){
+  if(setUp.verbose_ && !pars.onPerId){
   	std::cout << bib::bashCT::bold << "Primary Qual: " << alignerObj.primaryQual_ << std::endl;
   	std::cout << "Secondary Qual: " << alignerObj.secondaryQual_ << bib::bashCT::reset << std::endl;
   }
-  if(debug){
+  if(setUp.debug_){
   	std::ofstream scoreArrayFile;
   	openTextFile(scoreArrayFile, "scoreArrayTest.tab.txt", ".txt", true, false);
   	std::ofstream scoreMapFile;
@@ -1439,31 +1340,26 @@ int SeekDeepRunner::qluster(MapStrStr inputCommands) {
 			}
 			printVector(currentRow, "\t", scoreArrayFile);
   	}
-  	/*
-  	for(const auto & f : setUp.scoring_){
-  		for(const auto & s : f.second){
-  			scoreMapFile << f.first << ":" << s.first << " = " << s.second << std::endl;;
-  		}
-  	}*/
   	alignerObj.parts_.gapScores_.printDescription(std::cout, true);
   }
+
   processAlnInfoInput(alignerObj, setUp.alnInfoDirName_);
 
 
   collapser collapserObj = collapser(
-      bestMatch, bestMatchCheck, setUp.local_, setUp.checkKmers_,
+  		!setUp.largestFirst_, setUp.bestMatchCheck_, setUp.local_, true,
       setUp.kmersByPosition_, setUp.runCutoff_,
-      setUp.kLength_, setUp.verbose_, smallestFirst, condensedCollapse,
-      setUp.weightHomopolymers_, skipOnLetterCounterDifference,
-      fractionDifferenceCutOff, setUp.adjustHomopolyerRuns_);
+      setUp.kLength_, setUp.verbose_, !setUp.largestFirst_, true,
+      setUp.weightHomopolymers_, setUp.skipOnLetterCounterDifference_,
+			setUp.fractionDifferenceCutOff_, setUp.adjustHomopolyerRuns_);
+  collapserObj.opts_.lowQualityBaseTrim_ = pars.lowQualityCutOff;
+  collapserObj.opts_.removeLowQualityBases_ = pars.removeLowQualBases;
+  collapserObj.opts_.debug_ = setUp.debug_;
+  collapserObj.opts_.noAlign_ = pars.noAlign_;
 
-  std::string snapShotsDirectoryName = "";
-  if (snapShots) {
-    snapShotsDirectoryName = bib::files::makeDir(setUp.directoryName_, "snapShots");
-  }
   uint32_t singletonNum = 0;
   std::vector<cluster> singletons;
-  if (removeSingletons) {
+  if (!pars.startWithSingles) {
     for (auto& clus : clusters) {
       if (clus.seqBase_.cnt_ <= 1.01) {
         clus.remove = true;
@@ -1476,249 +1372,22 @@ int SeekDeepRunner::qluster(MapStrStr inputCommands) {
     }
   }
 
-  clusterVec::allSetFractionClusters(clusters);
-  readVec::allSetLetterCount(clusters, alphabet);
-  uint32_t minLen = readVec::getMinLength(clusters);
-  if (useNucComp) {
-  	bool oldVerbose = collapserObj.verbose_;
-  	collapserObj.verbose_ = debug;
-  	for(const auto & diffCutOff : diffCutOffVec){
-      clusterVec::allSetFractionClusters(clusters);
-      readVec::allSetLetterCount(clusters, alphabet);
-    	//std::vector<cluster> processedClusters;
-    	std::vector<nucCompCluster> comps;
-    	if(useMinLenNucComp){
-    		comps = clusterOnNucComp(clusters,minLen, alphabet, diffCutOff, findBest, true, setUp.debug_);
-    	}else{
-    		comps = clusterOnNucComp(clusters, alphabet, diffCutOff, findBest, true, setUp.debug_);
-    	}
-
-    	std::cout << "On Nucleotide Composition Bin difference of " << diffCutOff << " in " << vectorToString(diffCutOffVec, ", ") << std::endl;
-    	uint32_t compCount = 0;
-    	for(auto & comp : comps){
-    		++compCount;
-    		std::cout << "On " << compCount << " of " << comps.size() << "\r";
-    		std::cout.flush();
-    		if(comp.readPositions_.size() < 2){
-    			continue;
-    		}
-    		/*std::vector<cluster> currentClusters;
-    		for(const auto & readPos : comp.readPositions_){
-    			currentClusters.emplace_back(clusters[readPos]);
-    		}*/
-    		//addOtherVec(processedClusters, collapserObj.runClustering(currentClusters, iteratorMap, alignerObj));
-    		//collapserObj.runClustering(clusters, comp.readPositions_, iteratorMap, alignerObj);
-    		//auto oldMaps = alignerObj.getKmerMaps();
-    		double currentReadCnt = 0;
-    		for(const auto & pos : comp.readPositions_){
-    			currentReadCnt += clusters[pos].seqBase_.cnt_;
-    		}
-    		auto oldRunCutoff = alignerObj.kMaps_.runCutOff_ ;
-    		uint32_t currentRunCutoff = processCutOffStr(setUp.runCutOffString_,currentReadCnt );
-    		alignerObj.kMaps_.runCutOff_ = currentRunCutoff;
-    		//auto currentKMaps = kmerCalculator::indexKmerMpas(clusters, kClus.readPositions_,setUp.kLength_,
-    			//	currentRunCutoff ,currentQualRunCutoff,setUp.expandKmerPos_, setUp.expandKmerSize_);
-    		//alignerObj.setKmerMpas(currentKMaps);
-    		if(onPerId){
-    			collapserObj.runClusteringOnId(clusters, comp.readPositions_, iteratorMap, alignerObj);
-    		}else{
-    			collapserObj.runClustering(clusters, comp.readPositions_, iteratorMap, alignerObj);
-    		}
-    		alignerObj.kMaps_.runCutOff_ = oldRunCutoff;
-    		//alignerObj.setKmerMpas(oldMaps);
-    	}
-    	std::cout << std::endl;
-      //clusters = processedClusters;
-  	}
-  	collapserObj.verbose_ = oldVerbose;
-  	clusters = readVecSplitter::splitVectorOnRemove(clusters).first;
-  }
-
-  //alignerObj.kMaps_.outputKmerInfo(alignerObj.kMaps_, std::cout);
-  readVecSorter::sortReadVector(clusters, "totalCount");
-  for (uint32_t i = 1; i <= iteratorMap.size(); ++i) {
-
-  	std::cout << std::endl;
-    uint32_t sizeOfReadVector = readVec::getReadVectorSize(clusters);
-    runningParameters runPars(iteratorMap[i],i,  sizeOfReadVector, onPerId);
-    runPars.printIterInfo(std::cout, true,onPerId);
-    if (!onPerId && condensedCollapse && runPars.errors_.hqMismatches_ == 0 &&
-        runPars.errors_.lqMismatches_ == 0 &&
-        runPars.errors_.largeBaseIndel_ == 0 &&
-        runPars.errors_.twoBaseIndel_ == 0) {
-      auto byCondensed = readVec::organizeByCondensedSeq(clusters);
-  		for (auto & condensedReads : byCondensed){
-  			collapserObj.collapseWithParameters(condensedReads.second,runPars, alignerObj);
-  		}
-      clusters.clear();
-      for (const auto& condensedReads : byCondensed) {
-        addOtherVec(clusters, condensedReads.second);
-      }
-      int sizeOfReadVector = readVec::getReadVectorSize(clusters);
-      std::cout << "collapsed down to " << sizeOfReadVector << std::endl;
-    } else {
-			if (onPerId) {
-				collapserObj.collapseWithPerId(clusters, runPars, alignerObj);
-				/*
-  			for (const auto & pec : clusters.front().previousErrorChecks){
-  				std::cout << pec.first << std::endl;
-  				std::cout << "\t" << pec.second.distances_.eventBasedIdentity_ << std::endl;
-  				std::cout << "\t" << bib::colorBool(runPars.errors_.passIdThreshold(pec.second)) << std::endl;
-  			}
-  			exit(1);*/
-			} else {
-				collapserObj.collapseWithParameters(clusters, runPars, alignerObj);
-			}
-    }
-    readVec::allUpdateName(clusters);
-    bib::stopWatch watch;
-    watch.setLapName("sortReadVector");
-    readVecSorter::sortReadVector(clusters, sortBy);
-    watch.startNewLap("allCalculateConsensus");
-    clusterVec::allCalculateConsensus(clusters, alignerObj, true);
-    if(setUp.debug_){
-    	watch.logLapTimes(std::cout, true, 6, true);
-    }
-    if (adjustHomopolyerRuns) {
-      readVec::allAdjustHomopolymerRunsQualities(clusters);
-    }
-
-    if (snapShots) {
-      std::string iterDir =
-          bib::files::makeDir(snapShotsDirectoryName, std::to_string(i));
-      std::vector<cluster> currentClusters =
-          readVecSplitter::splitVectorOnRemove(clusters).first;
-      std::string seqName = bib::files::getFileName(setUp.ioOptions_.firstName_);
-      renameReadNames(currentClusters, seqName, true, false);
-      reader.write(currentClusters, snapShotsDirectoryName + std::to_string(i),
-                   setUp.ioOptions_);
-      clusterVec::allWriteOutClusters(currentClusters, iterDir, setUp.ioOptions_);
-      if (setUp.refFilename_ == "") {
-        profiler::getFractionInfoCluster(currentClusters, snapShotsDirectoryName,
-                                  std::to_string(i) + ".tab.txt");
-      } else {
-        profiler::getFractionInfoCluster(currentClusters, snapShotsDirectoryName,
-                                  std::to_string(i) + ".tab.txt",
-                                  setUp.refFilename_, alignerObj, setUp.local_,
-                                  true);
-      }
-    }
-    std::cout << "Current duration: ";
-    setUp.logRunTime(std::cout);
-    setUp.rLog_ << "Current duration: "; setUp.rLog_.logTotalTime(6);
-    setUp.rLog_ << "Current clusters size " << sizeOfReadVector
-                    << "\n";
-    /*std::cout << "after clustering: " << std::endl;
-    uint32_t afterClustering = seqQualSizeCheck(clusters);
-    if(afterClustering > 0){
-      exit(1);
-    }*/
-  }
-
-  if (removeSingletons) {
+  //run clustering
+	collapserObj.runFullClustering(clusters, pars.onPerId, pars.iteratorMap,
+			pars.useNucComp, pars.useMinLenNucComp, pars.findBest, pars.diffCutOffVec,
+			pars.useKmerBinning, pars.kCompareLen, pars.kmerCutOff, alignerObj, setUp,
+			pars.snapShots, "firstSnaps");
+	//run again with singlets if needed
+  if (!pars.startWithSingles && !pars.leaveOutSinglets) {
     addOtherVec(clusters, singletons);
-    if (useNucComp) {
-    	bool oldVerbose = collapserObj.verbose_;
-    	collapserObj.verbose_ = debug;
-    	for(const auto & diffCutOff : diffCutOffVec){
-        clusterVec::allSetFractionClusters(clusters);
-        readVec::allSetLetterCount(clusters, alphabet);
-      	//std::vector<cluster> processedClusters;
-      	std::vector<nucCompCluster> comps;
-      	if(useMinLenNucComp){
-      		comps = clusterOnNucComp(clusters,minLen, alphabet, diffCutOff, findBest, true, setUp.debug_);
-      	}else{
-      		comps = clusterOnNucComp(clusters, alphabet, diffCutOff, findBest, true, setUp.debug_);
-      	}
-      	std::cout << "On nuc comp diff of " << diffCutOff << " in " << vectorToString(diffCutOffVec, ", ") << std::endl;
-      	uint32_t compCount = 0;
-      	for(auto & comp : comps){
-      		++compCount;
-      		std::cout << "On " << compCount << " of " << comps.size() << "\r";
-      		std::cout.flush();
-      		if(comp.readPositions_.size() < 2){
-      			continue;
-      		}
-      		/*std::vector<cluster> currentClusters;
-      		for(const auto & readPos : comp.readPositions_){
-      			currentClusters.emplace_back(clusters[readPos]);
-      		}*/
-      		//addOtherVec(processedClusters, collapserObj.runClustering(currentClusters, iteratorMap, alignerObj));
-      		//collapserObj.runClustering(clusters, comp.readPositions_, iteratorMap, alignerObj);
-      		//auto oldMaps = alignerObj.getKmerMaps();
-      		double currentReadCnt = 0;
-      		for(const auto & pos : comp.readPositions_){
-      			currentReadCnt += clusters[pos].seqBase_.cnt_;
-      		}
-      		auto oldRunCutoff = alignerObj.kMaps_.runCutOff_ ;
-      		uint32_t currentRunCutoff = processCutOffStr(setUp.runCutOffString_,currentReadCnt );
-      		alignerObj.kMaps_.runCutOff_ = currentRunCutoff;
-      		//auto currentKMaps = kmerCalculator::indexKmerMpas(clusters, kClus.readPositions_,setUp.kLength_,
-      			//	currentRunCutoff ,currentQualRunCutoff,setUp.expandKmerPos_, setUp.expandKmerSize_);
-      		//alignerObj.setKmerMpas(currentKMaps);
-      		if(onPerId){
-      			collapserObj.runClusteringOnId(clusters, comp.readPositions_, iteratorMap, alignerObj);
-      		}else{
-      			collapserObj.runClustering(clusters, comp.readPositions_, iteratorMap, alignerObj);
-      		}
-
-      		alignerObj.kMaps_.runCutOff_ = oldRunCutoff;
-      		//alignerObj.setKmerMpas(oldMaps);
-      	}
-      	std::cout << std::endl;
-        //clusters = processedClusters;
-    	}
-    	collapserObj.verbose_ = oldVerbose;
-    	clusters = readVecSplitter::splitVectorOnRemove(clusters).first;
-    }
-
-    for (uint32_t i = 1; i <= iteratorMap.size(); ++i) {
-      std::cout << std::endl;
-      uint32_t sizeOfReadVector = readVec::getReadVectorSize(clusters);
-      runningParameters runPars(iteratorMap[i],i, sizeOfReadVector, onPerId);
-      runPars.printIterInfo(std::cout, true, onPerId);
-      if (!onPerId && condensedCollapse && runPars.errors_.hqMismatches_ == 0 &&
-          runPars.errors_.lqMismatches_ == 0 &&
-          runPars.errors_.largeBaseIndel_ == 0 &&
-          runPars.errors_.twoBaseIndel_ == 0) {
-				auto byCondensed = readVec::organizeByCondensedSeq(clusters);
-				for (auto & condensedReads : byCondensed) {
-					collapserObj.collapseWithParameters(condensedReads.second, runPars,
-							alignerObj);
-				}
-				clusters.clear();
-				for (const auto& condensedReads : byCondensed) {
-					addOtherVec(clusters, condensedReads.second);
-				}
-      } else {
-    		if(onPerId){
-    			collapserObj.collapseWithPerId(clusters, runPars,alignerObj);
-
-    		}else{
-    			collapserObj.collapseWithParameters(clusters, runPars,alignerObj);
-    		}
-      }
-      readVec::allUpdateName(clusters);
-      bib::stopWatch watch;
-      watch.setLapName("sortReadVector");
-      readVecSorter::sortReadVector(clusters, sortBy);
-      watch.startNewLap("allCalculateConsensus");
-      clusterVec::allCalculateConsensus(clusters, alignerObj, true);
-      if(setUp.debug_){
-      	watch.logLapTimes(std::cout, true, 6, true);
-      }
-      if (adjustHomopolyerRuns) {
-        readVec::allAdjustHomopolymerRunsQualities(clusters);
-      }
-      std::cout << "Current duration: ";
-      setUp.logRunTime(std::cout);
-      setUp.rLog_ << "Current duration: "; setUp.rLog_.logTotalTime(6);
-      setUp.rLog_ << "Current clusters size " << sizeOfReadVector
-                      << "\n";
-    }
+  	collapserObj.runFullClustering(clusters, pars.onPerId, pars.iteratorMap,
+  			pars.useNucComp, pars.useMinLenNucComp, pars.findBest, pars.diffCutOffVec,
+  			pars.useKmerBinning, pars.kCompareLen, pars.kmerCutOff, alignerObj, setUp,
+  			pars.snapShots, "secondSnaps");
   }
-  clusters = readVecSplitter::splitVectorOnRemove(clusters).first;
-  if(containsCompReads && useCompPerCutOff){
+
+  //remove reads if they are made up of reads only in one direction
+  if(containsCompReads && pars.useCompPerCutOff){
     for ( auto& clus : clusters) {
       std::vector<readObject> collection =
           clus.getAllBeginingClusters(identicalClusters);
@@ -1728,7 +1397,7 @@ int SeekDeepRunner::qluster(MapStrStr inputCommands) {
         readVec::getCountOfReadNameContaining(collection, "_Comp",
                                               currentCompAmount);
         double currentCompPer = currentCompAmount/clus.seqBase_.cnt_;
-        if(currentCompPer > compPerCutOff && clus.seqBase_.cnt_ != 1){
+        if(currentCompPer > pars.compPerCutOff && clus.seqBase_.cnt_ != 1){
         	clus.remove = true;
         }
       }
@@ -1740,79 +1409,24 @@ int SeekDeepRunner::qluster(MapStrStr inputCommands) {
     	reader.write(splitClus.second, setUp.directoryName_ + "allOneDirection",setUp.ioOptions_);
     }
   }
-  readVecSorter::sortReadVector(clusters, "totalCount");
 
+  readVecSorter::sortReadVector(clusters, "totalCount");
   std::string seqName = bib::files::getFileName(setUp.ioOptions_.firstName_);
-  std::vector<cluster> rejectedClusters;
+  readVecSorter::sort(clusters);
+  renameReadNames(clusters, seqName, true, false, false);
+  //std::vector<cluster> rejectedClusters;
   std::unordered_map<double, double> bestLikelihood;
   bib::randomGenerator gen;
-  simulation::errorProfile eProfile({'A', 'C', 'G', 'T'});
-  if (sim) {
-    if (markChimeras) {
-      std::ofstream chimerasInfoFile;
-      openTextFile(chimerasInfoFile,
-                   setUp.directoryName_ + "chimeraNumberInfoBeforeSim.txt", ".txt", false,
-                   false);
-      chimerasInfoFile << "#chimericClusters\t#chimericReads" << std::endl;
-      std::cout << "Marking chimeras" << std::endl;
-      comparison chiOverlap;
-      chiOverlap.oneBaseIndel_ = 2;
-      chiOverlap.twoBaseIndel_ = 1;
-      chiOverlap.lowKmerMismatches_ = 1;
-      uint32_t overLapSizeCutoff = 5;
-      uint32_t allowableError = 0;
-      uint32_t chiCount = 0;
-      std::vector<cluster> tempClusters;
-      for (const auto& clus : clusters) {
-        tempClusters.emplace_back(cluster(readObject(clus.seqBase_)));
-      }
-      readVec::allSetFractionByTotalCount(tempClusters);
-      clusterCollapser::markChimerasAdvanced(
-          tempClusters, alignerObj, parFreqs, 1, setUp.local_, chiOverlap,
-          overLapSizeCutoff, setUp.weightHomopolymers_, chiCount, allowableError);
-
-      int clusterCount = 0;
-      int readCount = 0;
-      readVec::getCountOfReadNameContaining(tempClusters, "CHI", clusterCount);
-      readVec::getReadCountOfReadNameContaining(tempClusters, "CHI", readCount);
-      chimerasInfoFile << getPercentageString(clusterCount, tempClusters.size())
-                       << "\t"
-                       << getPercentageString(
-                              readCount, readVec::getTotalReadCount(tempClusters))
-                       << std::endl;
-      std::cout << "Marked " << clusterCount << " as chimeric before sim" << std::endl;
-      reader.write(tempClusters, setUp.directoryName_ + "beforSimOutput.fastq",
-                   setUp.ioOptions_);
-      if (setUp.refFilename_ == "") {
-        profiler::getFractionInfoCluster(tempClusters, setUp.directoryName_, "beforSimOutputInfo");
-      } else {
-        profiler::getFractionInfoCluster(tempClusters, setUp.directoryName_, "beforSimOutputInfo",
-                                  setUp.refFilename_, alignerObj, setUp.local_,
-                                  true);
-      }
-
-    }
-
+  simulation::mismatchProfile eProfile({'A', 'C', 'G', 'T'});
+  if (pars.sim) {
 
     // create R session
     njhRInside::OwnRInside ownSession;
     // create error profile to get the error profile of the current clusters
-
     for (const auto& clus : clusters) {
       clus.updateErrorProfile(eProfile, alignerObj, setUp.local_);
     }
-    letterCounter masterCounter(std::vector<char>{'A', 'C', 'G', 'T'});
-    bib::for_each(reader.reads, [&](const readObject& read) {
-      masterCounter.increaseCountByString(read.seqBase_.seq_);
-    });
 
-    masterCounter.setFractions();
-    table letCount(masterCounter.letters, {"let", "count"});
-    table letFrac(masterCounter.fractions, {"let", "frac"});
-    letCount.outPutContentOrganized(std::cout);
-    letFrac.outPutContentOrganized(std::cout);
-    // masterCounter.outPutACGTInfo(std::cout);
-    // masterCounter.outPutACGTFractionInfo(std::cout);
     eProfile.setFractions();
     if (setUp.verbose_) {
       // Print out info about the errors seen
@@ -1919,7 +1533,7 @@ int SeekDeepRunner::qluster(MapStrStr inputCommands) {
     {
       bib::scopedStopWatch qualCounting("qualCounting");
       for (auto i : qualWindows) {
-        bib::for_each(reader.reads, [&](const readObject& read) {
+        bib::for_each(reader.reads, [&countsStep,&i](const readObject& read) {
           read.updateQualWindowCounts(countsStep[i], i);
         });
       }
@@ -2033,7 +1647,7 @@ int SeekDeepRunner::qluster(MapStrStr inputCommands) {
     r.parseEvalQ(combinePredErrorCmd);
     // R.parseEvalQ("print(all);");
     std::string plotCmd =
-        "pdf(\"" + seqName +
+        "pdf(\"" + setUp.directoryName_ + seqName +
         "_qualErrorRate.pdf\"); print(ggplot(all, aes(x = qual, y = errorRate, "
         "group = par, color = par)) + geom_line() + ggtitle(\"" +
         seqName + "_" + bestAreaPar +
@@ -2063,249 +1677,82 @@ int SeekDeepRunner::qluster(MapStrStr inputCommands) {
       }
       bib::scopedStopWatch t(clus.seqBase_.name_ + "_sim", true);
       // simulate the cluster using the qualities of the original sequences
-      clus.simOnQual(identicalClusters, alignerObj, runTimes, bestLikelihood,
+      clus.simOnQual(identicalClusters, alignerObj, pars.runTimes, bestLikelihood,
                      eProfile, gen);
       // remove clusters on fdr cut off
-      //std::cout << "fdr1" << std::endl;
-      if(keepCondensed){
-      	clus.qualityClip = std::vector<uint32_t> (100);
-      }
-      clus.removeClustersOnFDR(alignerObj, fdrCutOff, rejectedClusters);
-      //std::cout << "fdr2" << std::endl;
+      //clus.removeClustersOnFDR(alignerObj, pars.fdrCutOff, rejectedClusters);
     }
-    //std::cout << "?" << std::endl;
-    //std::cout << "len of rejectedClusters" << len(rejectedClusters) << std::endl;
-    /*for(const auto & rej : rejectedClusters){
-    	std::cout << rej.seqBase_.name_ << std::endl;
-    	std::cout << rej.seqBase_.seq_ << std::endl;
-    	std::cout << rej.seqBase_.cnt_ << std::endl;
-    }*/
-    uint32_t quickCount = 0;
-    //printDescriptionVec(rejectedClusters,std::cout, true);
-    clusterVec::allCalculateConsensus(rejectedClusters, alignerObj, true);
-    readVec::allUpdateName(rejectedClusters);
-    for (auto& clus : rejectedClusters) {
-    	// simulate the rejected reads so they can do p value comparison latter
-    	++quickCount;
-      std::cout << quickCount << ":" << len(rejectedClusters) << std::endl;
 
-      if (clus.rejected_) {
-        // std::cout <<"rejections" << std::endl;
-
-        // if cluster is only one read no need to simulate
-        if (clus.seqBase_.cnt_ < 2) {
-          continue;
-        }
-        bib::scopedStopWatch t(clus.seqBase_.name_ + "_sim", true);
-        // simulate the cluster using the qualities of the original sequences
-        clus.simOnQual(identicalClusters, alignerObj, runTimes, bestLikelihood,
-                       eProfile, gen);
-
-        // remove clusters on fdr cut off
-        //clus.removeClustersOnFDR(alignerObj, fdrCutOff, rejectedClusters);
-      }
-    }
-  }
-  //std::cout << "made it here " << std::endl;
-  if(sim){
-    addOtherVec(clusters, rejectedClusters);
-    readVec::allUpdateName(clusters);
-    reader.write(clusters, setUp.directoryName_ + "clusWithRejected",
-                 setUp.ioOptions_.outFormat_, true, false);
-    profiler::getFractionInfoCluster(clusters, setUp.directoryName_,
-                              "clusWithRejectedInfo");
   }
 
-
-  readVecSorter::sort(clusters);
-  renameReadNames(clusters, seqName, true, false);
-  if (sim) {
-  	if(debug){
-      std::ofstream pValueFile;
-      openTextFile(pValueFile, setUp.directoryName_ + "pValues.tab.txt", ".txt",
-                   true, false);
-      pValueFile << "read1\tread2\tpValue" << std::endl;
-      for (const auto& readPos : iter::range(len(clusters))) {
-        uint32_t realPos = len(clusters) - readPos - 1;
-        for (const auto& readSubPos : iter::range<uint32_t>(0, realPos)) {
-          if (clusters[readSubPos].seqBase_.cnt_ <=
-              clusters[realPos].seqBase_.cnt_) {
-            continue;
-          }
-          double currentPvalue = clusters[readSubPos].getPValue(
-              clusters[realPos].seqBase_, alignerObj, setUp.local_);
-          if (currentPvalue >= pValueCutOff) {
-            pValueFile << clusters[realPos].seqBase_.name_ << "\t"
-                       << clusters[readSubPos].seqBase_.name_ << "\t"
-                       << currentPvalue << std::endl;
-          }
-        }
-      }
-
-  	}
-
-    std::ofstream pValueBestFile;
-    openTextFile(pValueBestFile, setUp.directoryName_ + "pValuesBest.tab.txt",
+  if (pars.sim) {
+    std::ofstream pValueFile;
+    openTextFile(pValueFile, setUp.directoryName_ + "pValues.tab.txt",
                  ".txt", true, false);
-    pValueBestFile << "read1\tread2\tpValue" << std::endl;
+    pValueFile << "read1\tread2\tpValue" << std::endl;
     bib::scopedStopWatch pTimer("comparing p value");
-    uint32_t pTenPer = .1 * len(clusters);
-    if(pTenPer == 0){
-    	pTenPer = 1;
-    }
-    std::ofstream allPValuesBeforeCollapse;
-    openTextFile(allPValuesBeforeCollapse, setUp.directoryName_ + "allPValuesBeforeCollapse.tab.txt", ".txt", false, false);
-    allPValuesBeforeCollapse << "clusters";
     for(const auto & pos : iter::range(len(clusters))){
-    	allPValuesBeforeCollapse << "\t" << clusters[pos].seqBase_.name_;
-    }
-    allPValuesBeforeCollapse << std::endl;
-    for(const auto & pos : iter::range(len(clusters))){
-    	allPValuesBeforeCollapse << clusters[pos].seqBase_.name_;
-    	for(const auto & subPos : iter::range<uint32_t>(0, pos + 1)){
-    		allPValuesBeforeCollapse << std::setprecision(10);
-    		allPValuesBeforeCollapse << "\t" << clusters[subPos].getPValue(clusters[pos].seqBase_, alignerObj, false);
+    	double bestPValue = 0;
+    	double bestScore = 0;
+    	std::string bestRead = "none";
+    	for(const auto & subPos : iter::range<uint32_t>(0, pos)){
+    		if(clusters[subPos].seqBase_.cnt_ > clusters[pos].seqBase_.cnt_){
+    			alignerObj.alignVec(clusters[subPos], clusters[pos], false);
+    			alignerObj.profilePrimerAlignment(clusters[subPos], clusters[pos],setUp.weightHomopolymers_);
+    			if(alignerObj.comp_.distances_.eventBasedIdentity_ > bestScore){
+    				bestScore = alignerObj.comp_.distances_.eventBasedIdentity_;
+    				bestPValue = clusters[subPos].getPValue(clusters[pos].seqBase_, alignerObj, false);
+    				bestRead = clusters[subPos].seqBase_.name_;
+    			}
+    		}
     	}
-    	allPValuesBeforeCollapse << std::endl;
-    }
-    for (const auto& readPos : iter::range(len(clusters))) {
-    	if(readPos % pTenPer == 0){
-    		std::cout << "On " << readPos << " of " << len(clusters) << " " << pTimer.timeLap() << std::endl;;
-    	}
-      double bestPvalue = 0;
-      uint32_t bestReadPos = std::numeric_limits<uint32_t>::max();
-      uint32_t realPos = len(clusters) - readPos - 1;
-      for (const auto& readSubPos : iter::range<uint32_t>(0, realPos)) {
-        if (clusters[readSubPos].seqBase_.cnt_ <=
-            clusters[realPos].seqBase_.cnt_ * 2) {
-          continue;
-        }
-        double currentPvalue = clusters[readSubPos].getPValue(
-            clusters[realPos].seqBase_, alignerObj, setUp.local_);
-        if (currentPvalue >= pValueCutOff) {
-          if (currentPvalue > bestPvalue) {
-            bestPvalue = currentPvalue;
-            bestReadPos = readSubPos;
-          } else if (currentPvalue == bestPvalue) {
-            if (clusters[realPos].seqBase_.cnt_ >
-                clusters[bestReadPos].seqBase_.cnt_) {
-              bestReadPos = readSubPos;
-            }
-          }
-        }
-      }
-      if (bestReadPos != std::numeric_limits<uint32_t>::max()) {
-        pValueBestFile << clusters[realPos].seqBase_.name_ << "\t"
-                       << clusters[bestReadPos].seqBase_.name_ << "\t"
-                       << bestPvalue << std::endl;
-        clusters[bestReadPos].addRead(clusters[realPos]);
-        clusters[realPos].remove = true;
-      }
-    }
-
-    clusters = readVecSplitter::splitVectorOnRemove(clusters).first;
-    std::vector<cluster> newRejected;
-    for (auto& clus : clusters) {
-      if(keepCondensed){
-      	clus.qualityClip = std::vector<uint32_t> (100);
-      }
-      clus.removeClustersOnFDR(alignerObj, fdrCutOff, newRejected);
-    }
-    clusterVec::allCalculateConsensus(newRejected, alignerObj, true);
-		readVec::allUpdateName(newRejected);
-		for (auto& clus : newRejected) {
-			// simulate the rejected reads so they can do p value comparison latter
-			//++quickCount;
-			//std::cout << quickCount << ":" << len(rejectedClusters) << std::endl;
-
-			if (clus.rejected_) {
-				// std::cout <<"rejections" << std::endl;
-
-				// if cluster is only one read no need to simulate
-				if (clus.seqBase_.cnt_ < 2) {
-					continue;
-				}
-				bib::scopedStopWatch t(clus.seqBase_.name_ + "_sim", true);
-				// simulate the cluster using the qualities of the original sequences
-				clus.simOnQual(identicalClusters, alignerObj, runTimes, bestLikelihood,
-											 eProfile, gen);
-
-				// remove clusters on fdr cut off
-				//clus.removeClustersOnFDR(alignerObj, fdrCutOff, rejectedClusters);
-			}
-		}
-    addOtherVec(clusters, newRejected);
-    readVecSorter::sort(clusters);
-    renameReadNames(clusters, seqName, true, false);
-    std::ofstream allPValues;
-    openTextFile(allPValues, setUp.directoryName_ + "allPvalues.tab.txt", ".txt", false, false);
-    std::ofstream allComparisonFile;
-    openTextFile(allComparisonFile, setUp.directoryName_ + "allComparison.tab.txt", ".txt", false, false);
-    allPValues << "clusters";
-
-    allComparisonFile << "clusters";
-    for(const auto & pos : iter::range(len(clusters))){
-    	allPValues << "\t" << clusters[pos].seqBase_.name_;
-    	allComparisonFile << "\t" << clusters[pos].seqBase_.name_;
-    }
-    allPValues << std::endl;
-    for(const auto & pos : iter::range(len(clusters))){
-    	allPValues << clusters[pos].seqBase_.name_;
-
-    	allComparisonFile << clusters[pos].seqBase_.name_;
-    	for(const auto & subPos : iter::range<uint32_t>(0, pos + 1)){
-    		allPValues << std::setprecision(10);
-    		allPValues << "\t" << clusters[subPos].getPValue(clusters[pos].seqBase_, alignerObj, false);
-    		allComparisonFile << "\t" << estd::to_string(alignerObj.comp_.oneBaseIndel_) + "," << estd::to_string(alignerObj.comp_.twoBaseIndel_)
-    				<< "," << estd::to_string(alignerObj.comp_.largeBaseIndel_) << "," << estd::to_string(alignerObj.comp_.lqMismatches_)
-    				<< "," << estd::to_string(alignerObj.comp_.hqMismatches_);
-    	}
-    	allPValues << std::endl;
-    	allComparisonFile << std::endl;
+    	pValueFile << clusters[pos].seqBase_.name_
+    			<< "\t" << bestRead
+					<< "\t" << std::setprecision(10) << bestPValue << std::endl;
     }
   }
 
 
 
-  if (markChimeras) {
+  if (pars.markChimeras) {
     std::ofstream chimerasInfoFile;
     openTextFile(chimerasInfoFile,
                  setUp.directoryName_ + "chimeraNumberInfo.txt", ".txt", false,
                  false);
     chimerasInfoFile << "#chimericClusters\t#chimericReads" << std::endl;
-    std::cout << "Marking chimeras" << std::endl;
+
     comparison chiOverlap;
     chiOverlap.oneBaseIndel_ = 2;
     chiOverlap.twoBaseIndel_ = 1;
+    chiOverlap.largeBaseIndel_ = .99;
     chiOverlap.lowKmerMismatches_ = 1;
     uint32_t overLapSizeCutoff = 5;
     uint32_t allowableError = 0;
     uint32_t chiCount = 0;
-    std::vector<cluster> tempClusters;
-    for (const auto& clus : clusters) {
-      tempClusters.emplace_back(cluster(readObject(clus.seqBase_)));
-    }
-    readVec::allSetFractionByTotalCount(tempClusters);
-    clusterCollapser::markChimerasAdvanced(
-        tempClusters, alignerObj, parFreqs, 1, setUp.local_, chiOverlap,
-        overLapSizeCutoff, setUp.weightHomopolymers_, chiCount, allowableError);
+    uint32_t chiRunCutOff = 1;
+
+		collapserObj.markChimerasAdvanced(clusters, alignerObj, pars.parFreqs,
+				chiRunCutOff, chiOverlap, overLapSizeCutoff, chiCount, allowableError);
+		/*clusterCollapser::markChimerasAdvanced(
+		 clusters, alignerObj,pars.parFreqs, 1, setUp.local_, chiOverlap,
+		 overLapSizeCutoff, setUp.weightHomopolymers_, chiCount, allowableError);*/
 
     int clusterCount = 0;
     int readCount = 0;
-    readVec::getCountOfReadNameContaining(tempClusters, "CHI", clusterCount);
-    readVec::getReadCountOfReadNameContaining(tempClusters, "CHI", readCount);
-    chimerasInfoFile << getPercentageString(clusterCount, tempClusters.size())
+    readVec::getCountOfReadNameContaining(clusters, "CHI", clusterCount);
+    readVec::getReadCountOfReadNameContaining(clusters, "CHI", readCount);
+    chimerasInfoFile << getPercentageString(clusterCount, clusters.size())
                      << "\t"
                      << getPercentageString(
-                            readCount, readVec::getTotalReadCount(tempClusters))
+                            readCount, readVec::getTotalReadCount(clusters))
                      << std::endl;
-    std::cout << "Marked " << clusterCount << " as chimeric" << std::endl;
-    for (const auto& clusNum : iter::range(clusters.size())) {
-      clusters[clusNum].seqBase_.name_ = tempClusters[clusNum].seqBase_.name_;
+    if(setUp.verbose_){
+    	std::cout << "Marked " << clusterCount << " as chimeric" << std::endl;
     }
   }
 
-  if (collapsingTandems) {
+
+  if (pars.collapsingTandems) {
     reader.write(clusters, setUp.directoryName_ + setUp.ioOptions_.outFilename_ +
                                "_befroeTanCol",
                  setUp.ioOptions_);
@@ -2314,7 +1761,7 @@ int SeekDeepRunner::qluster(MapStrStr inputCommands) {
               << std::endl;
     clusterCollapser::collapseTandems(clusters, alignerObj, setUp.runCutoff_,
                                       setUp.kLength_, setUp.kmersByPosition_,
-                                      parFreqs, setUp.local_, true);
+																			pars.parFreqs, setUp.local_, true);
     clusters = readVecSplitter::splitVectorOnRemove(clusters).first;
     std::cout << "Collapsed down to " << clusters.size() << " clusters"
               << std::endl;
@@ -2330,14 +1777,14 @@ int SeekDeepRunner::qluster(MapStrStr inputCommands) {
   openTextFile(startingInfo, setUp.directoryName_ + "startingInfo.txt", ".txt",
                false, false);
   startingInfo << "cluster\tstartingClusterName\tstartingSize" << std::endl;
-  for (const auto& clus : clusters) {
-    VecStr toks = tokenizeString(clus.firstReadName, "_t");
-    startingInfo << clus.seqBase_.name_ << "\t" << clus.firstReadName << "\t"
-                 << toks.back() << std::endl;
-  }
-  if (additionalOut) {
+	for (const auto& clus : clusters) {
+		VecStr toks = tokenizeString(clus.firstReadName_, "_t");
+		startingInfo << clus.seqBase_.name_ << "\t" << clus.firstReadName_ << "\t"
+				<< toks.back() << std::endl;
+	}
+  if (pars.additionalOut) {
     std::string additionalOutDir = findAdditonalOutLocation(
-        additionalOutLocationFile, setUp.ioOptions_.firstName_);
+    		pars.additionalOutLocationFile, setUp.ioOptions_.firstName_);
     if(additionalOutDir == ""){
     	std::cerr << bib::bashCT::red << bib::bashCT::bold;
     	std::cerr << "No additional out directory found for: " << setUp.ioOptions_.firstName_ << std::endl;
@@ -2358,7 +1805,7 @@ int SeekDeepRunner::qluster(MapStrStr inputCommands) {
 		std::string snpDir = bib::files::makeDir(setUp.directoryName_,
 				"internalSnpInfo");
 		for (const auto & readPos : iter::range(clusters.size())) {
-			std::unordered_map<uint32_t, std::unordered_map<char, VecStr>> mismatches;
+			std::unordered_map<uint32_t, std::unordered_map<char, std::vector<baseReadObject>>> mismatches;
 
 			for (const auto & subReadPos : iter::range(
 					clusters[readPos].reads_.size())) {
@@ -2369,32 +1816,44 @@ int SeekDeepRunner::qluster(MapStrStr inputCommands) {
 						setUp.weightHomopolymers_);
 				for (const auto & m : alignerObj.mismatches_) {
 					mismatches[m.second.refBasePos][m.second.seqBase].emplace_back(
-							subRead.seqBase_.name_);
+							subRead.seqBase_);
 				}
 			}
 			table misTab { VecStr { "refPos", "refBase", "seqBase", "freq",
 					"fraction", "seqs" } };
 			for (const auto & m : mismatches) {
 				for (const auto & seqM : m.second) {
+					double totalCount = 0;
+					for(const auto & read : seqM.second){
+						totalCount += read.seqBase_.cnt_;
+					}
 					misTab.content_.emplace_back(
 							toVecStr(m.first, clusters[readPos].seqBase_.seq_[m.first],
-									seqM.first, seqM.second.size(),
-									seqM.second.size() / clusters[readPos].seqBase_.cnt_,
-									vectorToString(seqM.second, ",")));
+									seqM.first, totalCount,
+									totalCount / clusters[readPos].seqBase_.cnt_,
+									vectorToString(readVec::getNames(seqM.second), ",")));
 				}
 			}
 			misTab.sortTable("seqBase", false);
 			misTab.sortTable("refPos", false);
 			misTab.outPutContents(
-					outOptions(snpDir + clusters[readPos].seqBase_.name_,
+					CsvIOOptions(snpDir + clusters[readPos].seqBase_.name_,
 							".tab.txt", "\t"));
 		}
   }
-  if(createMinTree){
-    auto clusSplit = readVecSplitter::splitVectorOnReadFraction(clusters, 0.02);
-    auto minTreeJson = getMinMismatchTreeJson(clusSplit.first, alignerObj, 1, setUp.weightHomopolymers_,
-    		hueStart, hueStop, lumStart, lumStop, satStart, satStop, backgroundColor);
-
+  if(pars.createMinTree){
+    std::string minTreeDirname = bib::files::makeDir(setUp.directoryName_, "minTree");
+  	auto clusSplit = readVecSplitter::splitVectorOnReadFraction(clusters, 0.02);
+    std::vector<readObject> tempReads;
+    for(const auto & clus : clusSplit.first){
+    	tempReads.emplace_back(readObject(clus.seqBase_));
+    }
+    auto minTreeJson = genMinTreeData(tempReads);
+  	std::ofstream outFile(minTreeDirname + "psudoMinTree.json");
+  	outFile << minTreeJson << std::endl;
+  	std::string htmlOut = genHtmlStrForPsuedoMintree("psudoMinTree.json");
+  	std::ofstream outHtmlFile(minTreeDirname + "psudoMinTree.html");
+  	outHtmlFile << htmlOut << std::endl;
   }
 
   std::string clusterDirectoryName =
@@ -2422,29 +1881,28 @@ int SeekDeepRunner::qluster(MapStrStr inputCommands) {
                   << getPercentageString(currentCompAmount, clus.seqBase_.cnt_)
                   << std::endl;
       }
-      reader.write(collection, allInputReadsDir + clus.seqBase_.name_,
-                   "fastaQual", false, false);
+      reader.write(collection, allInputReadsDir + clus.seqBase_.name_,setUp.ioOptions_);
     }
   }
-  if (extra) {
-    std::string compInfo =
-        bib::files::makeDir(setUp.directoryName_, "identicalCompositionInfos");
-    profiler::allOutputIdenticalReadComp(clusters, compInfo);
-    std::string alnProfileDir =
-        bib::files::makeDir(setUp.directoryName_, "alnProfiles");
-    std::string inputClustersDir =
-        bib::files::makeDir(setUp.directoryName_, "inputClusters");
-    clusterVec::allWriteAllInputClusters(clusters, inputClustersDir);
+
+  if (!pars.startWithSingles && pars.leaveOutSinglets) {
+  	readObjectIO::write(singletons, setUp.directoryName_ + "singletons", setUp.ioOptions_);
+  	std::ofstream singletonsInfoFile;
+  	openTextFile(singletonsInfoFile, setUp.directoryName_ + "singletonsInfo", ".tab.txt", false, true);
+  	singletonsInfoFile << "readCnt\treadFrac\n";
+  	singletonsInfoFile << singletons.size() << "\t" << singletons.size()/static_cast<double>(reader.reads.size()) << std::endl;
   }
 
   if (setUp.writingOutAlnInfo_) {
-  	bib::scopedStopWatch writingTimer("Writing aln infos", true);
     alignerObj.alnHolder_.write(setUp.outAlnInfoDirName_);
   }
-
-  std::cout << alignerObj.numberOfAlingmentsDone_ << std::endl;
-  setUp.rLog_ << alignerObj.numberOfAlingmentsDone_ << "\n";
-  setUp.logRunTime(std::cout);
+  //log number of alignments done
+  setUp.rLog_ << "Number of Alignments Done: " <<  alignerObj.numberOfAlingmentsDone_ << "\n";
+  if(setUp.verbose_){
+  	std::cout << "Number of Alignments Done: " << alignerObj.numberOfAlingmentsDone_ << std::endl;
+  	//log time
+  	setUp.logRunTime(std::cout);
+  }
 
   return 0;
 }
@@ -2453,71 +1911,32 @@ int SeekDeepRunner::qluster(MapStrStr inputCommands) {
 int SeekDeepRunner::processClusters(MapStrStr inputCommands) {
   // parameters
   SeekDeepSetUp setUp(inputCommands);
-  bool population = false;
+  processClustersPars pars;
+  setUp.setUpMultipleSampleCluster(pars);
 
-  bool checkChimeras = false;
-  double parFreqs = 2;
+	if(containsSubString(pars.experimentName, ".")){
+		throw std::runtime_error{"Error in populationCollapse::populationCollapse, populationName can't contain '.', " + pars.experimentName};
+	}
 
-  std::string parameters = "";
-  // clusterSize cutoff
-  int cutOff = 1;
+	table customCutOffsTab;
+	std::map<std::string, double> customCutOffsMap;
+	if (pars.customCutOffs != "") {
+		customCutOffsTab = table(pars.customCutOffs, "whitespace", true);
+		if (!bib::in(std::string("sample"), customCutOffsTab.columnNames_)
+				|| !bib::in(std::string("cutOff"), customCutOffsTab.columnNames_)) {
+			throw std::runtime_error { "Error in loading custom cut off file, "
+					+ pars.customCutOffs + ", missing sample or cutOff\n"
+					+ vectorToString(customCutOffsTab.columnNames_, ",") };
+		}
+		for (const auto & rowPos : iter::range(customCutOffsTab.content_.size())) {
+			customCutOffsMap[customCutOffsTab.content_[rowPos][customCutOffsTab.getColPos(
+					"sample")]] =
+					bib::lexical_cast<double>(
+							customCutOffsTab.content_[rowPos][customCutOffsTab.getColPos(
+									"cutOff")]);
+		}
+	}
 
-  bool extra = false;
-  bool condensedCollapse = false;
-  double fracCutoff = 0.005;
-  uint32_t runsRequired = 0;
-
-  bool smallestFirst = true;
-  bool bestMatch = false;
-  int bestMatchCheck = 10;
-  // bool fractionsByReads=false;
-  bool keepChimeras = false;
-  std::string experimentName = "PopUID";
-  // bool preCollapse=false;
-  std::string parametersPopulation = "";
-  bool differentPar = false;
-  bool popBoth = false;
-  std::string sortBy = "fraction";
-  std::map<int, std::vector<double>> popIteratorMap;
-  std::map<int, std::vector<double>> iteratorMap;
-  // bool containsRecurrence = false;
-
-  bool skipOnLetterCounterDifference = false;
-  double fractionDifferenceCutOff = 0.1;
-  bool grayScale = false;
-  double sat = 0.99;
-  double lum = 0.5;
-  bool regKmers = true;
-  bool eventBasedRef = false;
-  double chiCutOff = .40;
-  bool writeExcludedOriginals = false;
-  setUp.setOption(writeExcludedOriginals, "--writeExcludedOriginals", "Write out the excluded Originals");
-  setUp.setOption(chiCutOff, "--chiCutOff", "The Fraction of a cluster to determine if it chimeric");
-  bool recheckChimeras = false;
-  setUp.setOption(recheckChimeras, "--recheckChimeras", "Re Check chimeras after replicate comparison");
-  setUp.setOption(eventBasedRef, "-eventBasedRef", "Do Event Based Ref Count");
-  setUp.setBoolOptionFalse(regKmers, "-qualKmers", "doQualKmer");
-  setUp.setOption(grayScale, "-gray", "grayScale");
-  setUp.setOption(sat, "-sat", "sat");
-  setUp.setOption(lum, "-lum", "lum");
-  setUp.setOption(skipOnLetterCounterDifference, "-skip",
-                  "skipOnLetterCounterDifference");
-  setUp.setOption(fractionDifferenceCutOff, "-skipCutOff",
-                  "fractionDifferenceCutOff");
-  setUp.setOption(condensedCollapse, "-condensedCollapse", "condensedCollapse");
-
-  std::string previousPopFilename = "";
-  setUp.setOption(previousPopFilename, "-previousPop", "previousPopFilename");
-  std::string groupingsFile = "";
-  setUp.setOption(groupingsFile, "--groupingsFile", "A file to sort samples into different groups");
-  bool onPerId = false;
-  bool investigateChimeras = false;
-  setUp.setOption(investigateChimeras, "--investigateChimeras", "Check to see if a chimera appears as a high variant in another sample");
-  setUp.setUpMultipleSampleCluster(
-      parameters, extra, cutOff, iteratorMap, population, fracCutoff,
-      smallestFirst, bestMatch, bestMatchCheck, checkChimeras, parFreqs,
-      parametersPopulation, differentPar, popIteratorMap, popBoth, keepChimeras,
-      experimentName, runsRequired, onPerId);
   //read in the files in the corresponding sample directories
   std::map<std::string, std::pair<std::string, bool>> files =
       listFilesInDir(".", true);
@@ -2581,11 +2000,16 @@ int SeekDeepRunner::processClusters(MapStrStr inputCommands) {
   }
 
   collapser collapserObj = collapser(
-      bestMatch, bestMatchCheck, setUp.local_, setUp.checkKmers_,
+      !setUp.firstMatch_, setUp.bestMatchCheck_, setUp.local_, true,
       setUp.kmersByPosition_, setUp.runCutoff_,
-      setUp.kLength_, setUp.verbose_, smallestFirst, condensedCollapse,
-      setUp.weightHomopolymers_, skipOnLetterCounterDifference,
-      fractionDifferenceCutOff, setUp.adjustHomopolyerRuns_);
+      setUp.kLength_, setUp.verbose_, !setUp.largestFirst_, true,
+      setUp.weightHomopolymers_, setUp.skipOnLetterCounterDifference_,
+      setUp.fractionDifferenceCutOff_, setUp.adjustHomopolyerRuns_);
+
+  collapserObj.opts_.lowQualityBaseTrim_ = pars.lowQualityCutOff;
+  collapserObj.opts_.removeLowQualityBases_ = pars.removeLowQualBases;
+  collapserObj.opts_.debug_ = setUp.debug_;
+
   // collect all the reads together for each sample
   std::map<std::string, std::vector<std::vector<cluster>>>
       clustersBySample;
@@ -2596,7 +2020,7 @@ int SeekDeepRunner::processClusters(MapStrStr inputCommands) {
     readVecSorter::sortReadVector(clusters, "totalCount");
     // consider adding the sample name in the name as well
     renameReadNamesNewClusters(clusters, readsIter.first.second, true, true, false);
-    if (checkChimeras) {
+    if (pars.checkChimeras) {
       // readVec::allSetFractionByTotalCount(clusters);
       clusterVec::allSetFractionClusters(clusters);
     	comparison chiOverlap;
@@ -2606,9 +2030,13 @@ int SeekDeepRunner::processClusters(MapStrStr inputCommands) {
     	uint32_t overLapSizeCutoff = 5;
     	uint32_t allowableError = 0;
     	uint32_t chiCount = 0;
+    	uint32_t chiRunCutOff = 1;
+  		collapserObj.markChimerasAdvanced(clusters, alignerObj, pars.parFreqs,
+  				chiRunCutOff, chiOverlap, overLapSizeCutoff, chiCount, allowableError);
+    	/*
     	clusterCollapser::markChimerasAdvanced(
-    			clusters, alignerObj, parFreqs, 1, setUp.local_, chiOverlap,
-    			overLapSizeCutoff, setUp.weightHomopolymers_, chiCount, allowableError);
+    			clusters, alignerObj, pars.parFreqs, 1, setUp.local_, chiOverlap,
+    			overLapSizeCutoff, setUp.weightHomopolymers_, chiCount, allowableError);*/
       //kmerMaps currentKmerMaps = kmerCalculator::indexKmerMpas(
         //  clusters, setUp.kLength_, setUp.runCutoff_, setUp.qualRunCutoff_);
       //alignerObj.setKmerMpas(currentKmerMaps);
@@ -2625,20 +2053,20 @@ int SeekDeepRunner::processClusters(MapStrStr inputCommands) {
   }
   std::map<std::string, collapse::sampleCollapse> sampleCollapses;
 
-  collapserObj.checkKmers_ = false;
+  collapserObj.opts_.checkKmers_ = false;
 
   for (const auto& samp : clustersBySample) {
     std::cout << "Currently on : " << samp.first << std::endl;
     sampleCollapses[samp.first] =
-        collapse::sampleCollapse(samp.second, samp.first, cutOff);
+        collapse::sampleCollapse(samp.second, samp.first, pars.clusterCutOff);
     // std::cout << "made sampleCollapse fine" << std::endl;
     // sampleCollapses[samp.first].updateInitialInfos(false);
-    if(onPerId){
+    if(pars.onPerId){
       sampleCollapses[samp.first]
-          .clusterOnPerId(collapserObj, iteratorMap, sortBy, alignerObj);
+          .clusterOnPerId(collapserObj, pars.iteratorMap, pars.sortBy, alignerObj);
     }else{
       sampleCollapses[samp.first]
-          .cluster(collapserObj, iteratorMap, sortBy, alignerObj);
+          .cluster(collapserObj, pars.iteratorMap, pars.sortBy, alignerObj);
     }
 
     // std::cout << "clustered fine" << std::endl;
@@ -2651,7 +2079,7 @@ int SeekDeepRunner::processClusters(MapStrStr inputCommands) {
     // std::cout << "updated collapse infos fine" << std::endl;
     sampleCollapses[samp.first].updateExclusionInfos();
     // std::cout << "updated excusesion fine" << std::endl;
-    sampleCollapses[samp.first].renameClusters(sortBy);
+    sampleCollapses[samp.first].renameClusters(pars.sortBy);
     // std::cout << "ranmed clusters fine" << std::endl;
   }
   collapse::populationCollapse popCollapse;
@@ -2664,7 +2092,7 @@ int SeekDeepRunner::processClusters(MapStrStr inputCommands) {
   std::string initialDir = bib::files::makeDir(setUp.directoryName_, "initial");
   std::string excludedDir = bib::files::makeDir(setUp.directoryName_, "excluded");
   std::string excludedInitialDir = "";
-  if(writeExcludedOriginals){
+  if(pars.writeExcludedOriginals){
   	 excludedInitialDir = bib::files::makeDir(setUp.directoryName_, "excludedInitial");
   }
 
@@ -2677,25 +2105,25 @@ int SeekDeepRunner::processClusters(MapStrStr inputCommands) {
   table chiInfoTab(VecStr{"sample", "numClustersSaved", "totalClustersChecked", "clusterSavedNames"});
   for (auto& sampCollapse : sampleCollapses) {
     // exclude
-    if (0 != runsRequired) {
-      sampCollapse.second.excludeBySampNum(runsRequired, false);
+    if (0 != pars.runsRequired) {
+      sampCollapse.second.excludeBySampNum(pars.runsRequired, false);
     } else {
       sampCollapse.second.excludeBySampNum(
           sampCollapse.second.input_.info_.infos_.size(), false);
     }
     VecStr clustersSavedFromChi;
     uint32_t clustersNotSaved = 0;
-  	if(!keepChimeras){
-  		if(investigateChimeras){
+  	if(!pars.keepChimeras){
+  		if(pars.investigateChimeras){
     		//first mark the suspicous clusters as being chimeric
     	  for (auto &clus : sampCollapse.second.collapsed_.clusters_) {
-    	    if (clusterVec::isClusterAtLeastChimericCutOff(clus.reads_, chiCutOff)) {
+    	    if (clusterVec::isClusterAtLeastChimericCutOff(clus.reads_, pars.chiCutOff)) {
     	      clus.seqBase_.markAsChimeric();
     	    }
     	  }
     	  //now check to see if it is ever the top two variants of a sample and if it is unmark it
   			for (auto & clus : sampCollapse.second.collapsed_.clusters_) {
-  				if(clus.seqBase_.frac_ < fracCutoff){
+  				if(clus.seqBase_.frac_ < pars.fracCutoff){
   					continue;
   				}
   				if (clus.seqBase_.name_.find("CHI_") != std::string::npos) {
@@ -2731,7 +2159,7 @@ int SeekDeepRunner::processClusters(MapStrStr inputCommands) {
   			}
   		}
 			//now exclude all marked chimeras, currently this will also remark chimeras unneccessarily
-  		sampCollapse.second.excludeChimeras(false,chiCutOff);
+  		sampCollapse.second.excludeChimeras(false,pars.chiCutOff);
   	}
 		chiInfoTab.content_.emplace_back(
 				toVecStr(sampCollapse.first,
@@ -2739,14 +2167,23 @@ int SeekDeepRunner::processClusters(MapStrStr inputCommands) {
 								clustersSavedFromChi.size() + clustersNotSaved),
 						clustersSavedFromChi.size() + clustersNotSaved,
 						vectorToString(clustersSavedFromChi, ",")));
+		if (bib::in(sampCollapse.first, customCutOffsMap)) {
+			if (setUp.debug_) {
+				std::cout << "Custom Cut off for " << sampCollapse.first << " : "
+						<< customCutOffsMap[sampCollapse.first] << std::endl;
+			}
+			sampCollapse.second.excludeFraction(customCutOffsMap[sampCollapse.first],
+					true);
+		} else {
+			sampCollapse.second.excludeFraction(pars.fracCutoff, true);
+		}
 
-    sampCollapse.second.excludeFraction(fracCutoff, true);
     std::string sortBy = "fraction";
     sampCollapse.second.renameClusters(sortBy);
     // write
     sampCollapse.second.writeInitial(originalsDir, setUp.ioOptions_);
     sampCollapse.second.writeExcluded(excludedDir, setUp.ioOptions_);
-    if(writeExcludedOriginals){
+    if(pars.writeExcludedOriginals){
     	sampCollapse.second.writeExcludedOriginalClusters(excludedInitialDir, setUp.ioOptions_);
     }
     sampCollapse.second.writeFinal(finalDir, setUp.ioOptions_);
@@ -2757,32 +2194,34 @@ int SeekDeepRunner::processClusters(MapStrStr inputCommands) {
     // sampCollapse.second.updateCollapsedInfos(true);
     // sampCollapse.second.updateExclusionInfos(true);
   }
-  outOptions chiOutOptions(setUp.directoryName_ + "chiInfo", ".tab.txt", "\t");
+  CsvIOOptions chiOutOptions(setUp.directoryName_ + "chiInfo", ".tab.txt", "\t");
   chiInfoTab.outPutContents(chiOutOptions);
 
-  if (population) {
+  if (!pars.noPopulation) {
 		std::cout << bib::bashCT::boldGreen("Pop Clustering") << std::endl;
-		popCollapse = collapse::populationCollapse(allSamples, experimentName);
+		popCollapse = collapse::populationCollapse(allSamples, pars.experimentName);
 
     std::string popDir = bib::files::makeDir(setUp.directoryName_, "population");
-		if (onPerId) {
-			popCollapse.popClusterOnId(collapserObj, popIteratorMap, "fraction",
+		if (pars.onPerId) {
+			popCollapse.popClusterOnId(collapserObj, pars.popIteratorMap, "fraction",
 					alignerObj);
 		} else {
-			popCollapse.popCluster(collapserObj, popIteratorMap, "fraction",
+			popCollapse.popCluster(collapserObj, pars.popIteratorMap, "fraction",
 					alignerObj);
 		}
 		popCollapse.updateInfoWithSampCollapses(sampleCollapses);
     readObjectIO popReader;
-    if (previousPopFilename != "") {
-      std::string format = bib::files::getExtension(previousPopFilename);
-      popReader.read(format, previousPopFilename);
+    if (pars.previousPopFilename != "") {
+      std::string format = bib::files::getExtension(pars.previousPopFilename);
+      popReader.read(format, pars.previousPopFilename);
       popCollapse.renameToOtherPopNames(popReader.reads, alignerObj);
     }
+
     if (checkingExpected) {
       popCollapse.collapsed_.checkAgainstExpected(
           expectedSeqs, alignerObj, setUp.local_, setUp.weightHomopolymers_);
     }
+
     infoPrinter::printPopulationCollapseInfo(
         popCollapse, popDir + "populationCluster.tab.txt", checkingExpected);
     std::string popInitialDir = bib::files::makeDir(popDir, "initial");
@@ -2790,13 +2229,10 @@ int SeekDeepRunner::processClusters(MapStrStr inputCommands) {
     popCollapse.writeFinal(popDir, setUp.ioOptions_.outFormat_,
                            setUp.ioOptions_.overWriteFile_,
                            setUp.ioOptions_.exitOnFailureToWrite_);
+
     std::unordered_map<std::string, bib::color> colorsForGraph;
-    if (previousPopFilename != "") {
-      colorsForGraph = getColorsForNames(popReader.reads, sat, lum);
-    } else {
-      colorsForGraph =
-          getColorsForNames(popCollapse.collapsed_.clusters_, sat, lum);
-    }
+    colorsForGraph =
+        getColorsForNames(popCollapse.collapsed_.clusters_, pars.sat, pars.lum);
 
     std::string dotDir = bib::files::makeDir(setUp.directoryName_, "dotFiles");
     for (const auto& samp : sampleCollapses) {
@@ -2817,13 +2253,17 @@ int SeekDeepRunner::processClusters(MapStrStr inputCommands) {
       }
       bestDistGraph currentGraphDist(readsForGraph, alignerObj, setUp.local_,
                                      samp.first);
-      // currentGraphDist.createDotBestConnectedFile(dotDir, colorsForGraph,
-      // true);
       currentGraphDist.createDotBestConnectedFile(dotDir, colorsForGraph,
                                                   false);
+      for(auto & read : readsForGraph){
+      	read.seqBase_.name_ = read.getReadId();
+      }
+      //auto treeData = genMinTreeData(readsForGraph, alignerObj);
+      //std::ofstream outDot(dotDir + samp.first + "_2.dot");
+      //jsonTreeToDot(treeData, outDot);
     }
-    if(groupingsFile != ""){
-    	table groupsTab(groupingsFile, "\t", true);
+    if(pars.groupingsFile != ""){
+    	table groupsTab(pars.groupingsFile, "\t", true);
     	/**@todo add in safety checks */
     	VecStr sampleNames = groupsTab.getColumn(0);
     	std::unordered_map<std::string, std::unordered_map<std::string, VecStr>> groups;
@@ -2863,7 +2303,7 @@ int SeekDeepRunner::processClusters(MapStrStr inputCommands) {
 						}
 					}
 					infoPrinter::printInfoForSamps(sampleCollapses, checkingExpected,
-							sampFile, popFile, popCollapse, population, subGroup.second,
+							sampFile, popFile, popCollapse, !pars.noPopulation, subGroup.second,
 							group.first + ":" + subGroup.first,otherPopPositions);
 				}
 			}
@@ -2873,7 +2313,7 @@ int SeekDeepRunner::processClusters(MapStrStr inputCommands) {
   infoPrinter::printSampleCollapseInfo(
       sampleCollapses, checkingExpected,
       setUp.directoryName_ + "selectedClustersInfo.tab.txt", popCollapse,
-      population);
+			!pars.noPopulation);
 
   std::string sampRepInfoDir = bib::files::makeDir(setUp.directoryName_, "sampRepAgreementInfo");
 	njhRInside::OwnRInside rSes;
@@ -2912,9 +2352,9 @@ int SeekDeepRunner::processClusters(MapStrStr inputCommands) {
 		}
 	}
 	repInfoTab.outPutContents(
-					outOptions(sampRepInfoDir + "replicatesFractions", ".tab.txt", "\t", false));
+					CsvIOOptions(sampRepInfoDir + "replicatesFractions", ".tab.txt", "\t", false));
 	rmseTab.sortTable("RMSE", true);
-	rmseTab.outPutContents(outOptions(sampRepInfoDir + "RMSE.tab.txt", ".tab.txt", "\t"));
+	rmseTab.outPutContents(CsvIOOptions(sampRepInfoDir + "RMSE.tab.txt", ".tab.txt", "\t"));
   rSes.closeCurrentDevice();
   if (setUp.writingOutAlnInfo_) {
     alignerObj.alnHolder_.write(setUp.outAlnInfoDirName_);
@@ -2930,8 +2370,10 @@ int SeekDeepRunner::processClusters(MapStrStr inputCommands) {
 int SeekDeepRunner::makeSampleDirectories(MapStrStr inputCommands) {
   SeekDeepSetUp setUp(inputCommands);
   std::string sampleNameFilename = "";
+  bool separatedDirs = false;
+  setUp.setOption(separatedDirs, "--separatedDirs", "Create a separate directory for each index");
   setUp.setUpMakeSampleDirectories(sampleNameFilename);
-  setUpSampleDirs(sampleNameFilename,setUp.directoryName_);
+  setUpSampleDirs(sampleNameFilename,setUp.directoryName_, separatedDirs);
   setUp.startARunLog(setUp.directoryName_);
   setUp.logRunTime(std::cout);
   return 0;

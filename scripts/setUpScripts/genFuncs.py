@@ -1,24 +1,34 @@
 #!/usr/bin/env python
 
 import shutil, os, argparse, sys, stat
-
+sys.path.append(os.path.join(os.path.dirname(os.path.dirname(__file__)), "pyUtils"))
+from utils import Utils
 
 class genHelper:
     @staticmethod
     def generateCompfileFull(outFileName, externalDirLoc, cc, cxx, outName, installDirName, installDirLoc, neededLibs):
         availableLibs = ["CPPITERTOOLS","CPPPROGUTILS","ZI_LIB","BOOST","R","BAMTOOLS","CPPCMS","MATHGL","ARMADILLO",
                          "MLPACK","LIBLINEAR","PEAR","CURL","GTKMM", "BIBSEQ", "BIBCPP", "SEEKDEEP", 
-                         "BIBSEQDEV", "BIBCPPDEV", "SEEKDEEPDEV", "CATCH", "JSONCPP",
-                          "TWOBIT", "SEQSERVER","NJHRINSIDE", "PSTREAMS"]
-        neededLibs = map(lambda x:x.upper(), neededLibs)
-        """@todo: Make some of these default to an envirnment CC and CXX and maybe even CXXFLAGS as well 
-            @todo: Make availableLibs a more universal constant"""
+                         "BIBSEQDEV", "SEEKDEEPDEV", "CATCH", "JSONCPP",
+                          "TWOBIT", "SEQSERVER","NJHRINSIDE", "PSTREAMS", "MONGOC", "MONGOCXX"]
+        neededLibraries = {}
+        for lib in neededLibs:
+            if ":" in lib:
+                libSplit = lib.split(":")
+                neededLibraries[libSplit[0].upper()] = libSplit[1]
+            else:
+                neededLibraries[lib.upper()] = ""
+        """
+            @todo: Make some of these default to an envirnment CC and CXX and maybe even CXXFLAGS as well 
+            @todo: Make availableLibs a more universal constant
+        """
         with open(outFileName, "w") as f:
             f.write("CC = {CC}\n".format(CC = cc))
             f.write("CXX = {CXX}\n".format(CXX = cxx))
             f.write("CXXOUTNAME = {NAME_OF_PROGRAM}\n".format(NAME_OF_PROGRAM = outName))
-            #f.write("CXXFLAGS = -std=c++11 -Wall -ftemplate-depth=1024\n")
-            f.write("CXXFLAGS = -std=c++14 -Wall -ftemplate-depth=1024\n")
+            #f.write("CXXFLAGS = -std=c++11\n")
+            f.write("CXXFLAGS = -std=c++14\n")
+            f.write("CXXFLAGS += -Wall -ftemplate-depth=1024\n")
             f.write("CXXOPT += -O2 -funroll-loops -DNDEBUG  \n")
             f.write("ifneq ($(shell uname -s),Darwin)\n")
             f.write("\tCXXOPT += -march=native -mtune=native\n" )
@@ -31,15 +41,21 @@ class genHelper:
             #f.write("SCRIPTS_DIR=$(realpath scripts)\n")
             f.write("\n")
             for lib in availableLibs:
-                if lib in neededLibs:
-                    f.write("USE_{LIB} = 1\n".format(LIB = lib))
+                if lib in neededLibraries:
+                    if neededLibraries[lib] == "":
+                        f.write("USE_{LIB} = 1\n".format(LIB = lib))
+                    else:
+                        f.write("USE_{LIB} = 1#{BRANCH}\n".format(LIB = lib, BRANCH = neededLibraries[lib]))
                 else:
                     f.write("USE_{LIB} = 0\n".format(LIB = lib))
+                    
 
 
     @staticmethod            
     def determineCC(args):
-        defaultCC = "clang"
+        defaultCC = "clang-3.5"
+        if Utils.isMac():
+            defaultCC = "clang"
         if not args.CC:
             eCC = os.getenv("CC")
             if(eCC):
@@ -49,7 +65,9 @@ class genHelper:
         return defaultCC
     @staticmethod
     def determineCXX(args):
-        defaultCXX = "clang++"
+        defaultCXX = "clang++-3.5"
+        if Utils.isMac():
+            defaultCXX = "clang++"
         if not args.CXX:
             eCXX = os.getenv("CXX")
             if  eCXX:

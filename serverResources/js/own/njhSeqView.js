@@ -28,7 +28,7 @@ function createSeqMenu(idNameOfParentDiv, menuContent){
 			.attr("class", "dropdown-toggle")
 			.text(menuKeys[mk])
 				.append("b").attr("class", "caret");
-		var currentMenuItemOptions = currentMenuItem.append("ul").attr("class", "dropdown-menu");
+		var currentMenuItemOptions = currentMenuItem.append("ul").attr("class", "dropdown-menu").attr("id", menuKeys[mk] + "Drops");
 		for (it in menuContent[menuKeys[mk]]){
 			currentMenuItemOptions.append("li")
 				.append("a")
@@ -129,15 +129,21 @@ function createSeqMenu(idNameOfParentDiv, menuContent){
    		seqContext.fillText(sStart + this.nSeqs - 1, this.nameOffSet + this.nBases * this.cw + (2.5/4) * this.cw, (this.nSeqs)*this.ch - this.ch+ this.ch/2.0  );
    };
    
-   SeqPainter.prototype.paintSelectedSeq = function(seqContext,seq, currentBase){
+   SeqPainter.prototype.paintSelectedSeq = function(seqContext, seq, currentBase){
    		seqContext.font = "bold 15px Arial, sans-serif";
    		seqContext.textAlign = "left";
     	seqContext.textBaseline = "middle";
-   		var logInfo = "name: " + 
+   		var logInfo ="";
+   		if(currentBase < 0){
+   	   		logInfo = "name: " + 
+        	seq["name"];
+   		}else{
+   	   		logInfo = "name: " + 
         	seq["name"]
         	+ " base: "  + seq["seq"][currentBase] 
         	+ " qual: " +  seq["qual"][currentBase]
         	+ " pos: " + currentBase;
+   		}
         var tWidth = seqContext.measureText(logInfo).width;
         seqContext.fillStyle = "#FFFFFF";
 	    seqContext.fillRect(this.nameOffSet + this.cw + 2, (this.nSeqs)*this.ch + 2 , this.nBases * this.cw - (3 *this.cw), this.ch);
@@ -148,17 +154,23 @@ function createSeqMenu(idNameOfParentDiv, menuContent){
 	    seqContext.fillText(logInfo,this.nameOffSet + this.cw + 2, (this.nSeqs)*this.ch + 2  + this.ch/2 );
    };
 
-	function njhSeqView(viewName, seqData, cellWidth, cellHeight, baseColors,addQualChart, minTreeLink){
+	function njhSeqView(viewName, seqData, cellWidth, cellHeight, baseColors,addQualChart, minTreeLink, protein){
 		//need to add style and html, currently just there
 		//retrieve html elements 
 		this.topDivName = viewName;
 		this.topDiv = document.getElementById(viewName);
 		$(this.topDiv).addClass("SeqView");
 		this.uid = seqData["uid"];
+		this.selected = new Set(seqData["selected"]);
+		//this.selected = seqData["selected"];
+		//this.selected = [1,4,5];
+		//this.selected.add(1);
+		//this.selected.add(4);
+		//console.log(this.selected);
 		this.menuDiv = d3.select(viewName).append("div")
 				.attr("class", "njhSeqViewMenu");
-		this.setUpDefaultMenu();
-		if(minTreeLink != undefined){
+		this.setUpDefaultMenu(protein);
+		if(minTreeLink != undefined && !protein){
 			d3.select(viewName).append("div")
 				.attr("id", "minTreeDiv")
 				.style("border", "2px solid black")
@@ -177,6 +189,13 @@ function createSeqMenu(idNameOfParentDiv, menuContent){
 			.style("margin", "5px")
 			.style("width", "100px")
 			.style("float", "left");
+		d3.select(viewName).append("div")
+		.attr("class", "deselectDiv")
+		.style("border", "2px solid black")
+		.style("padding", "2px")
+		.style("margin", "5px")
+		.style("width", "100px")
+		.style("float", "left");
 		this.masterDivD3 = d3.select(viewName).append("div").attr("class", "SeqViewCanvasDiv");
 		this.masterDivD3.append("div").attr("class", "rightSlider");
 		this.masterDivD3.append("canvas").attr("class", "canvas");
@@ -189,6 +208,14 @@ function createSeqMenu(idNameOfParentDiv, menuContent){
 			.append("button")
 			.text("Download Fasta")
 			.attr("class", "fastaSaveButton");
+		var deselectButton = d3.select(this.topDivName + " .deselectDiv")
+			.append("button")
+			.text("Un-select All")
+			.attr("class", "deselectAllBut");
+		deselectButton.on("click", function(){
+			self.selected.clear();
+			self.updateSelectors();
+		});
 		linkButton.append("a")
 				.attr("class", "fastaDownLink");
 		
@@ -225,13 +252,13 @@ function createSeqMenu(idNameOfParentDiv, menuContent){
 		this.canvas.width = $(this.masterDiv).width() * 0.98;
 		this.canvas.height = $(this.masterDiv).height() * 0.95;
 		var nameOffSet = 10 * cellWidth;
-		var numOfBases = Math.floor((this.canvas.width - cellWidth - nameOffSet)/cellWidth);
+		var numOfBases = Math.min(Math.floor((this.canvas.width - cellWidth - nameOffSet)/cellWidth),this.seqData["maxLen"] );
 	 	var numOfSeqs = Math.min(Math.floor((this.canvas.height - cellHeight)/cellHeight), this.seqData["seqs"].length);
 	 	//console.log(numOfSeqs);
 	 	//console.log(Math.floor((this.canvas.height - cellHeight)/cellHeight));
 	 	//console.log(this.seqData["seqs"].length);
 		this.painter = new SeqPainter(cellWidth, cellHeight, numOfSeqs, numOfBases, nameOffSet, baseColors);
-		//this.seqs = seqs;
+		
 		if(addQualChart){
 			this.addedQualChart = true;
 			this.chart = c3.generate({
@@ -248,13 +275,12 @@ function createSeqMenu(idNameOfParentDiv, menuContent){
 			    }
 			});
 		}
-
-		//
+		
 	};
 	
 	
 	
-	njhSeqView.prototype.setUpDefaultMenu = function(){
+	njhSeqView.prototype.setUpDefaultMenu = function(protein){
 		var locSplit = window.location.toString().split(/[\/]+/);
 		var rName = locSplit[2];
 		var menuItems = {};
@@ -262,56 +288,161 @@ function createSeqMenu(idNameOfParentDiv, menuContent){
 		var self = this;
 		sortOptions.push(new njhMenuItem("sortSeq", "Sequence",function(){
 			var mainData;
-		    ajax('/' + rName + '/sort/' + self.uid+'/seq', function(md){ mainData = md; });
-		    console.log(self.uid);
+			var postData = {"uid" : self.uid};
+			if (self.selected.size > 0){
+				postData["selected"] = setToArray(self.selected);
+			}
+			ajaxPost('/' + rName + '/sort/seq',postData, function(md){ mainData = md; });
+		    //console.log(self.uid);
 		    self.updateData(mainData);
 		}));
 		sortOptions.push(new njhMenuItem("sortSeqCondensed", "Sequence Condensed",function(){
 			var mainData;
-	   		ajax('/' + rName + '/sort/' + self.uid+'/seqCondensed', function(md){ mainData = md; });
+			var postData = {"uid" : self.uid};
+			if (self.selected.size > 0){
+				postData["selected"] = setToArray(self.selected);
+			}
+			ajaxPost('/' + rName + '/sort/seqCondensed',postData, function(md){ mainData = md; });
 	    	self.updateData(mainData);
 		}));
 		sortOptions.push(new njhMenuItem("sortTotalCount", "Total Read Count",function(){
 			var mainData;
-		    ajax('/' + rName + '/sort/' + self.uid+'/totalCount', function(md){ mainData = md; });
+			var postData = {"uid" : self.uid};
+			if (self.selected.size > 0){
+				postData["selected"] = setToArray(self.selected);
+			}
+			ajaxPost('/' + rName + '/sort/totalCount',postData, function(md){ mainData = md; });
 		    self.updateData(mainData);
 		}));
 		sortOptions.push(new njhMenuItem("sortSize", "Length",function(){
 			var mainData;
-		    ajax('/' + rName + '/sort/' + self.uid+'/size', function(md){ mainData = md; });
+			var postData = {"uid" : self.uid};
+			if (self.selected.size > 0){
+				postData["selected"] = setToArray(self.selected);
+			}
+			ajaxPost('/' + rName + '/sort/size',postData, function(md){ mainData = md; });
 		    self.updateData(mainData);
 		}));
 		sortOptions.push(new njhMenuItem("sortName", "Name",function(){
 			var mainData;
-		    ajax('/' + rName + '/sort/' + self.uid+'/name', function(md){ mainData = md; });
+			var postData = {"uid" : self.uid};
+			if (self.selected.size > 0){
+				postData["selected"] = setToArray(self.selected);
+			}
+			ajaxPost( '/' + rName + '/sort/name',postData, function(md){ mainData = md; });
 		    self.updateData(mainData);
 		}));
 		menuItems["Sort"] = sortOptions;
 		var alnOptions = [];
 		alnOptions.push(new njhMenuItem("muscle", "muscle",function(){
 			var mainData;
-		    ajax('/' + rName + '/muscle/' + self.uid, function(md){ mainData = md; });
+			var postData = {"uid" : self.uid};
+			if (self.selected.size > 0){
+				postData["selected"] = setToArray(self.selected);
+			}
+			ajaxPost( '/' + rName + '/muscle',postData, function(md){ mainData = md; });
 		    self.updateData(mainData);
 		}));
 		alnOptions.push(new njhMenuItem("removeGaps", "remove gaps",function(){
 			var mainData;
-		    ajax('/' + rName + '/removeGaps/' + self.uid, function(md){ mainData = md; });
+			var postData = {"uid" : self.uid};
+			if (self.selected.size > 0){
+				postData["selected"] = setToArray(self.selected);
+			}
+			ajaxPost( '/' + rName + '/removeGaps',postData, function(md){ mainData = md; });
 		    self.updateData(mainData);
 		}));
 		
 		menuItems["Aln"] = alnOptions;
-		var editOptions = [];
-		editOptions.push(new njhMenuItem("complement", "Reverse Complement",function(){
-			var mainData;
-		    ajax('/' + rName + '/complement/' + self.uid, function(md){ mainData = md; });
-		    self.updateData(mainData);
-		}));
+		if(!protein){
+			var editOptions = [];
+			editOptions.push(new njhMenuItem("complement", "Reverse Complement",function(){
+				var mainData;
+				var postData = {"uid" : self.uid};
+				if (self.selected.size > 0){
+					postData["selected"] = setToArray(self.selected);
+				}
+				var ar = setToArray(self.selected);
+				ajaxPost( '/' + rName + '/complement',postData, function(md){ mainData = md; });
+			    self.updateData(mainData);
+			}));
+			menuItems["Edit"] = editOptions;
+		}
+
 		
-		menuItems["Edit"] = editOptions;
-	
+
+		if(!protein){
+			var translateOptions = [];
+			translateOptions.push(new njhMenuItem("translate", "Translate",function(){
+				var mainData;
+				//console.log($("#startSiteInput", self.topDivName).val());
+				var postData = {"uid" : self.uid, "start" : $("#startSiteInput", self.topDivName).val()};
+				if (self.selected.size > 0){
+					postData["selected"] = setToArray(self.selected);
+				}
+				var ar = setToArray(self.selected);
+				ajaxPost( '/' + rName + '/translate',postData, function(md){ mainData = md; });
+			    //console.log(mainData);
+			    //console.log(self.topDivName.substring(1) + "_protein");
+			    if($("#" + self.topDivName.substring(1) + "_protein").length){
+			    	self.proteinViewer.updateData(mainData);
+			    }else{
+			    	var proteinColors = {};
+					ajax('/' + rName + '/proteinColors', function(bc){ proteinColors = bc; });
+			    	$( "<div id = \"" + self.topDivName.substring(1) + "_protein" +   "\"></div>" ).insertAfter( self.topDivName );
+			    	self.proteinViewer = new njhSeqView("#" + self.topDivName.substring(1) + "_protein", mainData, self.painter.cw, self.painter.ch, proteinColors,false, "", true);
+			    	self.proteinViewer.setUp();
+			    	self.proteinViewer.paint();
+			    }
+			    
+				//self.updateData(mainData);
+			}));
+			menuItems["Translate"] = translateOptions;
+		}
 		createSeqMenu(this.topDivName + " .njhSeqViewMenu", menuItems);
+		if(!protein){
+			var startSiteInput = d3.select(self.topDivName +  " .njhSeqViewMenu #TranslateDrops")
+			.append("li")
+				.append("div")
+					.attr("style", "padding: 3px 20px;")
+				.append("form")
+					.attr("class", "form-inline")
+					.attr("id", "startSiteForm");
+			startSiteInput
+				.append("label")
+					.attr("id", "startSiteLabel")
+					.attr("for","startSiteInput")
+					.attr("class", "control-label");
+			var divInputGroup = startSiteInput
+				.append("div")
+				.attr("class", "input-group");
+			divInputGroup.append("input")
+				.attr("type", "number")
+				.attr("class", "form-control")
+				.attr("id", "startSiteInput")
+				.attr("step", "1")
+				.attr("min", "0")
+				.attr("max", "2")
+				.attr("value", "0");
+			$('#startSiteForm').submit(function(e){
+		        e.preventDefault();
+		        //console.log($("#startSiteInput").val());
+		    });
+		}	
 	};
 	
+	/*
+	 * <div id= "cutOffDiv">
+					<form id="fracCutOffForm" class="form-inline">
+						<label id= "fracCutOffLabel" for="fracCutOffInput" class="control-label"></label>
+						<div class = "input-group">
+							<input type='number' class="form-control" id = "fracCutOffInput" step="0.01" min="0" max = "100"/>
+							<div class="input-group-addon">%</div>
+						</div>
+						<button type="submit" class="btn btn-primary">Submit</button>
+					</form>
+				</div>
+	 */
 	njhSeqView.prototype.updateData = function(inputSeqData){
 		this.seqData = inputSeqData;
 		this.seqStart = 0;
@@ -330,8 +461,12 @@ function createSeqMenu(idNameOfParentDiv, menuContent){
 		this.setUpSliders();
 		this.setUpListeners();
 		this.setSelector();
-		
 	};
+	
+	njhSeqView.prototype.updateSeqDims = function(){
+		this.painter.nBases = Math.min(Math.floor((this.canvas.width - this.painter.cw - this.painter.nameOffSet)/this.painter.cw),this.seqData["maxLen"] );
+		this.painter.nSeqs = Math.min(Math.floor((this.canvas.height - this.painter.ch)/this.painter.ch), this.seqData["seqs"].length);
+	}
 	
 	njhSeqView.prototype.setUpCanvas = function(){
 		$(this.masterDiv).width((window.innerWidth - 10) * 0.98);
@@ -339,8 +474,8 @@ function createSeqMenu(idNameOfParentDiv, menuContent){
 		$(this.masterDiv).height(Math.min((window.innerHeight - 60) * 0.80, maxPossHeight));
 		this.canvas.width = $(this.masterDiv).width() * 0.96;
 		this.canvas.height = $(this.masterDiv).height() * 0.95;
-		this.painter.nBases = Math.floor((this.canvas.width - this.painter.cw - this.painter.nameOffSet)/this.painter.cw);
-	 	this.painter.nSeqs = Math.min(Math.floor((this.canvas.height - this.painter.ch)/this.painter.ch),this.seqData["seqs"].length);
+		this.updateSeqDims();
+		this.updateSelectors();
 	};
 	
 	njhSeqView.prototype.updateCanvas = function(){
@@ -357,8 +492,8 @@ function createSeqMenu(idNameOfParentDiv, menuContent){
 		if(changingWidth > this.canvas.width){
 			this.painter.needToPaint = true;
 		}
-		this.painter.nBases = Math.floor((this.canvas.width - this.painter.cw - this.painter.nameOffSet)/this.painter.cw);
-	 	this.painter.nSeqs = Math.floor((this.canvas.height - this.painter.ch)/this.painter.ch);
+		this.updateSeqDims();
+		this.updateSelectors();
 	};
 
 	njhSeqView.prototype.paint = function(){
@@ -366,6 +501,7 @@ function createSeqMenu(idNameOfParentDiv, menuContent){
 		this.painter.placeBasePos(this.context, this.seqStart, this.baseStart);
 		this.paintSelectedSeq();
 		this.setSelector();
+		this.updateSelectors();
 	};
 	
 	njhSeqView.prototype.paintSelectedSeq = function(){
@@ -374,7 +510,7 @@ function createSeqMenu(idNameOfParentDiv, menuContent){
 	
 	njhSeqView.prototype.setSelector = function(){
 		if(this.currentBase >= this.baseStart && this.currentSeq >=this.seqStart){
-			$(this.sel).css('top', (this.currentSeq -this.seqStart) *this.painter.ch -1);
+			$(this.sel).css('top', (this.currentSeq - this.seqStart) *this.painter.ch -1);
 			$(this.sel).css('left', (this.currentBase - this.baseStart) *this.painter.cw + this.painter.nameOffSet -1);
 			$(this.sel).show();
 		}else{
@@ -386,6 +522,45 @@ function createSeqMenu(idNameOfParentDiv, menuContent){
 		console.log(this.currentSeq );
 		console.log(this.currentSeq *this.painter.ch);
 		console.log(this.currentBase *this.painter.cw + this.painter.nameOffSet );*/
+	};
+	
+	njhSeqView.prototype.updateSelectors = function(){
+		var self = this;
+		var selectors = d3.select(this.topDivName + " .SeqViewCanvasDiv").selectAll(".seqHighlight")
+			.data(setToArray(this.selected));
+		var lowerBound = this.seqStart;
+		var upperBound = this.seqStart + this.painter.nSeqs;
+		selectors.enter().append("div")
+			.attr("class", "seqHighlight")
+			.style("width", function(d){ 
+				return self.painter.nameOffSet.toString() + "px";})
+			.style("height",function(d){ return self.painter.ch.toString() + "px";});
+		selectors.exit().remove();
+		
+		selectors.style("visibility",function(d){ 
+				if(d >= lowerBound && d < upperBound){
+					return "visible";
+				}else{
+					return "hidden";
+				}})
+			.style("top", function(d){ 
+				if(d >= lowerBound && d < upperBound){
+					return ((d - self.seqStart) *self.painter.ch).toString() + "px"; 
+				}else{
+					return 0;
+				}})
+			.style("left",function(d){ 
+				//console.log(d);
+				if(d >= lowerBound && d < upperBound){
+					return 0;
+				}else{
+					return 0;
+				}});
+			
+			
+		
+			
+
 	};
 	
     njhSeqView.prototype.mouseWheelUp = function(steps){
@@ -433,29 +608,50 @@ function createSeqMenu(idNameOfParentDiv, menuContent){
 	      }.bind(this)
 	    }).bind(this);
    };
+   njhSeqView.prototype.updateOnResize = function(){
+	   this.updateCanvas();
+	   this.setUpSliders();
+	   this.paint();
+	   if(this.proteinViewer){
+		   this.proteinViewer.updateOnResize();
+	   }
+   }
    njhSeqView.prototype.clicked = function(e){
         var pt = getRelCursorPosition(e, this.canvas);
-        this.currentBase = Math.ceil(pt[0]/this.painter.cw) - this.painter.nameOffSet/this.painter.cw + this.baseStart -1;
-        this.currentSeq = Math.ceil(pt[1]/this.painter.ch) + this.seqStart - 1;
-        this.paintSelectedSeq();
-        //console.log(pt);
-        //console.log(this.currentSeq);
-        //console.log(this.currentBase);
-        //console.log(this.seqData["seqs"][this.currentSeq]["name"]);
-        //console.log(this.seqData["seqs"][this.currentSeq]["seq"][this.currentBase]);
-        //console.log(this.seqData["seqs"][this.currentSeq]["qual"][this.currentBase]);
-        this.setSelector();
-        var currentQual = this.seqData["seqs"][this.currentSeq]["qual"];
-		this.chart.load({
-	        json: {
-	            qual: this.seqData["seqs"][this.currentSeq]["qual"]
-	        }
-	    });
-	    //this.chart.xgrids.remove();
-	    this.chart.xgrids([{value: this.currentBase, text:this.seqData["seqs"][this.currentSeq]["qual"][this.currentBase]}]);
+        if(pt[1] <= this.painter.nSeqs * this.painter.ch && 
+        		pt[0] <= this.painter.nBases * this.painter.cw + this.painter.nameOffSet){
+        	this.currentSeq = Math.ceil(pt[1]/this.painter.ch) + this.seqStart - 1;
+        	if(pt[0] <= this.painter.nameOffSet){
+                //console.log(pt);
+                //console.log(this.currentSeq);
+                //console.log(this.selected);
+        		if(this.selected.has(this.currentSeq)){
+        			this.selected.delete(this.currentSeq);
+        		}else{
+        			this.selected.add(this.currentSeq);
+        		}
+        		this.updateSelectors();
+        		//console.log(this.selected);
+        	}
+            this.currentBase = Math.ceil(pt[0]/this.painter.cw) - this.painter.nameOffSet/this.painter.cw + this.baseStart -1;
+            this.paintSelectedSeq();
+
+
+            this.setSelector();
+            var currentQual = this.seqData["seqs"][this.currentSeq]["qual"];
+    		this.chart.load({
+    	        json: {
+    	            qual: this.seqData["seqs"][this.currentSeq]["qual"]
+    	        }
+    	    });
+    	    //this.chart.xgrids.remove();
+    	    this.chart.xgrids([{value: this.currentBase, text:this.seqData["seqs"][this.currentSeq]["qual"][this.currentBase]}]);
+
+        }
 
     };
    njhSeqView.prototype.setUpListeners = function(){
+	var self = this;
    	// add scrolling listener
    	addMouseScrollListener(this.canvas, this.mouseWheelUp.bind(this), this.mouseWheelDown.bind(this));
    	this.canvas.addEventListener("mousedown", this.clicked.bind(this), false);
@@ -482,46 +678,39 @@ function createSeqMenu(idNameOfParentDiv, menuContent){
     	$(popUpWindow).hide();
     });
     $(this.canvas).mousemove(function(e) {
-	    $(popUpWindow).hide();
-	    //console.log(popUpWindow);
-	    var rect = this.canvas.getBoundingClientRect();
-		//console.log(rect.left, rect.top, rect.right, rect.bottom );
-		var currentPoint = getRelCursorPosition(e, this.canvas);
-		//console.log("WindowX:" + (currentPoint[0]));
-		//console.log("WindowY:" + (currentPoint[1]));
-		//console.log("AdjustX:" + (currentPoint[0] - rect.left));
-		//console.log("AdjustY:" + (currentPoint[1] - rect.top));
-    	$(popUpWindow).css('top', currentPoint[1] + moveDown).css('left', currentPoint[0] + moveLeft);
-    	
-      	var currentBaseHover = Math.ceil(currentPoint[0]/this.painter.cw) - this.painter.nameOffSet/this.painter.cw + this.baseStart -1;
-        var currentSeqHover = Math.ceil(currentPoint[1]/this.painter.ch) + this.seqStart - 1;
-        var base = "";
-        var qual = "";
-        if(this.seqData["seqs"][currentSeqHover]["seq"][currentBaseHover]){
-        	base = this.seqData["seqs"][currentSeqHover]["seq"][currentBaseHover];
-        	qual = this.seqData["seqs"][currentSeqHover]["qual"][currentBaseHover];
-        }
-
-		var maxHeight = Math.min(this.painter.nSeqs, this.seqData["numReads"]) * this.painter.ch;
-		var maxWidth = Math.min(this.painter.nBases, this.seqData["maxLen"]) * this.painter.ch + this.painter.nameOffSet;
-		if(currentPoint[1] <= maxHeight && 
-			currentPoint[0] <= maxWidth){
-			        if(currentPoint[0] > this.painter.nameOffSet){
+    	var currentPoint = getRelCursorPosition(e, self.canvas);
+        if(currentPoint[1] <= self.painter.nSeqs * self.painter.ch &&
+        		currentPoint[0] <= self.painter.nBases * self.painter.cw + self.painter.nameOffSet){
+        	$(popUpWindow).css('top', currentPoint[1] + moveDown).css('left', currentPoint[0] + moveLeft);
+          	var currentBaseHover = Math.ceil(currentPoint[0]/self.painter.cw) - self.painter.nameOffSet/self.painter.cw + self.baseStart -1;
+            var currentSeqHover = Math.ceil(currentPoint[1]/self.painter.ch) + self.seqStart - 1;
+            var base = self.seqData["seqs"][currentSeqHover]["seq"][currentBaseHover];
+            var qual = self.seqData["seqs"][currentSeqHover]["qual"][currentBaseHover];
+			if(currentPoint[0] > self.painter.nameOffSet){
 	        	//console.log($("#info", popUpWindow)[0]);
-	        $("#info", popUpWindow)[0].innerHTML = "name: " + 
-	        	this.seqData["seqs"][currentSeqHover]["name"]
-	        	+ "<br>base: "  + base
-	        	+ "<br>qual: " +  qual 
-	        	+ "<br>pos: " + currentBaseHover;
+    	        $("#info", popUpWindow)[0].innerHTML = "name: " + 
+    	        	self.seqData["seqs"][currentSeqHover]["name"]
+    	        	+ "<br>base: "  + base
+    	        	+ "<br>qual: " +  qual 
+    	        	+ "<br>pos: " + currentBaseHover;
 	        }else{
 	        	$("#info", popUpWindow)[0].innerHTML = "name: " + 
-	        	this.seqData["seqs"][currentSeqHover]["name"];
+	        	self.seqData["seqs"][currentSeqHover]["name"];
 	        }
-			//$(popUpWindow).fadeIn(500);
 			$(popUpWindow).show();
-		}else{
-			$(popUpWindow).hide();
-		}
-    }.bind(this)).bind(this);
+        }else{
+        	$(popUpWindow).hide();
+        }
+    });
    };
 
+   
+function initSeqViewer(SeqViewer){
+	$(window).bind("resize", function(){
+		SeqViewer.updateCanvas();
+		SeqViewer.setUpSliders();
+		SeqViewer.paint();
+	});
+	SeqViewer.setUp();
+	SeqViewer.paint();
+}

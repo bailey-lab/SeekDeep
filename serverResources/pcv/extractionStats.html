@@ -6,19 +6,12 @@
 	<link rel="stylesheet" href="http://code.jquery.com/ui/1.11.2/themes/smoothness/jquery-ui.css">
 	<script src="http://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
     <script src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.11.2/jquery-ui.min.js"></script>
-	<script src="/ssv/jsLibs"></script>
-	<script src="/ssv/jsOwn"></script>
-	<link rel="stylesheet" href="/ssv/cssLibs"></script>
-	<link rel="stylesheet" href="/ssv/cssOwn"></script>
-	<link href="http://getbootstrap.com/examples/theme/theme.css" rel="stylesheet">
-	<style>
-		.container {
-			padding-right: 15px;
-			padding-left: 15px;
-			margin-right: auto;
-			margin-left: 15px;
-			}
-	</style>
+	<script src="/pcv/jsLibs"></script>
+	<script src="/pcv/jsOwn"></script>
+	<script src="/pcv/jsPcv"></script>
+	<link rel="stylesheet" href="/pcv/cssLibs">
+	<link rel="stylesheet" href="/pcv/cssOwn">
+	<link rel="stylesheet" href="/pcv/cssPcv">
   </head>
   <body>
     <script>
@@ -26,101 +19,62 @@
     		//get current name from window location
 			var locSplit = window.location.toString().split(/[\/]+/);
 			var rName = locSplit[2];
-			//get sample names and the table with the sample names
-			var groupNames;
-			ajax("/" + rName + "/getGroupNames", function(gn){ groupNames = gn; });
-			var linkPreGroup = "/" + rName + "/showSubGroupsPage/";
-			d3.select("#groupsDropdownMenu")
-				.selectAll(".gDrop")
-				.data(groupNames)
-				.enter()
-					.append("li")
-					.append("a")
-						.attr("href",function(d){return linkPreGroup + d;} )
-						.text(function(d){return d;});
-			var sampNames;
-			ajax('/' + rName + '/sampleNamesEncoding', function(sne){ sampNameEncoding = sne; });
-			ajax("/" + rName + "/allSampleNames", function(mn){ sampNames = mn; });
-			var sampNameEncoding;
+			var projectName = locSplit[4];
+			//change title to current name
+			var longProjectName = ajaxRet('/' + rName + '/projectName/' + projectName);		
+			addDiv("body", "topNav");
+			createProjectNavBar("#topNav", rName, projectName);
+			addMainDiv("body", true);
+			setHeadTitle(longProjectName);
+			$("#jumboTitle").html(longProjectName + " Extraction Information");
+			addPanelOnlyHead("#mainContent", "Sample Extraction Information");	
+			addDiv("#mainContent", "sampTable");
+			addDiv("#mainContent", "sampNameMenu");
+			addPanelOnlyHead("#mainContent", "Extraction By File");
+			addDiv("#mainContent", "popTable");
+
+			
+			var sampNames = ajaxRet("/" + rName + "/allSampleNames/" + projectName);
+			var sampNameEncoding = ajaxRet('/' + rName + '/sampleNamesEncoding/' + projectName);
 			var encodedSampNames =[];
 	    	for (sampN in sampNames){
 	    		encodedSampNames.push(sampNameEncoding[sampNames[sampN]]);
 	    	}
 	    	var mainPopInfoTab;
-			ajax('/' + rName + '/getSampleExtractionInfo' + "/" + encodedSampNames.join("DELIM"), function(tab){ mainPopInfoTab = tab; });
-			//ajax('/' + rName + '/getSampleExtractionInfo', function(tab){ mainPopInfoTab = tab; });
+			ajaxPost('/' + rName + '/getSampleExtractionInfo/' + projectName, {"sampNames": encodedSampNames}, function(tab){ mainPopInfoTab = tab; });
+			
 
-			//get the population information table from server
-			var popInfoTab;
-			ajax('/' + rName + '/getIndexExtractionInfo', function(tab){ popInfoTab = tab; });
-			//change title to current name
-			var projectName;
-			ajax('/' + rName + '/projectName', function(proj){ projectName = proj; });
-			$("title", "head").html(projectName);
-			$("#projName").html(projectName + " Extraction Information");
-			var sampleTable =  new njhTable("#sampTable", mainPopInfoTab, projectName + "_extractionByFileInfo", true);	
-			
-			//update the chart and table on click of the sample checkboxes
-			function updateChartOnClick() { 
-				//get all currently checked sample boxes and then update the current samples  
-			    var allVals = [];
-			    $('#sampNameMenu :checked').each(function() {
-			      allVals.push($(this).val());
-			    });
-			    var currentSampNames = _.intersection(sampNames, allVals);
-			    if(currentSampNames.length == 0){
-			    	mainPopInfoTab = {};
-			    }else{
-			    	var encodedCurrentSampNames =[];
-			    	for (sampN in currentSampNames){
-			    		encodedCurrentSampNames.push(sampNameEncoding[currentSampNames[sampN]]);
-			    	}
-			    	ajax('/' + rName + '/getSampleExtractionInfo' + "/" + encodedCurrentSampNames.join("DELIM"), function(tab){ mainPopInfoTab = tab; });
-			    }
-			 	sampleTable.updateWithData(mainPopInfoTab);
-			};
-			var sampMenu = new njhCheckboxMenu("#sampNameMenu", sampNames, updateChartOnClick);
-			var popTable = new njhTable("#popTable", popInfoTab, projectName + "_extractionByFileInfo", true);
-			
+
+			if(mainPopInfoTab !== null){
+				//get the population information table from server
+				var popInfoTab;
+				ajax('/' + rName + '/getIndexExtractionInfo/' + projectName, function(tab){ popInfoTab = tab; });
+
+				var sampleTable =  new njhTable("#sampTable", mainPopInfoTab, longProjectName + "_extractionByFileInfo", true);	
+				
+				//update the chart and table on click of the sample checkboxes
+				function updateChartOnClick() { 
+					//get all currently checked sample boxes and then update the current samples  
+				    var allVals = [];
+				    $('#sampNameMenu :checked').each(function() {
+				      allVals.push($(this).val());
+				    });
+				    var currentSampNames = _.intersection(sampNames, allVals);
+				    if(currentSampNames.length == 0){
+				    	mainPopInfoTab = {};
+				    }else{
+				    	var encodedCurrentSampNames =[];
+				    	for (sampN in currentSampNames){
+				    		encodedCurrentSampNames.push(sampNameEncoding[currentSampNames[sampN]]);
+				    	}
+				    	ajaxPost('/' + rName + '/getSampleExtractionInfo/' + projectName, {"sampNames": encodedCurrentSampNames}, function(tab){ mainPopInfoTab = tab; });
+				    }
+				 	sampleTable.updateWithData(mainPopInfoTab);
+				};
+				var sampMenu = new njhCheckboxMenu("#sampNameMenu", sampNames, updateChartOnClick);
+				var popTable = new njhTable("#popTable", popInfoTab, longProjectName + "_extractionByFileInfo", true);
+			}
 		});
-		
     </script>
-        <!-- Fixed navbar -->
-    <nav class="navbar navbar-inverse navbar-fixed-top" role="navigation">
-      <div class="container">
-        <div class="navbar-header">
-          <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
-            <span class="sr-only">Toggle navigation</span>
-            <span class="icon-bar"></span>
-            <span class="icon-bar"></span>
-            <span class="icon-bar"></span>
-          </button>
-          
-        </div>
-        <div id="navbar" class="navbar-collapse collapse">
-          <ul class="nav navbar-nav">
-            <li class=""><a href="/ssv">Home</a></li>
-            <li class="active"><a href="/ssv/showExtractionInfo">Extraction Info</a></li>
-            <li class="Samples">
-              <a href="./Theme Template for Bootstrap_files/Theme Template for Bootstrap.html" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">Groups<span class="caret"></span></a>
-              <ul id = "groupsDropdownMenu" class="dropdown-menu" role="menu"></ul>
-            </li>
-          </ul>
-        </div><!--/.nav-collapse -->
-      </div>
-    </nav>
-    <div class="container theme-showcase" role="main">
-		<div class="jumbotron"><h1 id="projName"></h1></div>
-		<div class="panel panel-primary">
-			<div class="panel-heading"><h1>Sample Extraction Information</h1></div>
-		</div>
-	    <div id = "sampTable"></div>
-	    <div id = "sampNameMenu"></div>
-
-	    <div class="panel panel-primary">
-			<div class="panel-heading"><h1>Extraction By File</h1></div>
-		</div>
-	    <div id = "popTable"> </div>
-    </div>
   </body>
 </html>

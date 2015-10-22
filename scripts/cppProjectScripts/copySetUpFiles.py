@@ -6,14 +6,14 @@ from shutil import ignore_patterns
 
 
 
-def copyDir(src, dist, overWrite=False):
+def copyDir(src, dist, overWrite):
     if(os.path.isdir(dist)):
         if(overWrite):
             shutil.rmtree(dist)
         else:
             print "Error, directory " + str(dist) + " already exist, set overwrite to overwrite dir"
             exit(1)
-    shutil.copytree(src, dist, ignore=ignore_patterns('*.pyc', '*~'))
+    shutil.copytree(src, dist, ignore=ignore_patterns('*.pyc', '*~', '.*'))
 
 
 def copySetUp(cwDir, distDir, overWrite=False):

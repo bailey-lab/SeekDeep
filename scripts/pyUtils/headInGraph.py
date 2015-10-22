@@ -3,6 +3,7 @@
 import fnmatch, subprocess, sys, os, argparse, re
 
 
+
 class fileNode():
     headerColor = "#0571b0";
     headToHeadColor = "#92c5de";
@@ -44,6 +45,8 @@ class headInGraph():
         self.nodes_.append(fileNode(name,color,type, modTime, filesize))
     
     def addPair(self, including, beingIncluded, edgeColor):
+        if beingIncluded not in self.nodePositions_:
+            raise Exception("Header " + beingIncluded + " not found in source folder, being included by " + including)
         self.nodes_[self.nodePositions_[beingIncluded]].childrenEdges_.append(fileEdge(self.nodePositions_[including], edgeColor))
     
     def setNodeColorAll(self, newColor):

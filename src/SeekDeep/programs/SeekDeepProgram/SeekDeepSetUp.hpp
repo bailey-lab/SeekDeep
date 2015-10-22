@@ -88,6 +88,83 @@ struct extractorPars{
   uint32_t qualCheck = 25;
   bool checkingQCheck = false;
   double qualCheckCutOff = 0.75;
+  std::string sampleName = "";
+  std::string compareSeqFilename = "";
+  bool multipleTargets = false;
+
+  std::string multipleLenCutOffFilename = "";
+
+};
+
+struct clusterDownPars {
+  std::string parameters = "";
+  bool snapShots = false;
+  std::string qualRep = "median", sortBy = "totalCount";
+  bool markChimeras = false;
+  double parFreqs = 2;
+  bool collapsingTandems = false;
+  bool additionalOut = false;
+  std::string additionalOutLocationFile = "";
+  std::map<int, std::vector<double>> iteratorMap;
+  bool removeLowQualBases = false;
+  int lowQualityCutOff = 3;
+  uint32_t runTimes = 100;
+  bool sim = false;
+  bool printSimClusters = false;
+  double pValueCutOff = 0.01;
+  double fdrCutOff = 0.01;
+  bool startWithSingles = false;
+  bool createMinTree = false;
+  std::string diffCutOffStr = "0.1";
+  bool findBest = true;
+  double compPerCutOff = .98;
+  bool useCompPerCutOff = false;
+  bool ionTorrent = false;
+  bool useNucComp = false;
+  bool useKmerBinning = false;
+  double kmerCutOff = 0.80;
+  uint32_t kCompareLen = 10;
+  bool leaveOutSinglets = false;
+  bool onPerId = false;
+	bool extra = false;
+	uint32_t smallReadSize = 20;
+  bool useMinLenNucComp = false;
+  std::vector<double> diffCutOffVec;
+  bool noAlign_ = false;
+};
+
+struct processClustersPars {
+  bool noPopulation = false;
+  std::string previousPopFilename = "";
+  std::string parameters = "";
+  uint32_t clusterCutOff = 1;
+  bool extra = false;
+  double fracCutoff = 0.005;
+  uint32_t runsRequired = 0;
+  bool checkChimeras = false;
+  double parFreqs = 2;
+  bool keepChimeras = false;
+  bool investigateChimeras = false;
+  bool recheckChimeras = false;
+  double chiCutOff = .40;
+  std::string experimentName = "PopUID";
+  std::string parametersPopulation = "";
+  bool differentPar = false;
+  bool popBoth = false;
+  std::string sortBy = "fraction";
+  std::map<int, std::vector<double>> popIteratorMap;
+  std::map<int, std::vector<double>> iteratorMap;
+  bool grayScale = false;
+  double sat = 0.99;
+  double lum = 0.5;
+  bool eventBasedRef = false;
+  bool writeExcludedOriginals = false;
+  bool ionTorrent = false;
+  bool removeLowQualBases = false;
+  uint32_t lowQualityCutOff = 3;
+  std::string customCutOffs = "";
+  std::string groupingsFile = "";
+  bool onPerId = false;
 };
 
 class SeekDeepSetUp : public seqSetUp {
@@ -112,45 +189,10 @@ class SeekDeepSetUp : public seqSetUp {
                       bool& screenForPossibleContaimination,
                       std::string& compareSeq, std::string& idFileDelim,
                       int& smallFragmentCutOff, bool& qualWindowTrim);
-  void setUpExtractor(extractorPars & pars);
-
-  void setUpClusterDown(std::string& qualRep, std::string& parameters,
-                        bool& extra,
-                        std::map<int, std::vector<double>>& iteratorMap,
-                        bool& smallestFirst, bool& markChimeras, double& parFreqs,
-                        bool& bestMatch, int& bestMatchCheck, bool& snapShots,
-                        std::string& sortBy, bool& additionalOut,
-                        std::string& additonalOutLocationFile,
-                        bool& collapsingTandems,
-                        bool& kmerCheckingOnAlignProfile,
-                        bool& condesnedCollpase, bool& removeLowQualBases,
-                        int& lowQualityCutOff, bool& adjustHomopolyerRuns,
-												bool & onPerId);
-  void setUpMultipleSampleCluster(
-      std::string& parameters, bool& extra, int& cutOff,
-      std::map<int, std::vector<double>>& iteratorMap, bool& population,
-      double& fracCutoff, bool& smallestFirst, bool& bestMatch,
-      int& bestMatchCheck, bool& checkChimeras, double& parFreqs,
-      std::string& parametersPopulation, bool& differentPar,
-      std::map<int, std::vector<double>>& popIteratorMap, bool& popBoth,
-      bool& keepChimeras, std::string& experimentName, uint32_t& runsRequired, bool & onPerId);
-  void setUpCollapseTandems(double& freqCutoff, bool& extra,
-                            bool& additionalOut,
-                            std::string& additionalOutLocationFile);
-  void setUpMarkChimeras(double& parentFreqs);
-  void setUpMakeSampleDirectories(std::string& sampleNameFilename);
-  void setUpPopulationClustering(
-      std::string& directory, VecStr& contains, bool& specific, bool& recursive,
-      std::string& parameters, bool& extra, int& cutOff,
-      std::map<int, std::vector<double>>& popIteratorMap, double& fracCutoff,
-      bool& smallestFirst, bool& bestMatch, int& bestMatchCheck,
-      bool& checkChimeras, int& parFreqs);
-  void setUpCompareTwoReplicates(
-      std::string& filename1, std::string& qualFilename1, std::string& format1,
-      std::string& filename2, std::string& qualFilename2, std::string& format2,
-      std::string& parameters, bool& extra, int& cutOff,
-      std::map<int, std::vector<double>>& iteratorMap, bool& smallestFirst,
-      bool& markChimeras, int& parFreq, bool& bestMatch, int& bestMatchCheck);
+	void setUpExtractor(extractorPars & pars);
+	void setUpClusterDown(clusterDownPars & pars);
+	void setUpMultipleSampleCluster(processClustersPars & pars);
+	void setUpMakeSampleDirectories(std::string& sampleNameFilename);
 };
 }  // namespace bib
 
