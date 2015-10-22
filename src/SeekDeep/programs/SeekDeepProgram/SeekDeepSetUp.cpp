@@ -300,7 +300,11 @@ void SeekDeepSetUp::setUpExtractor(extractorPars & pars) {
                "reads are compared and and if they are dissimilar enough they will be removed as contamination" << std::endl;
     tempOut << "-contaminationKLen [option]:	Contamination Kmer Length, defaults to " <<  pars.contaminationKLen << std::endl;
     tempOut << "-kmerCutOff [option]:	Kmer cut off for contamination check, defaults to " <<  pars.kmerCutOff  << std::endl;
-
+    tempOut << bib::bashCT::bold << "Options for when extracting with multiple targets"<< bib::bashCT::reset << std::endl;
+    tempOut << "--multipleTargets : A flag to indicate you are extracting on multiple targets" << std::endl;
+    tempOut << "--lenCutOffs [option]: a filename containing specific cut offs for each target need three columns, target,minlen,and maxlen."
+    		"  If target is not found here length cut offs will default to options assoiciated with -minLen and -maxLen"<< std::endl;
+    tempOut << "-compareSeq [option]: When the --multipleTargets flag is on this can be a fasta or fastq file containing a different seq for each target" << std::endl;
     std::cout << cleanOut(tempOut.str(), width_, indent_);
     tempOut.str(std::string());
     std::cout << "examples: " << std::endl
@@ -840,4 +844,4 @@ void SeekDeepSetUp::setUpMakeSampleDirectories(
   finishSetUp(std::cout);
 }
 
-}  // namespace bib
+}  // namespace bibseq
