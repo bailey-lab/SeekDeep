@@ -973,6 +973,12 @@ int SeekDeepRunner::extractor(MapStrStr inputCommands) {
 			} else {
 				if(pars.multiplex){
 					primerName = pDetermine.determineForwardPrimer(read, 0, alignObj, pars.fPrimerErrors,!pars.forwardPrimerToUpperCase,setUp.weightHomopolymers_);
+					if(primerName == "unrecognized" && pars.checkComplement){
+						primerName = pDetermine.determineWithReversePrimer(read, 0, alignObj, pars.fPrimerErrors,!pars.forwardPrimerToUpperCase,setUp.weightHomopolymers_);
+						if(read.seqBase_.on_){
+							foundInReverse = true;
+						}
+					}
 				}else{
 					uint32_t start = 0;
 					if(pars.variableStart){
