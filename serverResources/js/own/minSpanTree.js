@@ -143,3 +143,85 @@ var createMinTreeRawData = function(graph, appendTo, name, width, height){
 	        .attr("cy", function(d) { return d.y; });});
 	return svg;
 };
+
+
+function drawPsuedoMinTree(jsonData, addTo){
+	var width = 2000,
+    height = 2000;
+
+var force = d3.layout.force()
+    .charge(-120)
+    .linkDistance(30)
+    .size([width, height]);
+	d3.select(addTo)
+    	.attr("width", width)
+    	.attr("height", height);
+var svg = d3.select(addTo).append("svg")
+    .attr("width", width)
+    .attr("height", height)
+    .attr("id", "chart");
+
+d3.json(jsonData, function(error, graph) {
+	//console.log(jsonData);
+	//console.log(graph);
+  svg.append('rect')
+	    .attr('width',width)
+	    .attr('height', height)
+	    .attr('fill',graph.backgroundColor);
+  
+  force
+      .nodes(graph.nodes)
+      .links(graph.links)
+      .on("tick",tick)
+      .start();
+
+  var link = svg.selectAll(".link")
+      .data(graph.links)
+    .enter().append("line")
+      .attr("class", "link")
+      .style("stroke", function(d) { return d.color; })
+      .style("stroke-width", function(d) { return 2; });
+var node = svg.selectAll(".node")
+    .data(force.nodes())
+  .enter().append("g")
+    .attr("class", "node")
+    .call(force.drag);
+
+// add the nodes
+	node.append("circle")
+      .attr("r", function(d) { return Math.sqrt(d.size/Math.PI); })
+      .style("fill", function(d) { return d.color; })
+      .style("stroke", "#fff")
+      .style("stroke-width", "1.5px")
+      .call(force.drag);
+
+  node.append("title")
+      .text(function(d) { return d.name; });
+      
+  node.append("text")
+	  .attr("x", 12)
+	  .attr("dy", ".35em")
+	  .style("fill","#FFF")
+	  .style("font-family", "\"HelveticaNeue-Light\", \"Helvetica Neue Light\", \"Helvetica Neue\", Helvetica, Arial, \"Lucida Grande\", sans-serif")
+	  .style("font-size", "12px")
+	  .style("font-weight","900")
+	  .style("pointer-events", "none")
+	  .text(function(d) { 
+	  	if(d.size == 10){
+	  		return "";
+	  	}else{
+	  		return d.name;
+	  	}
+	   });
+// add the curvy lines
+function tick() {
+    link.attr("x1", function(d) { return d.source.x; })
+        .attr("y1", function(d) { return d.source.y; })
+        .attr("x2", function(d) { return d.target.x; })
+        .attr("y2", function(d) { return d.target.y; });
+
+    node.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
+};
+
+});
+}

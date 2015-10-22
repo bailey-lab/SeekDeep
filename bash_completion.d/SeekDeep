@@ -33,3 +33,21 @@ _bibCppTools()
 complete -F _bibCppTools SeekDeep
 
 
+_setUpPys()
+{
+    local cur prev opts base
+    COMPREPLY=()
+    cur="${COMP_WORDS[COMP_CWORD]}"
+    prev="${COMP_WORDS[COMP_CWORD-1]}"
+    if [[ ${cur} == -* ]]; then
+    	opts=$(for x in `${COMP_WORDS[0]} -h | grep " -" | sed "s/^. *-/-/g" | sed "s/   .*//g" | sed "s/, / /g"`; do echo ${x} ; done )
+		COMPREPLY=($(compgen -W "${opts}" -- ${cur}))
+    else
+    	_filedir
+    fi
+   return 0
+}
+
+complete -F _setUpPys setup.py
+complete -F _setUpPys configure.py
+

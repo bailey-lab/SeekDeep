@@ -1,4 +1,3 @@
-
 <!DOCTYPE HTML>
 <html>
   <head>
@@ -23,19 +22,10 @@
 			rName = rName.replace(new RegExp("#" + "$"), "");
 			addDiv("body", "topNav");
 			createMainPageNavBar("#topNav", rName);
-			addMainDiv("body", false);
+			addMainDiv("body", true);
 			setHeadTitle(rName);
-			addPanelWithDiv("#mainContent","projectsLinks", "All Projects");
-			//get project names 
-			var projectsNames;
-			ajax("/" + rName + "/projectsNames", function(mn){ projectsNames = mn; });
-			var cols = 10;
-			var linkPre = "/" + rName + "/mainProjectPage/";
-			var mouseOverC = "#999";
-			var mouseLeaveC = "#FFF";
-			var addTo = "#projectsLinks";
-			createLinksTable(addTo, linkPre, projectsNames,8, mouseOverC, mouseLeaveC);
-			
+			$("#jumboTitle").html("Ruh Roh");
+			$(".jumbotron", "#mainContent").append("<h3>You attempted to go to a page that doesn't exist, or it could be there is no data for where you attempted to go.</h3>");
 		});
 		
     </script>

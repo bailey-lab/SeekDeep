@@ -880,8 +880,45 @@ int SeekDeepRunner::extractor(MapStrStr inputCommands) {
 	}
   auto barcodeFiles = bib::files::listAllFiles(unfilteredByBarcodesDir,false, VecStr{});
 	kmerInfo compareInfo;
+	kmerInfo compareInfoRev;
+	std::map<std::string, kmerInfo> compareInfos;
+	std::map<std::string, kmerInfo> compareInfosRev;
+	struct lenCutOffs{
+		uint32_t minLen_;
+		uint32_t maxLen_;
+	};
+	std::map<std::string, lenCutOffs> multipleLenCutOffs;
+	if(pars.multipleTargets){
+		table lenCutTab = table(pars.multipleLenCutOffFilename, "whitespace", true);
+		bib::for_each(lenCutTab.columnNames_, [](std::string & str){ stringToLower(str);});
+		lenCutTab.setColNamePositions();
+		if(!bib::in(std::string("target"), lenCutTab.columnNames_) ||
+			 !bib::in(std::string("minlen"), lenCutTab.columnNames_) ||
+			 !bib::in(std::string("maxlen"), lenCutTab.columnNames_)){
+			std::stringstream ss;
+			ss << "need to have columns " << "target,minlen, and maxlen" << " when reading in a table for multiple cut off lengths" << std::endl;
+			ss << "only have " << vectorToString(lenCutTab.columnNames_, ",") << std::endl;
+			throw std::runtime_error{bib::bashCT::boldRed(ss.str())};
+		}
+		for(const auto & row : lenCutTab.content_){
+			multipleLenCutOffs[row[lenCutTab.getColPos("target")]] = {bib::lexical_cast<uint32_t>(row[lenCutTab.getColPos("minlen")]),bib::lexical_cast<uint32_t>(row[lenCutTab.getColPos("maxlen")]) };
+		}
+	}
   if (pars.screenForPossibleContamination) {
   	compareInfo = kmerInfo(compareObject.seqBase_.seq_, pars.contaminationKLen, false);
+  	auto rev = compareObject;
+  	rev.seqBase_.reverseComplementRead(true, true);
+  	compareInfoRev = kmerInfo(rev.seqBase_.seq_, pars.contaminationKLen, false);
+  }
+  if(pars.multipleTargets && pars.screenForPossibleContamination){
+  	readObjectIO readerCon;
+  	readerCon.read(bib::files::getExtension(pars.compareSeqFilename), pars.compareSeqFilename);
+  	for(const auto & read : readerCon.reads){
+  		compareInfos[read.seqBase_.name_] = kmerInfo(read.seqBase_.seq_, pars.contaminationKLen, false);
+    	auto rev = read;
+    	rev.seqBase_.reverseComplementRead(true, true);
+    	compareInfosRev[read.seqBase_.name_] = kmerInfo(rev.seqBase_.seq_, pars.contaminationKLen, false);
+  	}
   }
 
 
@@ -936,6 +973,12 @@ int SeekDeepRunner::extractor(MapStrStr inputCommands) {
 			} else {
 				if(pars.multiplex){
 					primerName = pDetermine.determineForwardPrimer(read, 0, alignObj, pars.fPrimerErrors,!pars.forwardPrimerToUpperCase,setUp.weightHomopolymers_);
+					if(primerName == "unrecognized" && pars.checkComplement){
+						primerName = pDetermine.determineWithReversePrimer(read, 0, alignObj, pars.fPrimerErrors,!pars.forwardPrimerToUpperCase,setUp.weightHomopolymers_);
+						if(read.seqBase_.on_){
+							foundInReverse = true;
+						}
+					}
 				}else{
 					uint32_t start = 0;
 					if(pars.variableStart){
@@ -982,7 +1025,7 @@ int SeekDeepRunner::extractor(MapStrStr inputCommands) {
 	  	}
 			if (pars.screenForPossibleContamination) {
 				auto contamOutOpts = setUp.ioOptions_;
-				contamOutOpts.outFilename_ = contaminationDir + barcodeName;
+				contamOutOpts.outFilename_ = contaminationDir + fullname;
 	  		if(!bib::in(fullname + "contamination", outPos)){
 		  		outPos[fullname + "contamination"] = readOuts.size();
 		  		readOuts.emplace_back(std::make_unique<readObjectIOOpt>(contamOutOpts));
@@ -992,16 +1035,49 @@ int SeekDeepRunner::extractor(MapStrStr inputCommands) {
   		//look for possible contamination
       if (pars.screenForPossibleContamination) {
       	kmerInfo compareInfo(compareObject.seqBase_.seq_, pars.contaminationKLen, false);
-      	readChecker::checkReadOnKmerComp(read.seqBase_, compareInfo,pars.contaminationKLen, pars.kmerCutOff, true);
-      	if(!read.seqBase_.on_){
-      		stats.increaseCounts(fullname, read.seqBase_.name_, ExtractionStator::extractCase::CONTAMINATION);
-      		readOuts[outPos[fullname + "contamination"]]->write(read);
-      		continue;
+      	if(pars.multipleTargets){
+      		if(compareInfos.find(primerName) != compareInfos.end()){
+      			if(foundInReverse){
+      				readChecker::checkReadOnKmerComp(read.seqBase_, compareInfosRev[primerName],pars.contaminationKLen, pars.kmerCutOff, true);
+      			}else{
+      				readChecker::checkReadOnKmerComp(read.seqBase_, compareInfos[primerName],pars.contaminationKLen, pars.kmerCutOff, true);
+      			}
+
+          	if(!read.seqBase_.on_){
+          		stats.increaseCounts(fullname, read.seqBase_.name_, ExtractionStator::extractCase::CONTAMINATION);
+          		readOuts[outPos[fullname + "contamination"]]->write(read);
+          		continue;
+          	}
+      		}else{
+      			std::cerr << "Error in screening for contamination, multiple targets turned on but no contamination found for " << primerName << std::endl;
+      			std::cerr << "Options are: " << vectorToString(getVectorOfMapKeys(compareInfos), ",") << std::endl;
+      		}
+      	}else{
+      		if(foundInReverse){
+      			readChecker::checkReadOnKmerComp(read.seqBase_, compareInfoRev,pars.contaminationKLen, pars.kmerCutOff, true);
+      		}else{
+      			readChecker::checkReadOnKmerComp(read.seqBase_, compareInfo,pars.contaminationKLen, pars.kmerCutOff, true);
+      		}
+        	if(!read.seqBase_.on_){
+        		stats.increaseCounts(fullname, read.seqBase_.name_, ExtractionStator::extractCase::CONTAMINATION);
+        		readOuts[outPos[fullname + "contamination"]]->write(read);
+        		continue;
+        	}
       	}
+
       }
 
-      //min len
-    	readChecker::checkReadLenAbove(read.seqBase_,pars.minLen, true);
+			//min len
+			if (pars.multipleTargets) {
+				if (multipleLenCutOffs.find(primerName) != multipleLenCutOffs.end()) {
+					readChecker::checkReadLenAbove(read.seqBase_,
+							multipleLenCutOffs[primerName].minLen_, true);
+				} else {
+					readChecker::checkReadLenAbove(read.seqBase_, pars.minLen, true);
+				}
+			} else {
+				readChecker::checkReadLenAbove(read.seqBase_, pars.minLen, true);
+			}
     	if(!read.seqBase_.on_){
     		stats.increaseCounts(fullname, read.seqBase_.name_, ExtractionStator::extractCase::MINLENBAD);
     		readOuts[outPos[fullname + "bad"]]->write(read);
@@ -1024,6 +1100,23 @@ int SeekDeepRunner::extractor(MapStrStr inputCommands) {
       		continue;
       	}
       }
+      //min len again becuase the reverse primer search trims to the reverse primer so it could be short again
+			if (pars.multipleTargets) {
+				if (multipleLenCutOffs.find(primerName) != multipleLenCutOffs.end()) {
+					readChecker::checkReadLenAbove(read.seqBase_,
+							multipleLenCutOffs[primerName].minLen_, true);
+				} else {
+					readChecker::checkReadLenAbove(read.seqBase_, pars.minLen, true);
+				}
+			} else {
+				readChecker::checkReadLenAbove(read.seqBase_, pars.minLen, true);
+			}
+    	if(!read.seqBase_.on_){
+    		stats.increaseCounts(fullname, read.seqBase_.name_, ExtractionStator::extractCase::MINLENBAD);
+    		readOuts[outPos[fullname + "bad"]]->write(read);
+    		continue;
+    	}
+
       //if found in the reverse direction need to re-orient now
       if(foundInReverse){
       	read.seqBase_.reverseComplementRead(true,true);
@@ -1038,12 +1131,22 @@ int SeekDeepRunner::extractor(MapStrStr inputCommands) {
     	}
 
       //max len
-    	readChecker::checkReadLenBellow(read.seqBase_, pars.maxLength, true);
+			if (pars.multipleTargets) {
+				if (multipleLenCutOffs.find(primerName) != multipleLenCutOffs.end()) {
+					readChecker::checkReadLenBellow(read.seqBase_,
+							multipleLenCutOffs[primerName].maxLen_, true);
+				} else {
+					readChecker::checkReadLenBellow(read.seqBase_, pars.maxLength, true);
+				}
+			} else {
+				readChecker::checkReadLenBellow(read.seqBase_, pars.maxLength, true);
+			}
     	if(!read.seqBase_.on_){
     		stats.increaseCounts(fullname, read.seqBase_.name_, ExtractionStator::extractCase::MAXLENBAD);
     		readOuts[outPos[fullname + "bad"]]->write(read);
     		continue;
     	}
+
       //quality
     	if(pars.checkingQCheck){
       	readChecker::checkReadQualCheck(read.seqBase_, pars.qualCheck, pars.qualCheckCutOff, true);
@@ -1054,11 +1157,13 @@ int SeekDeepRunner::extractor(MapStrStr inputCommands) {
     			readChecker::checkReadOnQualityWindow(read.seqBase_, pars.qualityWindowLength, pars.qualityWindowStep, pars.qualityWindowThres, true);
     		}
     	}
+
     	if(!read.seqBase_.on_){
     		stats.increaseCounts(fullname, read.seqBase_.name_, ExtractionStator::extractCase::QUALITYFAILED);
     		readOuts[outPos[fullname + "bad"]]->write(read);
     		continue;
     	}
+
     	if(read.seqBase_.on_){
     		stats.increaseCounts(fullname, read.seqBase_.name_, ExtractionStator::extractCase::GOOD);
         if(pars.rename){

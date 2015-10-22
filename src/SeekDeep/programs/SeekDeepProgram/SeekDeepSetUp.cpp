@@ -201,11 +201,12 @@ void SeekDeepSetUp::setUpExtractor(
   }
   if (setOption(screenForPossibleContaimination, "-contamination",
                 "Screening For Contamination")) {
-  	if (! processSeq(compareSeq, "-compareSeq,-seq", "Comparison Sequence For Contamination ", true) ) {
+  	if (! processSeq(compareSeq, "-compareSeq", "Comparison Sequence For Contamination ", true) ) {
   	      warnings_.emplace_back(
   	          "Need to have -compareSeq if checking for contamination");
   	 }
   }
+
   setOption(qualWindowTrim, "-qualWindowTrim", "Trim To Qual Window");
   setOption(smallFragmentCutOff, "-smallFragmentCutOff", "Small Fragment Cut Off Size");
   gapInfo_.gapOpen_ = 7.0;
@@ -299,7 +300,11 @@ void SeekDeepSetUp::setUpExtractor(extractorPars & pars) {
                "reads are compared and and if they are dissimilar enough they will be removed as contamination" << std::endl;
     tempOut << "-contaminationKLen [option]:	Contamination Kmer Length, defaults to " <<  pars.contaminationKLen << std::endl;
     tempOut << "-kmerCutOff [option]:	Kmer cut off for contamination check, defaults to " <<  pars.kmerCutOff  << std::endl;
-
+    tempOut << bib::bashCT::bold << "Options for when extracting with multiple targets"<< bib::bashCT::reset << std::endl;
+    tempOut << "--multipleTargets : A flag to indicate you are extracting on multiple targets" << std::endl;
+    tempOut << "--lenCutOffs [option]: a filename containing specific cut offs for each target need three columns, target,minlen,and maxlen."
+    		"  If target is not found here length cut offs will default to options assoiciated with -minLen and -maxLen"<< std::endl;
+    tempOut << "-compareSeq [option]: When the --multipleTargets flag is on this can be a fasta or fastq file containing a different seq for each target" << std::endl;
     std::cout << cleanOut(tempOut.str(), width_, indent_);
     tempOut.str(std::string());
     std::cout << "examples: " << std::endl
@@ -400,9 +405,16 @@ void SeekDeepSetUp::setUpExtractor(extractorPars & pars) {
 					"Need to have -compareSeq if checking for contamination");
 		}
 	}
+  setOption(pars.multipleTargets, "--multipleTargets", "Id file contains multiple targets");
+  if(pars.multipleTargets){
+  	if(pars.screenForPossibleContamination){
+  		commands_.lookForOption(pars.compareSeqFilename, "-compareSeq");
+  	}
+  }
+  setOption(pars.multipleLenCutOffFilename, "--lenCutOffs", "Length cut offs for when extracting multiple targets");
   setOption(pars.qualWindowTrim, "-qualWindowTrim", "Trim To Qual Window");
   setOption(pars.smallFragmentCutoff, "-smallFragmentCutOff", "Small Fragment Cut Off Size");
-  gapInfo_.gapOpen_ = 7;
+  gapInfo_.gapOpen_ = 5;
   gapInfo_.gapExtend_ = 1;
   gap_ = "5,1";
   gapInfo_.gapRightOpen_ = 0;
@@ -457,6 +469,8 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
     		"into them though they can still collapse into larger clusters" << std::endl;
     tempOut << "Alternatively if the -onPerId is used, this parameter flag can contain percent idendities instead" << std::endl;
     tempOut << "example: " << std::endl;
+    std::cout << cleanOut(tempOut.str(), width_, indent_);
+    tempOut.str(std::string());
     std::cout << "100:3:.99" << std::endl;
     std::cout << "100:3:.99" << std::endl;
     std::cout << "100:3:.98" << std::endl;
@@ -663,8 +677,6 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
                " included in final analysis, defaults to all the runs included "
                "in the sample" << std::endl;
     tempOut << bib::bashCT::bold << "Population clustering options"<< bib::bashCT::reset << std::endl;
-    tempOut << "-population : do a population clustering across the samples "
-               "as well" << std::endl;
     tempOut << "-popPar [option] : Separate population paramters for "
                "clustering will default to the parameters given for the "
                "between sample clustering" << std::endl;
@@ -691,9 +703,9 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
     tempOut << "SeekDeep processClusters -fasta output.fasta "
                "-par pars.txt" << std::endl;
     tempOut << "SeekDeep processClusters -fasta output.fasta "
-               "-par pars.txt -population" << std::endl;
+               "-par pars.txt" << std::endl;
     tempOut << "SeekDeep processClusters -fasta output.fasta -par "
-               "pars.txt -popPar otherPars.txt -population" << std::endl;
+               "pars.txt -popPar otherPars.txt" << std::endl;
     std::cout << cleanOut(tempOut.str(), width_, indent_);
     tempOut.str(std::string());
     tempOut << bib::bashCT::bold << "Output Files:"<< bib::bashCT::reset << std::endl;
@@ -832,4 +844,4 @@ void SeekDeepSetUp::setUpMakeSampleDirectories(
   finishSetUp(std::cout);
 }
 
-}  // namespace bib
+}  // namespace bibseq
