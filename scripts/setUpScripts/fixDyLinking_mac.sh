@@ -33,6 +33,7 @@ do
 		#armadillo
 		install_name_tool -change libarmadillo.4.dylib $externalDir/local/armadillo/lib/libarmadillo.4.dylib $f
 		install_name_tool -change libarmadillo.5.dylib $externalDir/local/armadillo/lib/libarmadillo.5.dylib $f
+		install_name_tool -change libarmadillo.6.dylib $externalDir/local/armadillo/lib/libarmadillo.6.dylib $f
 		
 		#bamtools
 		install_name_tool -change libbamtools.2.3.0.dylib $externalDir/local/bamtools/lib/bamtools/libbamtools.2.3.0.dylib $f
