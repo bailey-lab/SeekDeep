@@ -497,7 +497,7 @@ make COMPFILE=compfile.mk -j {num_cores}
     
     def __buildFromGit(self, i, cmd):
         if os.path.exists(i.build_dir):
-            print "pulling from {url}".format(url=i.url)
+            print "{GITDIR} already exists, pulling from {url}".format(GITDIR = os.path.exists(i.build_dir), url=i.url)
             pCmd = "git checkout master && git pull"
             try:
                 Utils.run_in_dir(pCmd, i.build_dir)
@@ -587,12 +587,11 @@ make COMPFILE=compfile.mk -j {num_cores}
     def installRPackageSource(self, sourceFile):
         i = self.__path("r")
         for pack in sourceFile.split(","):
+            rHomeLoc = "bin/R RHOME"
             if isMac():
-                cmd = """echo 'install.packages(\"{SOURCEFILE}\", repos = NULL, type="source")' | $({local_dir}/R.framework/Resources/bin/R RHOME)/bin/R --slave --vanilla
-                """.format(local_dir=shellquote(i.local_dir).replace(' ', '\ '),SOURCEFILE = pack )
-            else:
-                cmd = """echo 'install.packages(\"{SOURCEFILE}\", repos = NULL, type="source")' | $({local_dir}/bin/R RHOME)/bin/R --slave --vanilla
-                """.format(local_dir=shellquote(i.local_dir).replace(' ', '\ '),SOURCEFILE = pack )
+                rHomeLoc = "R.framework/Resources/bin/R RHOME"
+            cmd = """echo 'install.packages(\"{SOURCEFILE}\", repos = NULL, type="source", Ncpus = {num_cores}, lib =.libPaths()[length(.libPaths()  )])' | $({local_dir}/{RHOMELOC})/bin/R --slave --vanilla
+                """.format(local_dir=shellquote(i.local_dir).replace(' ', '\ '),SOURCEFILE = pack, RHOMELOC =rHomeLoc, num_cores=self.num_cores())
             print CT.boldBlack(cmd)
             cmd = " ".join(cmd.split())
             Utils.run(cmd)
@@ -600,12 +599,11 @@ make COMPFILE=compfile.mk -j {num_cores}
     def installRPackageName(self, packageName):
         i = self.__path("r")
         for pack in packageName.split(","):
+            rHomeLoc = "bin/R RHOME"
             if isMac():
-                cmd = """echo 'install.packages(c(\"{PACKAGENAME}\"), repos=\"http://cran.us.r-project.org\")' | $({local_dir}/R.framework/Resources/bin/R RHOME)/bin/R --slave --vanilla
-                """.format(local_dir=shellquote(i.local_dir).replace(' ', '\ '), PACKAGENAME = pack )
-            else:
-                cmd = """echo 'install.packages(\"{PACKAGENAME}\", repos=\"http://cran.us.r-project.org\")'  | $({local_dir}/bin/R RHOME)/bin/R --slave --vanilla
-                """.format(local_dir=shellquote(i.local_dir).replace(' ', '\ '),PACKAGENAME = pack )
+                rHomeLoc = "R.framework/Resources/bin/R RHOME"
+            cmd = """echo 'install.packages(\"{PACKAGENAME}\", repos=\"http://cran.us.r-project.org\", Ncpus = {num_cores}, lib =.libPaths()[length(.libPaths()  )])'  | $({local_dir}/{RHOMELOC})/bin/R --slave --vanilla
+                """.format(local_dir=shellquote(i.local_dir).replace(' ', '\ '),PACKAGENAME = pack, RHOMELOC =rHomeLoc,num_cores=self.num_cores() )
             print CT.boldBlack(cmd)
             cmd = " ".join(cmd.split())
             Utils.run(cmd)
