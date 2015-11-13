@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# by purcaro@gmail.com
+
 
 import subprocess, sys, os, argparse
 from collections import namedtuple
@@ -75,7 +75,7 @@ class Paths():
         return BuildPaths(url, '', '', local_dir)
     
     def __pstreams(self):
-        url = 'http://git.code.sf.net/p/pstreams/code'
+        url = 'https://github.com/nickjhathaway/pstreams'
         local_dir = os.path.join(self.install_dir, "pstreams")
         return BuildPaths(url, '', '', local_dir)
 
@@ -115,20 +115,23 @@ class Paths():
         return self.__headerOnly_dirs(url,name)
 
     def __pear(self):
-        url = "http://sco.h-its.org/exelixis/web/software/pear/files/pear-0.9.4-src.tar.gz"
+        #url = "http://sco.h-its.org/exelixis/web/software/pear/files/pear-0.9.4-src.tar.gz"
+        url = "http://baileylab.umassmed.edu/sourceCodes/pear/pear-0.9.6-src.tar.gz"
         return self.__package_dirs(url, "pear")
 
     def __r(self):
-        url = "http://cran.r-project.org/src/base/R-3/R-3.1.3.tar.gz"
+        #url = "http://cran.r-project.org/src/base/R-3/R-3.2.2.tar.gz"
+        url = "http://baileylab.umassmed.edu/sourceCodes/R/R-3.2.2.tar.gz"
         return self.__package_dirs(url, "R")
 
     def __boost(self):
-        #url = "http://sourceforge.net/projects/boost/files/boost/1.57.0/boost_1_57_0.tar.gz"
-        url = "http://sourceforge.net/projects/boost/files/boost/1.58.0/boost_1_58_0.tar.gz"
+        #url = "http://sourceforge.net/projects/boost/files/boost/1.58.0/boost_1_58_0.tar.gz"
+        url = "http://baileylab.umassmed.edu/sourceCodes/boost/boost_1_58_0.tar.bz2"
         return self.__package_dirs(url, "boost")
 
     def __armadillo(self):
-        url = "http://freefr.dl.sourceforge.net/project/arma/armadillo-5.100.2.tar.gz"
+        #url = "http://freefr.dl.sourceforge.net/project/arma/armadillo-5.100.2.tar.gz"
+        url = "http://baileylab.umassmed.edu/sourceCodes/armadillo/armadillo-6.200.3.tar.gz"
         return self.__package_dirs(url, "armadillo")
 
     def __mlpack(self):
@@ -140,11 +143,13 @@ class Paths():
         return self.__package_dirs(url, "liblinear")
 
     def __cppcms(self):
-        url = "http://freefr.dl.sourceforge.net/project/cppcms/cppcms/1.0.5/cppcms-1.0.5.tar.bz2"
+        #url = "http://freefr.dl.sourceforge.net/project/cppcms/cppcms/1.0.5/cppcms-1.0.5.tar.bz2"
+        url = "http://baileylab.umassmed.edu/sourceCodes/cppcms/cppcms-1.0.5.tar.bz2"
         return self.__package_dirs(url, "cppcms") 
 
     def __mathgl(self):
-        url = "http://freefr.dl.sourceforge.net/project/mathgl/mathgl/mathgl%202.2.1/mathgl-2.2.1.tar.gz"
+        #url = "http://freefr.dl.sourceforge.net/project/mathgl/mathgl/mathgl%202.2.1/mathgl-2.2.1.tar.gz"
+        url = "http://baileylab.umassmed.edu/sourceCodes/mathgl/mathgl-2.2.1.tar.gz"
         return self.__package_dirs(url, "mathgl")
     
     def __dlib(self):
@@ -426,7 +431,7 @@ make COMPFILE=compfile.mk -j {num_cores}
         try:
             Utils.run_in_dir(cmd, i.build_sub_dir)
         except:
-            Utils.rm_rf(i.local_dir)
+            #Utils.rm_rf(i.local_dir)
             sys.exit(1)
 
 
@@ -687,22 +692,17 @@ make COMPFILE=compfile.mk -j {num_cores}
 
     def r(self):
         i = self.__path("r")
+        rHomeLoc = "bin/R RHOME"
         if isMac():
-            cmd = """
+            rHomeLoc = "R.framework/Resources/bin/R RHOME"
+        #'install.packages(c(\"gridExtra\", \"ape\", \"ggplot2\", \"seqinr\",\"Rcpp\", \"RInside\", \"devtools\"),
+        cmd = """
                 ./configure --prefix={local_dir} --enable-R-shlib --with-x=no CC={CC} CXX={CXX} OBJC={CC}
                 && make -j {num_cores}
                 && make install
-                && echo 'install.packages(c(\"gridExtra\", \"ape\", \"ggplot2\", \"seqinr\",\"Rcpp\", \"RInside\", \"devtools\"),
-                 repos=\"http://cran.us.r-project.org\", Ncpus = {num_cores})' | $({local_dir}/R.framework/Resources/bin/R RHOME)/bin/R --slave --vanilla
-                """.format(local_dir=shellquote(i.local_dir).replace(' ', '\ '), num_cores=self.num_cores(), CC=self.CC, CXX=self.CXX)
-        else:
-            cmd = """
-                ./configure --prefix={local_dir} --enable-R-shlib --with-x=no CC={CC} CXX={CXX} OBJC={CC}
-                && make -j {num_cores}
-                && make install
-                && echo 'install.packages(c(\"gridExtra\", \"ape\", \"ggplot2\", \"seqinr\",\"Rcpp\", \"RInside\",\"devtools\"),
-                 repos=\"http://cran.us.r-project.org\", Ncpus = {num_cores})' | $({local_dir}/bin/R RHOME)/bin/R --slave --vanilla
-            """.format(local_dir=shellquote(i.local_dir).replace(' ', '\ '), num_cores=self.num_cores(), CC=self.CC, CXX=self.CXX)
+                && echo 'install.packages(c(\"gridExtra\", \"ape\", \"ggplot2\", \"seqinr\",\"Rcpp\", \"RInside\"),
+                repos=\"http://cran.us.r-project.org\", Ncpus = {num_cores}, lib =.libPaths()[length(.libPaths()  )])' | $({local_dir}/{RHOMELOC})/bin/R --slave --vanilla
+                """.format(local_dir=shellquote(i.local_dir).replace(' ', '\ '), num_cores=self.num_cores(), CC=self.CC, CXX=self.CXX, RHOMELOC = rHomeLoc)
         cmd = " ".join(cmd.split())
         self.__build(i, cmd)
 
@@ -716,102 +716,66 @@ make COMPFILE=compfile.mk -j {num_cores}
 
     def bibcpp(self):
         i = self.__path('bibcpp')
-        branch = "release/2"
-        version = "2"
         if "bibcpp" in self.setUpsNeeded and self.setUpsNeeded["bibcpp"] != "":
             self.__buildBibProjectBranch(i, self.setUpsNeeded["bibcpp"])
         else:    
             self.__buildBibProject(i)
-        #self.__buildBibProjectTag(i, version)
-        #self.__buildBibProjectBranch(i, branch)
 
     def bibseq(self):
         i = self.__path('bibseq')
-        branch = "release/2"
-        version = "2"
         if "bibseq" in self.setUpsNeeded and self.setUpsNeeded["bibseq"] != "":
             self.__buildBibProjectBranch(i, self.setUpsNeeded["bibseq"])
         else:    
             self.__buildBibProject(i)
-        #self.__buildBibProjectTag(i, version)
-        #self.__buildBibProjectBranch(i, branch)
         
     def twobit(self):
         i = self.__path('twobit')
-        branch = "develop"
-        version = "1.1"
         if "twobit" in self.setUpsNeeded and self.setUpsNeeded["twobit"] != "":
             self.__buildBibProjectBranch(i, self.setUpsNeeded["twobit"])
         else:    
             self.__buildBibProject(i)
-        #self.__buildBibProjectTag(i, version)
-        #self.__buildBibProjectBranch(i, branch)
         
     def bibseqDev(self):
         i = self.__path('bibseqdev')
-        branch = "develop"
-        version = "1.1"
         if "bibseqdev" in self.setUpsNeeded and self.setUpsNeeded["bibseqdev"] != "":
             self.__buildBibProjectBranch(i, self.setUpsNeeded["bibseqdev"])
         else:    
             self.__buildBibProject(i)
-        #self.__buildBibProjectTag(i, version)
-        #self.__buildBibProjectBranch(i, branch)
         
     def SeekDeep(self):
         i = self.__path('seekdeep')
-        branch = "release/2"
-        version = "2"
         if "seekdeep" in self.setUpsNeeded and self.setUpsNeeded["seekdeep"] != "":
             self.__buildBibProjectBranch(i, self.setUpsNeeded["seekdeep"])
         else:    
             self.__buildBibProject(i)
-        #self.__buildBibProjectTag(i, version)
-        #self.__buildBibProjectBranch(i, branch)
-    
     
     def SeekDeepDev(self):
         i = self.__path('seekdeepdev')
-        branch = "master"
-        version = "0"
         if "seekdeepdev" in self.setUpsNeeded and self.setUpsNeeded["seekdeepdev"] != "":
             self.__buildBibProjectBranch(i, self.setUpsNeeded["seekdeepdev"])
         else:    
             self.__buildBibProject(i)
-        #self.__buildBibProjectTag(i, version)
-        #self.__buildBibProjectBranch(i, branch)
         
     def seqserver(self):
         i = self.__path('seqserver')
-        branch = "develop"
-        version = "2"
         if "seqserver" in self.setUpsNeeded and self.setUpsNeeded["seqserver"] != "":
             self.__buildBibProjectBranch(i, self.setUpsNeeded["seqserver"])
         else:    
             self.__buildBibProject(i)
-        #self.__buildBibProjectTag(i, version)
-        #self.__buildBibProjectBranch(i, branch)
         
     def njhRInside(self):
         i = self.__path('njhrinside')
-        branch = "develop"
-        version = "2"
         if "njhrinside" in self.setUpsNeeded and self.setUpsNeeded["njhrinside"] != "":
             self.__buildBibProjectBranch(i, self.setUpsNeeded["njhrinside"])
         else:    
             self.__buildBibProject(i)
-        #self.__buildBibProjectTag(i, version)
-        #self.__buildBibProjectBranch(i, branch)
         
     def cppprogutils(self):
-        branch = "develop"
-        version = "2"
+
         if "cppprogutils" in self.setUpsNeeded and self.setUpsNeeded["cppprogutils"] != "":
             self.__gitTag(i, self.setUpsNeeded["cppprogutils"])
         else:    
             self.__git(i)
-        #self.__gitTag(i, version)
-        #self.__gitTag(i, branch)
     
     def jsoncpp(self):
         i = self.__path('jsoncpp')
