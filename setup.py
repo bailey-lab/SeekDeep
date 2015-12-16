@@ -431,14 +431,15 @@ make COMPFILE=compfile.mk -j {num_cores}
         try:
             Utils.run_in_dir(cmd, i.build_sub_dir)
         except:
-            #Utils.rm_rf(i.local_dir)
+            print "\t Failed to build"
+            Utils.rm_rf(i.local_dir)
             sys.exit(1)
 
 
     def __buildBibProject(self,libPaths):
         cmd = """
         python ./configure.py -CC {CC} -CXX {CXX} -externalLibDir {external} -prefix {localTop} 
-        && python ./setup.py --compfile compfile.mk 
+        && python ./setup.py --compfile compfile.mk --numCores {num_cores}
         && make -j {num_cores} && make install""".format(localTop=shellquote(self.paths.install_dir),
                                                           num_cores=self.num_cores(), CC=self.CC, CXX=self.CXX,
                                                            external=self.extDirLoc)
@@ -448,7 +449,7 @@ make COMPFILE=compfile.mk -j {num_cores}
     def __buildBibProjectTag(self,libPaths,tagName):
         cmd = """
         python ./configure.py -CC {CC} -CXX {CXX} -externalLibDir {external} -prefix {localTop} 
-        && python ./setup.py --compfile compfile.mk 
+        && python ./setup.py --compfile compfile.mk --numCores {num_cores}
         && make -j {num_cores} && make install""".format(localTop=shellquote(self.paths.install_dir),
                                                           num_cores=self.num_cores(), CC=self.CC, CXX=self.CXX,
                                                            external=self.extDirLoc)
@@ -459,7 +460,7 @@ make COMPFILE=compfile.mk -j {num_cores}
     def __buildBibProjectBranch(self,libPaths,branchName):
         cmd = """
         python ./configure.py -CC {CC} -CXX {CXX} -externalLibDir {external} -prefix {localTop} 
-        && python ./setup.py --compfile compfile.mk 
+        && python ./setup.py --compfile compfile.mk --numCores {num_cores}
         && make -j {num_cores} && make install""".format(localTop=shellquote(self.paths.install_dir),
                                                           num_cores=self.num_cores(), CC=self.CC, CXX=self.CXX,
                                                            external=self.extDirLoc)
@@ -469,7 +470,7 @@ make COMPFILE=compfile.mk -j {num_cores}
     def updateBibProject(self,lib):
         cmd = """
         python ./configure.py -CC {CC} -CXX {CXX} -externalLibDir {external} -prefix {localTop} 
-        && python ./setup.py --compfile compfile.mk
+        && python ./setup.py --compfile compfile.mk --numCores {num_cores}
         && make clean 
         && make -j {num_cores} && make install""".format(localTop=shellquote(self.paths.install_dir),
                                                           num_cores=self.num_cores(), CC=self.CC, CXX=self.CXX,
@@ -769,7 +770,7 @@ make COMPFILE=compfile.mk -j {num_cores}
             self.__buildBibProject(i)
         
     def cppprogutils(self):
-
+        i = self.__path('cppprogutils')
         if "cppprogutils" in self.setUpsNeeded and self.setUpsNeeded["cppprogutils"] != "":
             self.__gitTag(i, self.setUpsNeeded["cppprogutils"])
         else:    
