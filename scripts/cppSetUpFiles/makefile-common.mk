@@ -110,7 +110,7 @@ ifeq ($(USE_BIBCPP),1)
 	COMLIBS += -isystem$(LOCAL_PATH)/bibcpp/include
 	USE_JSONCPP=1
 	USE_BOOST=1
-	LD_FLAGS += -lpthread
+	LD_FLAGS += -lpthread -lz
 	USE_CPPITERTOOLS=1
 	USE_PSTREAMS=1
 	#currently no compiled components so no need for library flags
