@@ -84,6 +84,7 @@ ifeq ($(USE_BIBSEQ),1)
 	USE_BIBCPP=1
 	USE_ARMADILLO=1
 	USE_BAMTOOLS=1
+	USE_TWOBIT=1
 	USE_CURL=1
 	LD_FLAGS += -Wl,-rpath,$(LOCAL_PATH)/bibseq/lib \
 			-L$(LOCAL_PATH)/bibseq/lib  \
@@ -97,7 +98,7 @@ ifeq ($(USE_BIBSEQDEV),1)
 	USE_ARMADILLO=1
 	USE_BAMTOOLS=1
 	USE_BIBSEQ=0
-	#USE_R=1
+	USE_TWOBIT=1
 	USE_CURL=1
 	LD_FLAGS += -Wl,-rpath,$(LOCAL_PATH)/bibseqDev/lib \
 			-L$(LOCAL_PATH)/bibseqDev/lib  \
