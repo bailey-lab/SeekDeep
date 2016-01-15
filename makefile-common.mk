@@ -20,15 +20,7 @@ ifeq ($(USE_LIBSVM),1)
 	#		-ldlib
 endif
 
-#TwoBit
-ifeq ($(USE_TWOBIT),1)
-	COMLIBS += -isystem$(LOCAL_PATH)/TwoBit/include
-	LD_FLAGS += -Wl,-rpath,$(LOCAL_PATH)/TwoBit/lib \
-			-L$(LOCAL_PATH)/TwoBit/lib  \
-			-lTwoBit
-	USE_CPPPROGUTILS=1
-	USE_CPPITERTOOLS=1
-endif
+
 
 
 #SeekDeep
@@ -103,6 +95,16 @@ ifeq ($(USE_BIBSEQDEV),1)
 	LD_FLAGS += -Wl,-rpath,$(LOCAL_PATH)/bibseqDev/lib \
 			-L$(LOCAL_PATH)/bibseqDev/lib  \
 			-lbibseqDev
+endif
+
+#TwoBit
+ifeq ($(USE_TWOBIT),1)
+	COMLIBS += -isystem$(LOCAL_PATH)/TwoBit/include
+	LD_FLAGS += -Wl,-rpath,$(LOCAL_PATH)/TwoBit/lib \
+			-L$(LOCAL_PATH)/TwoBit/lib  \
+			-lTwoBit
+	USE_CPPPROGUTILS=1
+	USE_CPPITERTOOLS=1
 endif
 
 
