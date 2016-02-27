@@ -10,7 +10,7 @@ class genHelper:
         availableLibs = ["CPPITERTOOLS","CPPPROGUTILS","ZI_LIB","BOOST","R","BAMTOOLS","CPPCMS","MATHGL","ARMADILLO",
                          "MLPACK","LIBLINEAR","PEAR","CURL","GTKMM", "BIBSEQ", "BIBCPP", "SEEKDEEP", 
                          "BIBSEQDEV", "SEEKDEEPDEV", "CATCH", "JSONCPP",
-                          "TWOBIT", "SEQSERVER","NJHRINSIDE", "PSTREAMS", "MONGOC", "MONGOCXX"]
+                          "TWOBIT", "SEQSERVER","NJHRINSIDE", "PSTREAMS", "MONGOC", "MONGOCXX", "SHAREDMUTEX"]
         neededLibraries = {}
         for lib in neededLibs:
             if ":" in lib:

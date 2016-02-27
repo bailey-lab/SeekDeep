@@ -57,6 +57,7 @@ class Paths():
         self.paths["seqserver"] = self.__seqserver()
         self.paths["njhrinside"] = self.__njhRInside()
         self.paths["twobit"] = self.__twobit()
+        self.paths["sharedmutex"] = self.__sharedMutex()
         self.paths["dlib"] = self.__dlib()
         self.paths["libsvm"] = self.__libsvm()
         self.paths["mongoc"] = self.__mongoc()
@@ -173,6 +174,11 @@ class Paths():
     def __twobit(self):
         url = "https://github.com/weng-lab/TwoBit.git"
         name = "TwoBit"
+        return self.__package_dirs(url, name)
+    
+    def __sharedMutex(self):
+        url = "https://github.com/nickjhathaway/cpp_shared_mutex.git"
+        name = "sharedMutex"
         return self.__package_dirs(url, name)  
       
     def __SeekDeep(self):
@@ -233,7 +239,7 @@ class Setup:
         self.failedInstall = [] # the setups that failed
         self.CC = "" # the c compilier being used
         self.CXX = "" # the c++ compilier being used
-        self.bibProjects = ["bibcpp", "bibseq", "bibseqdev", "seekdeep", "seekdeepdev", "njhrinside", "seqserver", "twobit"]
+        self.bibProjects = ["bibcpp", "bibseq", "bibseqdev", "seekdeep", "seekdeepdev", "njhrinside", "seqserver", "twobit", "sharedmutex"]
         self.__initSetUpFuncs()
         self.__processArgs()
         
@@ -284,7 +290,8 @@ class Setup:
                        "libsvm": self.libsvm,
                        "mongoc": self.mongoc,
                        "mongocxx": self.mongocxx,
-                       "twobit" : self.twobit
+                       "twobit" : self.twobit,
+                       "sharedmutex" : self.sharedMutex
                        }
     def printAvailableSetUps(self):
         self.__initSetUpFuncs()
@@ -733,6 +740,14 @@ make COMPFILE=compfile.mk -j {num_cores}
             self.__buildBibProjectBranch(i, self.setUpsNeeded["twobit"])
         else:    
             self.__buildBibProject(i)
+            
+    def sharedMutex(self):
+        i = self.__path('sharedmutex')
+        if "sharedmutex" in self.setUpsNeeded and self.setUpsNeeded["sharedmutex"] != "":
+            self.__buildBibProjectBranch(i, self.setUpsNeeded["sharedmutex"])
+        else:    
+            self.__buildBibProject(i)
+    
         
     def bibseqDev(self):
         i = self.__path('bibseqdev')

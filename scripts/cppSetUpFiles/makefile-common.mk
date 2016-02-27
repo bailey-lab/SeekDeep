@@ -1,7 +1,7 @@
 UNAME_S := $(shell uname -s)
 LOCAL_PATH = $(EXT_PATH)/local
 #LD_FLAGS += 
-#defaults for most progjects
+#defaults for most projects
 COMLIBS += -I./src/
 
 #dlib
@@ -20,15 +20,7 @@ ifeq ($(USE_LIBSVM),1)
 	#		-ldlib
 endif
 
-#TwoBit
-ifeq ($(USE_TWOBIT),1)
-	COMLIBS += -isystem$(LOCAL_PATH)/TwoBit/include
-	LD_FLAGS += -Wl,-rpath,$(LOCAL_PATH)/TwoBit/lib \
-			-L$(LOCAL_PATH)/TwoBit/lib  \
-			-lTwoBit
-	USE_CPPPROGUTILS=1
-	USE_CPPITERTOOLS=1
-endif
+
 
 
 #SeekDeep
@@ -84,6 +76,7 @@ ifeq ($(USE_BIBSEQ),1)
 	USE_BIBCPP=1
 	USE_ARMADILLO=1
 	USE_BAMTOOLS=1
+	USE_TWOBIT=1
 	USE_CURL=1
 	LD_FLAGS += -Wl,-rpath,$(LOCAL_PATH)/bibseq/lib \
 			-L$(LOCAL_PATH)/bibseq/lib  \
@@ -97,11 +90,32 @@ ifeq ($(USE_BIBSEQDEV),1)
 	USE_ARMADILLO=1
 	USE_BAMTOOLS=1
 	USE_BIBSEQ=0
-	#USE_R=1
+	USE_TWOBIT=1
 	USE_CURL=1
+	ifeq ($(UNAME_S),Darwin)
+    	USE_SHAREDMUTEX=1
+	endif
 	LD_FLAGS += -Wl,-rpath,$(LOCAL_PATH)/bibseqDev/lib \
 			-L$(LOCAL_PATH)/bibseqDev/lib  \
 			-lbibseqDev
+endif
+
+#sharedMutex
+ifeq ($(USE_SHAREDMUTEX),1)
+	COMLIBS += -isystem$(LOCAL_PATH)/sharedMutex/include
+	LD_FLAGS += -Wl,-rpath,$(LOCAL_PATH)/sharedMutex/lib \
+			-L$(LOCAL_PATH)/sharedMutex/lib  \
+			-lsharedMutex
+endif
+
+#TwoBit
+ifeq ($(USE_TWOBIT),1)
+	COMLIBS += -isystem$(LOCAL_PATH)/TwoBit/include
+	LD_FLAGS += -Wl,-rpath,$(LOCAL_PATH)/TwoBit/lib \
+			-L$(LOCAL_PATH)/TwoBit/lib  \
+			-lTwoBit
+	USE_CPPPROGUTILS=1
+	USE_CPPITERTOOLS=1
 endif
 
 
