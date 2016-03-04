@@ -18,9 +18,6 @@ def shellquote(s):
     # from http://stackoverflow.com/a/35857
     return "'" + s.replace("'", "'\\''") + "'"
 
-def isMac():
-    return Utils.isMac()
-
 class Paths():
     '''class to hold and setup all the necessary paths for 
     downloading, building, and then installing packages/libraries'''
@@ -596,7 +593,7 @@ make COMPFILE=compfile.mk -j {num_cores}
         i = self.__path("r")
         for pack in sourceFile.split(","):
             rHomeLoc = "bin/R RHOME"
-            if isMac():
+            if Utils.isMac():
                 rHomeLoc = "R.framework/Resources/bin/R RHOME"
             cmd = """echo 'install.packages(\"{SOURCEFILE}\", repos = NULL, type="source", Ncpus = {num_cores}, lib =.libPaths()[length(.libPaths()  )])' | $({local_dir}/{RHOMELOC})/bin/R --slave --vanilla
                 """.format(local_dir=shellquote(i.local_dir).replace(' ', '\ '),SOURCEFILE = pack, RHOMELOC =rHomeLoc, num_cores=self.num_cores())
@@ -608,7 +605,7 @@ make COMPFILE=compfile.mk -j {num_cores}
         i = self.__path("r")
         for pack in packageName.split(","):
             rHomeLoc = "bin/R RHOME"
-            if isMac():
+            if Utils.isMac():
                 rHomeLoc = "R.framework/Resources/bin/R RHOME"
             cmd = """echo 'install.packages(\"{PACKAGENAME}\", repos=\"http://cran.us.r-project.org\", Ncpus = {num_cores}, lib =.libPaths()[length(.libPaths()  )])'  | $({local_dir}/{RHOMELOC})/bin/R --slave --vanilla
                 """.format(local_dir=shellquote(i.local_dir).replace(' ', '\ '),PACKAGENAME = pack, RHOMELOC =rHomeLoc,num_cores=self.num_cores() )
@@ -621,7 +618,7 @@ make COMPFILE=compfile.mk -j {num_cores}
         i = self.__path("boost")
         #boostLibs = "date_time,filesystem,iostreams,math,program_options,random,regex,serialization,signals,system,test,thread,log"
         boostLibs = "filesystem,iostreams,system"
-        if isMac():
+        if Utils.isMac():
             #print "here"
             setUpDir = os.path.dirname(os.path.abspath(__file__))
             gccJamLoc =  os.path.join(setUpDir, "scripts/etc/boost/gcc.jam")
@@ -635,7 +632,7 @@ make COMPFILE=compfile.mk -j {num_cores}
             && install_name_tool -id {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_system.dylib
             """.format(local_dir=i.local_dir)
         if self.args.clang:
-             if isMac():
+             if Utils.isMac():
                 cmd = """./bootstrap.sh --with-toolset=clang --prefix={local_dir} --with-libraries=""" + boostLibs + """
                   &&  ./b2  toolset=clang cxxflags=\"-stdlib=libc++ -std=c++14\" linkflags=\"-stdlib=libc++\" -j {num_cores} install 
                   &&  install_name_tool -change libboost_system.dylib {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_filesystem.dylib
@@ -646,7 +643,7 @@ make COMPFILE=compfile.mk -j {num_cores}
                 cmd = """./bootstrap.sh --with-toolset=clang --prefix={local_dir}  --with-libraries=""" + boostLibs + """ &&  ./b2 toolset=clang cxxflags=\"-std=c++14\" -j {num_cores} install""".format(local_dir=shellquote(i.local_dir).replace(' ', '\ '), num_cores=self.num_cores())
                 #cmd = """wget https://github.com/boostorg/atomic/commit/6bb71fdd.diff && wget https://github.com/boostorg/atomic/commit/e4bde20f.diff&&  wget https://gist.githubusercontent.com/philacs/375303205d5f8918e700/raw/d6ded52c3a927b6558984d22efe0a5cf9e59cd8c/0005-Boost.S11n-include-missing-algorithm.patch&&  patch -p2 -i 6bb71fdd.diff&&  patch -p2 -i e4bde20f.diff&&  patch -p1 -i 0005-Boost.S11n-include-missing-algorithm.patch&&  echo "using clang;  " >> tools/build/v2/user-config.jam&&  ./bootstrap.sh --with-toolset=clang --prefix={local_dir}  --with-libraries=""" + boostLibs + """ &&  ./b2  -d 2 toolset=clang -j {num_cores} install""".format(local_dir=shellquote(i.local_dir).replace(' ', '\ '), num_cores=self.num_cores())
         elif self.CXX == "g++-4.8":
-            if isMac():
+            if Utils.isMac():
                 cmd = "cp " + gccJamLoc + "  " + gccJamOutLoc + """ && echo "using gcc : 4.8 : g++-4.8 : <linker-type>darwin ;" >> project-config.jam && ./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
                  && ./b2 --toolset=gcc-4.8 -j {num_cores} install 
                  """ + installNameToolCmd
@@ -655,7 +652,7 @@ make COMPFILE=compfile.mk -j {num_cores}
                  && ./b2 --toolset=gcc-4.8 -j {num_cores} install 
                  """
         elif self.CXX == "g++-4.9":
-            if isMac():
+            if Utils.isMac():
                 cmd = "cp " + gccJamLoc + "  " + gccJamOutLoc + """ && echo "using gcc : 4.9 : g++-4.9 : <linker-type>darwin ;" >> project-config.jam && ./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
                  && ./b2 --toolset=gcc-4.9 -j {num_cores} install 
                  """ + installNameToolCmd
@@ -664,7 +661,7 @@ make COMPFILE=compfile.mk -j {num_cores}
                  && CC={CC} CXX={CXX}  ./b2 --toolset=gcc-4.9 -j {num_cores} install 
                  """
         elif self.CXX == "g++-5":
-            if isMac():
+            if Utils.isMac():
                 cmd = """echo "using gcc : 5 : g++-5;" >> project-config.jam && CC={CC} CXX={CXX} ./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
                  && CC={CC} CXX={CXX} ./b2 --toolset=gcc-5 -j {num_cores} install 
                  """ + installNameToolCmd
@@ -673,7 +670,7 @@ make COMPFILE=compfile.mk -j {num_cores}
                  && CC={CC} CXX={CXX}  ./b2 --toolset=gcc-5 -j {num_cores} install 
                  """
         elif self.CXX == "g++":
-            if isMac():
+            if Utils.isMac():
                 cmd = "cp " + gccJamLoc + "  " + gccJamOutLoc + """ && echo "using gcc : 4.9 : g++ : <linker-type>darwin ;" >> project-config.jam && ./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
                  && ./b2 --toolset=gcc-4.9 -j {num_cores} install 
                  """ + installNameToolCmd
@@ -699,7 +696,7 @@ make COMPFILE=compfile.mk -j {num_cores}
     def r(self):
         i = self.__path("r")
         rHomeLoc = "bin/R RHOME"
-        if isMac():
+        if Utils.isMac():
             rHomeLoc = "R.framework/Resources/bin/R RHOME"
         #'install.packages(c(\"gridExtra\", \"ape\", \"ggplot2\", \"seqinr\",\"Rcpp\", \"RInside\", \"devtools\"),
         cmd = """
@@ -801,21 +798,29 @@ make COMPFILE=compfile.mk -j {num_cores}
         
     def mongoc(self):
         i = self.__path('mongoc')
-        cmd = """sed -i.bak s/git:/http:/g .gitmodules && CC={CC} CXX={CXX} ./autogen.sh --prefix={local_dir}
-        && make -j {num_cores}  && make install""".format(
-            local_dir=shellquote(i.local_dir), num_cores=self.num_cores(),CC=self.CC, CXX=self.CXX)
+        if Utils.isMac():
+            cmd = """sed -i.bak s/git:/http:/g .gitmodules && CC={CC} CXX={CXX}  PKG_CONFIG_PATH=/usr/local/opt/openssl/lib/pkgconfig:$PKG_CONFIG_PATH ./autogen.sh --prefix={local_dir}
+            && make -j {num_cores}  && make install""".format(local_dir=shellquote(i.local_dir), num_cores=self.num_cores(),CC=self.CC, CXX=self.CXX)
+        else:
+            cmd = """sed -i.bak s/git:/http:/g .gitmodules && CC={CC} CXX={CXX} ./autogen.sh --prefix={local_dir}
+            && make -j {num_cores}  && make install""".format(local_dir=shellquote(i.local_dir), num_cores=self.num_cores(),CC=self.CC, CXX=self.CXX)
         cmd = " ".join(cmd.split())
-        branchName = "1.2.0-dev"
-        self.__buildFromGitBranch(i, cmd, branchName)
+        branchName = "1.3.3"
+        self.__buildFromGitTag(i, cmd, branchName)
         
     def mongocxx(self):
         i = self.__path('mongocxx')
-        cmd = """cd build && CC={CC} CXX={CXX} PKG_CONFIG_PATH={ext_dir}/local/mongoc/lib/pkgconfig:$PKG_CONFIG_PATH cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX={local_dir} .. 
-        && make -j {num_cores} && make install""".format(
-            local_dir=i.local_dir, num_cores=self.num_cores(),CC=self.CC, CXX=self.CXX, ext_dir=self.extDirLoc)
+        if Utils.isMac():
+            cmd = """cd build && CC={CC} CXX={CXX} PKG_CONFIG_PATH=/usr/local/opt/openssl/lib/pkgconfig:{ext_dir}/local/mongoc/lib/pkgconfig:$PKG_CONFIG_PATH cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX={local_dir} .. 
+            && make -j {num_cores} && make install""".format(local_dir=i.local_dir, num_cores=self.num_cores(),CC=self.CC, CXX=self.CXX, ext_dir=self.extDirLoc)
+        else:
+            cmd = """cd build && CC={CC} CXX={CXX} PKG_CONFIG_PATH={ext_dir}/local/mongoc/lib/pkgconfig:$PKG_CONFIG_PATH cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX={local_dir} .. 
+            && make -j {num_cores} && make install""".format(local_dir=i.local_dir, num_cores=self.num_cores(),CC=self.CC, CXX=self.CXX, ext_dir=self.extDirLoc)
         cmd = " ".join(cmd.split())
-        branchName = "master"
-        self.__buildFromGitBranch(i, cmd, branchName)
+        #branchName = "r3.0.0"
+        branchName = "07d4243445b5f0f333bf0ee9b3f482e74adf67a4" #r3.0.1
+        
+        self.__buildFromGitTag(i, cmd, branchName)
     
     def cppcms(self):
         i = self.__path('cppcms')
