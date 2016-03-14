@@ -25,6 +25,8 @@ LIB_DIR=$(ROOT)/lib
 LIBNAME = $(addsuffix $(CXXOUTNAME), lib)
 DYLIB = $(addprefix $(addsuffix $(LIBNAME), $(LIB_DIR)/), .dylib)
 SOLIB = $(addprefix $(addsuffix $(LIBNAME), $(LIB_DIR)/), .so)
+## Etc Directory
+ETC_DIR = etc
 
 ##Phony Targets
 .PHONY: all
@@ -34,7 +36,8 @@ SOLIB = $(addprefix $(addsuffix $(LIBNAME), $(LIB_DIR)/), .so)
 .PHONY: dyLibrary
 .PHONY: clean
 .PHONY: install
-.PHONY: moveHeaders
+.PHONY: cpHeaders
+.PHONY: cpEtc
 .PHONY: unitTest
 
 ## unit tert dir 
@@ -107,7 +110,7 @@ INSTALL_DYLIBNAME=$(INSTALL_DIR)/lib/$(LIBNAME).dylib
 INSTALL_SHAREDLIBNAME=$(OBJ_DIR) $(INSTALL_DIR)/lib/$(LIBNAME).so 
 INSTALL_FILES=$(INSTALL_OUTNAME) $(INSTALL_DYLIBNAME) $(INSTALL_SHAREDLIBNAME)
 
-install: $(INSTALL_DIR) moveHeaders do_preReqs $(INSTALL_FILES)
+install: $(INSTALL_DIR) cpHeaders cpEtc do_preReqs $(INSTALL_FILES)
 ifeq ($(UNAME_S), Darwin)
 	scripts/setUpScripts/fixDyLinking_mac.sh $(INSTALL_DIR)/lib/ $(EXT_PATH)
 	scripts/setUpScripts/fixDyLinking_mac.sh $(INSTALL_DIR)/bin/ $(EXT_PATH)
@@ -136,9 +139,14 @@ $(INSTALL_DIR)/bin/$(CXXOUTNAME): $(OBJ)
 
 ### Run the move headers script and remove the previous includes directory to get rid 
 ### of any headers that were removed
-moveHeaders: $(INSTALL_DIR)
+cpHeaders: $(INSTALL_DIR)
 	scripts/setUpScripts/installHeaders.py -src src/ -dest $(INSTALL_DIR)/include/ -rmDir
-
+	
+### Copy etc folder if it exists 
+cpEtc: $(INSTALL_DIR)
+ifneq ("$(wildcard $(ETC_DIR))","")
+	scripts/setUpScripts/installEtc.py -etcFolder etc/ -dest $(INSTALL_DIR)/ -rmDir
+endif
 
 ### Run unit tests if available
 unitTest: 
