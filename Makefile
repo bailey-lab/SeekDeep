@@ -52,7 +52,7 @@ COMMON = $(CXXFLAGS) $(CXXOPT) $(COMLIBS)
 ############ default for calling make with no arguments
 all: do_preReqs $(OBJ_DIR) $(BIN) 
 ifeq ($(UNAME_S), Darwin)
-	scripts/setUpScripts/fixDyLinking_mac.sh bin $(EXT_PATH)
+	#scripts/setUpScripts/fixDyLinking_mac.sh bin $(EXT_PATH)
 endif
 
 ######### docs
@@ -83,18 +83,14 @@ endif
 	
 ############ shared library
 sharedLibrary: do_preReqs $(OBJ_DIR) $(SOLIB)
-ifeq ($(UNAME_S), Darwin)
-	scripts/setUpScripts/fixDyLinking_mac.sh lib $(EXT_PATH)
-endif
+
 
 $(SOLIB): $(OBJNOMAIN)
 	$(CXX) $(CXXFLAGS) $(CXXOPT) -shared -o $@ $^ $(LD_FLAGS) 
 	
 ############ dyLibrary
 dyLibrary: do_preReqs $(OBJ_DIR) $(DYLIB)
-ifeq ($(UNAME_S), Darwin)
-	scripts/setUpScripts/fixDyLinking_mac.sh lib $(EXT_PATH)
-endif
+
 $(DYLIB): $(OBJNOMAIN)
 	$(CXX) $(CXXFLAGS) $(CXXOPT) -dynamiclib -o $@ $^ $(LD_FLAGS) 
 
@@ -111,10 +107,7 @@ INSTALL_SHAREDLIBNAME=$(OBJ_DIR) $(INSTALL_DIR)/lib/$(LIBNAME).so
 INSTALL_FILES=$(INSTALL_OUTNAME) $(INSTALL_DYLIBNAME) $(INSTALL_SHAREDLIBNAME)
 
 install: $(INSTALL_DIR) cpHeaders cpEtc do_preReqs $(INSTALL_FILES)
-ifeq ($(UNAME_S), Darwin)
-	scripts/setUpScripts/fixDyLinking_mac.sh $(INSTALL_DIR)/lib/ $(EXT_PATH)
-	scripts/setUpScripts/fixDyLinking_mac.sh $(INSTALL_DIR)/bin/ $(EXT_PATH)
-endif
+
 
 #### install directories set up
 $(INSTALL_DIR): 
