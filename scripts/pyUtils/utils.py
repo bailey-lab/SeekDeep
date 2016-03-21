@@ -72,7 +72,7 @@ class Utils:
     def mkdir(d):
         '''mkdir if it doesn't already exist '''
         if not os.path.exists(d):
-            print "mkdir", d
+            print CT.boldText("mkdir"), CT.boldGreen(d)
             os.makedirs(d)
 
     @staticmethod
@@ -93,11 +93,11 @@ class Utils:
         if os.path.exists(out_fnp):
             fn_size = os.path.getsize(out_fnp)
             if fn_size == net_file_size:
-                print "skipping download of", fn
+                print "skipping download of", CT.boldGreen(fn)
                 return out_fnp
             else:
                 print "files sizes differed:", "on disk:", fn_size, "from net:", net_file_size
-        print "retrieving", fn
+        print "retrieving", CT.boldGreen(fn), "from", CT.boldBlue(url)
         urllib.urlretrieve(url, out_fnp)
         return out_fnp
 
@@ -105,7 +105,7 @@ class Utils:
     def rm_rf(d):
         '''remove directory forcibly'''
         if os.path.exists(d):
-            print "rm -rf", d
+            print CT.boldText("rm -rf"), CT.boldRed(d)
             shutil.rmtree(d)
 
     @staticmethod
@@ -119,7 +119,7 @@ class Utils:
             tar = tarfile.open(fnp, "r")
         else:
             raise Exception("invalid file? " + fnp)
-        print "untarring", fnp, "to", d
+        print "untarring", CT.boldGreen(fnp), "to", CT.boldBlue(d)
         tar.extractall(d)
         tar.close()
 
@@ -128,3 +128,9 @@ class Utils:
         ''' forcibly delete directory and then re-make it''' 
         Utils.rm_rf(d)
         Utils.mkdir(d)
+        
+
+    
+            
+    
+    

@@ -3,7 +3,7 @@
 
 #check args
 if [ $# -ne 1 ]; then
-	echo Need two arguments 
+	echo Need 1 argument 
 	echo "1) unit directory"
 	echo "runUnitTest.sh [TEST_DIR]"
 exit

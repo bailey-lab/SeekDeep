@@ -25,7 +25,7 @@ def genPyHello(outFileName):
         
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-outFilename',type=str, nargs=1, required = True)
+    parser.add_argument('-outFilename',type=str, required = True)
     return parser.parse_args()
 
 def main():
@@ -35,5 +35,7 @@ def main():
     fd = os.open( args.outFilename[0], os.O_RDONLY )
     os.fchmod( fd, 0775)
     os.close( fd )
+
     
 main()
+

@@ -55,12 +55,20 @@ class ColorText:
     on_IWhite = '\033[107m'   # White
 
     @staticmethod
+    def boldText(t):
+        return ColorText.bold + t + ColorText.reset
+    
+    @staticmethod
     def boldRed(t):
         return ColorText.red + ColorText.bold + t + ColorText.reset
 
     @staticmethod
     def boldGreen(t):
         return ColorText.green + ColorText.bold + t + ColorText.reset
+    
+    @staticmethod
+    def boldBlue(t):
+        return ColorText.blue + ColorText.bold + t + ColorText.reset
 
     @staticmethod
     def boldWhite(t):

@@ -6,7 +6,7 @@ from utils import Utils
 
 class genHelper:
     @staticmethod
-    def generateCompfileFull(outFileName, externalDirLoc, cc, cxx, outName, installDirName, installDirLoc, neededLibs):
+    def generateCompfileFull(outFileName, externalDirLoc, cc, cxx, outName, installDirName, installDirLoc, neededLibs,ldFlags = ""):
         availableLibs = ["CPPITERTOOLS","CPPPROGUTILS","ZI_LIB","BOOST","R","BAMTOOLS","CPPCMS","MATHGL","ARMADILLO",
                          "MLPACK","LIBLINEAR","PEAR","CURL","GTKMM", "BIBSEQ", "BIBCPP", "SEEKDEEP", 
                          "BIBSEQDEV", "SEEKDEEPDEV", "CATCH", "JSONCPP",
@@ -29,6 +29,11 @@ class genHelper:
             #f.write("CXXFLAGS = -std=c++11\n")
             f.write("CXXFLAGS = -std=c++14\n")
             f.write("CXXFLAGS += -Wall -ftemplate-depth=1024\n")
+            if "" != ldFlags:
+                f.write("LD_FLAGS = ")
+                if not ldFlags.startswith("-"):
+                    f.write("-")
+                f.write("{ld_flags}\n".format(ld_flags = " ".join(ldFlags.split(","))))
             f.write("CXXOPT += -O2 -funroll-loops -DNDEBUG  \n")
             f.write("ifneq ($(shell uname -s),Darwin)\n")
             f.write("\tCXXOPT += -march=native -mtune=native\n" )
@@ -86,11 +91,15 @@ class genHelper:
         return parser.parse_args()
     
     @staticmethod
-    def mkConfigCmd(name,libs, argv):
+    def mkConfigCmd(name,libs, argv, ldflags=""):
         if libs == "":
             cmd = "./scripts/setUpScripts/njhConfigure.py -name {name} ".format(name=name)
         else:
             cmd = "./scripts/setUpScripts/njhConfigure.py -name {name} -libs {libs}".format(name=name, libs=libs)
+        if "" != ldflags:
+            if ldflags.startswith("-"):
+                ldflags = ldflags[1:]
+            cmd += " -ldFlags " + ldflags
         if len(sys.argv) > 1:
             cmd += " " + " ".join(sys.argv[1:])
         return cmd

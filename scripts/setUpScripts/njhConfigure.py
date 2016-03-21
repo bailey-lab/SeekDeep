@@ -13,6 +13,7 @@ def parse_args():
     parser.add_argument('-CC', type=str, nargs = 1)
     parser.add_argument('-CXX', type=str, nargs = 1)
     parser.add_argument('-libs', type=str)
+    parser.add_argument('-ldFlags', type=str)
     parser.add_argument('-name', type=str, required = True)
     return parser.parse_args()
 
@@ -30,6 +31,8 @@ def main():
     if args.prefix and args.prefix != "":
         prefix = args.prefix;
         cmd += " -prefix {prefix}"
+    if args.ldFlags and "" != args.ldFlags:
+        cmd += " -ldFlags " + args.ldFlags
     cmd = " ".join(cmd.split())
     cmd = cmd.format(name = args.name, external = external, CC=CC, CXX=CXX, libs = args.libs, prefix = prefix)
     Utils.run(cmd)
