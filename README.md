@@ -18,7 +18,7 @@ git clone https://github.com/bailey-lab/SeekDeep.git
 cd SeekDeep  
 git checkout v2.3.0  
 ./configure.py  
-./setup.py -compfile compfile.mk --outMakefile makefile-common.mk
+./setup.py --compfile compfile.mk --outMakefile makefile-common.mk
 make   
 ```
 
