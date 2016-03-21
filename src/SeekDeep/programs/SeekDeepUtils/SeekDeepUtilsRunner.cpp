@@ -1,6 +1,12 @@
+
+//  SeekDeepUtilsRunner.cpp
+//
+//  Created by Nick Hathaway on 2015/06/24.
+//  Copyright (c) 2015 Nick Hathaway. All rights reserved.
+//
 //
 // SeekDeep - A library for analyzing amplicon sequence data
-// Copyright (C) 2012, 2015 Nicholas Hathaway <nicholas.hathaway@umassmed.edu>,
+// Copyright (C) 2012-2016 Nicholas Hathaway <nicholas.hathaway@umassmed.edu>,
 // Jeffrey Bailey <Jeffrey.Bailey@umassmed.edu>
 //
 // This file is part of SeekDeep.
@@ -18,12 +24,7 @@
 // You should have received a copy of the GNU General Public License
 // along with SeekDeep.  If not, see <http://www.gnu.org/licenses/>.
 //
-//  SeekDeepUtilsRunner.cpp
 //
-//  Created by Nick Hathaway on 2015/06/24.
-//  Copyright (c) 2015 Nick Hathaway. All rights reserved.
-//
-
     
 #include "SeekDeepUtilsRunner.hpp"
 
@@ -31,19 +32,22 @@
 namespace bibseq {
 
 SeekDeepUtilsRunner::SeekDeepUtilsRunner()
-    : bib::progutils::programRunner({addFunc("dryRunQualityFiltering", dryRunQualityFiltering, false),
-																		 addFunc("popClusteringViewer", popClusteringViewer, false),
-																		 addFunc("genProjectConfig", genProjectConfig, false),
-																		 addFunc("runMultipleCommands", runMultipleCommands, false)},
+    : bib::progutils::programRunner(
+    		{
+				addFunc("dryRunQaulityFiltering", dryRunQaulityFiltering, false),
+				addFunc("popClusteringViewer", popClusteringViewer, false),
+				addFunc("genProjectConfig", genProjectConfig, false),
+				addFunc("runMultipleCommands", runMultipleCommands, false)
+    		},
                     "SeekDeepUtils") {}
                     
-int SeekDeepUtilsRunner::dryRunQualityFiltering(MapStrStr inputCommands){
+int SeekDeepUtilsRunner::dryRunQaulityFiltering(const bib::progutils::CmdArgs & inputCommands){
 	seqSetUp setUp(inputCommands);
 	setUp.processDefaultReader(true);
 	std::string qualWindow;
-	int32_t qualityWindowLength;
-	int32_t qualityWindowStep;
-	int32_t qualityWindowThres;
+	uint32_t qualityWindowLength;
+	uint32_t qualityWindowStep;
+	uint32_t qualityWindowThres;
   if (setUp.setOption(qualWindow, "-qualWindow", "SlidingQualityWindow")) {
     seqUtil::processQualityWindowString(qualWindow, qualityWindowLength,
                                         qualityWindowStep, qualityWindowThres);
@@ -59,49 +63,27 @@ int SeekDeepUtilsRunner::dryRunQualityFiltering(MapStrStr inputCommands){
   bool plot = false;
   setUp.setOption(plot, "--plot", "Plot");
 	setUp.finishSetUp(std::cout);
-	readObjectIO reader;
+	SeqInput reader(setUp.pars_.ioOptions_);
 
 	std::unordered_map<uint32_t, uint32_t> qualWindowCounts;
 	uint32_t count = 0;
-	uint32_t tenPer = 2000;
 	std::vector<double> qualChecks;
 	uint32_t failedQualCheck = 0;
 	uint32_t failedQualWindow = 0;
-	if(setUp.ioOptions_.inFormat_ != "fastq"){
-		reader.read(setUp.ioOptions_);
-		readVec::allSetQualCheck(reader.reads, qualCheck);
-		for(const auto & read : reader.reads){
-			if(count % tenPer == 0){
-				std::cout << "Currently on " << count << " of " << len(reader.reads) << "\r";
-				std::cout.flush();
-			}
-			qualChecks.emplace_back(read.fractionAboveQualCheck_);
-			if(read.fractionAboveQualCheck_ < qualCheckCutOff){
-				++failedQualCheck;
-			}
-			if(seqUtil::checkQualityWindow(qualityWindowLength, qualityWindowThres,
-	        qualityWindowStep, read.seqBase_.qual_)){
-				++failedQualWindow;
-			}
-			++count;
+	readObject read;
+	while(reader.readNextRead(read)){
+		read.setBaseCountOnQualCheck(qualCheck);
+		std::cout << "Currently on " << count << "\r";
+		std::cout.flush();
+		qualChecks.emplace_back(read.fractionAboveQualCheck_);
+		if(read.fractionAboveQualCheck_ < qualCheckCutOff){
+			++failedQualCheck;
 		}
-	}else{
-		readObject read;
-		std::ifstream inFile(setUp.ioOptions_.firstName_);
-		while(reader.readNextFastqStream(inFile, reader.SangerQualOffset, read, false)){
-			read.setBaseCountOnQualCheck(qualCheck);
-			std::cout << "Currently on " << count << "\r";
-			std::cout.flush();
-			qualChecks.emplace_back(read.fractionAboveQualCheck_);
-			if(read.fractionAboveQualCheck_ < qualCheckCutOff){
-				++failedQualCheck;
-			}
-			if(!seqUtil::checkQualityWindow(qualityWindowLength, qualityWindowThres,
-	        qualityWindowStep, read.seqBase_.qual_)){
-				++failedQualWindow;
-			}
-			++count;
+		if(!seqUtil::checkQualityWindow(qualityWindowLength, qualityWindowThres,
+        qualityWindowStep, read.seqBase_.qual_)){
+			++failedQualWindow;
 		}
+		++count;
 	}
 	std::cout << std::endl;
 	std::cout << std::endl;
@@ -120,7 +102,7 @@ int SeekDeepUtilsRunner::dryRunQualityFiltering(MapStrStr inputCommands){
 
 
 
-int SeekDeepUtilsRunner::runMultipleCommands(MapStrStr inputCommands) {
+int SeekDeepUtilsRunner::runMultipleCommands(const bib::progutils::CmdArgs & inputCommands) {
 	seqSetUp setUp(inputCommands);
 	std::string filename = "";
 	std::string logFile = "log";
@@ -143,7 +125,7 @@ int SeekDeepUtilsRunner::runMultipleCommands(MapStrStr inputCommands) {
 		setUp.printFlags(std::cout);
 		exit(1);
 	}
-	if(setUp.commands_.containsFlagCaseInsensitive("--gen")){
+	if(setUp.commands_.hasFlagCaseInsen("--gen")){
 		std::cout << "CMD:echo hello REPLACETHIS1 from REPLACETHIS2" << std::endl;
 		std::cout << "REPLACETHIS1:nick,jon,mike" << std::endl;
 		std::cout << "REPLACETHIS2:world,everyone" << std::endl;
@@ -151,7 +133,7 @@ int SeekDeepUtilsRunner::runMultipleCommands(MapStrStr inputCommands) {
 	}
 	setUp.finishSetUp(std::cout);
 	std::ofstream outFile;
-	openTextFile(outFile, logFile, ".json", setUp.ioOptions_);
+	openTextFile(outFile, logFile, ".json", setUp.pars_.ioOptions_.out_);
 	std::ifstream inFile(filename);
 	if(!inFile){
 		std::cerr << bib::bashCT::boldRed("Error in opening "  + filename) << std::endl;
@@ -192,11 +174,11 @@ int SeekDeepUtilsRunner::runMultipleCommands(MapStrStr inputCommands) {
 			cmds = newCmds;
 		}
 	}
-	if(setUp.verbose_){
+	if(setUp.pars_.verbose_){
 		printVector(cmds, "\n");
 	}
 
-  auto allRunOutputs = bib::sys::runCmdsThreaded(cmds, numThreads, setUp.verbose_, setUp.debug_);
+  auto allRunOutputs = bib::sys::runCmdsThreaded(cmds, numThreads, setUp.pars_.verbose_, setUp.pars_.debug_);
 	Json::Value cmdsLog;
   for(const auto & out : allRunOutputs){
   	cmdsLog.append(out.toJson());

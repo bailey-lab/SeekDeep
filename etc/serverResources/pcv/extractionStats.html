@@ -70,6 +70,7 @@
 				    	ajaxPost('/' + rName + '/getSampleExtractionInfo/' + projectName, {"sampNames": encodedCurrentSampNames}, function(tab){ mainPopInfoTab = tab; });
 				    }
 				 	sampleTable.updateWithData(mainPopInfoTab);
+				 	$("#sampNameMenu").scrollView();
 				};
 				var sampMenu = new njhCheckboxMenu("#sampNameMenu", sampNames, updateChartOnClick);
 				var popTable = new njhTable("#popTable", popInfoTab, longProjectName + "_extractionByFileInfo", true);

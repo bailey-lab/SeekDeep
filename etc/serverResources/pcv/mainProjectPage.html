@@ -35,7 +35,8 @@
 			addPanelWithDiv("#mainContent","sampLinks", "See Sample Infos");
 			addPanelOnlyHead("#mainContent", "Sample Info Table");
 			addDiv("#mainContent", "sampTable");
-			addPanelOnlyHead("#mainContent", "Haplotypes Across Samples");
+			var sampHeader = addPanelOnlyHead("#mainContent", "Haplotypes Across Samples");
+			sampHeader.attr("id", "sampleHeader");
 	    	addDiv("#mainContent", "sampNameMenu");
 	    	addDiv("#mainContent", "sampleChartMaster");
 	    	addPanelOnlyHead("#mainContent", "Haplotypes Sequences");
@@ -74,7 +75,7 @@
 	        var baseColors = ajaxRet('/' + rName + '/baseColors');
 			var cellWidth = 20;
 			var cellHeight = 25;
-			var SeqViewer = new njhSeqView("#dnaViewer",  mainData, cellWidth, cellHeight, baseColors,true, "/" +  rName + "/showMinTree/" + projectName);
+			var SeqViewer = new njhSeqView("#dnaViewer",  mainData, cellWidth, cellHeight, baseColors,true);
 			initSeqViewer(SeqViewer);
 			//get the population information table from server
 			var popInfoTab = ajaxRet('/' + rName + '/popInfo/' + projectName);
@@ -103,6 +104,7 @@
 			 	sampleChart.updateWithData(mainPopInfoTab);
 			 	popTable.updateWithData(currentPopInfoTab);
 			 	SeqViewer.updateData(currentPopSeqData);
+			 	$("#sampleHeader").scrollView();
 			};
 			//create samp menu 
 			var sampMenu = new njhCheckboxMenu("#sampNameMenu", sampNames, updateChartOnClick);

@@ -1,23 +1,3 @@
-//
-// SeekDeep - A library for analyzing amplicon sequence data
-// Copyright (C) 2012, 2015 Nicholas Hathaway <nicholas.hathaway@umassmed.edu>,
-// Jeffrey Bailey <Jeffrey.Bailey@umassmed.edu>
-//
-// This file is part of SeekDeep.
-//
-// SeekDeep is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// SeekDeep is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with SeekDeep.  If not, see <http://www.gnu.org/licenses/>.
-//
 /*
  * popClusterViewer.cpp
  *
@@ -42,24 +22,23 @@ pcv::pcv(cppcms::service& srv, std::map<std::string, std::string> config) :
 
 	rootName_ =  config["name"];
 	configDir_ = config["configDir"];
+	serverResourceDir_ = bib::appendAsNeededRet(config["resources"],"/");
 	debug_ = config["debug"] == "true";
 	//add html
 	pages_.emplace("mainPageHtml",
-			make_path(config["resources"] + "pcv/mainPage.html"));
+			bib::files::make_path(serverResourceDir_, "pcv/mainPage.html"));
 	pages_.emplace("mainProjectPageHtml",
-			make_path(config["resources"] + "pcv/mainProjectPage.html"));
+			bib::files::make_path(serverResourceDir_, "pcv/mainProjectPage.html"));
 	pages_.emplace("redirectPage",
-			make_path(config["resources"] + "pcv/redirectPage.html"));
+			bib::files::make_path(serverResourceDir_, "pcv/redirectPage.html"));
 	pages_.emplace("individualSample",
-			make_path(config["resources"] + "pcv/individualSample.html"));
+			bib::files::make_path(serverResourceDir_, "pcv/individualSample.html"));
 	pages_.emplace("extractionStats",
-			make_path(config["resources"] + "pcv/extractionStats.html"));
+			bib::files::make_path(serverResourceDir_, "pcv/extractionStats.html"));
 	pages_.emplace("subGroupsPage",
-			make_path(config["resources"] + "pcv/subGroupsPage.html"));
+			bib::files::make_path(serverResourceDir_, "pcv/subGroupsPage.html"));
 	pages_.emplace("groupMainPage",
-			make_path(config["resources"] + "pcv/groupMainPage.html"));
-	pages_.emplace("minTree",
-			make_path(config["resources"] + "pcv/minTree.html"));
+			bib::files::make_path(serverResourceDir_, "pcv/groupMainPage.html"));
 	for(auto & fCache : pages_){
 		fCache.second.replaceStr("/pcv", rootName_);
 	}
@@ -107,11 +86,6 @@ pcv::pcv(cppcms::service& srv, std::map<std::string, std::string> config) :
 	dispMap_1word(&pcv::getSampleNamesEncoding, this, "sampleNamesEncoding");
 	dispMap_1word(&pcv::getEncodingForSampleNames, this, "encodingForSampleNames");
 
-
-	dispMap_1word(&pcv::showMinTree, this, "showMinTree");
-	dispMap_1word(&pcv::getMinTreeData, this, "minTreeData");
-
-
 	dispMap_1word(&pcv::showExtractionInfo, this, "showExtractionInfo");
 	dispMap_1word(&pcv::getIndexExtractionInfo, this, "getIndexExtractionInfo");
 	dispMap_1word(&pcv::getSampleExtractionInfo, this, "getSampleExtractionInfo");
@@ -119,13 +93,14 @@ pcv::pcv(cppcms::service& srv, std::map<std::string, std::string> config) :
 
 	dispMap_2word(&pcv::individualSamplePage, this, "individualSamplePage");
 	dispMap_2word(&pcv::getSeqData, this, "seqData");
-	dispMap_2word(&pcv::showMinTreeForSample, this, "showMinTreeForSample");
-	dispMap_2word(&pcv::getMinTreeDataForSample, this, "minTreeDataForSample");
 
 	dispMap(&pcv::jsPcv, this, "jsPcv");
 	dispMap(&pcv::cssPcv, this, "cssPcv");
 
 	mapper().root(rootName_);
+
+	loadInProjects();
+
 	std::cout << "Finished set up" << std::endl;
 }
 
@@ -194,18 +169,7 @@ void pcv::mainProjectPage(std::string shortProjName){
 	}
 }
 
-void pcv::showMinTree(std::string shortProjName){
-	bib::scopedMessage mess(messStrFactory(__PRETTY_FUNCTION__, {{"shortProjName", shortProjName}}), std::cout, debug_);
-	if(hasProject(shortProjName)){
-		auto treeHtml = pages_.find("minTree")->second.get("/pcv", rootName_);
-		treeHtml = replaceString(treeHtml, "MIN_TREE_JSON_LINK", rootName_  + "/minTreeData" + "/" + shortProjName);
-		response().out() << treeHtml;
-	}else{
-		std::cout << "Doesn't contain project " << shortProjName << std::endl;
-		auto search = pages_.find("redirectPage");
-		response().out() << search->second.get("/pcv", rootName_);
-	}
-}
+
 
 void pcv::individualSamplePage(std::string shortProjName, std::string sampName){
 	bib::scopedMessage mess(messStrFactory(__PRETTY_FUNCTION__, {{"shortProjName", shortProjName}, {"sampName",sampName}}), std::cout, debug_);
@@ -227,27 +191,7 @@ void pcv::individualSamplePage(std::string shortProjName, std::string sampName){
 	}
 }
 
-void pcv::showMinTreeForSample(std::string shortProjName, std::string sampName){
-	bib::scopedMessage mess(messStrFactory(__PRETTY_FUNCTION__, {{"shortProjName", shortProjName}, {"sampName", sampName}}), std::cout, debug_);
-	if(hasProject(shortProjName)){
-		auto proj = projectModels_.find(shortProjName);
-		std::string encodedName = sampName;
-		sampName = proj->second.decodeSampEncoding(sampName);
-		if(bib::in(sampName, proj->second.clusteredSampleNames_)){
-			auto treeHtml = pages_.find("minTree")->second.get("/pcv", rootName_);
-			treeHtml = replaceString(treeHtml, "MIN_TREE_JSON_LINK", rootName_ + "/minTreeDataForSample/" + shortProjName + "/" + encodedName);
-			response().out() << treeHtml;
-		}else{
-			auto search = pages_.find("redirectPage");
-			std::cout << "SampName: " << sampName << " not found, redirecting" << std::endl;
-			response().out() << search->second.get("/pcv", rootName_);
-		}
-	}else{
-		std::cout << "Doesn't contain project " << shortProjName << std::endl;
-		auto search = pages_.find("redirectPage");
-		response().out() << search->second.get("/pcv", rootName_);
-	}
-}
+
 
 
 void pcv::showExtractionInfo(std::string shortProjName){
@@ -474,17 +418,6 @@ void pcv::getPopInfoForSamps(std::string shortProjName){
 
 
 
-
-void pcv::getMinTreeData(std::string shortProjName){
-	bib::scopedMessage mess(messStrFactory(__PRETTY_FUNCTION__, {{"shortProjName", shortProjName}}), std::cout, debug_);
-	if (hasProject(shortProjName)) {
-		ret_json();
-		response().out() <<  projectModels_.find(shortProjName)->second.getMinTreeData();
-	} else {
-		std::cout << "Doesn't contain project " << shortProjName << std::endl;
-	}
-}
-
 void pcv::getSeqData(std::string shortProjName, std::string sampName){
 	bib::scopedMessage mess(messStrFactory(__PRETTY_FUNCTION__, {{"shortProjName", shortProjName}, {"sampName", sampName}}), std::cout, debug_);
 	if (hasProject(shortProjName)) {
@@ -495,17 +428,6 @@ void pcv::getSeqData(std::string shortProjName, std::string sampName){
 	}
 }
 
-
-
-void pcv::getMinTreeDataForSample(std::string shortProjName, std::string sampName){
-	bib::scopedMessage mess(messStrFactory(__PRETTY_FUNCTION__, {{"shortProjName", shortProjName}, {"sampName", sampName}}), std::cout, debug_);
-	if (hasProject(shortProjName)) {
-		ret_json();
-		response().out() <<  projectModels_.find(shortProjName)->second.getMinTreeDataForSample(sampName);
-	} else {
-		std::cout << "Doesn't contain project " << shortProjName << std::endl;
-	}
-}
 
 void pcv::getIndexExtractionInfo(std::string shortProjName){
 	bib::scopedMessage mess(messStrFactory(__PRETTY_FUNCTION__, {{"shortProjName", shortProjName}}), std::cout, debug_);
@@ -642,7 +564,7 @@ void pcv::getGroupPopInfos(std::string shortProjName, std::string group){
 }
 
 
-int genProjectConfig(std::map<std::string, std::string> inputCommands) {
+int genProjectConfig(const bib::progutils::CmdArgs & inputCommands) {
 	bibseq::seqSetUp setUp(inputCommands);
 	std::string mainDir = "";
 	std::string extractionDir = "";
@@ -668,15 +590,17 @@ int genProjectConfig(std::map<std::string, std::string> inputCommands) {
 			"A file, first column is index name, second is sample name, the rest of the columns are MID names",
 			extractionDir != "");
 	setUp.setOption(projectName, "-projectName", "Name of the Project", true);
+	setUp.pars_.ioOptions_.out_.outFilename_ = "";
+	setUp.processWritingOptions();
 	setUp.finishSetUp(std::cout);
 	//
 	Json::Value config;
-	config["mainDir"] = bib::files::appendAsNeededRet(bib::files::normalize(mainDir).string(), "/");
+	config["mainDir"] = bib::appendAsNeededRet(bib::files::normalize(mainDir).string(), "/");
 	config["shortName"] = shortName;
 	config["projectName"] = projectName;
 	config["debug"] = debug;
 	if(extractionDir != ""){
-		config["extractionDir"] = bib::files::appendAsNeededRet(bib::files::normalize(extractionDir).string(), "/");
+		config["extractionDir"] = bib::appendAsNeededRet(bib::files::normalize(extractionDir).string(), "/");
 		config["indexToDir"] = bib::files::normalize(indexToDir).string();
 		config["sampNames"] = bib::files::normalize(sampNames).string();
 	}else{
@@ -684,12 +608,17 @@ int genProjectConfig(std::map<std::string, std::string> inputCommands) {
 		config["indexToDir"] = "";
 		config["sampNames"] = "";
 	}
-
-	std::cout << config << std::endl;
+	std::ofstream outFile;
+	std::ostream out(
+			bib::files::determineOutBuf(outFile, setUp.pars_.ioOptions_.out_.outFilename_, ".config",
+					setUp.pars_.ioOptions_.out_.overWriteFile_,
+					setUp.pars_.ioOptions_.out_.append_,
+					setUp.pars_.ioOptions_.out_.exitOnFailureToWrite_));
+	out << config << std::endl;
 	return 0;
 }
 
-int popClusteringViewer(std::map<std::string, std::string> inputCommands){
+int popClusteringViewer(const bib::progutils::CmdArgs & inputCommands){
 	bibseq::seqSetUp setUp(inputCommands);
 	std::string configDir = "";
 
@@ -718,7 +647,7 @@ int popClusteringViewer(std::map<std::string, std::string> inputCommands){
   appConfig["resources"] = resourceDirName;
   appConfig["js"] = resourceDirName + "js/";
   appConfig["css"] = resourceDirName + "css/";
-  appConfig["debug"] = convertBoolToString(setUp.debug_);
+  appConfig["debug"] = convertBoolToString(setUp.pars_.debug_);
   std::cout << "localhost:"  << port << name << std::endl;
 	try {
 		cppcms::service app(config);

@@ -1,4 +1,6 @@
 
+
+
 function njhMenuItem(idName, displayName, func){
 	this.idName = idName;
 	this.displayName = displayName;
@@ -203,6 +205,10 @@ function createSeqMenu(idNameOfParentDiv, menuContent){
 		this.masterDivD3.append("div").attr("class", "pop-up").append("p").attr("id", "info");
 		this.masterDivD3.append("div").attr("class", "select");
 		d3.select(viewName).append("div").attr("class", "qualChart");
+		d3.select(viewName).append("svg").attr("id", "minTreeChart")
+			.attr("width", "0px")
+			.attr("height", "0px")
+			.style("margin-left", "10px");
 		var self = this;
 		var linkButton = d3.select(this.topDivName + " .downFastaDiv")
 			.append("button")
@@ -222,10 +228,20 @@ function createSeqMenu(idNameOfParentDiv, menuContent){
 		linkButton.on("click", function(){
 				    var mainTable = [];
 				    //
-				    for (i = 0; i <self.seqData["seqs"].length ; i++) { 
-						mainTable.push([">" + self.seqData["seqs"][i]["name"]]);
-						mainTable.push([self.seqData["seqs"][i]["seq"]]);
-					}
+				    if (self.selected.size > 0){
+				    	var sels = setToArray(self.selected);
+					    for (i in sels) {
+					    	//console.log(sels[i]);
+							mainTable.push([">" + self.seqData["seqs"][sels[i]]["name"]]);
+							mainTable.push([self.seqData["seqs"][sels[i]]["seq"]]);
+						}
+				    }else{
+					    for (i = 0; i <self.seqData["seqs"].length ; i++) { 
+							mainTable.push([">" + self.seqData["seqs"][i]["name"]]);
+							mainTable.push([self.seqData["seqs"][i]["seq"]]);
+						}
+				    }
+
 				  	var fastaData = 'data:text/plain;base64,'+ btoa(d3.tsv.format(mainTable));
 				  	linkButton.select(".fastaDownLink").attr("download", self.seqData["uid"] + ".fasta");
 				  	linkButton.select(".fastaDownLink").attr("href", fastaData).node().click();
@@ -272,6 +288,12 @@ function createSeqMenu(idNameOfParentDiv, menuContent){
 			        y: {
 			            lines: [{value: 20}]
 			        }
+			    },
+			    axis: {
+			    	y : {
+			    		max: 50,
+			            min: 0
+			    	}
 			    }
 			});
 		}
@@ -332,6 +354,15 @@ function createSeqMenu(idNameOfParentDiv, menuContent){
 			ajaxPost( '/' + rName + '/sort/name',postData, function(md){ mainData = md; });
 		    self.updateData(mainData);
 		}));
+		sortOptions.push(new njhMenuItem("sortName", "Reverse",function(){
+			var mainData;
+			var postData = {"uid" : self.uid};
+			if (self.selected.size > 0){
+				postData["selected"] = setToArray(self.selected);
+			}
+			ajaxPost( '/' + rName + '/sort/reverse',postData, function(md){ mainData = md; });
+		    self.updateData(mainData);
+		}));
 		menuItems["Sort"] = sortOptions;
 		var alnOptions = [];
 		alnOptions.push(new njhMenuItem("muscle", "muscle",function(){
@@ -352,8 +383,9 @@ function createSeqMenu(idNameOfParentDiv, menuContent){
 			ajaxPost( '/' + rName + '/removeGaps',postData, function(md){ mainData = md; });
 		    self.updateData(mainData);
 		}));
-		
 		menuItems["Aln"] = alnOptions;
+		
+
 		if(!protein){
 			var editOptions = [];
 			editOptions.push(new njhMenuItem("complement", "Reverse Complement",function(){
@@ -368,8 +400,6 @@ function createSeqMenu(idNameOfParentDiv, menuContent){
 			}));
 			menuItems["Edit"] = editOptions;
 		}
-
-		
 
 		if(!protein){
 			var translateOptions = [];
@@ -394,12 +424,71 @@ function createSeqMenu(idNameOfParentDiv, menuContent){
 			    	self.proteinViewer.setUp();
 			    	self.proteinViewer.paint();
 			    }
+			    $("#" + self.topDivName.substring(1) + "_protein").scrollView();
 			    
-				//self.updateData(mainData);
 			}));
 			menuItems["Translate"] = translateOptions;
 		}
+		var windowOptions = [];
+		if(!protein){
+			windowOptions.push(new njhMenuItem("ShowQual", "Hide Qual Graph",function(){
+				if( self.addedQualChart){
+					self.addedQualChart = false;
+					d3.select(self.topDivName +  " .njhSeqViewMenu #ShowQual").text("Show Qual Graph");
+					d3.select(self.topDivName + " .qualChart").selectAll("*").remove();
+					self.chart = null;
+				}else{
+					self.addedQualChart = true;
+					d3.select(self.topDivName +  " .njhSeqViewMenu #ShowQual").text("Hide Qual Graph");
+					self.chart = c3.generate({
+						bindto: self.topDivName + " .qualChart",
+					    data: {
+					        json: {
+					            qual: self.seqData["seqs"][self.currentSeq]["qual"]
+					        }
+					    }, 
+						grid: {
+					        y: {
+					            lines: [{value: 20}]
+					        }
+					    },
+					    axis: {
+					    	y : {
+					    		max: 50,
+					            min: 0
+					    	}
+					    }
+					});
+					self.chart.xgrids([{value: self.currentBase, text:self.seqData["seqs"][self.currentSeq]["qual"][self.currentBase]}]);
+				}
+			}));
+			windowOptions.push(new njhMenuItem("GenTree", "Gen Difference Graph",function(){
+				d3.select(self.topDivName + " #minTreeChart").selectAll("*").remove();
+				var jsonData;
+				var postData = {"uid" : self.uid};
+				if (self.selected.size > 0){
+					postData["selected"] = setToArray(self.selected);
+				}
+				postData["numDiff"] = $("#numDiffInput", self.topDivName).val();
+				var ar = setToArray(self.selected);
+				ajaxPost( '/' + rName + '/minTreeDataDetailed',postData, function(md){ jsonData = md; });
+				drawPsuedoMinTreeDetailed(jsonData, self.topDivName + " #minTreeChart", "minTreeChart",
+						$("#treeWidthInput", self.topDivName).val(),$("#treeHeightInput", self.topDivName).val());
+				$('#minTreeChart').scrollView();
+			}));
+			windowOptions.push(new njhMenuItem("HideTree", "Hide Difference Graph",function(){
+				d3.select(self.topDivName + " #minTreeChart").selectAll("*").remove();
+				d3.select(self.topDivName + " #minTreeChart").attr("width", "0px")
+				.attr("height", "0px");
+				
+			}));
+
+			menuItems["Graphs"] = windowOptions;
+		}
+
+		
 		createSeqMenu(this.topDivName + " .njhSeqViewMenu", menuItems);
+		
 		if(!protein){
 			var startSiteInput = d3.select(self.topDivName +  " .njhSeqViewMenu #TranslateDrops")
 			.append("li")
@@ -412,7 +501,9 @@ function createSeqMenu(idNameOfParentDiv, menuContent){
 				.append("label")
 					.attr("id", "startSiteLabel")
 					.attr("for","startSiteInput")
-					.attr("class", "control-label");
+					.attr("class", "control-label")
+					.text("Start")
+					.style("margin-right", "5px");
 			var divInputGroup = startSiteInput
 				.append("div")
 				.attr("class", "input-group");
@@ -425,6 +516,91 @@ function createSeqMenu(idNameOfParentDiv, menuContent){
 				.attr("max", "2")
 				.attr("value", "0");
 			$('#startSiteForm').submit(function(e){
+		        e.preventDefault();
+		        //console.log($("#startSiteInput").val());
+		    });
+			var treeWidthInput = d3.select(self.topDivName +  " .njhSeqViewMenu #GraphsDrops")
+			.append("li")
+				.append("div")
+					.attr("style", "padding: 3px 20px;")
+				.append("form")
+					.attr("class", "form-inline")
+					.attr("id", "treeWidthForm");
+			treeWidthInput
+				.append("label")
+					.attr("id", "treeWidthLabel")
+					.attr("for","treeWidthInput")
+					.attr("class", "control-label")
+					.text("Graph Window Width")
+					.style("margin-right", "5px");;
+			var divtreeWidthInputGroup = treeWidthInput
+				.append("div")
+				.attr("class", "input-group");
+			divtreeWidthInputGroup.append("input")
+				.attr("type", "number")
+				.attr("class", "form-control")
+				.attr("id", "treeWidthInput")
+				.attr("step", "100")
+				.attr("min", "0")
+				.attr("value", "1000");
+			$('#treeWidthForm').submit(function(e){
+		        e.preventDefault();
+		        //console.log($("#startSiteInput").val());
+		    });
+			var treeHeightInput = d3.select(self.topDivName +  " .njhSeqViewMenu #GraphsDrops")
+			.append("li")
+				.append("div")
+					.attr("style", "padding: 3px 20px;")
+				.append("form")
+					.attr("class", "form-inline")
+					.attr("id", "treeHeightForm");
+			treeHeightInput
+				.append("label")
+					.attr("id", "treeHeightLabel")
+					.attr("for","treeHeightInput")
+					.attr("class", "control-label")
+					.text("Graph Window Height")
+					.style("margin-right", "5px");;
+			var divTreeHeightInputGroup = treeHeightInput
+				.append("div")
+				.attr("class", "input-group");
+			divTreeHeightInputGroup.append("input")
+				.attr("type", "number")
+				.attr("class", "form-control")
+				.attr("id", "treeHeightInput")
+				.attr("step", "100")
+				.attr("min", "0")
+				.attr("value", "1000");
+			$('#treeHeightForm').submit(function(e){
+		        e.preventDefault();
+		        //console.log($("#startSiteInput").val());
+		    });
+			
+			var numDiffInput = d3.select(self.topDivName +  " .njhSeqViewMenu #GraphsDrops")
+			.append("li")
+				.append("div")
+					.attr("style", "padding: 3px 20px;")
+				.append("form")
+					.attr("class", "form-inline")
+					.attr("id", "numDiffForm");
+			numDiffInput
+				.append("label")
+					.attr("id", "numDiffLabel")
+					.attr("for","numDiffInput")
+					.attr("class", "control-label")
+					.text("Num Diff\n0=min to connect all")
+					.style("margin-right", "5px");;
+			var divNumDiffInputGroup = numDiffInput
+				.append("div")
+				.attr("class", "input-group");
+			divNumDiffInputGroup.append("input")
+				.attr("type", "number")
+				.attr("class", "form-control")
+				.attr("id", "numDiffInput")
+				.attr("step", "1")
+				.attr("min", "0")
+				.attr("value", "0");
+			$('#numDiffForm').submit(function(e){
 		        e.preventDefault();
 		        //console.log($("#startSiteInput").val());
 		    });
@@ -445,6 +621,7 @@ function createSeqMenu(idNameOfParentDiv, menuContent){
 	 */
 	njhSeqView.prototype.updateData = function(inputSeqData){
 		this.seqData = inputSeqData;
+		this.uid = inputSeqData["uid"];
 		this.seqStart = 0;
 		this.baseStart = 0;
 		this.currentSeq = 0;
@@ -639,13 +816,15 @@ function createSeqMenu(idNameOfParentDiv, menuContent){
 
             this.setSelector();
             var currentQual = this.seqData["seqs"][this.currentSeq]["qual"];
-    		this.chart.load({
-    	        json: {
-    	            qual: this.seqData["seqs"][this.currentSeq]["qual"]
-    	        }
-    	    });
-    	    //this.chart.xgrids.remove();
-    	    this.chart.xgrids([{value: this.currentBase, text:this.seqData["seqs"][this.currentSeq]["qual"][this.currentBase]}]);
+            if(this.chart){
+        		this.chart.load({
+        	        json: {
+        	            qual: this.seqData["seqs"][this.currentSeq]["qual"]
+        	        }
+        	    });
+        	    //this.chart.xgrids.remove();
+        	    this.chart.xgrids([{value: this.currentBase, text:this.seqData["seqs"][this.currentSeq]["qual"][this.currentBase]}]);
+            }
 
         }
 

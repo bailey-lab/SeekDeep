@@ -1,25 +1,4 @@
 #pragma once
-//
-// SeekDeep - A library for analyzing amplicon sequence data
-// Copyright (C) 2012, 2015 Nicholas Hathaway <nicholas.hathaway@umassmed.edu>,
-// Jeffrey Bailey <Jeffrey.Bailey@umassmed.edu>
-//
-// This file is part of SeekDeep.
-//
-// SeekDeep is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// SeekDeep is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with SeekDeep.  If not, see <http://www.gnu.org/licenses/>.
-//
-
 /*
  * popClusterViewer.hpp
  *
@@ -78,14 +57,10 @@ private:
 
 	std::string extractionDir_;
 
-
 	ExtractionInfo extractInfo_;
 	Json::Value config_;
 	std::shared_ptr<seqCache> seqs_;
 
-	std::unordered_map<std::string, Json::Value> sampleMinTreeDataCache_;
-	Json::Value minTreeData_;
-	bool calculatedTreeData_ = false;
 	bool debug_ = false;
 
 
@@ -122,13 +97,8 @@ public:
 	Json::Value getIndexExtractionInfo();
 	Json::Value getSampleExtractionInfo(const VecStr & sampNames);
 
-
-
-	Json::Value getMinTreeData();
-
 	Json::Value getSeqData(std::string sampName);
 
-	Json::Value getMinTreeDataForSample(std::string sampName);
 
 	//group info
 	Json::Value getGroupPopInfo(std::string group, std::string subGroup);
