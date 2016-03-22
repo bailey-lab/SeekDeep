@@ -31,7 +31,8 @@
 			addPanelWithDiv("#mainContent","sampLinks", "See Sample Infos By Group");
 			addPanelOnlyHead("#mainContent", "Sample Info Table");
 			addDiv("#mainContent", "sampTable");
-			addPanelOnlyHead("#mainContent", "Haplotypes Across Samples");
+			var sampHeader = addPanelOnlyHead("#mainContent", "Haplotypes Across Samples");
+			sampHeader.attr("id", "sampleHeader");
 	    	addDiv("#mainContent", "sampNameMenu");
 	    	addDiv("#mainContent", "sampleChartMaster");
 	    	addPanelOnlyHead("#mainContent", "Haplotypes Sequences");
@@ -103,6 +104,7 @@
 			 	sampleChart.updateWithData(mainPopInfoTab);
 			 	popTable.updateWithData(currentPopInfoTab);
 			 	SeqViewer.updateData(currentPopSeqData);
+			 	$("#sampleHeader").scrollView();
 			};
 			var sampMenu = new njhCheckboxMenu("#sampNameMenu", sampNames, updateChartOnClick);
 

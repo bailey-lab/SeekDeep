@@ -14,6 +14,7 @@ def parse_args():
     parser.add_argument('-prefix', type=str, nargs=1)
     parser.add_argument('-installName', type=str, nargs=1)
     parser.add_argument('-neededLibs', type=str, nargs=1)
+    parser.add_argument('-ldFlags', type=str)
     return parser.parse_args()
 
 def main():
@@ -25,7 +26,10 @@ def main():
     outname = "out"
     prefix = "./"
     installName = "out"
-    neededLibs = "none"        
+    neededLibs = "none"
+    ldFlags = ""
+    if args.ldFlags and "" != args.ldFlags:
+        ldFlags = args.ldFlags        
     if args.externalLoc:
         external = args.externalLoc[0]
     if args.outname:
@@ -36,6 +40,6 @@ def main():
         prefix = args.prefix[0]
     if args.neededLibs:
         neededLibs = args.neededLibs[0].split(",")
-    genHelper.generateCompfileFull(args.outFilename[0], external, CC, CXX, outname, installName, prefix, neededLibs)
+    genHelper.generateCompfileFull(args.outFilename[0], external, CC, CXX, outname, installName, prefix, neededLibs, ldFlags)
     
 main()

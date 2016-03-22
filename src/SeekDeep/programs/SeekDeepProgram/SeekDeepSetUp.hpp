@@ -1,7 +1,14 @@
 #pragma once
 //
+//  SeekDeepSetUp.hpp
+//  sequenceTools
+//
+//  Created by Nicholas Hathaway on 10/24/13.
+//  Copyright (c) 2013 Nicholas Hathaway. All rights reserved.
+//
+//
 // SeekDeep - A library for analyzing amplicon sequence data
-// Copyright (C) 2012, 2015 Nicholas Hathaway <nicholas.hathaway@umassmed.edu>,
+// Copyright (C) 2012-2016 Nicholas Hathaway <nicholas.hathaway@umassmed.edu>,
 // Jeffrey Bailey <Jeffrey.Bailey@umassmed.edu>
 //
 // This file is part of SeekDeep.
@@ -20,13 +27,6 @@
 // along with SeekDeep.  If not, see <http://www.gnu.org/licenses/>.
 //
 //
-//  SeekDeepSetUp.hpp
-//  sequenceTools
-//
-//  Created by Nicholas Hathaway on 10/24/13.
-//  Copyright (c) 2013 Nicholas Hathaway. All rights reserved.
-//
-
 #include <bibseq.h>
 #include <bibseq/programUtils/seqSetUp.hpp>
 
@@ -35,13 +35,13 @@ namespace bibseq {
 struct extractorPars{
 	extractorPars(){
 	  rPrimerErrors.hqMismatches_ = 4;
-	  rPrimerErrors.distances_.queryCoverage_ = .50;
+	  rPrimerErrors.distances_.query_.coverage_ = .50;
 	  rPrimerErrors.largeBaseIndel_ = .99;
 	  rPrimerErrors.oneBaseIndel_ = 2;
 	  rPrimerErrors.twoBaseIndel_ = 1;
 
 	  fPrimerErrors.hqMismatches_ = 2;
-	  fPrimerErrors.distances_.queryCoverage_ = 1;
+	  fPrimerErrors.distances_.query_.coverage_ = 1;
 	  fPrimerErrors.largeBaseIndel_ = .99;
 	  fPrimerErrors.oneBaseIndel_ = 2;
 	  fPrimerErrors.twoBaseIndel_ = 1;
@@ -54,9 +54,9 @@ struct extractorPars{
   std::string compareSeq = "";
   bool qualWindowTrim = false;
   bool multiplex = false;
-  int qualityWindowLength = 0;
-  int qualityWindowStep = 0;
-  int qualityWindowThres = 0;
+  uint32_t qualityWindowLength = 0;
+  uint32_t qualityWindowStep = 0;
+  uint32_t qualityWindowThres = 0;
   int minLen = 200;
   int maxLength = 300;
 
@@ -85,7 +85,7 @@ struct extractorPars{
   bool barcodesBothEnds = false;
   bool variableStart = false;
   uint32_t variableStop = 50;
-  uint32_t qualCheck = 25;
+  uint32_t qualCheck = 30;
   bool checkingQCheck = false;
   double qualCheckCutOff = 0.75;
   std::string sampleName = "";
@@ -94,10 +94,19 @@ struct extractorPars{
 
   std::string multipleLenCutOffFilename = "";
 
+  uint32_t smallExtractReadCount = 5;
+  bool filterOffSmallReadCounts = false;
+
+	bool mothurExtract = false;
+	bool pyroExtract = false;
+	int maxFlowCutoff = 0;
+
+
 };
 
 struct clusterDownPars {
   std::string parameters = "";
+  std::string binParameters = "";
   bool snapShots = false;
   std::string qualRep = "median", sortBy = "totalCount";
   bool markChimeras = false;
@@ -106,13 +115,10 @@ struct clusterDownPars {
   bool additionalOut = false;
   std::string additionalOutLocationFile = "";
   std::map<int, std::vector<double>> iteratorMap;
+  std::map<int, std::vector<double>> binIteratorMap;
   bool removeLowQualBases = false;
   int lowQualityCutOff = 3;
-  uint32_t runTimes = 100;
-  bool sim = false;
-  bool printSimClusters = false;
-  double pValueCutOff = 0.01;
-  double fdrCutOff = 0.01;
+
   bool startWithSingles = false;
   bool createMinTree = false;
   std::string diffCutOffStr = "0.1";
@@ -137,6 +143,8 @@ struct processClustersPars {
   bool noPopulation = false;
   std::string previousPopFilename = "";
   std::string parameters = "";
+  std::string binParameters = "";
+
   uint32_t clusterCutOff = 1;
   bool extra = false;
   double fracCutoff = 0.005;
@@ -154,6 +162,7 @@ struct processClustersPars {
   std::string sortBy = "fraction";
   std::map<int, std::vector<double>> popIteratorMap;
   std::map<int, std::vector<double>> iteratorMap;
+  std::map<int, std::vector<double>> binIteratorMap;
   bool grayScale = false;
   double sat = 0.99;
   double lum = 0.5;
@@ -165,30 +174,14 @@ struct processClustersPars {
   std::string customCutOffs = "";
   std::string groupingsFile = "";
   bool onPerId = false;
+  bool plotRepAgreement = false;
 };
 
 class SeekDeepSetUp : public seqSetUp {
 
  public:
-  // constructors
-  SeekDeepSetUp(int argc, char* argv[]) : seqSetUp(argc, argv) {}
-  SeekDeepSetUp(const bib::progutils::commandLineArguments& inputCommands)
-      : seqSetUp(inputCommands) {}
-  SeekDeepSetUp(const MapStrStr& inputCommands)
-      : seqSetUp(inputCommands) {}
+	using seqSetUp::seqSetUp;
 
-  void setUpExtractor(std::string& idFileName, bool& multiplex, bool& condensed,
-                      int& minLen, int& maxLength, int& within,
-                      int& qualityWindowLength, int& qualityWindowStep,
-                      int& qualityWindowThres, bool& unknown,
-                      int& unknownPrimerSize, int& unknownMinSize,
-                      bool& findReversePrimer, double& queryCoverageCutoff,
-                      double& percentIdentityCutoff, int& numberOfNs,
-                      bool& pyroExtract, bool& reversePrimerToLowerCase,
-                      bool& flowFiltering, int& maxFlows, bool& checkComplement,
-                      bool& screenForPossibleContaimination,
-                      std::string& compareSeq, std::string& idFileDelim,
-                      int& smallFragmentCutOff, bool& qualWindowTrim);
 	void setUpExtractor(extractorPars & pars);
 	void setUpClusterDown(clusterDownPars & pars);
 	void setUpMultipleSampleCluster(processClustersPars & pars);

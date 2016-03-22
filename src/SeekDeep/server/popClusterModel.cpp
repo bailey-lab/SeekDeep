@@ -4,26 +4,6 @@
  *  Created on: Aug 26, 2015
  *      Author: Nick Hathaway
  */
-//
-// SeekDeep - A library for analyzing amplicon sequence data
-// Copyright (C) 2012, 2015 Nicholas Hathaway <nicholas.hathaway@umassmed.edu>,
-// Jeffrey Bailey <Jeffrey.Bailey@umassmed.edu>
-//
-// This file is part of SeekDeep.
-//
-// SeekDeep is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// SeekDeep is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with SeekDeep.  If not, see <http://www.gnu.org/licenses/>.
-//
 
 #include "popClusterModel.hpp"
 
@@ -39,7 +19,6 @@ VecStr getColorsStrsForNamesMultiples(VecStr popNames){
 	}
 	return popColorsStrs;
 }
-
 
 pcm::pcm(Json::Value config, std::shared_ptr<seqCache> seqs) :
 		config_(config), seqs_(seqs){
@@ -197,12 +176,17 @@ void pcm::loadInPopSeqs(){
 		/**todo make safter for non fastq pop clustering */
 		//read pop seqs
 		auto files = bib::files::listAllFiles(mainDir_ + "population/", false, {std::regex{".*\\.fastq"}});
-		readObjectIO reader;
-		reader.read("fastq", files.begin()->first.string(), true);
-		for(auto & read : reader.reads){
+		SeqIOOptions popOpts;
+		popOpts.firstName_ = files.begin()->first.string();
+		popOpts.inFormat_ = SeqIOOptions::getInFormat(bib::files::getExtension(files.begin()->first.string()));
+		popOpts.processed_ = true;
+		SeqInput reader(popOpts);
+		reader.openIn();
+		auto reads = reader.readAllReads<readObject>();
+		for(auto & read : reads){
 			read.seqBase_.name_ = read.seqBase_.name_.substr(0, read.seqBase_.name_.rfind("_"));
 		}
-		seqs_->updateAddCache(popSeqDataUid, std::make_shared<std::vector<readObject>>(std::vector<readObject>(reader.reads)));
+		seqs_->updateAddCache(popSeqDataUid, std::make_shared<std::vector<readObject>>(std::vector<readObject>(reads)));
 	}
 }
 Json::Value pcm::getPosSeqData(){
@@ -259,16 +243,6 @@ Json::Value pcm::getPopInfoForSamps(const VecStr & sampNames){
 
 
 
-Json::Value pcm::getMinTreeData(){
-	bib::scopedMessage mess(messStrFactory(__PRETTY_FUNCTION__), std::cout, debug_);
-	if(!calculatedTreeData_){
-		loadInPopSeqs();
-		std::string popSeqDataUid = projectName_ + "_seqs";
-		//get min tree data
-		minTreeData_ = genMinTreeData(*seqs_->getRecord(popSeqDataUid));
-	}
-	return minTreeData_;
-}
 
 
 std::string pcm::decodeSampEncoding(const std::string& sampName){
@@ -285,52 +259,44 @@ Json::Value pcm::getSeqData(std::string encodeSampName) {
 					encodeSampName }, { "deCodedSampName", deCodedSampName } }),
 			std::cout, debug_);
 	if (bib::in(deCodedSampName, clusteredSampleNames_)) {
-		auto fileName = bib::files::appendAsNeededRet(mainDir_, "/") + "final/"
-				+ deCodedSampName + ".fastq";
-		if (fexists(fileName)) {
+		std::string fileName = "";
+		/*auto files = bib::files::listAllFiles(
+				bib::appendAsNeededRet(mainDir_, "/") + "final/", false,
+				{ std::regex(deCodedSampName + R"(\.fast.*)") });*/
+		auto files = bib::files::listAllFiles(
+				bib::appendAsNeededRet(mainDir_, "/") + "final/", false,
+				VecStr { deCodedSampName + ".fast" });
+		if (files.empty()) {
+			std::cerr << "No files starting with "
+					<< bib::appendAsNeededRet(mainDir_, "/") + "final/" + deCodedSampName
+					<< " found in " << bib::appendAsNeededRet(mainDir_, "/") + "final/"
+					<< std::endl;
+		} else {
+			fileName = files.begin()->first.string();
 			std::string seqUid = projectName_ + "_" + deCodedSampName;
 			if (!seqs_->containsRecord(seqUid) || !seqs_->recordValid(seqUid)) {
-				readObjectIO reader;
-				reader.read("fastq", fileName, true);
+				SeqIOOptions sampOpts;
+				sampOpts.inFormat_ = SeqIOOptions::getInFormat(bib::files::getExtension(fileName));
+				sampOpts.firstName_ = fileName;
+				sampOpts.processed_ = true;
+				SeqInput reader(sampOpts);
+				reader.openIn();
 				seqs_->updateAddCache(seqUid,
-											std::make_shared<std::vector<readObject>>(reader.reads));
+											std::make_shared<std::vector<readObject>>(reader.readAllReads<readObject>()));
 			}
 			return cppcmsJsonToJson(seqs_->getJson(seqUid));
+		}
+		if (fexists(fileName)) {
+
 		} else {
-			std::cout << "File " << fileName << " does not exist" << std::endl;
+			std::cerr << "File " << fileName << " does not exist" << std::endl;
 		}
 	} else {
-		std::cout << "SampName: " << deCodedSampName << " not found" << std::endl;
+		std::cerr << "SampName: " << deCodedSampName << " not found" << std::endl;
 	}
 	return Json::Value();
 }
 
-
-Json::Value pcm::getMinTreeDataForSample(std::string encodedSampName){
-	auto decodedSampName = decodeSampEncoding(encodedSampName);
-	bib::scopedMessage mess(messStrFactory(__PRETTY_FUNCTION__ , {{"decodedSampName", decodedSampName},{"encodedSampName", encodedSampName}}), std::cout, debug_);
-	if(bib::in(decodedSampName, clusteredSampleNames_)){
-		auto fileName = bib::files::appendAsNeededRet(mainDir_, "/") + "final/" + decodedSampName + ".fastq";
-		if(fexists(fileName)){
-			auto search = sampleMinTreeDataCache_.find(decodedSampName);
-			Json::Value graphJsonData;
-			if(search == sampleMinTreeDataCache_.end()){
-				readObjectIO reader;
-				reader.read("fastq", fileName, true);
-				graphJsonData = genMinTreeData(reader.reads);
-				sampleMinTreeDataCache_[decodedSampName] = graphJsonData;
-			}else{
-				graphJsonData = search->second;
-			}
-			return graphJsonData;
-		}else{
-			std::cout << "File " << fileName << " does not exist" << std::endl;
-		}
-	}else{
-		std::cout << "SampName: " << decodedSampName << " not found" << std::endl;
-	}
-	return Json::Value();
-}
 
 Json::Value pcm::getIndexExtractionInfo(){
 	bib::scopedMessage mess(messStrFactory(__PRETTY_FUNCTION__), std::cout, debug_);
@@ -529,7 +495,7 @@ Json::Value pcm::getGroupPopInfos(std::string group){
 				"p_maxMoi", "g_hapsFoundOnlyInThisGroup"};
 		table outTab(groupInfoColNames);
 		for(const auto & k : keys){
-			outTab.rbind(groupInfos_[group][k].popTable_.getColumns(groupInfoColNames));
+			outTab.rbind(groupInfos_[group][k].popTable_.getColumns(groupInfoColNames), false);
 		}
 		outTab = outTab.getUniqueRows();
 		outTab.sortTable("g_GroupName", false);
