@@ -1,3 +1,24 @@
+//
+// SeekDeep - A library for analyzing amplicon sequence data
+// Copyright (C) 2012-2016 Nicholas Hathaway <nicholas.hathaway@umassmed.edu>,
+// Jeffrey Bailey <Jeffrey.Bailey@umassmed.edu>
+//
+// This file is part of SeekDeep.
+//
+// SeekDeep is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// SeekDeep is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with SeekDeep.  If not, see <http://www.gnu.org/licenses/>.
+//
+//
     function tabulate(data, columns, divId) {
 		/** Add json data organized row wise into a table in the div with the divId with only the columns given
 		 *
@@ -14,7 +35,7 @@
 	        .enter()
 	        .append("th")
 	            .attr("style", "font-weight: bold; padding: 2px 4px;")
-	            .text(function(column) { return column; });
+	            .html(function(column) { return "<nobr>" + column + "</nobr>"; });
 	
 	    // create a row for each object in the data
 	    var rows = tbody.selectAll("tr")
@@ -32,7 +53,7 @@
 	        .enter()
 	        .append("td")
 	            .attr("style", "padding: 2px 4px;")
-	            .text(function(d) { return d.value; });
+	            .html(function(d) { return "<nobr>" + d.value + "</nobr>";});
 	    
 	    return table;
 	}
@@ -60,7 +81,7 @@
 	        .enter()
 			.append("th")
 				.attr("style", "font-weight: bold; padding: 2px 4px;")
-	            .text(function(column) { return column; });
+	            .html(function(column) { return "<nobr>" + column + "</nobr>"; });
 	   //create headers as needed and add bolding 
 	  /*header.enter()
 	        .append("th")*/
@@ -104,8 +125,8 @@
 	   	cells.enter()
 	        .append("td")
 	            .attr("style", "padding: 2px 4px;")
-	            .text(function(d) { return d.value; });
-	    cells.text(function(d) { return d.value; });
+	            .html(function(d) { return "<nobr>" + d.value + "</nobr>"; });
+	    cells.html(function(d) {  return "<nobr>" + d.value + "</nobr>"; });
 	    //remove cells as needed
 	    cells.exit()
         	 .remove();
@@ -126,7 +147,7 @@
 	        .enter()
 			.append("th")
 				.attr("style", "font-weight: bold; padding: 2px 4px;")
-	            .text(function(column) { return column; });
+	            .html(function(column) { return "<nobr>" + column + "</nobr>";});
 	   //create headers as needed and add bolding 
 	  /*header.enter()
 	        .append("th")*/
@@ -160,8 +181,8 @@
 	   	cells.enter()
 	        .append("td")
 	            .attr("style", "padding: 2px 4px;")
-	            .text(function(d) { return d.value; });
-	    cells.text(function(d) { return d.value; });
+	            .html(function(d) { return "<nobr>" + d.value + "</nobr>"; });
+	    cells.html(function(d) { return "<nobr>" + d.value + "</nobr>"; });
 	    //remove cells as needed
 	    cells.exit()
         	 .remove();

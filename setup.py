@@ -176,7 +176,8 @@ class CPPLibPackageVersion():
 class CPPLibPackage():
     def __init__(self, name, defaultBuildCmd, dirMaster, libType, defaultVersion):
         self.name_ = name
-        self.defaultVersion_ = defaultVersion
+        
+        self.defaultVersion_ = defaultVersion.replace("/", "__")
         self.defaultBuildCmd_ = defaultBuildCmd
         self.versions_ = {}
         self.externalLibDir_ = dirMaster
@@ -185,6 +186,7 @@ class CPPLibPackage():
         self.libType_ = libType #should be git or file
     
     def addVersion(self, url, verName, depends=[]):
+        verName = verName.replace("/", "__")
         build_dir = os.path.join(self.externalLibDir_.ext_build, self.name_, verName)
         fn = os.path.basename(url)
         fn_noex = fn.replace(".tar.gz", "").replace(".tar.bz2", "").replace(".git", "")
@@ -195,6 +197,7 @@ class CPPLibPackage():
     def addHeaderOnlyVersion(self, url, verName, depends=[]):
         '''set up for header only libraries, these just need
          the header copied no need for build_dir build_sub_dir '''
+        verName = verName.replace("/", "__")
         local_dir = os.path.join(self.externalLibDir_.install_dir, self.name_, verName, self.name_)
         self.versions_[verName] = CPPLibPackageVersion(self.name_, verName,BuildPaths(url, "", "", local_dir), depends)
         self.versions_[verName].includePath_ = os.path.join(self.name_, verName)
@@ -463,26 +466,32 @@ class Packages():
         url = 'https://github.com/bailey-lab/cppprogutils.git'
         name = "cppprogutils"
         buildCmd = ""
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly", "1.0")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly", "v2.0.0")
         pack.addHeaderOnlyVersion(url, "develop")
         pack.versions_["develop"].additionalLdFlags_ = ["-lpthread"]
         pack.versions_["develop"].includePath_ = os.path.join(name, "develop", name)
         pack.addHeaderOnlyVersion(url, "1.0")
         pack.versions_["1.0"].additionalLdFlags_ = ["-lpthread"]
         pack.versions_["1.0"].includePath_ = os.path.join(name, "1.0", name)
+        pack.addHeaderOnlyVersion(url, "v2.0.0")
+        pack.versions_["v2.0.0"].additionalLdFlags_ = ["-lpthread"]
+        pack.versions_["v2.0.0"].includePath_ = os.path.join(name, "v2.0.0", name)
         return pack
     
     def __bibseq(self):
         url = "https://github.com/bailey-lab/bibseq.git"
         name = "bibseq"
         buildCmd = self.__bibProjectBuildCmd()
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "2.2.1")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v2.3.0")
         pack.addVersion(url, "develop",[LibNameVer("bibcpp", "develop"),LibNameVer("twobit", "develop"),LibNameVer("bamtools", "v2.4.0"),LibNameVer("armadillo", "6.200.3")])
         pack.versions_["develop"].additionalLdFlags_ = ["-lcurl"] 
         if Utils.isMac() and not "gcc" in self.args.CC:
             pack.versions_["develop"].depends_.append(LibNameVer("sharedmutex", "develop"))
-        pack.addVersion(url, "2.2.1",[LibNameVer("bibcpp", "2.2.1"),LibNameVer("bamtools", "v2.4.0"),LibNameVer("armadillo", "6.200.3")])
-        pack.versions_["2.2.1"].additionalLdFlags_ = ["-lcurl"] 
+        
+        pack.addVersion(url, "v2.3.0",[LibNameVer("bibcpp", "v2.3.0"),LibNameVer("twobit", "v2.0.0"),LibNameVer("bamtools", "v2.4.0"),LibNameVer("armadillo", "6.200.3")])
+        pack.versions_["v2.3.0"].additionalLdFlags_ = ["-lcurl"] 
+        if Utils.isMac() and not "gcc" in self.args.CC:
+            pack.versions_["v2.3.0"].depends_.append(LibNameVer("sharedmutex", "v0.2"))
         return pack
     
     def __bibseqDev(self):
@@ -500,27 +509,27 @@ class Packages():
         url = "https://github.com/weng-lab/TwoBit.git"
         name = "TwoBit"
         buildCmd = self.__bibProjectBuildCmd()
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "1.0")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v2.0.0")
         pack.addVersion(url, "develop",[LibNameVer("cppitertools", "v0.1"),LibNameVer("cppprogutils", "develop")])
-        pack.addVersion(url, "1.0",[LibNameVer("cppitertools", "v0.1"),LibNameVer("cppprogutils", "1.0")])
+        pack.addVersion(url, "v2.0.0",[LibNameVer("cppitertools", "v0.1"),LibNameVer("cppprogutils", "v2.0.0")])
         return pack
     
     def __sharedMutex(self):
         url = "https://github.com/nickjhathaway/cpp_shared_mutex.git"
         name = "sharedMutex"
         buildCmd = self.__bibProjectBuildCmd()
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v0.1")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v0.2")
         pack.addVersion(url, "develop")
-        pack.addVersion(url, "v0.1")
+        pack.addVersion(url, "v0.2")
         return pack 
       
     def __SeekDeep(self):
         url = "https://github.com/bailey-lab/SeekDeep.git"
         name = "SeekDeep"
         buildCmd = self.__bibProjectBuildCmd()
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "2.2.1")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v2.3.0")
         pack.addVersion(url, "develop",[LibNameVer("bibseq", "develop"),LibNameVer("njhRInside", "develop"),LibNameVer("seqServer", "develop")])
-        pack.addVersion(url, "2.2.1",[LibNameVer("bibseq", "2.2.1"),LibNameVer("njhRInside", "1.1.1"),LibNameVer("seqServer", "1.2.1")])
+        pack.addVersion(url, "v2.3.0",[LibNameVer("bibseq", "v2.3.0"),LibNameVer("seqServer", "v1.3.0")])
         return pack
     
     def __SeekDeepDev(self):
@@ -535,9 +544,9 @@ class Packages():
         url = "https://github.com/nickjhathaway/seqServer.git"
         name = "seqServer"
         buildCmd = self.__bibProjectBuildCmd()
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "1.2.1")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v1.3.0")
         pack.addVersion(url, "develop",[LibNameVer("bibseqdev", "master"),LibNameVer("cppcms", "1.0.5")])
-        pack.addVersion(url, "1.2.1",[LibNameVer("bibseq", "2.2.1"),LibNameVer("cppcms", "1.0.5")])
+        pack.addVersion(url, "v1.3.0",[LibNameVer("bibseq", "v2.3.0"),LibNameVer("cppcms", "1.0.5")])
         return pack
     
     def __njhRInside(self):
@@ -553,15 +562,16 @@ class Packages():
         url = "https://github.com/umass-bib/bibcpp.git"
         name = "bibcpp"
         buildCmd = self.__bibProjectBuildCmd()
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "2.2.1")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v2.3.0")
         pack.addVersion(url, "develop",[LibNameVer("jsoncpp", "1.6.5"),LibNameVer("boost", "1_60_0"),LibNameVer("cppitertools", "v0.1"),LibNameVer("pstreams", "RELEASE_0_8_1")])
         pack.versions_["develop"].additionalLdFlags_ = ["-lpthread", "-lz"]
         if not Utils.isMac():
             pack.versions_["develop"].additionalLdFlags_.append("-lrt")
-        pack.addVersion(url, "2.2.1",[LibNameVer("jsoncpp", "1.6.5"),LibNameVer("boost", "1_58_0"),LibNameVer("cppitertools", "v0.1"),LibNameVer("pstreams", "RELEASE_0_8_1")])
-        pack.versions_["2.2.1"].additionalLdFlags_ = ["-lpthread", "-lz"]   
+            
+        pack.addVersion(url, "v2.3.0",[LibNameVer("jsoncpp", "1.6.5"),LibNameVer("boost", "1_60_0"),LibNameVer("cppitertools", "v0.1"),LibNameVer("pstreams", "RELEASE_0_8_1")])
+        pack.versions_["v2.3.0"].additionalLdFlags_ = ["-lpthread", "-lz"]
         if not Utils.isMac():
-            pack.versions_["2.2.1"].additionalLdFlags_.append("-lrt")  
+            pack.versions_["v2.3.0"].additionalLdFlags_.append("-lrt")
         return pack
 
     def __boost(self):
@@ -631,7 +641,7 @@ class Packages():
         if packVer.name not in self.packages_:
             raise Exception("Lib " + packVer.name + " not found in libs, options are " + ", ".join(self.getPackagesNames()))
         else:
-            if packVer.version not in self.packages_[packVer.name].versions_:
+            if packVer.version.replace("/", "__") not in self.packages_[packVer.name].versions_:
                 raise Exception("Version " + packVer.version + " for lib " \
                                 + packVer.name + " not found in available versions, options are " \
                                 + ", ".join(self.packages_[packVer.name].getVersions()))
@@ -669,6 +679,7 @@ class Packages():
                     f.write("LD_FLAGS += " + pvLdFlags + "\n")
     
     def addPackage(self, packVers, packVer):
+        packVer = LibNameVer(packVer.name, packVer.version.replace("/", "__"))
         if self.checkForPackVer(packVer):
             pack = self.package(packVer.name)
             for dep in pack.versions_[packVer.version].depends_:
@@ -757,6 +768,7 @@ class Setup:
                     print CT.boldBlack( "Unrecognized option ") + CT.boldRed(set.name)
                 else:
                     self.rmDirsForLib(set)
+                    
         for set in self.setUpsNeeded:
             if not set.name in self.setUps.keys():
                 print CT.boldBlack( "Unrecognized option ") + CT.boldRed(set.name)
@@ -907,6 +919,7 @@ class Setup:
         return self.packages_.package(name)
 
     def __setup(self, name, version):
+        version = version.replace("/", "__")
         pack = self.__package(name)
         if not pack.hasVersion(version):
             raise Exception("Package " + str(name) + " doesn't have version " + str(version))
@@ -962,7 +975,7 @@ class Setup:
         bPath = packVer.bPaths_
         if os.path.exists(bPath.build_sub_dir):
             print "pulling from {url}".format(url=bPath.url)
-            pCmd = "git checkout " + packVer.nameVer_.version + " && git pull"
+            pCmd = "git checkout " + packVer.nameVer_.version.replace("__", "/") + " && git pull"
             try:
                 Utils.run_in_dir(pCmd, bPath.build_sub_dir)
             except:
@@ -970,7 +983,7 @@ class Setup:
                 sys.exit(1)
         else:
             print "cloning from {url}".format(url=bPath.url)
-            cCmd = "git clone -b " + packVer.nameVer_.version + " {url} {d}".format(url=bPath.url, d=bPath.build_sub_dir)
+            cCmd = "git clone -b " + packVer.nameVer_.version.replace("__", "/") + " {url} {d}".format(url=bPath.url, d=bPath.build_sub_dir)
             try:
                 Utils.run(cCmd)
             except:
@@ -1026,12 +1039,12 @@ class Setup:
             For header only libraries, will be put directly into local
         '''
         print "cloning from {url}".format(url=bPath.url)
-        cCmd = "git clone -b {branch} {url} {d}".format(branch = packVer.nameVer_.version,url=bPath.url, d=bPath.local_dir)
+        cCmd = "git clone -b {branch} {url} {d}".format(branch = packVer.nameVer_.version.replace("__", "/"),url=bPath.url, d=bPath.local_dir)
         try:
-            Utils.run_in_dir(cCmd)
+            Utils.run(cCmd)
         except Exception, e:
             print e
-            print "failed to clone branch {branch} from {url}".format(branch = packVer.nameVer_.version, url=bPath.url)
+            print "failed to clone branch {branch} from {url}".format(branch = packVer.nameVer_.version.replace("__", "/"), url=bPath.url)
             sys.exit(1)
     
     def __gitTag(self, packVer):
@@ -1091,7 +1104,7 @@ class Setup:
                 fixDyLibOnMac(libPath)
         
     def __defaultBibBuild(self, package, version):
-        if "develop" == version:
+        if "develop" == version or "release" in version:
             self.__defaultBuild(package, version, False)
         else:
             self.__defaultBuild(package, version, True)
@@ -1192,7 +1205,7 @@ class Setup:
         self.__defaultBibBuild("njhrinside", version)
         
     def cppprogutils(self, version):
-        self.__defaultBuild("cppprogutils", version)
+        self.__defaultBibBuild("cppprogutils", version)
     
     def jsoncpp(self, version):
         self.__defaultBuild("jsoncpp", version)
