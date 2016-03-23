@@ -1,6 +1,6 @@
 SeekDeep
 ========
-Version 2.3.0
+Version 2.3.1
 
 Bioinformatic Tools for analyzing targeted amplicon sequencing developed by the UMASS Med Bailey Lab
 
@@ -12,11 +12,11 @@ http://baileylab.umassmed.edu/SeekDeep/
 #Installing
  
 
-#To Install Version 2.3.0 (latest)  
+#To Install Version 2.3.1 (latest)  
 ```bash
 git clone https://github.com/bailey-lab/SeekDeep.git   
 cd SeekDeep  
-git checkout v2.3.0  
+git checkout v2.3.1  
 ./configure.py  
 ./setup.py --compfile compfile.mk --outMakefile makefile-common.mk
 make   
