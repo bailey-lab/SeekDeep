@@ -268,7 +268,7 @@ class Packages():
     
     def __pstreams(self):
         name = "pstreams"
-        url = 'https://github.com/nickjhathaway/pstreams'
+        url = 'https://github.com/nickjhathaway/pstreams.git'
         buildCmd = ""
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly", "RELEASE_0_8_1")
         pack.addHeaderOnlyVersion(url, "master")
@@ -292,13 +292,14 @@ class Packages():
         url = "https://github.com/open-source-parsers/jsoncpp.git"
         name = "jsoncpp"
         buildCmd = "mkdir -p build && cd build && CC={CC} CXX={CXX} cmake -DCMAKE_CXX_FLAGS=-fPIC -DCMAKE_EXE_LINKER_FLAGS=-fPIC -DCMAKE_INSTALL_PREFIX:PATH={local_dir} ..  && make -j {num_cores} install"
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "1.6.5")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "1.7.1")
         pack.addVersion(url, "1.6.5")
+        pack.addVersion(url, "1.7.1")
         pack.addVersion(url, "master")
         return pack
     
     def __mongoc(self):
-        url = "https://github.com/mongodb/mongo-c-driver"
+        url = "https://github.com/mongodb/mongo-c-driver.git"
         name = "mongoc"
         if Utils.isMac():
             buildCmd = "sed -i.bak s/git:/http:/g .gitmodules && CC={CC} CXX={CXX}  PKG_CONFIG_PATH=/usr/local/opt/openssl/lib/pkgconfig:$PKG_CONFIG_PATH ./autogen.sh --prefix={local_dir}&& make -j {num_cores}  && make install"
@@ -315,7 +316,7 @@ class Packages():
         return pack
     
     def __mongocxx(self):
-        url = "https://github.com/mongodb/mongo-cxx-driver"
+        url = "https://github.com/mongodb/mongo-cxx-driver.git"
         name = "mongocxx"
         buildCmd = "cd build && PKG_CONFIG_PATH=/Users/nick/testing/testingSetUpAgain/external/local/mongoc/{mongoc_ver}/mongoc/lib/pkgconfig/:PKG_CONFIG_PATH CC={CC} CXX={CXX} cmake -DCMAKE_BUILD_TYPE=Release -DLIBBSON_DIR={external}/local/mongoc/{mongoc_ver}/mongoc/ -DLIBMONGOC_DIR={external}/local/mongoc/{mongoc_ver}/mongoc/ -DCMAKE_INSTALL_PREFIX={local_dir} .. && make -j {num_cores} && make install"
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "07d4243445b5f0f333bf0ee9b3f482e74adf67a4")
@@ -492,6 +493,11 @@ class Packages():
         pack.versions_["v2.3.0"].additionalLdFlags_ = ["-lcurl"] 
         if Utils.isMac() and not "gcc" in self.args.CC:
             pack.versions_["v2.3.0"].depends_.append(LibNameVer("sharedmutex", "v0.2"))
+            
+        pack.addVersion(url, "v2.3.1",[LibNameVer("bibcpp", "v2.3.1"),LibNameVer("twobit", "v2.0.1"),LibNameVer("bamtools", "v2.4.0"),LibNameVer("armadillo", "6.200.3")])
+        pack.versions_["v2.3.1"].additionalLdFlags_ = ["-lcurl"] 
+        if Utils.isMac() and not "gcc" in self.args.CC:
+            pack.versions_["v2.3.1"].depends_.append(LibNameVer("sharedmutex", "v0.3"))
         return pack
     
     def __bibseqDev(self):
@@ -509,27 +515,30 @@ class Packages():
         url = "https://github.com/weng-lab/TwoBit.git"
         name = "TwoBit"
         buildCmd = self.__bibProjectBuildCmd()
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v2.0.0")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v2.0.1")
         pack.addVersion(url, "develop",[LibNameVer("cppitertools", "v0.1"),LibNameVer("cppprogutils", "develop")])
         pack.addVersion(url, "v2.0.0",[LibNameVer("cppitertools", "v0.1"),LibNameVer("cppprogutils", "v2.0.0")])
+        pack.addVersion(url, "v2.0.1",[LibNameVer("cppitertools", "v0.1"),LibNameVer("cppprogutils", "v2.0.0")])
         return pack
     
     def __sharedMutex(self):
         url = "https://github.com/nickjhathaway/cpp_shared_mutex.git"
         name = "sharedMutex"
         buildCmd = self.__bibProjectBuildCmd()
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v0.2")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v0.3")
         pack.addVersion(url, "develop")
         pack.addVersion(url, "v0.2")
+        pack.addVersion(url, "v0.3")
         return pack 
       
     def __SeekDeep(self):
         url = "https://github.com/bailey-lab/SeekDeep.git"
         name = "SeekDeep"
         buildCmd = self.__bibProjectBuildCmd()
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v2.3.0")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v2.3.1")
         pack.addVersion(url, "develop",[LibNameVer("bibseq", "develop"),LibNameVer("njhRInside", "develop"),LibNameVer("seqServer", "develop")])
         pack.addVersion(url, "v2.3.0",[LibNameVer("bibseq", "v2.3.0"),LibNameVer("seqServer", "v1.3.0")])
+        pack.addVersion(url, "v2.3.1",[LibNameVer("bibseq", "v2.3.1"),LibNameVer("seqServer", "v1.3.1")])
         return pack
     
     def __SeekDeepDev(self):
@@ -544,9 +553,10 @@ class Packages():
         url = "https://github.com/nickjhathaway/seqServer.git"
         name = "seqServer"
         buildCmd = self.__bibProjectBuildCmd()
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v1.3.0")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v1.3.1")
         pack.addVersion(url, "develop",[LibNameVer("bibseqdev", "master"),LibNameVer("cppcms", "1.0.5")])
         pack.addVersion(url, "v1.3.0",[LibNameVer("bibseq", "v2.3.0"),LibNameVer("cppcms", "1.0.5")])
+        pack.addVersion(url, "v1.3.1",[LibNameVer("bibseq", "v2.3.1"),LibNameVer("cppcms", "1.0.5")])
         return pack
     
     def __njhRInside(self):
@@ -563,7 +573,7 @@ class Packages():
         name = "bibcpp"
         buildCmd = self.__bibProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v2.3.0")
-        pack.addVersion(url, "develop",[LibNameVer("jsoncpp", "1.6.5"),LibNameVer("boost", "1_60_0"),LibNameVer("cppitertools", "v0.1"),LibNameVer("pstreams", "RELEASE_0_8_1")])
+        pack.addVersion(url, "develop",[LibNameVer("jsoncpp", "1.7.1"),LibNameVer("boost", "1_60_0"),LibNameVer("cppitertools", "v0.1"),LibNameVer("pstreams", "RELEASE_0_8_1")])
         pack.versions_["develop"].additionalLdFlags_ = ["-lpthread", "-lz"]
         if not Utils.isMac():
             pack.versions_["develop"].additionalLdFlags_.append("-lrt")
@@ -572,6 +582,11 @@ class Packages():
         pack.versions_["v2.3.0"].additionalLdFlags_ = ["-lpthread", "-lz"]
         if not Utils.isMac():
             pack.versions_["v2.3.0"].additionalLdFlags_.append("-lrt")
+            
+        pack.addVersion(url, "v2.3.1",[LibNameVer("jsoncpp", "1.7.1"),LibNameVer("boost", "1_60_0"),LibNameVer("cppitertools", "v0.1"),LibNameVer("pstreams", "RELEASE_0_8_1")])
+        pack.versions_["v2.3.1"].additionalLdFlags_ = ["-lpthread", "-lz"]
+        if not Utils.isMac():
+            pack.versions_["v2.3.1"].additionalLdFlags_.append("-lrt")
         return pack
 
     def __boost(self):
@@ -951,6 +966,8 @@ class Setup:
     def __buildFromFile(self, packVer, cmd):
         bPath = packVer.bPaths_
         if self.noInternet_:
+            newUrl = bPath.url.replace(".git","/archive/" + str(packVer.nameVer_.version) + ".tar.gz").replace("git@github.com:", "https://github.com/")
+            bPath = BuildPaths(newUrl, bPath.build_dir, bPath.build_sub_dir, bPath.local_dir)
             base_file = os.path.basename(bPath.url)
             fnp = os.path.join(self.dirMaster_.ext_tars,packVer.nameVer_.name, base_file)
             if not os.path.exists(fnp):
@@ -1257,7 +1274,10 @@ class Setup:
             pack = self.__package(set.name) 
             packVer = pack.versions_[set.version]
             url = packVer.getDownloadUrl()
-            fnp = Utils.get_file_if_size_diff(url, os.path.join(self.dirMaster_.ext_tars, packVer.nameVer_.name))
+            dest = os.path.join(self.dirMaster_.ext_tars, packVer.nameVer_.name)
+            print ("Downloading " + CT.boldGreen(url) + " to " + CT.boldBlue(dest))
+            fnp = Utils.get_file(url, dest)
+        print ("Now run \"./setup.py --compfile compfile.mk --outMakefile makefile-common.mk --noInternet\" to build libraries")
 
     def externalChecks(self):
         ccWhich = Utils.which(self.CC)

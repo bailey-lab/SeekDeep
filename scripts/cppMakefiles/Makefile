@@ -51,9 +51,6 @@ COMMON = $(CXXFLAGS) $(CXXOPT) $(COMLIBS)
 
 ############ default for calling make with no arguments
 all: do_preReqs $(OBJ_DIR) $(BIN) 
-ifeq ($(UNAME_S), Darwin)
-	#scripts/setUpScripts/fixDyLinking_mac.sh bin $(EXT_PATH)
-endif
 
 ######### docs
 docs: docs/Doxygen
