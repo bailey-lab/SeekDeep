@@ -539,6 +539,7 @@ class Packages():
         pack.addVersion(url, "develop",[LibNameVer("bibseq", "develop"),LibNameVer("njhRInside", "develop"),LibNameVer("seqServer", "develop")])
         pack.addVersion(url, "v2.3.0",[LibNameVer("bibseq", "v2.3.0"),LibNameVer("seqServer", "v1.3.0")])
         pack.addVersion(url, "v2.3.1",[LibNameVer("bibseq", "v2.3.1"),LibNameVer("seqServer", "v1.3.1")])
+        pack.addVersion(url, "v2.3.2",[LibNameVer("bibseq", "v2.3.1"),LibNameVer("seqServer", "v1.3.1")])
         return pack
     
     def __SeekDeepDev(self):
