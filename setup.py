@@ -539,6 +539,7 @@ class Packages():
         pack.addVersion(url, "develop",[LibNameVer("bibseq", "develop"),LibNameVer("njhRInside", "develop"),LibNameVer("seqServer", "develop")])
         pack.addVersion(url, "v2.3.0",[LibNameVer("bibseq", "v2.3.0"),LibNameVer("seqServer", "v1.3.0")])
         pack.addVersion(url, "v2.3.1",[LibNameVer("bibseq", "v2.3.1"),LibNameVer("seqServer", "v1.3.1")])
+        pack.addVersion(url, "v2.3.2",[LibNameVer("bibseq", "v2.3.1"),LibNameVer("seqServer", "v1.3.1")])
         return pack
     
     def __SeekDeepDev(self):
@@ -1270,8 +1271,8 @@ class Setup:
     def downloadFiles(self):
         for set in self.setUpsNeeded:
             self.packages_.checkForPackVer(set)
-            Utils.mkdir(os.path.join(self.dirMaster_.ext_tars, set.name))
             pack = self.__package(set.name) 
+            Utils.mkdir(os.path.join(self.dirMaster_.ext_tars, pack.name_))
             packVer = pack.versions_[set.version]
             url = packVer.getDownloadUrl()
             dest = os.path.join(self.dirMaster_.ext_tars, packVer.nameVer_.name)
