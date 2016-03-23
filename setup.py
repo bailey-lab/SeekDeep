@@ -1270,8 +1270,8 @@ class Setup:
     def downloadFiles(self):
         for set in self.setUpsNeeded:
             self.packages_.checkForPackVer(set)
-            Utils.mkdir(os.path.join(self.dirMaster_.ext_tars, set.name))
             pack = self.__package(set.name) 
+            Utils.mkdir(os.path.join(self.dirMaster_.ext_tars, pack.name_))
             packVer = pack.versions_[set.version]
             url = packVer.getDownloadUrl()
             dest = os.path.join(self.dirMaster_.ext_tars, packVer.nameVer_.name)

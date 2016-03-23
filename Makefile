@@ -3,6 +3,9 @@ ROOT = $(realpath ./)
 ifdef CXXFLAGS 
 	ENV_CXXFLAGS := $(CXXFLAGS)
 endif
+ifdef LDFLAGS 
+	ENV_LDFLAGS := $(LDFLAGS)
+endif
 ifneq (,$(wildcard compfile.mk))
 COMPFILE=compfile.mk
 endif
@@ -43,8 +46,9 @@ ETC_DIR = etc
 ## unit tert dir 
 TESTDIR=test
 
-###compiler options
+###compiler options, add in environmental 
 CXXFLAGS += $(ENV_CXXFLAGS)
+LD_FLAGS += $(ENV_LDFLAGS)
 #CXXFLAGS += -Wno-missing-braces
 COMMON = $(CXXFLAGS) $(CXXOPT) $(COMLIBS)
 -include do_preReqs
