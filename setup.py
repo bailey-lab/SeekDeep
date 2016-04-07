@@ -9,7 +9,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "scripts/setUpScripts"))
 from utils import Utils
 from genFuncs import genHelper 
 from color_text import ColorText as CT
-import pickle
+import pickle, datetime
 
 #tuples
 BuildPaths = namedtuple("BuildPaths", 'url build_dir build_sub_dir local_dir')
@@ -963,6 +963,12 @@ class Setup:
             self.noInternet_ = True
         self.__initSetUpFuncs()
         self.__processArgsForCompilers()
+        #if we have internet and the cache is more than a day old, clear it
+        if Utils.connectedInternet:
+            cacheDate = datetime.datetime.fromtimestamp(os.path.getmtime(self.dirMaster_.cache_dir))
+            now = datetime.datetime.now()
+            if 86400 < (now - cacheDate).total_seconds():
+                self.clearCache()
         if args.clearCache:
             self.clearCache()
         self.packages_ = Packages(self.extDirLoc, self.args) # path object to hold the paths for install
