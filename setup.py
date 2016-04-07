@@ -1502,7 +1502,7 @@ class Setup:
                 packVer = pack.versions_[set.version]
                 tempDir = os.path.join(topTempDir, pack.name_)
                 cloneCmd = "git clone {url} {d}".format(url=packVer.bPaths_.url, d = tempDir)
-                tagCmd = "git checkout {tag}".format(tag=packVer.nameVer_.version)
+                tagCmd = "git checkout {tag}".format(tag=packVer.nameVer_.version.replace("__", "/"))
                 Utils.run(cloneCmd)
                 Utils.run_in_dir(tagCmd, tempDir)
                 Utils.run_in_dir(downloadCmd, tempDir)
