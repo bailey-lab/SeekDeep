@@ -262,7 +262,7 @@ class Packages():
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
                     pack = pickle.load(input)
         else:
-            pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly", "v0.1")
+            
             refs = pack.getGitRefs(url)
             for ref in refs.branches + refs.tags:
                 pack.addHeaderOnlyVersion(url, ref)
@@ -286,7 +286,6 @@ class Packages():
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
                     pack = pickle.load(input)
         else:
-            pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly", "v0.1")
             refs = pack.getGitRefs(url)
             for ref in refs.branches + refs.tags:
                 pack.addHeaderOnlyVersion(url, ref)
@@ -307,7 +306,6 @@ class Packages():
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
                     pack = pickle.load(input)
         else:
-            pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly", "v0.1")
             refs = pack.getGitRefs(url)
             for ref in refs.branches + refs.tags:
                 pack.addVersion(url, ref)
@@ -330,7 +328,6 @@ class Packages():
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
                     pack = pickle.load(input)
         else:
-            pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly", "v0.1")
             refs = pack.getGitRefs(url)
             for ref in refs.branches + refs.tags:
                 pack.addVersion(url, ref)
@@ -382,6 +379,7 @@ class Packages():
         url = 'https://github.com/ryanhaining/cppitertools.git'
         name = "cppitertools"
         buildCmd = ""
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly", "v0.1")
         if self.args.noInternet:
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
                 pack = pickle.load(input)
@@ -389,7 +387,6 @@ class Packages():
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
                     pack = pickle.load(input)
         else:
-            pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly", "v0.1")
             refs = pack.getGitRefs(url)
             for ref in refs.branches + refs.tags:
                 pack.addHeaderOnlyVersion(url, ref)
@@ -410,7 +407,6 @@ class Packages():
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
                     pack = pickle.load(input)
         else:
-            pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly", "v0.1")
             refs = pack.getGitRefs(url)
             for ref in refs.branches + refs.tags:
                 pack.addHeaderOnlyVersion(url, ref)
@@ -548,7 +544,6 @@ class Packages():
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
                     pack = pickle.load(input)
         else:
-            pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly", "v0.1")
             refs = pack.getGitRefs(url)
             for ref in refs.branches + refs.tags:
                 pack.addHeaderOnlyVersion(url, ref)
@@ -572,7 +567,6 @@ class Packages():
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
                     pack = pickle.load(input)
         else:
-            pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly", "v0.1")
             refs = pack.getGitRefs(url)
             for ref in refs.branches + refs.tags:
                 pack.addVersion(url, ref)
@@ -595,7 +589,6 @@ class Packages():
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
                     pack = pickle.load(input)
         else:
-            pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly", "v0.1")
             refs = pack.getGitRefs(url)
             for ref in refs.branches + refs.tags:
                 pack.addVersion(url, ref)
@@ -618,7 +611,6 @@ class Packages():
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
                     pack = pickle.load(input)
         else:
-            pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly", "v0.1")
             refs = pack.getGitRefs(url)
             for ref in refs.branches + refs.tags:
                 pack.addVersion(url, ref)
@@ -640,7 +632,6 @@ class Packages():
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
                     pack = pickle.load(input)
         else:
-            pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly", "v0.1")
             refs = pack.getGitRefs(url)
             for ref in refs.branches + refs.tags:
                 pack.addVersion(url, ref)
@@ -662,7 +653,6 @@ class Packages():
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
                     pack = pickle.load(input)
         else:
-            pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly", "v0.1")
             refs = pack.getGitRefs(url)
             for ref in refs.branches + refs.tags:
                 pack.addVersion(url, ref)
@@ -684,7 +674,6 @@ class Packages():
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
                     pack = pickle.load(input)
         else:
-            pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly", "v0.1")
             refs = pack.getGitRefs(url)
             for ref in refs.branches + refs.tags:
                 pack.addVersion(url, ref)
@@ -706,7 +695,6 @@ class Packages():
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
                     pack = pickle.load(input)
         else:
-            pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly", "v0.1")
             refs = pack.getGitRefs(url)
             for ref in refs.branches + refs.tags:
                 pack.addVersion(url, ref)
@@ -728,7 +716,6 @@ class Packages():
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
                     pack = pickle.load(input)
         else:
-            pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly", "v0.1")
             refs = pack.getGitRefs(url)
             for ref in refs.branches + refs.tags:
                 pack.addVersion(url, ref)
@@ -750,7 +737,6 @@ class Packages():
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
                     pack = pickle.load(input)
         else:
-            pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly", "v0.1")
             refs = pack.getGitRefs(url)
             for ref in refs.branches + refs.tags:
                 pack.addVersion(url, ref)
