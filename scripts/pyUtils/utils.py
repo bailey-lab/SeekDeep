@@ -2,7 +2,7 @@
 
 "purcaro@gmail.com"
 
-import urllib, os, shutil, tarfile, multiprocessing, subprocess, sys
+import urllib, os, shutil, tarfile, multiprocessing, subprocess, sys, socket
 from color_text import ColorText as CT 
 
 
@@ -10,6 +10,21 @@ class Utils:
     @staticmethod
     def isMac():
         return sys.platform == "darwin"
+    
+    @staticmethod
+    def connectedInternet():
+        #from http://stackoverflow.com/questions/20913411/test-if-an-internet-connection-is-present-in-python
+        try:
+            # see if we can resolve the host name -- tells us if there is
+            # a DNS listening
+            host = socket.gethostbyname("www.google.com")
+            # connect to the host -- tells us if the host is actually
+            # reachable
+            s = socket.create_connection((host, 80), 2)
+            return True
+        except:
+            pass
+        return False
     
     @staticmethod
     def which(program):
@@ -45,23 +60,44 @@ class Utils:
         process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         #print CT.boldRed("after process")
         # Poll process for new output until finished
+        actualOutput = ""
         while True:
             nextline = process.stdout.readline()
             if nextline == '' and process.poll() != None:
                 break
             sys.stdout.write(nextline)
+            actualOutput = actualOutput + nextline
             sys.stdout.flush()
 
         output = process.communicate()[0]
         exitCode = process.returncode
         #print "exit code "  + CT.boldRed(str(exitCode))
         if (exitCode == 0):
-            return output
-        raise Exception(cmd, exitCode, output)
+            return actualOutput
+        raise Exception(cmd, exitCode, actualOutput)
+
+    @staticmethod
+    def runAndCapture(cmd):
+        # from http://stackoverflow.com/a/4418193
+        process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        # Poll process for new output until finished
+        actualOutput = ""
+        while True:
+            nextline = process.stdout.readline()
+            if nextline == '' and process.poll() != None:
+                break
+            actualOutput = actualOutput + nextline
+        #this is suppose to capture the output but it isn't for some reason so capturing it with the above
+        output = process.communicate()[0]
+        exitCode = process.returncode
+        if (exitCode == 0):
+            return actualOutput
+            #return output
+        raise Exception(cmd, exitCode, actualOutput)
 
     @staticmethod
     def shellquote(s):
-        " from http://stackoverflow.com/a/35857"
+        #from http://stackoverflow.com/a/35857
         return "'" + s.replace("'", "'\\''") + "'"
 
     @staticmethod
@@ -129,6 +165,25 @@ class Utils:
         Utils.rm_rf(d)
         Utils.mkdir(d)
         
+    @staticmethod
+    def fixDyLibOnMac(libDir):
+        """
+            If a dynamic library's id isn't it's full path name and it isn't in the
+            dylib search path it won't be linked in properly, so will modify the id
+            of the libraries to be it's full name 
+        """
+        files = os.listdir(libDir)
+        for file in files:
+            fullFile = os.path.join(libDir, file)
+            if os.path.isfile(fullFile) and str(fullFile).endswith(".dylib"):
+                try:
+                    cmd = "install_name_tool -id {full_libpath} {full_libpath}".format(full_libpath = os.path.abspath(fullFile))
+                    Utils.run(cmd)
+                except Exception,e:
+                    print (e)
+                    print ("Failed to fix dylib for {path}".format(path = os.path.abspath(fullFile)))
+            elif os.path.isdir(fullFile):
+                Utils.fixDyLibOnMac(fullFile)
 
     
             

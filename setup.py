@@ -9,47 +9,13 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "scripts/setUpScripts"))
 from utils import Utils
 from genFuncs import genHelper 
 from color_text import ColorText as CT
+import pickle
 
-
+#tuples
 BuildPaths = namedtuple("BuildPaths", 'url build_dir build_sub_dir local_dir')
+LibNameVer = namedtuple("LibNameVer", 'name version')
+GitRefs = namedtuple("GitRefs", "branches tags")
 
-
-def fixDyLibOnMac(libDir):
-    """
-        If a dynamic library's id isn't it's full path name and it isn't in the
-         dylib search path it won't be linked in properly, so will modify the id
-         of the libraries to be it's full name 
-    """
-    files = os.listdir(libDir)
-    for file in files:
-        fullFile = os.path.join(libDir, file)
-        if os.path.isfile(fullFile) and str(fullFile).endswith(".dylib"):
-            try:
-                cmd = "install_name_tool -id {full_libpath} {full_libpath}".format(full_libpath = os.path.abspath(fullFile))
-                Utils.run(cmd)
-            except Exception,e:
-                print (e)
-                print ("Failed to fix dylib for {path}".format(path = os.path.abspath(fullFile)))
-        elif os.path.isdir(fullFile):
-            fixDyLibOnMac(fullFile)
-
-def runAndCapture(cmd):
-    # from http://stackoverflow.com/a/4418193
-    process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    # Poll process for new output until finished
-    actualOutput = ""
-    while True:
-        nextline = process.stdout.readline()
-        if nextline == '' and process.poll() != None:
-            break
-        actualOutput = actualOutput + nextline
-    #this is suppose to capture the output but it isn't for some reason so capturing it with the above
-    output = process.communicate()[0]
-    exitCode = process.returncode
-    if (exitCode == 0):
-        return actualOutput
-        #return output
-    raise Exception(cmd, exitCode, output)
 
 class LibDirMaster():
     def __init__(self,externalLoc):
@@ -58,18 +24,12 @@ class LibDirMaster():
         self.ext_tars = os.path.join(self.base_dir, "tarballs") #location to keep tarballs of programs/libraries downloads
         self.ext_build = os.path.join(self.base_dir, "build") #location for the building of programs/libraries
         self.install_dir = os.path.join(self.base_dir, "local") #location for the final install of programs/libraries
+        self.cache_dir = os.path.join(self.base_dir, ".cache")
         
         Utils.mkdir(self.ext_tars) #tar storage directory
         Utils.mkdir(self.ext_build) #build directory
         Utils.mkdir(self.install_dir) #local directory
-
-def shellquote(s):
-    # from http://stackoverflow.com/a/35857
-    return "'" + s.replace("'", "'\\''") + "'"
-
-
-LibNameVer = namedtuple("LibNameVer", 'name version')
-
+        Utils.mkdir(self.cache_dir) #cache directory
 
 def joinNameVer(libNameVerTup):
     return os.path.join(libNameVerTup.name, libNameVerTup.version, libNameVerTup.name)
@@ -95,25 +55,25 @@ class CPPLibPackageVersionR():
             self.rExecutable_ = os.path.join(self.rInstallLoc_, "R.framework/Resources/bin/R")
         else:
             self.rExecutable_ = os.path.join(self.rInstallLoc_, "bin/R")
-        self.rHome_ = str(runAndCapture(self.rExecutable_ + " RHOME")).strip()
+        self.rHome_ = str(Utils.runAndCapture(self.rExecutable_ + " RHOME")).strip()
     
     def getIncludeFlags(self, localPath):
         self.setExecutableLoc(localPath)
         ret = "-DSTRICT_R_HEADERS"
-        ret = ret + " " + runAndCapture(self.rExecutable_ + " CMD config --cppflags")
-        ret = ret + " " + runAndCapture("echo 'Rcpp:::CxxFlags()' | " + self.rExecutable_ + " --vanilla --slave")
-        ret = ret + " " + runAndCapture("echo 'RInside:::CxxFlags()' | " + self.rExecutable_ + " --vanilla --slave")
+        ret = ret + " " + Utils.runAndCapture(self.rExecutable_ + " CMD config --cppflags")
+        ret = ret + " " + Utils.runAndCapture("echo 'Rcpp:::CxxFlags()' | " + self.rExecutable_ + " --vanilla --slave")
+        ret = ret + " " + Utils.runAndCapture("echo 'RInside:::CxxFlags()' | " + self.rExecutable_ + " --vanilla --slave")
         return ' '.join(ret.split())
         
     def getLdFlags(self, localPath):
         self.setExecutableLoc(localPath)
         ret = ""
-        ret = ret + runAndCapture(self.rExecutable_ + " CMD config --ldflags")
-        ret = ret + " " + runAndCapture(self.rExecutable_ + " CMD config BLAS_LIBS")
-        ret = ret + " " + runAndCapture(self.rExecutable_ + " CMD config LAPACK_LIBS")
+        ret = ret + Utils.runAndCapture(self.rExecutable_ + " CMD config --ldflags")
+        ret = ret + " " + Utils.runAndCapture(self.rExecutable_ + " CMD config BLAS_LIBS")
+        ret = ret + " " + Utils.runAndCapture(self.rExecutable_ + " CMD config LAPACK_LIBS")
         ret = ret + " " + "-Wl,-rpath," + self.rHome_ + "/lib"
-        ret = ret + " " + runAndCapture("echo 'Rcpp:::LdFlags()' | " + self.rExecutable_ + " --vanilla --slave")
-        ret = ret + " " + runAndCapture("echo 'RInside:::LdFlags()' | " + self.rExecutable_ + " --vanilla --slave")
+        ret = ret + " " + Utils.runAndCapture("echo 'Rcpp:::LdFlags()' | " + self.rExecutable_ + " --vanilla --slave")
+        ret = ret + " " + Utils.runAndCapture("echo 'RInside:::LdFlags()' | " + self.rExecutable_ + " --vanilla --slave")
         return ' '.join(ret.split())
     
     def getDownloadUrl(self):
@@ -183,7 +143,8 @@ class CPPLibPackage():
         self.externalLibDir_ = dirMaster
         if "git" != libType and "file" != libType and "git-headeronly" != libType:
             raise Exception("libType should be 'git', 'git-headeronly', or 'file', not " + str(libType))
-        self.libType_ = libType #should be git or file
+        self.libType_ = libType #should be git, git-headeronly, or file
+        self.bibProject_ = False
     
     def addVersion(self, url, verName, depends=[]):
         verName = verName.replace("/", "__")
@@ -209,8 +170,42 @@ class CPPLibPackage():
     
     def getVersions(self):
         return sorted(self.versions_.keys())
-        
-
+    
+    def getLocalDir(self, version):
+        if self.hasVersion(version):
+            return self.versions_[version].bPaths_.local_dir
+        else:
+            raise Exception("Error in getLocalDir" + self.name_ + " doesn't have version " + str(version))
+    
+    def getBuildSubDir(self, version):
+        if self.hasVersion(version):
+            return self.versions_[version].bPaths_.build_sub_dir
+        else:
+            raise Exception("Error in getBuildSubDir" + self.name_ + " doesn't have version " + str(version))
+    
+    def getBuildDir(self, version):
+        if self.hasVersion(version):
+            return self.versions_[version].bPaths_.build_dir
+        else:
+            raise Exception("Error in getBuildDir" + self.name_ + " doesn't have version " + str(version))
+    
+    def getGitRefs(self, url):
+        if self.libType_.startswith("git"):
+            cap = Utils.runAndCapture("git ls-remote {url}".format(url = url))
+            branches = []
+            tags = []
+            for line in cap.split("\n"):
+                if "" != line:
+                    lineSplit = line.split()
+                    if 2 == len(lineSplit):
+                        if "heads" in lineSplit[1]:
+                            branches.append(os.path.basename(lineSplit[1]))
+                        elif "tags" in lineSplit[1] and not lineSplit[1].endswith("^{}"):
+                            tags.append(os.path.basename(lineSplit[1]))
+            gRefs = GitRefs(branches, tags)
+            return (gRefs)
+        else:
+            raise Exception("Library " + self.name_ + " is not a git library, type is : " + self.libType_)
 
 class Packages():
     '''class to hold and setup all the necessary paths for 
@@ -260,10 +255,23 @@ class Packages():
         url = 'https://github.com/weng-lab/zi_lib.git'
         buildCmd = ""
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly", "master")
-        pack.addHeaderOnlyVersion(url, "master")
-        pack.versions_["master"].includePath_ = os.path.join(name, "master", name)
-        if not Utils.isMac():
-            pack.versions_["master"].additionalLdFlags_ = ["-lrt"]
+        if self.args.noInternet:
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
+                pack = pickle.load(input)
+        elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
+                    pack = pickle.load(input)
+        else:
+            pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly", "v0.1")
+            refs = pack.getGitRefs(url)
+            for ref in refs.branches + refs.tags:
+                pack.addHeaderOnlyVersion(url, ref)
+                pack.versions_[ref].includePath_ = os.path.join(name, ref, name)
+                if not Utils.isMac():
+                    pack.versions_[ref].additionalLdFlags_ = ["-lrt"]
+            Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
+                pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
         return pack
     
     def __pstreams(self):
@@ -271,8 +279,20 @@ class Packages():
         url = 'https://github.com/nickjhathaway/pstreams.git'
         buildCmd = ""
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly", "RELEASE_0_8_1")
-        pack.addHeaderOnlyVersion(url, "master")
-        pack.addHeaderOnlyVersion(url, "RELEASE_0_8_1")
+        if self.args.noInternet:
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
+                pack = pickle.load(input)
+        elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
+                    pack = pickle.load(input)
+        else:
+            pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly", "v0.1")
+            refs = pack.getGitRefs(url)
+            for ref in refs.branches + refs.tags:
+                pack.addHeaderOnlyVersion(url, ref)
+            Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
+                pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
         return pack
 
     def __bamtools(self):
@@ -280,12 +300,22 @@ class Packages():
         name = "bamtools"
         buildCmd = "mkdir -p build && cd build && CC={CC} CXX={CXX} cmake -DCMAKE_INSTALL_PREFIX:PATH={local_dir} .. && make -j {num_cores} install"
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v2.4.0")
-        pack.addVersion(url, "v2.4.0")
-        pack.versions_["v2.4.0"].libPath_ = os.path.join(pack.versions_["v2.4.0"].libPath_,name)
-        pack.versions_["v2.4.0"].includePath_ = os.path.join(pack.versions_["v2.4.0"].includePath_,name)
-        pack.addVersion(url, "v2.3.0")
-        pack.versions_["v2.3.0"].libPath_ = os.path.join(pack.versions_["v2.3.0"].libPath_,name)
-        pack.versions_["v2.3.0"].includePath_ = os.path.join(pack.versions_["v2.3.0"].includePath_,name)
+        if self.args.noInternet:
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
+                pack = pickle.load(input)
+        elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
+                    pack = pickle.load(input)
+        else:
+            pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly", "v0.1")
+            refs = pack.getGitRefs(url)
+            for ref in refs.branches + refs.tags:
+                pack.addVersion(url, ref)
+                pack.versions_[ref].libPath_ = os.path.join(pack.versions_[ref].libPath_,name)
+                pack.versions_[ref].includePath_ = os.path.join(pack.versions_[ref].includePath_,name)
+            Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
+                pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
         return pack
     
     def __jsoncpp(self):
@@ -293,9 +323,20 @@ class Packages():
         name = "jsoncpp"
         buildCmd = "mkdir -p build && cd build && CC={CC} CXX={CXX} cmake -DCMAKE_CXX_FLAGS=-fPIC -DCMAKE_EXE_LINKER_FLAGS=-fPIC -DCMAKE_INSTALL_PREFIX:PATH={local_dir} ..  && make -j {num_cores} install"
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "1.7.1")
-        pack.addVersion(url, "1.6.5")
-        pack.addVersion(url, "1.7.1")
-        pack.addVersion(url, "master")
+        if self.args.noInternet:
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
+                pack = pickle.load(input)
+        elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
+                    pack = pickle.load(input)
+        else:
+            pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly", "v0.1")
+            refs = pack.getGitRefs(url)
+            for ref in refs.branches + refs.tags:
+                pack.addVersion(url, ref)
+            Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
+                pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
         return pack
     
     def __mongoc(self):
@@ -313,30 +354,48 @@ class Packages():
         pack.versions_["1.3.3"].additionalLdFlags_ = ["-lcrypto","-lmongoc-1.0", "-lbson-1.0"]  
         if not Utils.isMac():
             pack.versions_["1.3.3"].additionalLdFlags_.append("-lrt") 
+        pack.addVersion(url, "1.3.4")
+        pack.versions_["1.3.4"].additionalIncludePaths_.append(pack.versions_["1.3.4"].includePath_ + "/libmongoc-1.0")
+        pack.versions_["1.3.4"].includePath_ = pack.versions_["1.3.4"].includePath_ + "/libbson-1.0"
+        pack.versions_["1.3.4"].altLibName_ = "ssl" #a trick to control order of -l flags for libs
+        pack.versions_["1.3.4"].additionalLdFlags_ = ["-lcrypto","-lmongoc-1.0", "-lbson-1.0"]  
+        if not Utils.isMac():
+            pack.versions_["1.3.4"].additionalLdFlags_.append("-lrt") 
         return pack
     
     def __mongocxx(self):
         url = "https://github.com/mongodb/mongo-cxx-driver.git"
         name = "mongocxx"
-        buildCmd = "cd build && PKG_CONFIG_PATH=/Users/nick/testing/testingSetUpAgain/external/local/mongoc/{mongoc_ver}/mongoc/lib/pkgconfig/:PKG_CONFIG_PATH CC={CC} CXX={CXX} cmake -DCMAKE_BUILD_TYPE=Release -DLIBBSON_DIR={external}/local/mongoc/{mongoc_ver}/mongoc/ -DLIBMONGOC_DIR={external}/local/mongoc/{mongoc_ver}/mongoc/ -DCMAKE_INSTALL_PREFIX={local_dir} .. && make -j {num_cores} && make install"
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "07d4243445b5f0f333bf0ee9b3f482e74adf67a4")
+        buildCmd = "cd build && PKG_CONFIG_PATH={external}/local/mongoc/{mongoc_ver}/mongoc/lib/pkgconfig/:PKG_CONFIG_PATH CC={CC} CXX={CXX} cmake -DCMAKE_BUILD_TYPE=Release -DLIBBSON_DIR={external}/local/mongoc/{mongoc_ver}/mongoc/ -DLIBMONGOC_DIR={external}/local/mongoc/{mongoc_ver}/mongoc/ -DCMAKE_INSTALL_PREFIX={local_dir} .. && make -j {num_cores} && make install"
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "r3.0.1")
         pack.addVersion(url, "r3.0.0", [LibNameVer("mongoc", "1.3.3")])
         pack.versions_["r3.0.0"].additionalIncludePaths_.append(pack.versions_["r3.0.0"].includePath_ + "/mongocxx/v_noabi")
         pack.versions_["r3.0.0"].includePath_ = pack.versions_["r3.0.0"].includePath_ + "/bsoncxx/v_noabi"
         pack.versions_["r3.0.0"].additionalLdFlags_ = ["-lbsoncxx"] 
-        pack.addVersion(url, "07d4243445b5f0f333bf0ee9b3f482e74adf67a4", [LibNameVer("mongoc", "1.3.3")])
-        pack.versions_["07d4243445b5f0f333bf0ee9b3f482e74adf67a4"].additionalIncludePaths_.append(pack.versions_["07d4243445b5f0f333bf0ee9b3f482e74adf67a4"].includePath_ + "/mongocxx/v_noabi")
-        pack.versions_["07d4243445b5f0f333bf0ee9b3f482e74adf67a4"].includePath_ = pack.versions_["07d4243445b5f0f333bf0ee9b3f482e74adf67a4"].includePath_ + "/bsoncxx/v_noabi"
-        pack.versions_["07d4243445b5f0f333bf0ee9b3f482e74adf67a4"].additionalLdFlags_ = ["-lbsoncxx"] 
+        pack.addVersion(url, "r3.0.1", [LibNameVer("mongoc", "1.3.4")])
+        pack.versions_["r3.0.1"].additionalIncludePaths_.append(pack.versions_["r3.0.1"].includePath_ + "/mongocxx/v_noabi")
+        pack.versions_["r3.0.1"].includePath_ = pack.versions_["r3.0.1"].includePath_ + "/bsoncxx/v_noabi"
+        pack.versions_["r3.0.1"].additionalLdFlags_ = ["-lbsoncxx"]
         return pack
 
     def __cppitertools(self):
         url = 'https://github.com/ryanhaining/cppitertools.git'
         name = "cppitertools"
         buildCmd = ""
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly", "v0.1")
-        pack.addHeaderOnlyVersion(url, "master")
-        pack.addHeaderOnlyVersion(url, "v0.1")
+        if self.args.noInternet:
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
+                pack = pickle.load(input)
+        elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
+                    pack = pickle.load(input)
+        else:
+            pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly", "v0.1")
+            refs = pack.getGitRefs(url)
+            for ref in refs.branches + refs.tags:
+                pack.addHeaderOnlyVersion(url, ref)
+            Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
+                pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
         return pack
 
     def __catch(self):
@@ -344,8 +403,21 @@ class Packages():
         name = "catch"
         buildCmd = ""
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly", "v1.3.3")
-        pack.addHeaderOnlyVersion(url, "v1.3.3")
-        pack.versions_["v1.3.3"].includePath_ = os.path.join(joinNameVer(pack.versions_["v1.3.3"].nameVer_), "single_include")
+        if self.args.noInternet:
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
+                pack = pickle.load(input)
+        elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
+                    pack = pickle.load(input)
+        else:
+            pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly", "v0.1")
+            refs = pack.getGitRefs(url)
+            for ref in refs.branches + refs.tags:
+                pack.addHeaderOnlyVersion(url, ref)
+                pack.versions_[ref].includePath_ = os.path.join(joinNameVer(pack.versions_[ref].nameVer_), "single_include")
+            Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
+                pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
         return pack
 
     def __r(self):
@@ -381,8 +453,8 @@ class Packages():
     '''
     def __mlpack(self):
         url = "http://www.mlpack.org/files/mlpack-1.0.8.tar.gz"
-        armadillo_dir = shellquote(i.local_dir).replace("mlpack", "armadillo")
-        boost_dir = shellquote(i.local_dir).replace("mlpack", "boost")
+        armadillo_dir = Utils.shellquote(i.local_dir).replace("mlpack", "armadillo")
+        boost_dir = Utils.shellquote(i.local_dir).replace("mlpack", "boost")
         cmd = """
         mkdir -p build
         && cd build
@@ -392,7 +464,7 @@ class Packages():
          -D CMAKE_INSTALL_PREFIX:PATH={local_dir} ..
          -DBoost_NO_SYSTEM_PATHS=TRUE -DBOOST_INCLUDEDIR={boost}/include/ -DBOOST_LIBRARYDIR={boost}/lib/
         && make -j {num_cores} install
-        """.format(local_dir=shellquote(i.local_dir),
+        """.format(local_dir=Utils.shellquote(i.local_dir),
            armadillo_dir=armadillo_dir,
            num_cores=self.num_cores(),
            boost=boost_dir, CC=self.CC, CXX=self.CXX)
@@ -410,7 +482,7 @@ class Packages():
             make lib &&
             cp linear.h liblinear.so.1 README {local_dir} &&
             ln -s {local_dir}/liblinear.so.1 {local_dir}/liblinear.so
-            """.format(local_dir=shellquote(i.local_dir))
+            """.format(local_dir=Utils.shellquote(i.local_dir))
         cmd = " ".join(cmd.split())
         return self.__package_dirs(url, "liblinear")
     '''
@@ -468,15 +540,23 @@ class Packages():
         name = "cppprogutils"
         buildCmd = ""
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly", "v2.0.0")
-        pack.addHeaderOnlyVersion(url, "develop")
-        pack.versions_["develop"].additionalLdFlags_ = ["-lpthread"]
-        pack.versions_["develop"].includePath_ = os.path.join(name, "develop", name)
-        pack.addHeaderOnlyVersion(url, "1.0")
-        pack.versions_["1.0"].additionalLdFlags_ = ["-lpthread"]
-        pack.versions_["1.0"].includePath_ = os.path.join(name, "1.0", name)
-        pack.addHeaderOnlyVersion(url, "v2.0.0")
-        pack.versions_["v2.0.0"].additionalLdFlags_ = ["-lpthread"]
-        pack.versions_["v2.0.0"].includePath_ = os.path.join(name, "v2.0.0", name)
+        #pack.bibProject_ = True
+        if self.args.noInternet:
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
+                pack = pickle.load(input)
+        elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
+                    pack = pickle.load(input)
+        else:
+            pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly", "v0.1")
+            refs = pack.getGitRefs(url)
+            for ref in refs.branches + refs.tags:
+                pack.addHeaderOnlyVersion(url, ref)
+                pack.versions_[ref].additionalLdFlags_ = ["-lpthread"]
+                pack.versions_[ref].includePath_ = os.path.join(name, ref, name)
+            Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
+                pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
         return pack
     
     def __bibseq(self):
@@ -484,20 +564,22 @@ class Packages():
         name = "bibseq"
         buildCmd = self.__bibProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v2.3.0")
-        pack.addVersion(url, "develop",[LibNameVer("bibcpp", "develop"),LibNameVer("twobit", "develop"),LibNameVer("bamtools", "v2.4.0"),LibNameVer("armadillo", "6.200.3")])
-        pack.versions_["develop"].additionalLdFlags_ = ["-lcurl"] 
-        if Utils.isMac() and not "gcc" in self.args.CC:
-            pack.versions_["develop"].depends_.append(LibNameVer("sharedmutex", "develop"))
-        
-        pack.addVersion(url, "v2.3.0",[LibNameVer("bibcpp", "v2.3.0"),LibNameVer("twobit", "v2.0.0"),LibNameVer("bamtools", "v2.4.0"),LibNameVer("armadillo", "6.200.3")])
-        pack.versions_["v2.3.0"].additionalLdFlags_ = ["-lcurl"] 
-        if Utils.isMac() and not "gcc" in self.args.CC:
-            pack.versions_["v2.3.0"].depends_.append(LibNameVer("sharedmutex", "v0.2"))
-            
-        pack.addVersion(url, "v2.3.1",[LibNameVer("bibcpp", "v2.3.1"),LibNameVer("twobit", "v2.0.1"),LibNameVer("bamtools", "v2.4.0"),LibNameVer("armadillo", "6.200.3")])
-        pack.versions_["v2.3.1"].additionalLdFlags_ = ["-lcurl"] 
-        if Utils.isMac() and not "gcc" in self.args.CC:
-            pack.versions_["v2.3.1"].depends_.append(LibNameVer("sharedmutex", "v0.3"))
+        pack.bibProject_ = True
+        if self.args.noInternet:
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
+                pack = pickle.load(input)
+        elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
+                    pack = pickle.load(input)
+        else:
+            pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly", "v0.1")
+            refs = pack.getGitRefs(url)
+            for ref in refs.branches + refs.tags:
+                pack.addVersion(url, ref)
+                pack.versions_[ref].additionalLdFlags_ = ["-lcurl"]
+            Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
+                pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
         return pack
     
     def __bibseqDev(self):
@@ -505,10 +587,22 @@ class Packages():
         name = "bibseqDev"
         buildCmd = self.__bibProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "master")
-        pack.addVersion(url, "master",[LibNameVer("bibcpp", "develop"),LibNameVer("twobit", "develop"),LibNameVer("bamtools", "v2.4.0"),LibNameVer("armadillo", "6.200.3")])
-        pack.versions_["master"].additionalLdFlags_ = ["-lcurl"]
-        if Utils.isMac() and not "gcc" in self.args.CC:
-            pack.versions_["master"].depends_.append(LibNameVer("sharedmutex", "develop"))
+        pack.bibProject_ = True
+        if self.args.noInternet:
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
+                pack = pickle.load(input)
+        elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
+                    pack = pickle.load(input)
+        else:
+            pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly", "v0.1")
+            refs = pack.getGitRefs(url)
+            for ref in refs.branches + refs.tags:
+                pack.addVersion(url, ref)
+                pack.versions_[ref].additionalLdFlags_ = ["-lcurl"]
+            Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
+                pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
         return pack 
     
     def __twobit(self):
@@ -516,9 +610,21 @@ class Packages():
         name = "TwoBit"
         buildCmd = self.__bibProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v2.0.1")
-        pack.addVersion(url, "develop",[LibNameVer("cppitertools", "v0.1"),LibNameVer("cppprogutils", "develop")])
-        pack.addVersion(url, "v2.0.0",[LibNameVer("cppitertools", "v0.1"),LibNameVer("cppprogutils", "v2.0.0")])
-        pack.addVersion(url, "v2.0.1",[LibNameVer("cppitertools", "v0.1"),LibNameVer("cppprogutils", "v2.0.0")])
+        pack.bibProject_ = True
+        if self.args.noInternet:
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
+                pack = pickle.load(input)
+        elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
+                    pack = pickle.load(input)
+        else:
+            pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly", "v0.1")
+            refs = pack.getGitRefs(url)
+            for ref in refs.branches + refs.tags:
+                pack.addVersion(url, ref)
+            Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
+                pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
         return pack
     
     def __sharedMutex(self):
@@ -526,9 +632,21 @@ class Packages():
         name = "sharedMutex"
         buildCmd = self.__bibProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v0.3")
-        pack.addVersion(url, "develop")
-        pack.addVersion(url, "v0.2")
-        pack.addVersion(url, "v0.3")
+        pack.bibProject_ = True
+        if self.args.noInternet:
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
+                pack = pickle.load(input)
+        elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
+                    pack = pickle.load(input)
+        else:
+            pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly", "v0.1")
+            refs = pack.getGitRefs(url)
+            for ref in refs.branches + refs.tags:
+                pack.addVersion(url, ref)
+            Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
+                pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
         return pack 
       
     def __SeekDeep(self):
@@ -536,10 +654,21 @@ class Packages():
         name = "SeekDeep"
         buildCmd = self.__bibProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v2.3.1")
-        pack.addVersion(url, "develop",[LibNameVer("bibseq", "develop"),LibNameVer("njhRInside", "develop"),LibNameVer("seqServer", "develop")])
-        pack.addVersion(url, "v2.3.0",[LibNameVer("bibseq", "v2.3.0"),LibNameVer("seqServer", "v1.3.0")])
-        pack.addVersion(url, "v2.3.1",[LibNameVer("bibseq", "v2.3.1"),LibNameVer("seqServer", "v1.3.1")])
-        pack.addVersion(url, "v2.3.2",[LibNameVer("bibseq", "v2.3.1"),LibNameVer("seqServer", "v1.3.1")])
+        pack.bibProject_ = True
+        if self.args.noInternet:
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
+                pack = pickle.load(input)
+        elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
+                    pack = pickle.load(input)
+        else:
+            pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly", "v0.1")
+            refs = pack.getGitRefs(url)
+            for ref in refs.branches + refs.tags:
+                pack.addVersion(url, ref)
+            Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
+                pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
         return pack
     
     def __SeekDeepDev(self):
@@ -547,7 +676,21 @@ class Packages():
         name = "SeekDeepDev"
         buildCmd = self.__bibProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "master")
-        pack.addVersion(url, "master", [LibNameVer("bibseqDev", "master"),LibNameVer("seqServer", "develop")])
+        pack.bibProject_ = True
+        if self.args.noInternet:
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
+                pack = pickle.load(input)
+        elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
+                    pack = pickle.load(input)
+        else:
+            pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly", "v0.1")
+            refs = pack.getGitRefs(url)
+            for ref in refs.branches + refs.tags:
+                pack.addVersion(url, ref)
+            Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
+                pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
         return pack
     
     def __seqserver(self):
@@ -555,9 +698,21 @@ class Packages():
         name = "seqServer"
         buildCmd = self.__bibProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v1.3.1")
-        pack.addVersion(url, "develop",[LibNameVer("bibseqdev", "master"),LibNameVer("cppcms", "1.0.5")])
-        pack.addVersion(url, "v1.3.0",[LibNameVer("bibseq", "v2.3.0"),LibNameVer("cppcms", "1.0.5")])
-        pack.addVersion(url, "v1.3.1",[LibNameVer("bibseq", "v2.3.1"),LibNameVer("cppcms", "1.0.5")])
+        pack.bibProject_ = True
+        if self.args.noInternet:
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
+                pack = pickle.load(input)
+        elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
+                    pack = pickle.load(input)
+        else:
+            pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly", "v0.1")
+            refs = pack.getGitRefs(url)
+            for ref in refs.branches + refs.tags:
+                pack.addVersion(url, ref)
+            Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
+                pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
         return pack
     
     def __njhRInside(self):
@@ -565,8 +720,21 @@ class Packages():
         name = "njhRInside"
         buildCmd = self.__bibProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "1.1.1")
-        pack.addVersion(url, "develop",[LibNameVer("r", "3.2.4"),LibNameVer("cppitertools", "v0.1")])
-        pack.addVersion(url, "1.1.1", [LibNameVer("r", "3.2.2"),LibNameVer("cppitertools", "v0.1")])
+        pack.bibProject_ = True
+        if self.args.noInternet:
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
+                pack = pickle.load(input)
+        elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
+                    pack = pickle.load(input)
+        else:
+            pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly", "v0.1")
+            refs = pack.getGitRefs(url)
+            for ref in refs.branches + refs.tags:
+                pack.addVersion(url, ref)
+            Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
+                pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
         return pack
     
     def __bibcpp(self):
@@ -574,20 +742,24 @@ class Packages():
         name = "bibcpp"
         buildCmd = self.__bibProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v2.3.0")
-        pack.addVersion(url, "develop",[LibNameVer("jsoncpp", "1.7.1"),LibNameVer("boost", "1_60_0"),LibNameVer("cppitertools", "v0.1"),LibNameVer("pstreams", "RELEASE_0_8_1")])
-        pack.versions_["develop"].additionalLdFlags_ = ["-lpthread", "-lz"]
-        if not Utils.isMac():
-            pack.versions_["develop"].additionalLdFlags_.append("-lrt")
-            
-        pack.addVersion(url, "v2.3.0",[LibNameVer("jsoncpp", "1.6.5"),LibNameVer("boost", "1_60_0"),LibNameVer("cppitertools", "v0.1"),LibNameVer("pstreams", "RELEASE_0_8_1")])
-        pack.versions_["v2.3.0"].additionalLdFlags_ = ["-lpthread", "-lz"]
-        if not Utils.isMac():
-            pack.versions_["v2.3.0"].additionalLdFlags_.append("-lrt")
-            
-        pack.addVersion(url, "v2.3.1",[LibNameVer("jsoncpp", "1.7.1"),LibNameVer("boost", "1_60_0"),LibNameVer("cppitertools", "v0.1"),LibNameVer("pstreams", "RELEASE_0_8_1")])
-        pack.versions_["v2.3.1"].additionalLdFlags_ = ["-lpthread", "-lz"]
-        if not Utils.isMac():
-            pack.versions_["v2.3.1"].additionalLdFlags_.append("-lrt")
+        pack.bibProject_ = True
+        if self.args.noInternet:
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
+                pack = pickle.load(input)
+        elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
+                    pack = pickle.load(input)
+        else:
+            pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly", "v0.1")
+            refs = pack.getGitRefs(url)
+            for ref in refs.branches + refs.tags:
+                pack.addVersion(url, ref)
+                pack.versions_[ref].additionalLdFlags_ = ["-lpthread", "-lz"]
+                if not Utils.isMac():
+                    pack.versions_[ref].additionalLdFlags_.append("-lrt")
+            Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
+                pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
         return pack
 
     def __boost(self):
@@ -671,28 +843,56 @@ class Packages():
         self.checkForPackVer(packVer)
         return self.packages_[packVer.name].versions_[packVer.version].getIncludeFlags(self.dirMaster_.install_dir)
     
-    def writeMakefile(self, packVers, filename, overwrite = False):
-        if os.path.exists(filename) and not overwrite:
+    def writeMakefile(self, packVers, filename, overwrite = False, append = False):
+        if os.path.exists(filename) and not overwrite and not append:
             raise Exception("File: " + str(filename) + " already exists, use --overWrite to overwrite it")
-        with open(filename, "w") as f:
-            f.write("#Utils\n")
-            f.write("# from http://stackoverflow.com/a/18258352\n")
-            f.write("rwildcard=$(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2) $(filter $(subst *,%,$2),$d))\n")
-            f.write("#Default CXXFLAGS\n")
-            f.write("COMLIBS += " + self.getDefaultIncludeFlags() + "\n")
-            dLdFlags = self.getDefaultLDFlags( )
-            if "" != dLdFlags:
-                f.write("#Default LDFLAGS\n")
-                f.write("LD_FLAGS += " + dLdFlags + "\n")
-            for packVer in packVers:
-                pvIncFlags = self.getIncludeFlags(packVer)
-                if "" != pvIncFlags:
-                    f.write("#" + packVer.name + ":" + packVer.version + " CXXFLAGS\n")
-                    f.write("COMLIBS += " + pvIncFlags + "\n")
-                pvLdFlags = self.getLdFlags(packVer)
-                if "" != pvLdFlags:
-                    f.write("#" + packVer.name + ":" + packVer.version + " LDFLAGS\n")
-                    f.write("LD_FLAGS += " + pvLdFlags + "\n")
+        elif os.path.exists(filename) and overwrite:
+            os.remove(filename)
+            self.writeMakefile(packVers, filename, overwrite, append)
+        elif os.path.exists(filename) and append:
+            with open(filename, "a") as f:
+                for packVer in packVers:
+                    pack = self.package(packVer.name)
+                    #if bib project, add the flags of it's dependencies
+                    if pack.bibProject_:
+                        cmd = "python ./setup.py --compfile compfile.mk --numCores 1 --append --outMakefile {makefileCommon}".format(makefileCommon = os.path.abspath(filename))
+                        dir = pack.getBuildSubDir(packVer.version)
+                        Utils.run_in_dir(cmd, dir)
+                    pvIncFlags = self.getIncludeFlags(packVer)
+                    if "" != pvIncFlags:
+                        f.write("#" + packVer.name + ":" + packVer.version + " CXXFLAGS\n")
+                        f.write("COMLIBS += " + pvIncFlags + "\n")
+                    pvLdFlags = self.getLdFlags(packVer)
+                    if "" != pvLdFlags:
+                        f.write("#" + packVer.name + ":" + packVer.version + " LDFLAGS\n")
+                        f.write("LD_FLAGS += " + pvLdFlags + "\n")
+        else:
+            with open(filename, "a") as f:
+                f.write("#Utils\n")
+                f.write("# from http://stackoverflow.com/a/18258352\n")
+                f.write("rwildcard=$(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2) $(filter $(subst *,%,$2),$d))\n")
+                f.write("#Default CXXFLAGS\n")
+                f.write("COMLIBS += " + self.getDefaultIncludeFlags() + "\n")
+                dLdFlags = self.getDefaultLDFlags( )
+                if "" != dLdFlags:
+                    f.write("#Default LDFLAGS\n")
+                    f.write("LD_FLAGS += " + dLdFlags + "\n")
+                f.flush()
+                for packVer in packVers:
+                    pack = self.package(packVer.name)
+                    #if bib project, add the flags of it's dependencies
+                    if pack.bibProject_:
+                            cmd = "python ./setup.py --compfile compfile.mk --numCores 1 --append --outMakefile {makefileCommon}".format(makefileCommon = os.path.abspath(filename))
+                            dir = pack.getBuildSubDir(packVer.version)
+                            Utils.run_in_dir(cmd, dir)
+                    pvIncFlags = self.getIncludeFlags(packVer)
+                    if "" != pvIncFlags:
+                        f.write("#" + packVer.name + ":" + packVer.version + " CXXFLAGS\n")
+                        f.write("COMLIBS += " + pvIncFlags + "\n")
+                    pvLdFlags = self.getLdFlags(packVer)
+                    if "" != pvLdFlags:
+                        f.write("#" + packVer.name + ":" + packVer.version + " LDFLAGS\n")
+                        f.write("LD_FLAGS += " + pvLdFlags + "\n")
     
     def addPackage(self, packVers, packVer):
         packVer = LibNameVer(packVer.name, packVer.version.replace("/", "__"))
@@ -841,6 +1041,20 @@ class Setup:
             sys.stdout.write("\t")
             sys.stdout.write(",".join(pack.getVersions()))
             sys.stdout.write("\n")
+            
+    def printGitRefs(self):
+        self.__initSetUpFuncs()
+        print "Git branches and tags:"
+        for set in self.setUpsNeeded:
+            print set.name
+            pack = self.__package(set.name)
+            refs = pack.getGitRefs(pack.versions_[pack.defaultVersion_].bPaths_.url)
+            print "\t" + "Branches"
+            for b in refs.branches:
+                print "\t\t" + b
+            print "\t" + "Tags"
+            for t in refs.tags:
+                print "\t\t" + t
 
     def __processArgsForSetupsNeeded(self):
         if self.args.libs:
@@ -991,36 +1205,36 @@ class Setup:
                 
     def __buildFromGitBranch(self, packVer, cmd):
         bPath = packVer.bPaths_
-        if os.path.exists(bPath.build_sub_dir):
-            print "pulling from {url}".format(url=bPath.url)
-            pCmd = "git checkout " + packVer.nameVer_.version.replace("__", "/") + " && git pull"
-            try:
-                Utils.run_in_dir(pCmd, bPath.build_sub_dir)
-            except:
-                print "failed to pull from {url} with {cmd}".format(url=bPath.url, cmd = pCmd)
-                sys.exit(1)
+        if self.noInternet_:
+            self.__buildFromFile(packVer, cmd)
         else:
-            print "cloning from {url}".format(url=bPath.url)
-            cCmd = "git clone -b " + packVer.nameVer_.version.replace("__", "/") + " {url} {d}".format(url=bPath.url, d=bPath.build_sub_dir)
+            if os.path.exists(bPath.build_sub_dir):
+                print "pulling from {url}".format(url=bPath.url)
+                pCmd = "git checkout " + packVer.nameVer_.version.replace("__", "/") + " && git pull"
+                try:
+                    Utils.run_in_dir(pCmd, bPath.build_sub_dir)
+                except:
+                    print "failed to pull from {url} with {cmd}".format(url=bPath.url, cmd = pCmd)
+                    sys.exit(1)
+            else:
+                print "cloning from {url}".format(url=bPath.url)
+                cCmd = "git clone -b " + packVer.nameVer_.version.replace("__", "/") + " {url} {d}".format(url=bPath.url, d=bPath.build_sub_dir)
+                try:
+                    Utils.run(cCmd)
+                except:
+                    print "failed to clone from {url}".format(url=bPath.url)
+                    sys.exit(1)
             try:
-                Utils.run(cCmd)
+                Utils.run_in_dir(cmd, bPath.build_sub_dir)
             except:
-                print "failed to clone from {url}".format(url=bPath.url)
+                print("Failed to build, removing {d}".format(d = bPath.local_dir))
+                Utils.rm_rf(bPath.local_dir)
                 sys.exit(1)
-        try:
-            Utils.run_in_dir(cmd, bPath.build_sub_dir)
-        except:
-            print("Failed to build, removing {d}".format(d = bPath.local_dir))
-            Utils.rm_rf(bPath.local_dir)
-            sys.exit(1)
     
     def __buildFromGitTag(self, packVer, cmd):
         bPath = packVer.bPaths_
         ##if no internet build from tar file, file needs to be in tarballs folder
         if self.noInternet_:
-            newUrl = bPath.url.replace(".git","/archive/" + str(packVer.nameVer_.version) + ".tar.gz").replace("git@github.com:", "https://github.com/")
-            newBPath = BuildPaths(newUrl, bPath.build_dir, bPath.build_sub_dir, bPath.local_dir)
-            packVer.bPath = newBPath
             self.__buildFromFile(packVer, cmd)
         else:
             if os.path.exists(bPath.build_sub_dir):
@@ -1043,27 +1257,37 @@ class Setup:
                     print e
                     print "failed to clone from {url}".format(url=bPath.url)
                     sys.exit(1)
-        try:
-            Utils.run_in_dir(cmd, bPath.build_sub_dir)
-        except Exception, e:
-            print e
-            print "failed to build in {BUILD}, removing {LOCAL}".format(BUILD=bPath.build_sub_dir, LOCAL = bPath.local_dir)
-            Utils.rm_rf(bPath.local_dir)
-            sys.exit(1)
+            try:
+                Utils.run_in_dir(cmd, bPath.build_sub_dir)
+            except Exception, e:
+                print e
+                print "failed to build in {BUILD}, removing {LOCAL}".format(BUILD=bPath.build_sub_dir, LOCAL = bPath.local_dir)
+                Utils.rm_rf(bPath.local_dir)
+                sys.exit(1)
     
     def __gitBranch(self, packVer):
         bPath = packVer.bPaths_
         '''
             For header only libraries, will be put directly into local
         '''
-        print "cloning from {url}".format(url=bPath.url)
-        cCmd = "git clone -b {branch} {url} {d}".format(branch = packVer.nameVer_.version.replace("__", "/"),url=bPath.url, d=bPath.local_dir)
-        try:
-            Utils.run(cCmd)
-        except Exception, e:
-            print e
-            print "failed to clone branch {branch} from {url}".format(branch = packVer.nameVer_.version.replace("__", "/"), url=bPath.url)
-            sys.exit(1)
+        if self.noInternet_:
+            newUrl = bPath.url.replace(".git","/archive/" + str(packVer.nameVer_.version) + ".tar.gz").replace("git@github.com:", "https://github.com/")
+            base_file = os.path.basename(newUrl)
+            fnp = os.path.join(self.dirMaster_.ext_tars,packVer.nameVer_.name, base_file)
+            Utils.clear_dir(os.path.dirname(bPath.local_dir))
+            Utils.untar(fnp, os.path.dirname(bPath.local_dir))
+            ## might not be the best way to do this but works for now
+            untaredDir = os.listdir(os.path.dirname(bPath.local_dir))[0]
+            os.rename(os.path.join(os.path.dirname(bPath.local_dir), untaredDir), bPath.local_dir)
+        else:
+            print "cloning from {url}".format(url=bPath.url)
+            cCmd = "git clone -b {branch} {url} {d}".format(branch = packVer.nameVer_.version.replace("__", "/"),url=bPath.url, d=bPath.local_dir)
+            try:
+                Utils.run(cCmd)
+            except Exception, e:
+                print e
+                print "failed to clone branch {branch} from {url}".format(branch = packVer.nameVer_.version.replace("__", "/"), url=bPath.url)
+                sys.exit(1)
     
     def __gitTag(self, packVer):
         bPath = packVer.bPaths_
@@ -1072,16 +1296,15 @@ class Setup:
         '''
         if self.noInternet_:
             newUrl = bPath.url.replace(".git","/archive/" + str(packVer.nameVer_.version) + ".tar.gz").replace("git@github.com:", "https://github.com/")
-            fn = os.path.basename(newUrl)
-            fn_noex = fn.replace(".tar.gz", "")
-            fnp = os.path.join(self.dirMaster_.ext_tars,packVer.nameVer_.name, fn)
+            base_file = os.path.basename(newUrl)
+            fnp = os.path.join(self.dirMaster_.ext_tars,packVer.nameVer_.name, base_file)
             Utils.clear_dir(os.path.dirname(bPath.local_dir))
             Utils.untar(fnp, os.path.dirname(bPath.local_dir))
             ## might not be the best way to do this but works for now
             untaredDir = os.listdir(os.path.dirname(bPath.local_dir))[0]
             os.rename(os.path.join(os.path.dirname(bPath.local_dir), untaredDir), bPath.local_dir)
         else:
-            cmd = "git clone {url} {d}".format(url=bPath.url, d=shellquote(bPath.local_dir))
+            cmd = "git clone {url} {d}".format(url=bPath.url, d=Utils.shellquote(bPath.local_dir))
             tagCmd = "git checkout {tag}".format(tag=packVer.nameVer_.version)
             try:
                 Utils.run(cmd)
@@ -1096,7 +1319,7 @@ class Setup:
             raise Exception("No set up for version " + str(version) + " for " + str(package))
         packVer = pack.versions_[version]
         bPaths = packVer.bPaths_
-        cmd = pack.defaultBuildCmd_.format(external = shellquote(self.dirMaster_.base_dir), build_sub_dir = shellquote(bPaths.build_sub_dir), local_dir=shellquote(bPaths.local_dir), num_cores=self.num_cores(), CC=self.CC, CXX=self.CXX)
+        cmd = pack.defaultBuildCmd_.format(external = Utils.shellquote(self.dirMaster_.base_dir), build_sub_dir = Utils.shellquote(bPaths.build_sub_dir), local_dir=Utils.shellquote(bPaths.local_dir), num_cores=self.num_cores(), CC=self.CC, CXX=self.CXX)
         Utils.mkdir(os.path.dirname(bPaths.local_dir))
         if "" != cmd and self.args.verbose:
             print cmd
@@ -1119,7 +1342,7 @@ class Setup:
         if Utils.isMac():
             libPath = os.path.join(bPaths.local_dir, "lib")
             if(os.path.exists(libPath)):
-                fixDyLibOnMac(libPath)
+                Utils.fixDyLibOnMac(libPath)
         
     def __defaultBibBuild(self, package, version):
         if "develop" == version or "release" in version:
@@ -1127,7 +1350,7 @@ class Setup:
         else:
             self.__defaultBuild(package, version, True)
         
-    def updateBibProjects(self,bibProjects):
+    def updateBibProjects(self, bibProjects):
         inLibs = bibProjects.split(",")
         for lib in inLibs:
             if ":" not in lib.lower():
@@ -1166,7 +1389,7 @@ class Setup:
             if Utils.isMac():
                 rHomeLoc = "R.framework/Resources/bin/R RHOME"
             cmd = """echo 'install.packages(\"{SOURCEFILE}\", repos = NULL, type="source", Ncpus = {num_cores}, lib =.libPaths()[length(.libPaths()  )])' | $({local_dir}/{RHOMELOC})/bin/R --slave --vanilla
-                """.format(local_dir=shellquote(bPath.local_dir).replace(' ', '\ '),SOURCEFILE = pack, RHOMELOC =rHomeLoc, num_cores=self.num_cores())
+                """.format(local_dir=Utils.shellquote(bPath.local_dir).replace(' ', '\ '),SOURCEFILE = pack, RHOMELOC =rHomeLoc, num_cores=self.num_cores())
             print CT.boldBlack(cmd)
             cmd = " ".join(cmd.split())
             Utils.run(cmd)
@@ -1181,7 +1404,7 @@ class Setup:
             if Utils.isMac():
                 rHomeLoc = "R.framework/Resources/bin/R RHOME"
             cmd = """echo 'install.packages(\"{PACKAGENAME}\", repos=\"http://cran.us.r-project.org\", Ncpus = {num_cores}, lib =.libPaths()[length(.libPaths()  )])'  | $({local_dir}/{RHOMELOC})/bin/R --slave --vanilla
-                """.format(local_dir=shellquote(bPath.local_dir).replace(' ', '\ '),PACKAGENAME = pack, RHOMELOC =rHomeLoc,num_cores=self.num_cores() )
+                """.format(local_dir=Utils.shellquote(bPath.local_dir).replace(' ', '\ '),PACKAGENAME = pack, RHOMELOC =rHomeLoc,num_cores=self.num_cores() )
             print CT.boldBlack(cmd)
             cmd = " ".join(cmd.split())
             Utils.run(cmd)
@@ -1238,7 +1461,7 @@ class Setup:
             raise Exception("No set up for version " + str(version) + " for " + str(package))
         packVer = pack.versions_[version]
         bPaths = packVer.bPaths_
-        pack.defaultBuildCmd_ = pack.defaultBuildCmd_.format(mongoc_ver = packVer.depends_[0].version,external = self.dirMaster_.base_dir, build_sub_dir = shellquote(bPaths.build_sub_dir), local_dir=shellquote(bPaths.local_dir), num_cores=self.num_cores(), CC=self.CC, CXX=self.CXX)
+        pack.defaultBuildCmd_ = pack.defaultBuildCmd_.format(mongoc_ver = packVer.depends_[0].version,external = self.dirMaster_.base_dir, build_sub_dir = Utils.shellquote(bPaths.build_sub_dir), local_dir=Utils.shellquote(bPaths.local_dir), num_cores=self.num_cores(), CC=self.CC, CXX=self.CXX)
         self.__defaultBuild("mongocxx", version)
     
     def cppcms(self, version):
@@ -1270,21 +1493,47 @@ class Setup:
         
     def downloadFiles(self):
         for set in self.setUpsNeeded:
+            topTempDir = os.path.join(self.dirMaster_.base_dir, "temp")
             self.packages_.checkForPackVer(set)
             pack = self.__package(set.name) 
-            Utils.mkdir(os.path.join(self.dirMaster_.ext_tars, pack.name_))
             packVer = pack.versions_[set.version]
-            url = packVer.getDownloadUrl()
-            dest = os.path.join(self.dirMaster_.ext_tars, packVer.nameVer_.name)
-            print ("Downloading " + CT.boldGreen(url) + " to " + CT.boldBlue(dest))
-            fnp = Utils.get_file(url, dest)
+            downloadDir = os.path.join(self.dirMaster_.ext_tars, pack.name_)
+            Utils.mkdir(downloadDir)
+            if pack.bibProject_:
+                downloadCmd = "python ./configure.py -CC {CC} -CXX {CXX} -externalLibDir {external} && ./setup.py --compfile compfile.mk --justDownload".format(external = Utils.shellquote(self.dirMaster_.base_dir), num_cores=self.num_cores(), CC=self.CC, CXX=self.CXX)
+                Utils.mkdir(topTempDir)
+                packVer = pack.versions_[set.version]
+                tempDir = os.path.join(topTempDir, pack.name_)
+                cloneCmd = "git clone {url} {d}".format(url=packVer.bPaths_.url, d = tempDir)
+                tagCmd = "git checkout {tag}".format(tag=packVer.nameVer_.version)
+                Utils.run(cloneCmd)
+                Utils.run_in_dir(tagCmd, tempDir)
+                Utils.run_in_dir(downloadCmd, tempDir)
+                if "develop" == set.version or set.version == "master":
+                    archiveCmd = "git archive --prefix={name}/ -o {downloadDir}/{version}.tar.gz HEAD".format(name = pack.name_, downloadDir = downloadDir, version = set.version)
+                    Utils.run_in_dir(archiveCmd, tempDir)
+                shutil.rmtree(tempDir)
+            if pack.bibProject_ and (set.version == "develop" or set.version == "master"):
+                pass
+            else:
+                url = packVer.getDownloadUrl()
+                dest = os.path.join(self.dirMaster_.ext_tars, packVer.nameVer_.name)
+                print ("Downloading " + CT.boldGreen(url) + " to " + CT.boldBlue(dest))
+                if pack.libType_.startswith("git"):
+                    fnp = Utils.get_file(url, dest)
+                else:
+                    fnp = Utils.get_file_if_size_diff(url, dest)
+                
+        if os.path.exists(os.path.join(self.dirMaster_.base_dir, "temp")) and os.listdir(os.path.join(self.dirMaster_.base_dir, "temp")) == []:
+            shutil.rmtree(os.path.join(self.dirMaster_.base_dir, "temp"))
         print ("Now run \"./setup.py --compfile compfile.mk --outMakefile makefile-common.mk --noInternet\" to build libraries")
 
     def externalChecks(self):
         ccWhich = Utils.which(self.CC)
         cxxWhich = Utils.which(self.CXX)
         cmakeWhich = Utils.which("cmake")
-        if not ccWhich or not cxxWhich or not cmakeWhich:
+        gitWhich = Utils.which("git")
+        if not ccWhich or not cxxWhich or not cmakeWhich or not gitWhich:
             if not ccWhich:
                 print CT.boldRed("Could not find c compiler " + CT.purple + self.CC)
                 if self.args.compfile:
@@ -1308,7 +1557,12 @@ class Setup:
                     print "sudo add-apt-repository ppa:george-edison55/cmake-3.x"
                     print "sudo apt-get update"
                     print "sudo apt-get install cmake"
+            if not gitWhich:
+                print "Can't find git"
             raise Exception("")
+    def clearCache(self):
+        Utils.rm_rf(self.dirMaster_.cache_dir)
+        Utils.mkdir(self.dirMaster_.cache_dir)
 
 def ubuntu(self):
         pkgs = """libbz2-dev python2.7-dev cmake libpcre3-dev zlib1g-dev libgcrypt11-dev libicu-dev
@@ -1321,6 +1575,7 @@ def parse_args():
     parser.add_argument('--compfile', type=str, nargs=1)
     parser.add_argument('--libs', type=str, help="The libraries to install")
     parser.add_argument('--printLibs', action = "store_true", help="Print Available Libs")
+    parser.add_argument('--printGitRefs', action = "store_true", help="Print Git branhes and tags for git projects")
     parser.add_argument('--forceUpdate', action = "store_true", help="Remove already installed libs and re-install")
     parser.add_argument('--updateBibProjects', type = str, help="Remove already installed libs and re-install")
     parser.add_argument('--CC', type=str, nargs=1)
@@ -1331,9 +1586,11 @@ def parse_args():
     parser.add_argument('--numCores', type=str)
     parser.add_argument('--outMakefile', type=str)
     parser.add_argument('--overWrite', action = 'store_true')
+    parser.add_argument('--append', action = 'store_true')
     parser.add_argument('--noInternet', action = 'store_true')
     parser.add_argument('--justDownload', action = 'store_true')
     parser.add_argument('--verbose', action = 'store_true')
+    parser.add_argument('--clearCache', action = 'store_true')
     return parser.parse_args()
 
 
@@ -1341,6 +1598,8 @@ def parse_args():
 def main():
     args = parse_args()
     s = Setup(args)
+    if args.clearCache:
+        s.clearCache()
     s.externalChecks()
     if(args.instRPackageName):
         s.installRPackageName(args.instRPackageName[0], s.packages_["r"].defaultVersion_)
@@ -1353,6 +1612,7 @@ def main():
         return 0
     if args.printLibs:
         s.printAvailableSetUps()
+        return 0
     elif args.addBashCompletion:
         if(os.path.isdir("./bashCompletes")):
             cmd = "echo >> ~/.bash_completion && cat bashCompletes/* >> ~/.bash_completion"
@@ -1367,6 +1627,9 @@ def main():
         if len(s.setUpsNeeded) == 0 and not args.compfile:
             s.printAvailableSetUps()
             return 1
+        elif args.printGitRefs:
+            s.printGitRefs()
+            return 0
         else:
             if args.justDownload:
                 s.downloadFiles()
@@ -1376,7 +1639,7 @@ def main():
                     packVers = []
                     for set in s.setUpsNeeded:
                         s.packages_.addPackage(packVers,set)
-                    s.packages_.writeMakefile(packVers, args.outMakefile, args.overWrite)
+                    s.packages_.writeMakefile(packVers, args.outMakefile, args.overWrite, args.append)
                 return 0
 
 if __name__ == '__main__':
