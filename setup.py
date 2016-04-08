@@ -255,9 +255,11 @@ class Packages():
         if self.args.noInternet:
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
                 pack = pickle.load(input)
+                pack.defaultBuildCmd_ = buildCmd
         elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
                     pack = pickle.load(input)
+                    pack.defaultBuildCmd_ = buildCmd
         else:
             
             refs = pack.getGitRefs(url)
@@ -279,9 +281,11 @@ class Packages():
         if self.args.noInternet:
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
                 pack = pickle.load(input)
+                pack.defaultBuildCmd_ = buildCmd
         elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
                     pack = pickle.load(input)
+                    pack.defaultBuildCmd_ = buildCmd
         else:
             refs = pack.getGitRefs(url)
             for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
@@ -299,9 +303,11 @@ class Packages():
         if self.args.noInternet:
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
                 pack = pickle.load(input)
+                pack.defaultBuildCmd_ = buildCmd
         elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
                     pack = pickle.load(input)
+                    pack.defaultBuildCmd_ = buildCmd
         else:
             refs = pack.getGitRefs(url)
             for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
@@ -321,9 +327,11 @@ class Packages():
         if self.args.noInternet:
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
                 pack = pickle.load(input)
+                pack.defaultBuildCmd_ = buildCmd
         elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
                     pack = pickle.load(input)
+                    pack.defaultBuildCmd_ = buildCmd
         else:
             refs = pack.getGitRefs(url)
             for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
@@ -380,9 +388,11 @@ class Packages():
         if self.args.noInternet:
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
                 pack = pickle.load(input)
+                pack.defaultBuildCmd_ = buildCmd
         elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
                     pack = pickle.load(input)
+                    pack.defaultBuildCmd_ = buildCmd
         else:
             refs = pack.getGitRefs(url)
             for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
@@ -400,9 +410,11 @@ class Packages():
         if self.args.noInternet:
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
                 pack = pickle.load(input)
+                pack.defaultBuildCmd_ = buildCmd
         elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
                     pack = pickle.load(input)
+                    pack.defaultBuildCmd_ = buildCmd
         else:
             refs = pack.getGitRefs(url)
             for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
@@ -537,9 +549,11 @@ class Packages():
         if self.args.noInternet:
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
                 pack = pickle.load(input)
+                pack.defaultBuildCmd_ = buildCmd
         elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
                     pack = pickle.load(input)
+                    pack.defaultBuildCmd_ = buildCmd
         else:
             refs = pack.getGitRefs(url)
             for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
@@ -560,9 +574,11 @@ class Packages():
         if self.args.noInternet:
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
                 pack = pickle.load(input)
+                pack.defaultBuildCmd_ = buildCmd
         elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
                     pack = pickle.load(input)
+                    pack.defaultBuildCmd_ = buildCmd
         else:
             refs = pack.getGitRefs(url)
             for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
@@ -582,9 +598,11 @@ class Packages():
         if self.args.noInternet:
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
                 pack = pickle.load(input)
+                pack.defaultBuildCmd_ = buildCmd
         elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
                     pack = pickle.load(input)
+                    pack.defaultBuildCmd_ = buildCmd
         else:
             refs = pack.getGitRefs(url)
             for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
@@ -604,9 +622,11 @@ class Packages():
         if self.args.noInternet:
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
                 pack = pickle.load(input)
+                pack.defaultBuildCmd_ = buildCmd
         elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
                     pack = pickle.load(input)
+                    pack.defaultBuildCmd_ = buildCmd
         else:
             refs = pack.getGitRefs(url)
             for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
@@ -625,9 +645,11 @@ class Packages():
         if self.args.noInternet:
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
                 pack = pickle.load(input)
+                pack.defaultBuildCmd_ = buildCmd
         elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
                     pack = pickle.load(input)
+                    pack.defaultBuildCmd_ = buildCmd
         else:
             refs = pack.getGitRefs(url)
             for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
@@ -641,14 +663,21 @@ class Packages():
         url = "https://github.com/bailey-lab/SeekDeep.git"
         name = "SeekDeep"
         buildCmd = self.__bibProjectBuildCmd()
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v2.3.1")
+        print("buildCMD")
+        print buildCmd
+        print ""
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v2.3.3")
+        print pack.defaultBuildCmd_
+        print ""
         pack.bibProject_ = True
         if self.args.noInternet:
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
                 pack = pickle.load(input)
+                pack.defaultBuildCmd_ = buildCmd
         elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
                     pack = pickle.load(input)
+                    pack.defaultBuildCmd_ = buildCmd
         else:
             refs = pack.getGitRefs(url)
             for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
@@ -667,9 +696,11 @@ class Packages():
         if self.args.noInternet:
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
                 pack = pickle.load(input)
+                pack.defaultBuildCmd_ = buildCmd
         elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
                     pack = pickle.load(input)
+                    pack.defaultBuildCmd_ = buildCmd
         else:
             refs = pack.getGitRefs(url)
             for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
@@ -688,9 +719,11 @@ class Packages():
         if self.args.noInternet:
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
                 pack = pickle.load(input)
+                pack.defaultBuildCmd_ = buildCmd
         elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
                     pack = pickle.load(input)
+                    pack.defaultBuildCmd_ = buildCmd
         else:
             refs = pack.getGitRefs(url)
             for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
@@ -709,9 +742,11 @@ class Packages():
         if self.args.noInternet:
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
                 pack = pickle.load(input)
+                pack.defaultBuildCmd_ = buildCmd
         elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
                     pack = pickle.load(input)
+                    pack.defaultBuildCmd_ = buildCmd
         else:
             refs = pack.getGitRefs(url)
             for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
@@ -730,9 +765,11 @@ class Packages():
         if self.args.noInternet:
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
                 pack = pickle.load(input)
+                pack.defaultBuildCmd_ = buildCmd
         elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
                     pack = pickle.load(input)
+                    pack.defaultBuildCmd_ = buildCmd
         else:
             refs = pack.getGitRefs(url)
             for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
@@ -928,15 +965,17 @@ class Packages():
     def __bibProjectBuildCmd(self):
         cmd = """
         python ./configure.py -CC {CC} -CXX {CXX} -externalLibDir {external} -prefix $(dirname {local_dir}) """
+        print self.args.noInternet
         if self.args.noInternet:
             cmd = cmd + """&& python ./setup.py --compfile compfile.mk --numCores {num_cores}
-             --outMakefile makefile-common.mk --overWrite --noInternet"""
+             --outMakefile makefile-common.mk --overWrite --noInternet """
         else:
             cmd = cmd + """&& python ./setup.py --compfile compfile.mk --numCores {num_cores}
              --outMakefile makefile-common.mk --overWrite """
         cmd = cmd + """&& make clean
         && make -j {num_cores} && make install"""
         cmd = " ".join(cmd.split())
+        print cmd
         return cmd
     
     
