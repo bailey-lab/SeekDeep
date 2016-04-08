@@ -663,12 +663,7 @@ class Packages():
         url = "https://github.com/bailey-lab/SeekDeep.git"
         name = "SeekDeep"
         buildCmd = self.__bibProjectBuildCmd()
-        print("buildCMD")
-        print buildCmd
-        print ""
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v2.3.3")
-        print pack.defaultBuildCmd_
-        print ""
         pack.bibProject_ = True
         if self.args.noInternet:
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
@@ -965,7 +960,6 @@ class Packages():
     def __bibProjectBuildCmd(self):
         cmd = """
         python ./configure.py -CC {CC} -CXX {CXX} -externalLibDir {external} -prefix $(dirname {local_dir}) """
-        print self.args.noInternet
         if self.args.noInternet:
             cmd = cmd + """&& python ./setup.py --compfile compfile.mk --numCores {num_cores}
              --outMakefile makefile-common.mk --overWrite --noInternet """
@@ -975,7 +969,6 @@ class Packages():
         cmd = cmd + """&& make clean
         && make -j {num_cores} && make install"""
         cmd = " ".join(cmd.split())
-        print cmd
         return cmd
     
     
