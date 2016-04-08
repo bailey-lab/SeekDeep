@@ -64,7 +64,7 @@ int SeekDeepUtilsRunner::dryRunQaulityFiltering(const bib::progutils::CmdArgs & 
   setUp.setOption(plot, "--plot", "Plot");
 	setUp.finishSetUp(std::cout);
 	SeqInput reader(setUp.pars_.ioOptions_);
-
+	reader.openIn();
 	std::unordered_map<uint32_t, uint32_t> qualWindowCounts;
 	uint32_t count = 0;
 	std::vector<double> qualChecks;
