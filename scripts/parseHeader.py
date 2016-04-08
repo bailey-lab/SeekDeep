@@ -2,7 +2,7 @@
 
 import shutil, os, argparse, sys, stat
 import CppHeaderParser
-sys.path.append("scripts/pyUtils")
+sys.path.append(os.path.join(os.path.dirname(__file__), "pyUtils"))
 from color_text import ColorText as CT
 
 def parse_args():
@@ -26,7 +26,12 @@ def main():
     print ""
     print CT.boldBlack("Includes")        
     for include in cppHeader.includes:
-        print "\t",include
+        if "//" in include:
+            print "\t" + include[0:include.find("//")].strip()
+        elif "/*" in include:
+            print "\t" + include[0:include.find("/*")].strip()
+        else:
+            print "\t" + include
     
     print("\n" + CT.boldBlack("Free functions are:"))
     for func in cppHeader.functions:
