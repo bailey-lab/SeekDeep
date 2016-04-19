@@ -149,6 +149,8 @@ class Utils:
         ''' un pack compressed file, guessing format based on extention '''
         if fnp.endswith(".tar.gz"):
             tar = tarfile.open(fnp, "r:gz")
+        elif fnp.endswith(".tgz"):
+            tar = tarfile.open(fnp, "r:gz")
         elif fnp.endswith(".tar.bz2"):
             tar = tarfile.open(fnp, "r:bz2")
         elif fnp.endswith(".tar"):

@@ -236,6 +236,7 @@ class Packages():
         self.packages_["mongocxx"] = self.__mongocxx()
         self.packages_["catch"] = self.__catch()
         self.packages_["mathgl"] = self.__mathgl()
+        self.packages_["magic"] = self.__magic()
         '''
         self.packages_["mlpack"] = self.__mlpack()
         self.packages_["liblinear"] = self.__liblinear()
@@ -492,6 +493,18 @@ class Packages():
         cmd = " ".join(cmd.split())
         return self.__package_dirs(url, "liblinear")
     '''
+    
+    def __magic(self):
+        name = "magic"
+        buildCmd = """./configure CC={CC} CXX={CXX} --disable-dependency-tracking  --disable-silent-rules
+            --prefix={local_dir}
+            --enable-fsect-man5  --enable-static 
+            && make -j {num_cores} 
+            && make -j {num_cores} install"""
+        buildCmd = " ".join(buildCmd.split())
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "5.25")
+        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/libmagic/file-5.25.tar.gz", "5.25")
+        return pack
     
     def __mathgl(self):
         name = "mathgl"
@@ -1052,7 +1065,8 @@ class Setup:
                        "mongocxx": self.mongocxx,
                        "twobit" : self.twobit,
                        "sharedmutex" : self.sharedMutex,
-                       "mathgl": self.mathgl
+                       "mathgl": self.mathgl,
+                       "magic": self.magic
                        }
         '''
         "mlpack": self.mlpack,
@@ -1520,6 +1534,9 @@ class Setup:
         
     def mathgl(self, version):
         self.__defaultBuild("mathgl", version)
+        
+    def magic(self, version):
+        self.__defaultBuild("magic", version)
         
     def downloadFiles(self):
         for set in self.setUpsNeeded:
