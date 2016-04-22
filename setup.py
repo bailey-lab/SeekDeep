@@ -236,6 +236,7 @@ class Packages():
         self.packages_["mongocxx"] = self.__mongocxx()
         self.packages_["catch"] = self.__catch()
         self.packages_["mathgl"] = self.__mathgl()
+        self.packages_["magic"] = self.__magic()
         '''
         self.packages_["mlpack"] = self.__mlpack()
         self.packages_["liblinear"] = self.__liblinear()
@@ -451,6 +452,7 @@ class Packages():
         name = "armadillo"
         buildCmd = "mkdir -p build && cd build && CC={CC} CXX={CXX} cmake -DCMAKE_INSTALL_PREFIX:PATH={local_dir} .. && make -j {num_cores} install"
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "6.200.3")
+        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/armadillo/armadillo-6.700.3.tar.gz", "6.700.3")
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/armadillo/armadillo-6.200.3.tar.gz", "6.200.3")
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/armadillo/armadillo-6.100.0.tar.gz", "6.100.0")
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/armadillo/armadillo-5.600.2.tar.gz", "5.600.2")
@@ -491,6 +493,18 @@ class Packages():
         cmd = " ".join(cmd.split())
         return self.__package_dirs(url, "liblinear")
     '''
+    
+    def __magic(self):
+        name = "magic"
+        buildCmd = """./configure CC={CC} CXX={CXX} --disable-dependency-tracking  --disable-silent-rules
+            --prefix={local_dir}
+            --enable-fsect-man5  --enable-static 
+            && make -j {num_cores} 
+            && make -j {num_cores} install"""
+        buildCmd = " ".join(buildCmd.split())
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "5.25")
+        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/libmagic/file-5.25.tar.gz", "5.25")
+        return pack
     
     def __mathgl(self):
         name = "mathgl"
@@ -595,22 +609,26 @@ class Packages():
         buildCmd = self.__bibProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "master")
         pack.bibProject_ = True
-        if self.args.noInternet:
-            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
-                pack = pickle.load(input)
-                pack.defaultBuildCmd_ = buildCmd
-        elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
-            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
+        try:
+            if self.args.noInternet:
+                with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
                     pack = pickle.load(input)
                     pack.defaultBuildCmd_ = buildCmd
-        else:
-            refs = pack.getGitRefs(url)
-            for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
-                pack.addVersion(url, ref)
-                pack.versions_[ref].additionalLdFlags_ = ["-lcurl"]
-            Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
-            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
-                pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
+            elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
+                with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
+                        pack = pickle.load(input)
+                        pack.defaultBuildCmd_ = buildCmd
+            else:
+                
+                refs = pack.getGitRefs(url)
+                for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
+                    pack.addVersion(url, ref)
+                    pack.versions_[ref].additionalLdFlags_ = ["-lcurl"]
+                Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
+                with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
+                    pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
+        except Exception as inst: 
+            print CT.boldRed("failed to update cache for ") + name + " which doesn't matter unless you are installing this lib"
         return pack 
     
     def __twobit(self):
@@ -688,21 +706,25 @@ class Packages():
         buildCmd = self.__bibProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "master")
         pack.bibProject_ = True
-        if self.args.noInternet:
-            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
-                pack = pickle.load(input)
-                pack.defaultBuildCmd_ = buildCmd
-        elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
-            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
+        try:
+            if self.args.noInternet:
+                with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
                     pack = pickle.load(input)
                     pack.defaultBuildCmd_ = buildCmd
-        else:
-            refs = pack.getGitRefs(url)
-            for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
-                pack.addVersion(url, ref)
-            Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
-            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
-                pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
+            elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
+                with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
+                        pack = pickle.load(input)
+                        pack.defaultBuildCmd_ = buildCmd
+            else:
+                refs = pack.getGitRefs(url)
+                for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
+                    pack.addVersion(url, ref)
+                Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
+                with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
+                    pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
+        except Exception as inst:
+            print inst 
+            print CT.boldRed("failed to update cache for ") + name + " which doesn't matter unless you are installing this lib"
         return pack
     
     def __seqserver(self):
@@ -1051,7 +1073,8 @@ class Setup:
                        "mongocxx": self.mongocxx,
                        "twobit" : self.twobit,
                        "sharedmutex" : self.sharedMutex,
-                       "mathgl": self.mathgl
+                       "mathgl": self.mathgl,
+                       "magic": self.magic
                        }
         '''
         "mlpack": self.mlpack,
@@ -1519,6 +1542,9 @@ class Setup:
         
     def mathgl(self, version):
         self.__defaultBuild("mathgl", version)
+        
+    def magic(self, version):
+        self.__defaultBuild("magic", version)
         
     def downloadFiles(self):
         for set in self.setUpsNeeded:
