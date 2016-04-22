@@ -1,6 +1,6 @@
 SeekDeep
 ========
-Version 2.3.3
+Version 2.3.4
 
 Bioinformatic Tools for analyzing targeted amplicon sequencing developed by the UMASS Med Bailey Lab
 
