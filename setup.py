@@ -609,22 +609,26 @@ class Packages():
         buildCmd = self.__bibProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "master")
         pack.bibProject_ = True
-        if self.args.noInternet:
-            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
-                pack = pickle.load(input)
-                pack.defaultBuildCmd_ = buildCmd
-        elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
-            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
+        try:
+            if self.args.noInternet:
+                with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
                     pack = pickle.load(input)
                     pack.defaultBuildCmd_ = buildCmd
-        else:
-            refs = pack.getGitRefs(url)
-            for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
-                pack.addVersion(url, ref)
-                pack.versions_[ref].additionalLdFlags_ = ["-lcurl"]
-            Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
-            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
-                pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
+            elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
+                with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
+                        pack = pickle.load(input)
+                        pack.defaultBuildCmd_ = buildCmd
+            else:
+                
+                refs = pack.getGitRefs(url)
+                for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
+                    pack.addVersion(url, ref)
+                    pack.versions_[ref].additionalLdFlags_ = ["-lcurl"]
+                Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
+                with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
+                    pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
+        except Exception as inst: 
+            print CT.boldRed("failed to update cache for ") + name + " which doesn't matter unless you are installing this lib"
         return pack 
     
     def __twobit(self):
@@ -702,21 +706,25 @@ class Packages():
         buildCmd = self.__bibProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "master")
         pack.bibProject_ = True
-        if self.args.noInternet:
-            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
-                pack = pickle.load(input)
-                pack.defaultBuildCmd_ = buildCmd
-        elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
-            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
+        try:
+            if self.args.noInternet:
+                with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
                     pack = pickle.load(input)
                     pack.defaultBuildCmd_ = buildCmd
-        else:
-            refs = pack.getGitRefs(url)
-            for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
-                pack.addVersion(url, ref)
-            Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
-            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
-                pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
+            elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
+                with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
+                        pack = pickle.load(input)
+                        pack.defaultBuildCmd_ = buildCmd
+            else:
+                refs = pack.getGitRefs(url)
+                for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
+                    pack.addVersion(url, ref)
+                Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
+                with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
+                    pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
+        except Exception as inst:
+            print inst 
+            print CT.boldRed("failed to update cache for ") + name + " which doesn't matter unless you are installing this lib"
         return pack
     
     def __seqserver(self):
