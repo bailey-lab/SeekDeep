@@ -23,7 +23,10 @@ def main():
     else:
         print "Hello World!"
     
-main()\n""")
+if __name__ == "__main__":
+    main()
+
+""")
         
 
 def genCppHello(outFileName):
