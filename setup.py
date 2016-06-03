@@ -189,7 +189,15 @@ class CPPLibPackage():
     def getGitRefs(self, url):
         if not self.libType_.startswith("git"):
             raise Exception("Library " + self.name_ + " is not a git library, type is : " + self.libType_)
-        cap = Utils.runAndCapture("git ls-remote {url}".format(url = url))
+        try:
+            cap = Utils.runAndCapture("git ls-remote {url}".format(url = url))
+        except Exception as inst: 
+            try:
+                #if the first attempt fail, try doing https instead if that was reason
+                url = url.replace("git@github.com:", "https://github.com/")
+                cap = Utils.runAndCapture("git ls-remote {url}".format(url = url))
+            except Exception as instFallback:
+                raise instFallback 
         branches = []
         tags = []
         for line in cap.split("\n"):
@@ -439,19 +447,21 @@ class Packages():
                 repos=\"http://cran.us.r-project.org\", Ncpus = {num_cores}, lib =.libPaths()[length(.libPaths()  )])' | $({local_dir}/""" + rHomeLoc + """)/bin/R --slave --vanilla
                 """
         buildCmd = " ".join(buildCmd.split())
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "3.2.4")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "3.3.0")
+        pack.versions_["3.3.0"] = CPPLibPackageVersionR("R", "http://baileylab.umassmed.edu/sourceCodes/R/R-3.3.0.tar.gz", "3.2.4", self.dirMaster_)
         pack.versions_["3.2.4"] = CPPLibPackageVersionR("R", "http://baileylab.umassmed.edu/sourceCodes/R/R-3.2.4.tar.gz", "3.2.4", self.dirMaster_)
         pack.versions_["3.2.3"] = CPPLibPackageVersionR("R", "http://baileylab.umassmed.edu/sourceCodes/R/R-3.2.3.tar.gz", "3.2.3", self.dirMaster_)
         pack.versions_["3.2.2"] = CPPLibPackageVersionR("R", "http://baileylab.umassmed.edu/sourceCodes/R/R-3.2.2.tar.gz", "3.2.2", self.dirMaster_)
         pack.versions_["3.2.1"] = CPPLibPackageVersionR("R", "http://baileylab.umassmed.edu/sourceCodes/R/R-3.2.1.tar.gz", "3.2.1", self.dirMaster_)
         pack.versions_["3.2.0"] = CPPLibPackageVersionR("R", "http://baileylab.umassmed.edu/sourceCodes/R/R-3.2.0.tar.gz", "3.2.0", self.dirMaster_)
-        pack.versions_["3.1.3"] = CPPLibPackageVersionR("R", "http://baileylab.umassmed.edu/sourceCodes/R/R-3.2.2.tar.gz", "3.1.3", self.dirMaster_)
+        pack.versions_["3.1.3"] = CPPLibPackageVersionR("R", "http://baileylab.umassmed.edu/sourceCodes/R/R-3.1.3.tar.gz", "3.1.3", self.dirMaster_)
         return pack
 
     def __armadillo(self):
         name = "armadillo"
         buildCmd = "mkdir -p build && cd build && CC={CC} CXX={CXX} cmake -DCMAKE_INSTALL_PREFIX:PATH={local_dir} .. && make -j {num_cores} install"
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "6.200.3")
+        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/armadillo/armadillo-7.100.3.tar.gz", "7.100.3")
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/armadillo/armadillo-6.700.3.tar.gz", "6.700.3")
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/armadillo/armadillo-6.200.3.tar.gz", "6.200.3")
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/armadillo/armadillo-6.100.0.tar.gz", "6.100.0")
