@@ -51,7 +51,15 @@ class CPPLibPackageVersionR():
         
     def setExecutableLoc(self, localPath):
         self.rInstallLoc_ = os.path.join(os.path.abspath(localPath), joinNameVer(self.nameVer_))
-        if Utils.isMac():
+        verSplit = self.nameVer_.version.split(".")
+        verNameStr = verSplit[0] + verSplit[1] + verSplit[2]
+        verNameInt = int(verNameStr)
+        #print verSplit
+        #print verNameStr
+        #print verNameInt
+        #sys.exit(1)
+        
+        if Utils.isMac() and verNameInt < 330:
             self.rExecutable_ = os.path.join(self.rInstallLoc_, "R.framework/Resources/bin/R")
         else:
             self.rExecutable_ = os.path.join(self.rInstallLoc_, "bin/R")
@@ -1474,6 +1482,25 @@ class Setup:
         self.__defaultBuild("boost", version)
 
     def r(self, version):
+        package = "r"
+        verSplit = version.split(".")
+        verNameStr = verSplit[0] + verSplit[1] + verSplit[2]
+        verNameInt = int(verNameStr)
+        #print verSplit
+        #print verNameStr
+        #print verNameInt
+        if verNameInt >= 330 and Utils.isMac( ):
+            pack = self.__package(package)
+            rHomeLoc = "bin/R RHOME"
+            #&& echo 'install.packages(c(\"gridExtra\", \"ape\", \"ggplot2\", \"seqinr\",\"Rcpp\", \"RInside\",\"devtools\"),
+            buildCmd = """./configure --prefix={local_dir} --enable-R-shlib --with-x=no CC={CC} CXX={CXX} OBJC={CC}
+                    && make -j {num_cores}
+                    && make install
+                    && echo 'install.packages(c(\"gridExtra\", \"ape\", \"ggplot2\", \"seqinr\",\"Rcpp\", \"RInside\"),
+                    repos=\"http://cran.us.r-project.org\", Ncpus = {num_cores}, lib =.libPaths()[length(.libPaths()  )])' | $({local_dir}/""" + rHomeLoc + """)/bin/R --slave --vanilla
+                    """
+            buildCmd = " ".join(buildCmd.split())
+            pack.defaultBuildCmd_ = buildCmd
         self.__defaultBuild("r", version)
 
     def bamtools(self, version):
