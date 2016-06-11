@@ -256,6 +256,7 @@ class Packages():
         self.packages_["muscle"] = self.__muscle()
         self.packages_["bowtie2"] = self.__bowtie2()
         self.packages_["flash"] = self.__flash()
+        self.packages_["lastz"] = self.__lastz()
         '''
         self.packages_["mlpack"] = self.__mlpack()
         self.packages_["liblinear"] = self.__liblinear()
@@ -498,6 +499,13 @@ class Packages():
         buildCmd = "CC={CC} CXX={CXX} make -j {num_cores} && mkdir -p {local_dir}/bin && cp flash {local_dir}/bin/"
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "1.2.11")
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/flash/FLASH-1.2.11.tar.gz", "1.2.11")
+        return pack
+    
+    def __lastz(self):
+        name = "lastz"
+        buildCmd = "sed -i.bak 's/-Werror//g' src/Makefile && CC={CC} CXX={CXX} make -j {num_cores} && mkdir -p {local_dir}/bin && cp src/lastz src/lastz_D {local_dir}/bin/"
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "1.03.73")
+        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/lastz/lastz-1.03.73.tar.gz", "1.03.73")
         return pack
 
     '''
@@ -1121,7 +1129,8 @@ class Setup:
                        "magic": self.magic,
                        "flash": self.flash,
                        "bowtie2": self.bowtie2,
-                       "muscle": self.muscle
+                       "muscle": self.muscle,
+                       "lastz": self.lastz
                        }
         '''flash
         "mlpack": self.mlpack,
@@ -1654,7 +1663,10 @@ class Setup:
         self.__defaultBuild("bowtie2", version)
     
     def muscle(self, version):
-        self.__defaultBuild("muscle", version)   
+        self.__defaultBuild("muscle", version) 
+    
+    def lastz(self, version):
+        self.__defaultBuild("lastz", version)   
     
     def downloadFiles(self):
         for set in self.setUpsNeeded:
