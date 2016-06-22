@@ -908,22 +908,22 @@ class Packages():
                 gccVer = self.args.CXX[(self.args.CXX.find("-") + 1):]
                 if Utils.isMac():
                     buildCmd = "cp " + gccJamLoc + "  " + gccJamOutLoc + """ && ./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
-                     && echo "using gcc : """ + str(gccVer) + """ : {CXX} : <linker-type>darwin ;" >> project-config.jam 
+                     && echo "using gcc : """ + str(gccVer) + """ : {CXX} : <linker-type>darwin ;" >> tools/build/src/user-config.jam
                      && ./b2 --toolset=gcc-""" + str(gccVer) +  """ -j {num_cores} install 
                      """ + installNameToolCmd
                 else:
                     buildCmd = """./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
-                     && echo "using gcc : """ + str(gccVer) + """ : {CXX} ;" >> project-config.jam 
+                     && echo "using gcc : """ + str(gccVer) + """ : {CXX} ;" >> tools/build/src/user-config.jam
                      && ./b2 --toolset=gcc-""" + str(gccVer) +  """ -j {num_cores} install 
                      """
             else:
                 if Utils.isMac():
-                    buildCmd = "cp " + gccJamLoc + "  " + gccJamOutLoc + """ && echo "using gcc :  : g++ : <linker-type>darwin ;" >> project-config.jam 
+                    buildCmd = "cp " + gccJamLoc + "  " + gccJamOutLoc + """ && echo "using gcc :  : g++ : <linker-type>darwin ;" >> tools/build/src/user-config.jam
                      && ./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
                      && ./b2 --toolset=gcc -j {num_cores} install 
                      """ + installNameToolCmd
                 else:
-                    buildCmd = """echo "using gcc : : g++ ;" >> project-config.jam && ./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
+                    buildCmd = """./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
                      && ./b2 --toolset=gcc -j {num_cores} install 
                      """
         buildCmd = " ".join(buildCmd.split())
