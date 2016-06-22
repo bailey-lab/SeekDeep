@@ -583,6 +583,7 @@ class Packages():
         buildCmd = " ".join(buildCmd.split())
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "1.2.8")
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/zlib/zlib-1.2.8.tar.gz", "1.2.8")
+        pack.versions_["1.2.8"].altLibName_ = "z"
         return pack
     
     def __mathgl(self):
