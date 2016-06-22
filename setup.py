@@ -913,7 +913,7 @@ class Packages():
                      """ + installNameToolCmd
                 else:
                     buildCmd = """./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
-                     && echo "using gcc : """ + str(gccVer) + """ : {CXX};" >> project-config.jam 
+                     && echo "using gcc : """ + str(gccVer) + """ : {CXX} ;" >> project-config.jam 
                      && ./b2 --toolset=gcc-""" + str(gccVer) +  """ -j {num_cores} install 
                      """
             else:
@@ -923,7 +923,7 @@ class Packages():
                      && ./b2 --toolset=gcc -j {num_cores} install 
                      """ + installNameToolCmd
                 else:
-                    buildCmd = """echo "using gcc : : g++;" >> project-config.jam && ./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
+                    buildCmd = """echo "using gcc : : g++ ;" >> project-config.jam && ./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
                      && ./b2 --toolset=gcc -j {num_cores} install 
                      """
         buildCmd = " ".join(buildCmd.split())
