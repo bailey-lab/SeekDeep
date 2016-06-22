@@ -253,6 +253,7 @@ class Packages():
         self.packages_["catch"] = self.__catch()
         self.packages_["mathgl"] = self.__mathgl()
         self.packages_["magic"] = self.__magic()
+        self.packages_["zlib"] = self.__zlib()
         self.packages_["muscle"] = self.__muscle()
         self.packages_["bowtie2"] = self.__bowtie2()
         self.packages_["flash"] = self.__flash()
@@ -571,6 +572,17 @@ class Packages():
         buildCmd = " ".join(buildCmd.split())
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "5.25")
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/libmagic/file-5.25.tar.gz", "5.25")
+        return pack
+    
+    def __zlib(self):
+        name = "zlib"
+        buildCmd = """CC={CC} CXX={CXX}  ./configure 
+            --prefix={local_dir}
+            && make -j {num_cores} 
+            && make -j {num_cores} install"""
+        buildCmd = " ".join(buildCmd.split())
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "1.2.8")
+        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/zlib/zlib-1.2.8.tar.gz", "1.2.8")
         return pack
     
     def __mathgl(self):
@@ -1143,6 +1155,7 @@ class Setup:
                        "sharedmutex" : self.sharedMutex,
                        "mathgl": self.mathgl,
                        "magic": self.magic,
+                       "zlib": self.zlib,
                        "flash": self.flash,
                        "bowtie2": self.bowtie2,
                        "muscle": self.muscle,
@@ -1673,6 +1686,9 @@ class Setup:
         
     def magic(self, version):
         self.__defaultBuild("magic", version)
+    
+    def zlib(self, version):
+        self.__defaultBuild("zlib", version)
         
     def flash(self, version):
         self.__defaultBuild("flash", version)
