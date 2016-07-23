@@ -260,7 +260,7 @@ class Packages():
         self.packages_["lastz"] = self.__lastz()
         self.packages_["samtools"] = self.__samtools()
         self.packages_["bcftools"] = self.__bcftools()
-        self.packages_["htslib"] = self.__htslib()
+        self.packages_["hts"] = self.__hts()
         '''
         self.packages_["mlpack"] = self.__mlpack()
         self.packages_["liblinear"] = self.__liblinear()
@@ -526,11 +526,12 @@ class Packages():
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/bcftools/bcftools-1.3.1.tar.bz2", "1.3.1")
         return pack
     
-    def __htslib(self):
-        name = "htslib"
+    def __hts(self):
+        name = "hts"
         buildCmd = "CC={CC} CXX={CXX} && autoheader && autoconf && ./configure --prefix={local_dir} && make -j {num_cores} && make install -j {num_cores}"
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "1.3.1")
         pack.addVersion("https://github.com/samtools/htslib.git", "1.3.1")
+        pack.versions_["1.3.1"].additionalLdFlags_ = ["-lz -lm -lpthread"]
         return pack
 
     '''
@@ -1172,7 +1173,7 @@ class Setup:
                        "lastz": self.lastz,
                        "samtools": self.samtools,
                        "bcftools": self.bcftools,
-                       "htslib": self.htslib
+                       "hts": self.hts
                        }
         '''
         "mlpack": self.mlpack,
@@ -1719,8 +1720,8 @@ class Setup:
     def bcftools(self, version):
         self.__defaultBuild("bcftools", version)  
     
-    def htslib(self, version):
-        self.__defaultBuild("htslib", version)   
+    def hts(self, version):
+        self.__defaultBuild("hts", version)   
     
     
     

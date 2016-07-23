@@ -8,9 +8,10 @@ class genHelper:
     @staticmethod
     def generateCompfileFull(outFileName, externalDirLoc, cc, cxx, outName, installDirName, installDirLoc, neededLibs,ldFlags = ""):
         availableLibs = ["CPPITERTOOLS","CPPPROGUTILS","ZI_LIB","BOOST","R","BAMTOOLS","CPPCMS","MATHGL","ARMADILLO",
-                         "MLPACK","LIBLINEAR","PEAR","CURL","GTKMM", "BIBSEQ", "BIBCPP", "SEEKDEEP", 
+                         "MLPACK","LIBLINEAR","CURL","GTKMM", "BIBSEQ", "BIBCPP", "SEEKDEEP", 
                          "BIBSEQDEV", "SEEKDEEPDEV", "CATCH", "JSONCPP",
-                          "TWOBIT", "SEQSERVER","NJHRINSIDE", "PSTREAMS", "MONGOC", "MONGOCXX", "SHAREDMUTEX", "MAGIC"]
+                          "TWOBIT", "SEQSERVER","NJHRINSIDE", "PSTREAMS", "MONGOC", "MONGOCXX", "SHAREDMUTEX",
+                           "MAGIC", "HTS"]
         neededLibraries = {}
         for lib in neededLibs:
             if ":" in lib:
