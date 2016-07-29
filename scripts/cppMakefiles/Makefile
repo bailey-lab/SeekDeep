@@ -69,7 +69,7 @@ $(OBJ_DIR):
 #							$@: the name of the target of the rule 
 $(OBJ_DIR)/%.o: %.cpp
 	@mkdir -p $(OBJ_DIR)/$(shell dirname $<)
-	$(CXX) -DNOT_HEADER_ONLY $(COMMON) -fPIC  -D$(CXXOUTNAME)_INSTALLDIR=\"$(realpath $(INSTALL_DIR))\" -c $< -o $@
+	$(CXX) -DNOT_HEADER_ONLY $(COMMON) -fPIC  -D$(CXXOUTNAME)_INSTALLDIR=\"$(INSTALL_DIR)\" -c $< -o $@
 
 $(BIN): $(OBJ) 
 	$(CXX) $(CXXFLAGS) $(CXXOPT)  -o $@ $^ $(LD_FLAGS) 
