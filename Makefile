@@ -76,10 +76,10 @@ $(OBJ_DIR):
 #							$@: the name of the target of the rule 
 $(OBJ_DIR)/%.o: %.cpp
 	@mkdir -p $(OBJ_DIR)/$(shell dirname $<)
-	$(CXX) -DNOT_HEADER_ONLY $(COMMON) -fPIC  -D$(CXXOUTNAME)_INSTALLDIR=\"$(HOMEBASEDIR)\" -c $< -o $@
+	$(CXX) $(COMMON) -fPIC -D$(CXXOUTNAME)_INSTALLDIR=\"$(HOMEBASEDIR)\" -c $< -o $@
 
 $(BIN): $(OBJ) 
-	$(CXX) $(CXXFLAGS) $(CXXOPT)  -o $@ $^ $(LD_FLAGS) 
+	$(CXX) $(CXXFLAGS) $(CXXOPT) -o $@ $^ $(LD_FLAGS) 
 
 ############ remove the objects that were dependant on any changed headers and check for compfile.mk
 do_preReqs: 
@@ -94,13 +94,13 @@ sharedLibrary: do_preReqs $(OBJ_DIR) $(SOLIB)
 
 
 $(SOLIB): $(OBJNOMAIN)
-	$(CXX) $(CXXFLAGS) $(CXXOPT) -shared  -o $@ $^ $(LD_FLAGS) 
+	$(CXX) $(CXXFLAGS) $(CXXOPT) -shared -o $@ $^ $(LD_FLAGS) 
 	
 ############ dyLibrary
 dyLibrary: do_preReqs $(OBJ_DIR) $(DYLIB)
 
 $(DYLIB): $(OBJNOMAIN)
-	$(CXX) $(CXXFLAGS) $(CXXOPT) -dynamiclib  -o $@ $^ $(LD_FLAGS) 
+	$(CXX) $(CXXFLAGS) $(CXXOPT) -dynamiclib -o $@ $^ $(LD_FLAGS) 
 
 
 ############ clean
@@ -126,14 +126,14 @@ $(INSTALL_DIR):
 	
 #### installing shared library
 $(INSTALL_DIR)/lib/$(LIBNAME).so: $(OBJNOMAIN)
-	$(CXX) $(CXXFLAGS) $(CXXOPT) -shared  -o $(realpath $(INSTALL_DIR))/lib/$(LIBNAME).so $^ $(LD_FLAGS) 
+	$(CXX) $(CXXFLAGS) $(CXXOPT) -shared -o $(realpath $(INSTALL_DIR))/lib/$(LIBNAME).so $^ $(LD_FLAGS) 
 
 #### installing dynamic library
 $(INSTALL_DIR)/lib/$(LIBNAME).dylib: $(OBJNOMAIN)
 ifeq ($(UNAME_S), Darwin)
-	$(CXX) $(CXXFLAGS) $(CXXOPT) -dynamiclib  -o $(realpath $(INSTALL_DIR))/lib/$(LIBNAME).dylib $^ $(LD_FLAGS)
+	$(CXX) $(CXXFLAGS) $(CXXOPT) -dynamiclib -o $(realpath $(INSTALL_DIR))/lib/$(LIBNAME).dylib $^ $(LD_FLAGS)
 endif
-	  
+
 
 $(INSTALL_DIR)/bin/$(CXXOUTNAME): $(OBJ)
 	$(CXX) $(CXXFLAGS) $(CXXOPT) -o $(realpath $(INSTALL_DIR))/bin/$(CXXOUTNAME) $^ $(LD_FLAGS) 
