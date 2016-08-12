@@ -8,9 +8,10 @@ class genHelper:
     @staticmethod
     def generateCompfileFull(outFileName, externalDirLoc, cc, cxx, outName, installDirName, installDirLoc, neededLibs,ldFlags = ""):
         availableLibs = ["CPPITERTOOLS","CPPPROGUTILS","ZI_LIB","BOOST","R","BAMTOOLS","CPPCMS","MATHGL","ARMADILLO",
-                         "MLPACK","LIBLINEAR","PEAR","CURL","GTKMM", "BIBSEQ", "BIBCPP", "SEEKDEEP", 
+                         "MLPACK","LIBLINEAR","CURL","GTKMM", "BIBSEQ", "BIBCPP", "SEEKDEEP", 
                          "BIBSEQDEV", "SEEKDEEPDEV", "CATCH", "JSONCPP",
-                          "TWOBIT", "SEQSERVER","NJHRINSIDE", "PSTREAMS", "MONGOC", "MONGOCXX", "SHAREDMUTEX", "MAGIC"]
+                          "TWOBIT", "SEQSERVER","NJHRINSIDE", "PSTREAMS", "MONGOC", "MONGOCXX", "SHAREDMUTEX",
+                           "MAGIC", "HTS"]
         neededLibraries = {}
         for lib in neededLibs:
             if ":" in lib:
@@ -26,9 +27,8 @@ class genHelper:
             f.write("CC = {CC}\n".format(CC = cc))
             f.write("CXX = {CXX}\n".format(CXX = cxx))
             f.write("CXXOUTNAME = {NAME_OF_PROGRAM}\n".format(NAME_OF_PROGRAM = outName))
-            #f.write("CXXFLAGS = -std=c++11\n")
             f.write("CXXFLAGS = -std=c++14\n")
-            f.write("CXXFLAGS += -Wall -ftemplate-depth=1024 -Werror=return-type\n")
+            f.write("CXXFLAGS += -Wall -ftemplate-depth=1024 -Werror=uninitialized -Werror=return-type -Wno-missing-braces\n")
             if "" != ldFlags:
                 f.write("LD_FLAGS = ")
                 if not ldFlags.startswith("-"):
@@ -43,7 +43,6 @@ class genHelper:
             f.write("CXXDEBUG = -g -gstabs+ \n")
             f.write("INSTALL_DIR={INSTALL_LOCATION}\n".format(INSTALL_LOCATION = os.path.join(installDirLoc,installDirName)))
             f.write("EXT_PATH=$(realpath {EXTERNAL})\n".format(EXTERNAL = externalDirLoc))
-            #f.write("SCRIPTS_DIR=$(realpath scripts)\n")
             f.write("\n")
             for lib in availableLibs:
                 if lib in neededLibraries:
@@ -58,7 +57,7 @@ class genHelper:
 
     @staticmethod            
     def determineCC(args):
-        defaultCC = "clang-3.5"
+        defaultCC = "clang-3.8"
         if Utils.isMac():
             defaultCC = "clang"
         if not args.CC:
@@ -70,7 +69,7 @@ class genHelper:
         return defaultCC
     @staticmethod
     def determineCXX(args):
-        defaultCXX = "clang++-3.5"
+        defaultCXX = "clang++-3.8"
         if Utils.isMac():
             defaultCXX = "clang++"
         if not args.CXX:

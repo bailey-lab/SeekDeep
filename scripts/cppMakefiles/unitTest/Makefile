@@ -53,7 +53,7 @@ $(OBJ_DIR):
 #							$@: the name of the target of the rule 
 $(OBJ_DIR)/%.o: %.cpp $(HEADERS)
 	@mkdir -p $(OBJ_DIR)/$(shell dirname $<)
-	$(CXX) -DNOT_HEADER_ONLY $(COMMON) -fpic -c $< -o $@
+	$(CXX) $(COMMON) -fpic -c $< -o $@
 
 
 ############ remove the objects that were dependant on any changed headers and check for compfile.mk

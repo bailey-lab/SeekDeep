@@ -7,10 +7,9 @@ from utils import Utils
 from genFuncs import genHelper
 def main():
     name = "SeekDeep"
-    libs = "bibseq:v2.3.3,seqServer:v1.3.3"
+    libs = "seqServer:v1.4.0"
     args = genHelper.parseNjhConfigureArgs()
     cmd = genHelper.mkConfigCmd(name, libs, sys.argv)
     Utils.run(cmd)
     
 main()
-

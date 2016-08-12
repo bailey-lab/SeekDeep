@@ -42,18 +42,14 @@
 
 			//get sample names and the table with the sample names
 			var sampNames = ajaxRet("/" + rName + "/groupSampleNames/" + projectName + "/" + groupName + "/" + subGroupName);
-			var sampNameEncoding = ajaxRet('/' + rName + '/sampleNamesEncoding/' + projectName);
-			var encodedSampNames =[];
-	    	for (sampN in sampNames){
-	    		encodedSampNames.push(sampNameEncoding[sampNames[sampN]]);
-	    	}
-			ajaxPost('/' + rName + '/groupSampInfo/' + projectName + "/" + groupName + "/" + subGroupName,{"sampNames" : encodedSampNames}, function(tab){ mainPopInfoTab = tab; });
+
+			ajaxPost('/' + rName + '/groupSampInfo/' + projectName + "/" + groupName + "/" + subGroupName,{"sampNames" : sampNames}, function(tab){ mainPopInfoTab = tab; });
 			var cols = 10;
 			var linkPre = "/" + rName + "/individualSamplePage/" + projectName + "/";
 			var mouseOverC = "#999";
 			var mouseLeaveC = "#FFF";
 			var addTo = "#sampLinks";
-			createLinksTableDifferentLinks(addTo, linkPre, sampNames, encodedSampNames,cols, mouseOverC, mouseLeaveC);
+			createLinksTable(addTo, linkPre, sampNames,cols, mouseOverC, mouseLeaveC);
 
 			
 			//get the population information table from server
@@ -89,22 +85,14 @@
 			    var currentPopSeqData = {};
 			    var currentPopInfoTab = {};
 			    var currentSampNames = _.intersection(sampNames, allVals);
-			    if(currentSampNames.length == 0){
-			    	mainPopInfoTab = {};
-			    }else{
-			    	var encodedCurrentSampNames =[];
-			    	for (sampN in currentSampNames){
-			    		encodedCurrentSampNames.push(sampNameEncoding[currentSampNames[sampN]]);
-			    	}
-			    	ajaxPost('/' + rName + '/groupSampInfo/' + projectName + "/" + groupName + "/" + subGroupName, {"sampNames": encodedCurrentSampNames}, function(tab){ mainPopInfoTab = tab; });
-			    	ajaxPost('/' + rName + '/groupPopSeqDataForSamps/' + projectName + "/" + groupName + "/" + subGroupName, {"sampNames": encodedCurrentSampNames}, function(tab){ currentPopSeqData = tab; });
-			    	ajaxPost('/' + rName + '/groupPopInfoForSamps/' + projectName + "/" + groupName + "/" + subGroupName, {"sampNames": encodedCurrentSampNames}, function(tab){ currentPopInfoTab = tab; });
-			    }
-			 	sampleTable.updateWithData(mainPopInfoTab);
+		    	ajaxPost('/' + rName + '/groupSampInfo/' + projectName + "/" + groupName + "/" + subGroupName, {"sampNames": currentSampNames}, function(tab){ mainPopInfoTab = tab; });
+		    	ajaxPost('/' + rName + '/groupPopSeqDataForSamps/' + projectName + "/" + groupName + "/" + subGroupName, {"sampNames": currentSampNames}, function(tab){ currentPopSeqData = tab; });
+		    	ajaxPost('/' + rName + '/groupPopInfoForSamps/' + projectName + "/" + groupName + "/" + subGroupName, {"sampNames": currentSampNames}, function(tab){ currentPopInfoTab = tab; });
+		 		sampleTable.updateWithData(mainPopInfoTab);
 			 	sampleChart.updateWithData(mainPopInfoTab);
 			 	popTable.updateWithData(currentPopInfoTab);
 			 	SeqViewer.updateData(currentPopSeqData);
-			 	$("#sampleHeader").scrollView();
+			 	$("#sampleHeader").scrollView(60, 0);
 			};
 			var sampMenu = new njhCheckboxMenu("#sampNameMenu", sampNames, updateChartOnClick);
 

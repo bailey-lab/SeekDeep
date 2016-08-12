@@ -18,9 +18,6 @@ class.*\};)
 
     with open(fnp, 'w') as f:
         f.write(header)
-        f.write('\n\n#ifndef NOT_HEADER_ONLY\n')
-        f.write('   #include "' + fn_cpp + '"\n')
-        f.write('#endif\n')
     with open(fn + ".cpp", 'w') as f:
         f.write('#include "' + os.path.basename(fnp) + '"\n')
         f.write(cpp)

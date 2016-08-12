@@ -11,19 +11,23 @@ def genPyHello(outFileName):
         f.write("""#!/usr/bin/env python
 import shutil, os, argparse, sys, stat
 
-def parse_args():
+def parse_args_hello():
     parser = argparse.ArgumentParser()
     parser.add_argument('-n','--name', type=str)
     return parser.parse_args()
 
-def main():
-    args = parse_args()
+def hello():
+    args = parse_args_hello()
     if(args.name):
         print "Hello " + args.name + "!"
     else:
         print "Hello World!"
     
-main()\n""")
+if __name__ == "__main__":
+    hello()
+
+""")
+
         
 
 def genCppHello(outFileName):

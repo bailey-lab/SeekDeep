@@ -113,7 +113,7 @@ def main():
                     for i in range(len(cppHeader.classes[k]["methods"]["public"])):
                         testerFile.write(testerBodyTemplate.format(REPLACETHIS=cppHeader.classes[k]["methods"]["public"][i]["name"], REPLACETHIS_DETAILED = getFuncDetailed(cppHeader.classes[k]["methods"]["public"][i])))
     createTestMain(os.path.join(args.outDir, args.src), args.overWrite)
-    copyMakefile("scripts/cppSetUpFiles/unitTest/Makefile", os.path.join(args.outDir, "Makefile"), args.overWrite)
+    copyMakefile("scripts/cppMakefiles/unitTest/Makefile", os.path.join(args.outDir, "Makefile"), args.overWrite)
     return 0
 
 main()

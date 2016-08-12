@@ -75,9 +75,7 @@ public:
 	//json
 	void getSampleNames(std::string shortProjName);
 	void getAllSampleNames(std::string shortProjName);
-	void getSampleNamesEncoding(std::string shortProjName);
 
-	void getEncodingForSampleNames(std::string shortProjName);
 
 	void getSampInfo  				(std::string shortProjName);
 	void getPosSeqData				(std::string shortProjName);

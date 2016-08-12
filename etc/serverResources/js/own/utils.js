@@ -20,11 +20,59 @@
 //
 //
 
-$.fn.scrollView = function () {
+String.prototype.replaceAll = function(str1, str2, ignore) 
+{
+	return this.replace(new RegExp(str1.replace(/([\/\,\!\\\^\$\{\}\[\]\(\)\.\*\+\?\|\<\>\-\&])/g,"\\$&"),(ignore?"gi":"g")),(typeof(str2)=="string")?str2.replace(/\$/g,"$$$$"):str2);
+}
+
+function getPromise(url) {
+  // Return a new promise.
+  return new Promise(function(resolve, reject) {
+    // Do the usual XHR stuff
+    var req = new XMLHttpRequest();
+    req.open('GET', url);
+
+    req.onload = function() {
+      // This is called even on 404 etc
+      // so check the status
+      if (req.status == 200) {
+        // Resolve the promise with the response text
+        resolve(req.response);
+      }
+      else {
+        // Otherwise reject with the status text
+        // which will hopefully be a meaningful error
+        reject(Error(req.statusText));
+      }
+    };
+
+    // Handle network errors
+    req.onerror = function() {
+      reject(Error("Network Error"));
+    };
+
+    // Make the request
+    req.send();
+  });
+}
+
+function getJSON(url) {
+  return getPromise(url).then(JSON.parse).catch(function(err) {
+    console.log("getJSON failed for", url, err);
+    throw err;
+  });
+}
+
+
+$.fn.scrollView = function (offset, timing) {
+	scrollOffset = offset || 0;
+	if(timing === undefined){
+		timing = 1000
+	}
     return this.each(function () {
         $('html, body').animate({
-            scrollTop: $(this).offset().top
-        }, 1000);
+            scrollTop: $(this).offset().top - scrollOffset
+        }, timing);
     });
 }
 
@@ -186,7 +234,10 @@ var getRelCursorPosition = function(event, obj) {
     
 
 function addDiv(parentId, childName) {
-	$("<div id =\"" + childName + "\"></div>").appendTo(parentId);
+	var div = d3.select(parentId)
+		.append("div")
+			.attr("id", childName);
+	return div;
 };
 
 function addH1(selector, text){
@@ -208,7 +259,11 @@ function arrayContains(arr, val){
 }
 
 
-function addSvgSaveButton(buttonId, topSvg) {
+function addSvgSaveButton(buttonId, topSvg, name) {
+	name = name || "graph.svg"
+	if(!name.endsWith('.svg')){
+		name += ".svg";
+	}
 	d3.select(buttonId).append("a").attr("id", "imgDownload");
 	d3.select(buttonId).on(
 			"click",
@@ -217,11 +272,10 @@ function addSvgSaveButton(buttonId, topSvg) {
 						d3.select(topSvg).attr("version", 1.1).attr("xmlns",
 								"http://www.w3.org/2000/svg").node()).clone()
 						.wrap('<p/>').parent().html();
-				;
 				// add the svg information to a and then click it to trigger the
 				// download
 				var imgsrc = 'data:image/svg+xml;base64,' + btoa(html);
-				d3.select("#imgDownload").attr("download", "graph.svg");
+				d3.select("#imgDownload").attr("download", name);
 				d3.select("#imgDownload").attr("href", imgsrc);
 				var a = $("#imgDownload")[0];
 				a.click();

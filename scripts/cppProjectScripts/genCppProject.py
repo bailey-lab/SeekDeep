@@ -2,8 +2,8 @@
 
 import shutil, os, argparse, sys, stat, time
 sys.path.append(os.path.join(os.path.dirname(os.path.dirname(__file__)), "setUpScripts"))
-from genFuncs import genHelper
 sys.path.append(os.path.join(os.path.dirname(os.path.dirname(__file__)), "pyUtils"))
+from genFuncs import genHelper
 from utils import Utils
 from color_text import ColorText as CT
     
@@ -74,45 +74,81 @@ def genSrc(dest, projName, includes):
     genWholeProjInclude(dest, projName)
     genMain(dest, projName)
 
+def genReadme(projDir, projName, overwrite = False):
+    readmeFilename = os.path.join(projDir, "README.md");
+    if os.path.exists(readmeFilename) and not overwrite:
+        raise Exception("File " + readmeFilename + "already exists")
+    with open(readmeFilename, "w") as f:
+        f.write("#" + projName + "\n")
+        f.write("run the following to configure and download libraries\n\n")
+        f.write("```bash\n")
+        f.write("./configure.py\n")
+        f.write("./setup.py --compfile compfile.mk --outMakefile makefile-common.mk\n")
+        f.write("```\n")
+        f.write("#Use already existing External directory\n\n")
+        f.write("```bash\n")
+        f.write("./configure.py -externalLibDir [EXTERNAL_DIR]\n")
+        f.write("./setup.py --compfile compfile.mk --outMakefile makefile-common.mk\n")
+        f.write("```\n")
+        
+
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-projName', type=str, nargs=1, required=True)
-    parser.add_argument('-dest', type=str, nargs=1, required=True)
-    parser.add_argument('-CC', type=str, nargs=1)
-    parser.add_argument('-CXX', type=str, nargs=1)
-    parser.add_argument('-externalLoc', type=str, nargs=1)
-    parser.add_argument('-neededLibs', type=str, nargs=1)
+    parser.add_argument('--projName', type=str, required=True, help = "Name of the project, a directory will be created with this name")
+    parser.add_argument('--dest', type=str, required=True, help = "Destionation of the porject direcotry")
+    parser.add_argument('--namespace', type=str, help = "Name of the namespace for the project, otherwise assumes the project name")
+    parser.add_argument('--overwrite', action = "store_true", help = "Overwrite if project directory already exists")
+    parser.add_argument('--CC', type=str, help = "c compiler")
+    parser.add_argument('--CXX', type=str, help = "c++ compiler")
+    parser.add_argument('--externalLoc', type=str, help = "A location of a external lib where cpp libraries are already downlaoded")
+    parser.add_argument('--neededLibs', type=str, help = "Libraries you want to install, e.g. boost:1_60_0")
+    
     return parser.parse_args()
 
-def main():
-    args = parse_args()
-    projectOut = os.path.join(args.dest[0], args.projName[0])
+def genCppProject(args):
+    projectOut = os.path.join(args.dest, args.projName)
+    if os.path.exists(projectOut):
+        if args.overwrite:
+            shutil.rmtree(projectOut)
+        else:
+            raise Exception("Directory " + str(projectOut) + " already exists, use --overWrite to delete")
+    #create project dir
     os.mkdir(projectOut)
-    genSrc(projectOut, args.projName[0], ["iostream", "string", "unistd.h", "vector", "cstdint", "cstdio", "cstddef", "utility", "map", "unordered_map", "algorithm"])
+    #generate skeleton source code directory
+    genSrc(projectOut, args.projName, ["iostream", "string", "unistd.h", "vector", "cstdint", "cstdio", "cstddef", "utility", "map", "unordered_map", "algorithm"])
+    #determine c++ and c compilers
     CC = genHelper.determineCC(args)
     CXX = genHelper.determineCXX(args)
     external = "external"
-    outname = args.projName[0]
+    outname = args.projName
     prefix = "./"
-    installName = args.projName[0]
+    installName = args.projName
     neededLibs = "none"        
     if args.externalLoc:
-        external = os.path.realpath(args.externalLoc[0])
+        external = os.path.realpath(args.externalLoc)
     if args.neededLibs:
-        neededLibs = args.neededLibs[0].split(",")
+        neededLibs = args.neededLibs.split(",")
+    #generate the compfile
     genHelper.generateCompfileFull(os.path.join(projectOut, "compfile.mk"), external, CC, CXX, outname, installName, prefix, neededLibs)
+    #generate config file
     with open(os.path.join(projectOut, "configure.py"), "w") as configFile:
-        if(args.neededLibs):
-            configFile.write(genHelper.mkConfigFileStr(outname, args.neededLibs[0]))
+        if args.neededLibs:
+            configFile.write(genHelper.mkConfigFileStr(outname, args.neededLibs))
         else:
             configFile.write(genHelper.mkConfigFileStr(outname, ""))
+    #make executable
     os.chmod(os.path.join(projectOut, "configure.py"), stat.S_IXGRP | stat.S_IXOTH | stat.S_IXUSR | stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH | stat.S_IWUSR)
+    #determine this file's location to dtermine where to copy setup and make files to
     exFrom = os.path.abspath(os.path.dirname(__file__))
-    cpSetUpCmd = exFrom + "/copySetUpFiles.py -from " + exFrom +"/../../ -to " + projectOut
+    cpSetUpCmd = exFrom + "/copySetUpFiles.py -from " + exFrom + "/../../ -to " + projectOut
     print CT.boldBlack(cpSetUpCmd)
     Utils.run(cpSetUpCmd)
-    cpMakefilesCmd = "cp " + exFrom + "/../cppSetUpFiles/*akefile* " + projectOut
+    cpMakefilesCmd = "cp " + exFrom + "/../cppMakefiles/Makefile " + projectOut
     print CT.boldBlack(cpMakefilesCmd)
     Utils.run(cpMakefilesCmd)
+    #generate README.md
+    genReadme(projectOut, args.projName)
     
-main()
+if __name__ == "__main__":
+    args = parse_args()
+    genCppProject(args)

@@ -41,13 +41,8 @@ function populateProjectNavBar(wrappingNavSelector, rName, projectName, groupNam
     var linkPreGroup = "/" + rName + "/showSubGroupsPage/" + projectName + "/";
 	//get sample names
 	var sampNames;
-	var sampNameEncoding;
-	ajax('/' + rName + '/sampleNamesEncoding/' + projectName, function(sne){ sampNameEncoding = sne; });
 	ajax("/" + rName + "/sampleNames/" + projectName, function(mn){ sampNames = mn; });
-	var encodedSampNames =[];
-	for (sampN in sampNames){
-		encodedSampNames.push(sampNameEncoding[sampNames[sampN]]);
-	}
+
     var linkPreSample = "/" + rName + "/individualSamplePage/" + projectName + "/";
 	
     d3.select("#projectDrop")
@@ -84,7 +79,7 @@ function populateProjectNavBar(wrappingNavSelector, rName, projectName, groupNam
     
 	d3.select("#samplesDrop")
 		.selectAll("li")
-		.data(encodedSampNames)
+		.data(sampNames)
 		.enter()
 			.append("li")
 				.attr("class", function(d){

@@ -102,22 +102,29 @@ int SeekDeepUtilsRunner::dryRunQaulityFiltering(const bib::progutils::CmdArgs & 
 
 
 
-int SeekDeepUtilsRunner::runMultipleCommands(const bib::progutils::CmdArgs & inputCommands) {
+int SeekDeepUtilsRunner::runMultipleCommands(
+		const bib::progutils::CmdArgs & inputCommands) {
 	seqSetUp setUp(inputCommands);
 	std::string filename = "";
-	std::string logFile = "log";
+	std::string logFile = "";
 	uint32_t numThreads = 1;
-
+	bool raw = false;
 	setUp.setOption(numThreads, "--numThreads", "Number of threads to use");
-	setUp.setOption(logFile, "--logFile", "Name of a file to log the output of the commands");
+	setUp.setOption(logFile, "--logFile",
+			"Name of a file to log the output of the commands");
 	setUp.setOption(filename, "--cmdFile",
-			"Name of the file, first line is command with REPLACETHIS, the next lines are the cmd to run with that line replacing REPLACETHIS", true);
+			"Name of the file, first line is command with REPLACETHIS, the next lines are the cmd to run with that line replacing REPLACETHIS",
+			true);
+	setUp.setOption(raw, "--raw,-r",
+			"If if the file is simply just a list of commands to run");
 	setUp.processVerbose();
 	setUp.processWritingOptions();
 	setUp.processDebug();
-	if(setUp.needsHelp()){
-		std::cout << "Input cmdFile should start with CMD: and then command and "
-				"each line after that should be some sort of replacement string to run the commnd" << std::endl;
+	if (setUp.needsHelp()) {
+		std::cout
+				<< "Input cmdFile should start with CMD: and then command and "
+						"each line after that should be some sort of replacement to run the commnd"
+				<< std::endl;
 		std::cout << "Example" << std::endl;
 		std::cout << "CMD:echo hello REPLACETHIS1 from REPLACETHIS2" << std::endl;
 		std::cout << "REPLACETHIS1:nick,jon,mike" << std::endl;
@@ -125,64 +132,87 @@ int SeekDeepUtilsRunner::runMultipleCommands(const bib::progutils::CmdArgs & inp
 		setUp.printFlags(std::cout);
 		exit(1);
 	}
-	if(setUp.commands_.hasFlagCaseInsen("--gen")){
+	if (setUp.commands_.hasFlagCaseInsenNoDash("--gen")) {
 		std::cout << "CMD:echo hello REPLACETHIS1 from REPLACETHIS2" << std::endl;
 		std::cout << "REPLACETHIS1:nick,jon,mike" << std::endl;
 		std::cout << "REPLACETHIS2:world,everyone" << std::endl;
 		exit(1);
 	}
 	setUp.finishSetUp(std::cout);
+	if (logFile == "") {
+		logFile = bfs::path(filename).filename().replace_extension("").string() + "Log.json";
+	}
 	std::ofstream outFile;
 	openTextFile(outFile, logFile, ".json", setUp.pars_.ioOptions_.out_);
 	std::ifstream inFile(filename);
-	if(!inFile){
-		std::cerr << bib::bashCT::boldRed("Error in opening "  + filename) << std::endl;
-		exit(1);
+	if (!inFile) {
+		std::stringstream ss;
+		ss << bib::bashCT::bold << "Error in opening "
+				<< bib::bashCT::boldRed(filename) << std::endl;
+		throw std::runtime_error { ss.str() };
 	}
 	std::string cmd;
 	VecStr cmds;
 	std::string line;
-	std::map<std::string, VecStr> replacements;
+	if (raw) {
+		while (bib::files::crossPlatGetline(inFile, line)) {
+			if ("" == line || allWhiteSpaceStr(line) || bib::beginsWith(line, "#")) {
+				continue;
+			}
+			cmds.emplace_back(line);
+		}
+	} else {
+		std::map<std::string, VecStr> replacements;
+		while (bib::files::crossPlatGetline(inFile, line)) {
+			if ("" == line || allWhiteSpaceStr(line) || bib::beginsWith(line, "#")) {
+				continue;
+			}
+			auto colonPos = line.find(":");
 
-	while(std::getline(inFile, line)){
-		if(line == ""){
-			continue;
-		}
-		auto toks = tokenizeString(line, ":");
-		if(toks.size()!= 2){
-			std::cerr << "Error in processing line: " << line << std::endl;
-			exit(1);
-		}
-		if(toks.front() == "CMD"){
-			cmd = toks.back();
-		}else{
-			replacements[toks.front()] = tokenizeString(toks.back(), ",");
-		}
-	}
-	for(const auto & r : replacements){
-		if(cmds.empty()){
-			for(const auto & subR : r.second){
-				cmds.emplace_back(replaceString(cmd, r.first, subR));
+			if (std::string::npos == colonPos) {
+				std::stringstream ss;
+				ss << "Error in processing line: " << bib::bashCT::boldRed(line) << std::endl;
+				ss << "Need at least one colon" << std::endl;
+				throw std::runtime_error{ss.str()};
 			}
-		}else{
-			VecStr newCmds;
-			for(const auto & c : cmds){
-				for(const auto & subR : r.second){
-					newCmds.emplace_back(replaceString(c, r.first, subR));
+			VecStr toks{line.substr(0,colonPos), line.substr(colonPos + 1)};
+			if (toks.front() == "CMD") {
+				cmd = toks.back();
+			} else {
+				replacements[toks.front()] = tokenizeString(toks.back(), ",");
+			}
+		}
+		for (const auto & r : replacements) {
+			if (cmds.empty()) {
+				for (const auto & subR : r.second) {
+					cmds.emplace_back(bib::replaceString(cmd, r.first, subR));
 				}
+			} else {
+				VecStr newCmds;
+				for (const auto & c : cmds) {
+					for (const auto & subR : r.second) {
+						newCmds.emplace_back(bib::replaceString(c, r.first, subR));
+					}
+				}
+				cmds = newCmds;
 			}
-			cmds = newCmds;
 		}
 	}
-	if(setUp.pars_.verbose_){
+
+	if (setUp.pars_.verbose_) {
 		printVector(cmds, "\n");
 	}
 
-  auto allRunOutputs = bib::sys::runCmdsThreaded(cmds, numThreads, setUp.pars_.verbose_, setUp.pars_.debug_);
-	Json::Value cmdsLog;
-  for(const auto & out : allRunOutputs){
-  	cmdsLog.append(out.toJson());
-  }
+	auto allRunOutputs = bib::sys::runCmdsThreaded(cmds, numThreads,
+			setUp.pars_.verbose_, setUp.pars_.debug_);
+	Json::Value allLog;
+
+	allLog["totalTime"] = setUp.timer_.totalTime();
+	allLog["cmdsfile"] = bib::json::toJson(bfs::absolute(filename));
+	auto & cmdsLog = allLog["cmdsLog"];
+	for (const auto & out : allRunOutputs) {
+		cmdsLog.append(out.toJson());
+	}
 	outFile << cmdsLog << std::endl;
 	return 0;
 }

@@ -1,3 +1,24 @@
+//
+// SeekDeep - A library for analyzing amplicon sequence data
+// Copyright (C) 2012-2016 Nicholas Hathaway <nicholas.hathaway@umassmed.edu>,
+// Jeffrey Bailey <Jeffrey.Bailey@umassmed.edu>
+//
+// This file is part of SeekDeep.
+//
+// SeekDeep is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// SeekDeep is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with SeekDeep.  If not, see <http://www.gnu.org/licenses/>.
+//
+//
 var createMinTree = function(data, appendTo, name, width, height){
 	// create a interconnected graph for a minimum spanning tree
 	// data needs to have a "nodes" array and a "links" array 
@@ -215,7 +236,7 @@ function drawPsuedoMinTreeDetailed(jsonData, addTo, hovIdStub,width,height){
   snps.selectAll("circle").style("stroke", "#00F").style("stroke-width", 1);
   snps.selectAll("circle").on("mouseover", function(d){
   			d3.select("#" + hovIdStub + "_popHover_title").html("Snp")
-			 updateTable(hoverTab, [{"SeqName":d.ref, "Pos":d.refPos, "Base":d.refBase},{"SeqName":d.seq, "Pos":d.seqPos, "Base":d.seqBase}], ["SeqName", "Pos", "Base"]);
+			 updateTable(hoverTab,[{"SeqName":d.ref, "Pos":d.refPos, "Base":d.refBase, "Qual":d.refBaseQual},{"SeqName":d.seq, "Pos":d.seqPos, "Base":d.seqBase, "Qual":d.seqBaseQual}], ["SeqName", "Pos", "Base", "Qual"]);
 	      	 return tooltip.style("visibility", "visible");})
 		  .on("mousemove", function(){return tooltip.style("top", (d3.event.layerY-10)+"px").style("left",(d3.event.layerX+10)+"px");})
 		  .on("mouseout", function(){return tooltip.style("visibility", "hidden");});
@@ -327,7 +348,7 @@ var node = svg.selectAll(".node")
   snps.selectAll("circle").style("stroke", "#00F").style("stroke-width", 1);
   snps.selectAll("circle").on("mouseover", function(d){
   			d3.select("#" + addTo.substr(1) + "_popHover_title").html("Snp")
-			 updateTable(hoverTab, [{"SeqName":d.ref, "Pos":d.refPos, "Base":d.refBase},{"SeqName":d.seq, "Pos":d.seqPos, "Base":d.seqBase}], ["SeqName", "Pos", "Base"]);
+			 updateTable(hoverTab, [{"SeqName":d.ref, "Pos":d.refPos, "Base":d.refBase, "Qual":d.refBaseQual},{"SeqName":d.seq, "Pos":d.seqPos, "Base":d.seqBase, "Qual":d.seqBaseQual}], ["SeqName", "Pos", "Base", "Qual"]);
 	      	 return tooltip.style("visibility", "visible");})
 		  .on("mousemove", function(){return tooltip.style("top", (d3.event.layerY-10)+"px").style("left",(d3.event.layerX+10)+"px");})
 		  .on("mouseout", function(){return tooltip.style("visibility", "hidden");});

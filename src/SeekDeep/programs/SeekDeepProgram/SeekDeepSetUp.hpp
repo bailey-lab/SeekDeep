@@ -48,20 +48,21 @@ struct extractorPars{
 	}
 	std::string idFilename = "";
 	std::string idFileDelim = "whitespace";
-  int numberOfNs = 1;
+	uint32_t numberOfNs = 1;
 
   bool screenForPossibleContamination = false;
   std::string compareSeq = "";
+  bool contaminationMutlipleCompare = false;
   bool qualWindowTrim = false;
   bool multiplex = false;
   uint32_t qualityWindowLength = 0;
   uint32_t qualityWindowStep = 0;
   uint32_t qualityWindowThres = 0;
-  int minLen = 200;
-  int maxLength = 300;
+  uint32_t minLen = 200;
+  uint32_t maxLength = 300;
 
   bool checkComplement = false;
-  int smallFragmentCutoff = 50;
+  uint32_t smallFragmentCutoff = 50;
 
   bool HMP = false;
   uint32_t primerLen = 30;
@@ -99,47 +100,49 @@ struct extractorPars{
 
 	bool mothurExtract = false;
 	bool pyroExtract = false;
-	int maxFlowCutoff = 0;
+	uint32_t maxFlowCutoff = 0;
 
+	uint32_t trimAtQualCutOff = 2;
+	bool trimAtQual = false;
 
 };
 
 struct clusterDownPars {
-  std::string parameters = "";
-  std::string binParameters = "";
-  bool snapShots = false;
-  std::string qualRep = "median", sortBy = "totalCount";
-  bool markChimeras = false;
-  double parFreqs = 2;
-  bool collapsingTandems = false;
-  bool additionalOut = false;
-  std::string additionalOutLocationFile = "";
-  std::map<int, std::vector<double>> iteratorMap;
-  std::map<int, std::vector<double>> binIteratorMap;
-  bool removeLowQualBases = false;
-  int lowQualityCutOff = 3;
+	std::string parameters = "";
+	std::string binParameters = "";
+	std::string qualRep = "median";
+	std::string sortBy = "totalCount";
+
+	bool collapsingTandems = false;
+	bool additionalOut = false;
+	std::string additionalOutLocationFile = "";
+	CollapseIterations iteratorMap;
+	CollapseIterations binIteratorMap;
+
 
   bool startWithSingles = false;
+  bool leaveOutSinglets = false;
+  bool mapBackSinglets = false;
+  uint32_t singletCutOff = 1;
+
   bool createMinTree = false;
   std::string diffCutOffStr = "0.1";
-  bool findBest = true;
+
   double compPerCutOff = .98;
   bool useCompPerCutOff = false;
   bool ionTorrent = false;
-  bool useNucComp = false;
-  bool useKmerBinning = false;
-  double kmerCutOff = 0.80;
-  uint32_t kCompareLen = 10;
-  bool leaveOutSinglets = false;
+  bool illumina = false;
+
+
   bool onPerId = false;
 	bool extra = false;
 	uint32_t smallReadSize = 20;
-  bool useMinLenNucComp = false;
-  std::vector<double> diffCutOffVec;
-  bool noAlign_ = false;
+
+	SnapShotsOpts snapShotsOpts_;
 };
 
 struct processClustersPars {
+	std::string masterDir = ".";
   bool noPopulation = false;
   std::string previousPopFilename = "";
   std::string parameters = "";
@@ -149,8 +152,7 @@ struct processClustersPars {
   bool extra = false;
   double fracCutoff = 0.005;
   uint32_t runsRequired = 0;
-  bool checkChimeras = false;
-  double parFreqs = 2;
+
   bool keepChimeras = false;
   bool investigateChimeras = false;
   bool recheckChimeras = false;
@@ -160,9 +162,9 @@ struct processClustersPars {
   bool differentPar = false;
   bool popBoth = false;
   std::string sortBy = "fraction";
-  std::map<int, std::vector<double>> popIteratorMap;
-  std::map<int, std::vector<double>> iteratorMap;
-  std::map<int, std::vector<double>> binIteratorMap;
+  CollapseIterations popIteratorMap;
+  CollapseIterations iteratorMap;
+  CollapseIterations binIteratorMap;
   bool grayScale = false;
   double sat = 0.99;
   double lum = 0.5;
@@ -175,6 +177,8 @@ struct processClustersPars {
   std::string groupingsFile = "";
   bool onPerId = false;
   bool plotRepAgreement = false;
+
+  bool noTrees = false;
 };
 
 class SeekDeepSetUp : public seqSetUp {
@@ -187,8 +191,6 @@ class SeekDeepSetUp : public seqSetUp {
 	void setUpMultipleSampleCluster(processClustersPars & pars);
 	void setUpMakeSampleDirectories(std::string& sampleNameFilename);
 };
-}  // namespace bib
+}  // namespace bibseq
 
-#ifndef NOT_HEADER_ONLY
-#include "SeekDeepSetUp.cpp"
-#endif
+
