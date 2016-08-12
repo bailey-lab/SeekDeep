@@ -1,4 +1,24 @@
-
+//
+// SeekDeep - A library for analyzing amplicon sequence data
+// Copyright (C) 2012-2016 Nicholas Hathaway <nicholas.hathaway@umassmed.edu>,
+// Jeffrey Bailey <Jeffrey.Bailey@umassmed.edu>
+//
+// This file is part of SeekDeep.
+//
+// SeekDeep is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// SeekDeep is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with SeekDeep.  If not, see <http://www.gnu.org/licenses/>.
+//
+//
 
 
 function njhMenuItem(idName, displayName, func){
@@ -186,17 +206,11 @@ function createSeqMenu(idNameOfParentDiv, menuContent){
 		}
 		d3.select(viewName).append("div")
 			.attr("class", "downFastaDiv")
-			.style("border", "2px solid black")
-			.style("padding", "2px")
 			.style("margin", "5px")
-			.style("width", "100px")
 			.style("float", "left");
 		d3.select(viewName).append("div")
 		.attr("class", "deselectDiv")
-		.style("border", "2px solid black")
-		.style("padding", "2px")
 		.style("margin", "5px")
-		.style("width", "100px")
 		.style("float", "left");
 		this.masterDivD3 = d3.select(viewName).append("div").attr("class", "SeqViewCanvasDiv");
 		this.masterDivD3.append("div").attr("class", "rightSlider");
@@ -205,19 +219,17 @@ function createSeqMenu(idNameOfParentDiv, menuContent){
 		this.masterDivD3.append("div").attr("class", "pop-up").append("p").attr("id", "info");
 		this.masterDivD3.append("div").attr("class", "select");
 		d3.select(viewName).append("div").attr("class", "qualChart");
-		d3.select(viewName).append("svg").attr("id", "minTreeChart")
-			.attr("width", "0px")
-			.attr("height", "0px")
-			.style("margin-left", "10px");
+		d3.select(viewName).append("div")
+			.attr("id", "minTreeChartTop");
 		var self = this;
 		var linkButton = d3.select(this.topDivName + " .downFastaDiv")
 			.append("button")
 			.text("Download Fasta")
-			.attr("class", "fastaSaveButton");
+			.attr("class", "fastaSaveButton btn btn-success");
 		var deselectButton = d3.select(this.topDivName + " .deselectDiv")
 			.append("button")
 			.text("Un-select All")
-			.attr("class", "deselectAllBut");
+			.attr("class", "deselectAllBut btn btn-info");
 		deselectButton.on("click", function(){
 			self.selected.clear();
 			self.updateSelectors();
@@ -248,8 +260,8 @@ function createSeqMenu(idNameOfParentDiv, menuContent){
 				});
 		//this.masterDiv = document.getElementById(viewName);
 		this.masterDiv = this.masterDivD3.node();
-		this.canvas = $(".canvas", this.masterDiv)[0];
 		
+		this.canvas = $(".canvas", this.masterDiv)[0];
 		this.context = this.canvas.getContext('2d');
 		
 		this.rSlider = $(".rightSlider", this.masterDiv)[0];
@@ -267,6 +279,10 @@ function createSeqMenu(idNameOfParentDiv, menuContent){
 		$(this.masterDiv).height((window.innerHeight - 60) * 0.98);
 		this.canvas.width = $(this.masterDiv).width() * 0.98;
 		this.canvas.height = $(this.masterDiv).height() * 0.95;
+		//make a mock canvas context using canvas2svg. We use a C2S namespace for less typing:
+		//this.ctx = new C2S(this.canvas.width,this.canvas.height); //width, height of your desired svg file
+
+        
 		var nameOffSet = 10 * cellWidth;
 		var numOfBases = Math.min(Math.floor((this.canvas.width - cellWidth - nameOffSet)/cellWidth),this.seqData["maxLen"] );
 	 	var numOfSeqs = Math.min(Math.floor((this.canvas.height - cellHeight)/cellHeight), this.seqData["seqs"].length);
@@ -463,7 +479,23 @@ function createSeqMenu(idNameOfParentDiv, menuContent){
 				}
 			}));
 			windowOptions.push(new njhMenuItem("GenTree", "Gen Difference Graph",function(){
-				d3.select(self.topDivName + " #minTreeChart").selectAll("*").remove();
+				if(!($(self.topDivName + " #minTreeChartTop #saveButton").length)){
+					d3.select(self.topDivName + " #minTreeChartTop").append("button")
+					.style("float", "top")
+					.attr("class", "btn btn-success")
+					.attr("id", "saveButton")
+					.style("margin", "2px")
+					.text("Save As Svg");
+					addSvgSaveButton(self.topDivName + " #minTreeChartTop #saveButton", self.topDivName + " #minTreeChartTop #minTreeChart #chart", self.seqData["uid"])
+				}
+				if(!($(self.topDivName + " #minTreeChartTop #minTreeChart").length)){
+					d3.select(self.topDivName + " #minTreeChartTop").append("svg").attr("id", "minTreeChart")
+					.attr("width", "0px")
+					.attr("height", "0px")
+					.style("margin-left", "10px")
+				}else{
+					d3.select(self.topDivName + " #minTreeChart").selectAll("*").remove();
+				}
 				var jsonData;
 				var postData = {"uid" : self.uid};
 				if (self.selected.size > 0){
@@ -477,10 +509,7 @@ function createSeqMenu(idNameOfParentDiv, menuContent){
 				$('#minTreeChart').scrollView();
 			}));
 			windowOptions.push(new njhMenuItem("HideTree", "Hide Difference Graph",function(){
-				d3.select(self.topDivName + " #minTreeChart").selectAll("*").remove();
-				d3.select(self.topDivName + " #minTreeChart").attr("width", "0px")
-				.attr("height", "0px");
-				
+				d3.select(self.topDivName + " #minTreeChartTop").selectAll("*").remove();
 			}));
 
 			menuItems["Graphs"] = windowOptions;
@@ -674,15 +703,30 @@ function createSeqMenu(idNameOfParentDiv, menuContent){
 	};
 
 	njhSeqView.prototype.paint = function(){
+
 		this.painter.paintSeqs(this.context, this.seqData["seqs"], this.seqStart, this.baseStart);
 		this.painter.placeBasePos(this.context, this.seqStart, this.baseStart);
+		//this.painter.needToPaint = true;
+		//this.painter.paintSeqs(this.ctx, this.seqData["seqs"], this.seqStart, this.baseStart);
+		//this.painter.placeBasePos(this.ctx, this.seqStart, this.baseStart);
+		
+
 		this.paintSelectedSeq();
 		this.setSelector();
 		this.updateSelectors();
+		//var myRectangle = this.ctx.getSerializedSvg(true); //true here will replace any named entities with numbered ones.
+        //.
+		/*d3.select(".SeqViewCanvasDiv")
+        	.append("div")
+        	.attr("id", "testCanvasToSvg")
+        	.html(myRectangle);;*/
+        //d3.select("#SeqViewCanvasDiv").select("#testCanvasToSvg").html(myRectangle);
+       
 	};
 	
 	njhSeqView.prototype.paintSelectedSeq = function(){
 		this.painter.paintSelectedSeq(this.context, this.seqData["seqs"][this.currentSeq], this.currentBase );
+		//this.painter.paintSelectedSeq(this.ctx, this.seqData["seqs"][this.currentSeq], this.currentBase );
 	};
 	
 	njhSeqView.prototype.setSelector = function(){

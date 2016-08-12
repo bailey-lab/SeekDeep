@@ -71,7 +71,7 @@
 		//ensure header row
 		var headerRow = tab.select("thead")
 			.selectAll("tr")
-			.data([1])
+			.data([true])
 			.enter();
 		//attach column name data to header
 		var header = tab.select("thead").select("tr")
@@ -80,24 +80,27 @@
 	    header
 	        .enter()
 			.append("th")
-				.attr("style", "font-weight: bold; padding: 2px 4px;")
-	            .html(function(column) { return "<nobr>" + column + "</nobr>"; });
+				.style("font-weight", "bold")
+				.style("padding", "2px 4px")
+				.style("white-space", "nowrap")
+	            .text(function(column) { return column; });;
 	   //create headers as needed and add bolding 
-	  /*header.enter()
-	        .append("th")*/
-	            
+
 	  //remove any headers that don't have data attached to them
 	  //console.log(columns);
 	  header.exit()
-        	.remove();
+        		.remove();
 		
 	    // create a row for each object in the data
 	    var newRows = tab.select("tbody").selectAll("tr")
 	        .data(data)
 	        .enter()
 	        .append("tr");
+	    //remove
 	    tab.select("tbody").selectAll("tr")
-	        .data(data).exit().remove();
+	        .data(data)
+	        .exit()
+	        	.remove();
 	    var currentColor = "#e9e9e9";
 		var rows = tab.select("tbody").selectAll("tr").style("background-color",function(d,i){
 	        		if(i == 0){
@@ -115,6 +118,7 @@
 	        		});;
 	    //create a cell in each row for each column
 	    //console.log(rows);
+	    
 	    var cells = rows.selectAll("td")
 	        .data(function(row) {
 	        	var ret = columns.map(function(column) {
@@ -123,10 +127,12 @@
 	            return ret;
 	        });
 	   	cells.enter()
-	        .append("td")
-	            .attr("style", "padding: 2px 4px;")
-	            .html(function(d) { return "<nobr>" + d.value + "</nobr>"; });
-	    cells.html(function(d) {  return "<nobr>" + d.value + "</nobr>"; });
+	        .append("td");
+	            
+	   	
+	    cells.style("padding", "2px 4px")
+			.style("white-space", "nowrap")
+	        .text(function(d) { return d.value; });
 	    //remove cells as needed
 	    cells.exit()
         	 .remove();
@@ -137,7 +143,7 @@
 		//ensure header row
 		var headerRow = tab.select("thead")
 			.selectAll("tr")
-			.data([1])
+			.data([true])
 			.enter();
 		//attach column name data to header
 		var header = tab.select("thead").select("tr")
@@ -146,31 +152,34 @@
 	    header
 	        .enter()
 			.append("th")
-				.attr("style", "font-weight: bold; padding: 2px 4px;")
-	            .html(function(column) { return "<nobr>" + column + "</nobr>";});
+				.style("font-weight", "bold")
+				.style("padding", "2px 4px")
+				.style("white-space", "nowrap")
+	            .text(function(column) { return column; });;
 	   //create headers as needed and add bolding 
-	  /*header.enter()
-	        .append("th")*/
-	            
+
 	  //remove any headers that don't have data attached to them
 	  //console.log(columns);
 	  header.exit()
-        	.remove();
+        		.remove();
 		
 	    // create a row for each object in the data
 	    var newRows = tab.select("tbody").selectAll("tr")
 	        .data(data)
 	        .enter()
 	        .append("tr");
+	    //remove
 	    tab.select("tbody").selectAll("tr")
-	        .data(data).exit().remove();
-	    var currentColor = "#e9e9e9";
+	        .data(data)
+	        .exit()
+	        	.remove();
 		var rows = tab.select("tbody")
 		.selectAll("tr")
 		.style("background-color",function(d){
 	        		return d.color;});
 	    //create a cell in each row for each column
 	    //console.log(rows);
+	    
 	    var cells = rows.selectAll("td")
 	        .data(function(row) {
 	        	var ret = columns.map(function(column) {
@@ -179,14 +188,15 @@
 	            return ret;
 	        });
 	   	cells.enter()
-	        .append("td")
-	            .attr("style", "padding: 2px 4px;")
-	            .html(function(d) { return "<nobr>" + d.value + "</nobr>"; });
-	    cells.html(function(d) { return "<nobr>" + d.value + "</nobr>"; });
+	        .append("td");
+	            
+	   	
+	    cells.style("padding", "2px 4px")
+			.style("white-space", "nowrap")
+	        .text(function(d) { return d.value; });
 	    //remove cells as needed
 	    cells.exit()
         	 .remove();
-       
 	}
 	
 			function createLinksTable(addToSelector,linkPrefix, links, colNum, mouseOverColor, mouseLeaveColor){

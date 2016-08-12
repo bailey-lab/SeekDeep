@@ -32,7 +32,8 @@ d3.legend = function(g) {
         .call(function(d) { d.exit().remove();})
         .attr("y",function(d,i) { return i * 15;})
         .attr("x","8")
-        .text(function(d) { ;return d.key;});
+        .text(function(d) { ;return d.key;})
+        .attr("id", function(d) { ;return d.key;});
     
     li.selectAll("circle")
         .data(items,function(d) { return d.key;})
@@ -41,6 +42,8 @@ d3.legend = function(g) {
         .attr("cy",function(d,i) { return (i-0.25) * 15;})
         .attr("cx",0)
         .attr("r","5")
+        .attr("id", function(d) { ;return d.key;})
+        .style("stroke", "#000")
         .style("fill",function(d) {return d.value.color;});
     
     // Reposition and resize the box

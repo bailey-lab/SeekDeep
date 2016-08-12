@@ -35,13 +35,8 @@
 
 			
 			var sampNames = ajaxRet("/" + rName + "/allSampleNames/" + projectName);
-			var sampNameEncoding = ajaxRet('/' + rName + '/sampleNamesEncoding/' + projectName);
-			var encodedSampNames =[];
-	    	for (sampN in sampNames){
-	    		encodedSampNames.push(sampNameEncoding[sampNames[sampN]]);
-	    	}
 	    	var mainPopInfoTab;
-			ajaxPost('/' + rName + '/getSampleExtractionInfo/' + projectName, {"sampNames": encodedSampNames}, function(tab){ mainPopInfoTab = tab; });
+			ajaxPost('/' + rName + '/getSampleExtractionInfo/' + projectName, {"sampNames": sampNames}, function(tab){ mainPopInfoTab = tab; });
 			
 
 
@@ -63,11 +58,7 @@
 				    if(currentSampNames.length == 0){
 				    	mainPopInfoTab = {};
 				    }else{
-				    	var encodedCurrentSampNames =[];
-				    	for (sampN in currentSampNames){
-				    		encodedCurrentSampNames.push(sampNameEncoding[currentSampNames[sampN]]);
-				    	}
-				    	ajaxPost('/' + rName + '/getSampleExtractionInfo/' + projectName, {"sampNames": encodedCurrentSampNames}, function(tab){ mainPopInfoTab = tab; });
+				    	ajaxPost('/' + rName + '/getSampleExtractionInfo/' + projectName, {"sampNames": currentSampNames}, function(tab){ mainPopInfoTab = tab; });
 				    }
 				 	sampleTable.updateWithData(mainPopInfoTab);
 				 	$("#sampNameMenu").scrollView();

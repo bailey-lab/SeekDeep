@@ -45,20 +45,14 @@
 			addDiv("#mainContent", "popTable");
 			//get sample names and the table with the sample names
 			var sampNames = ajaxRet("/" + rName + "/sampleNames/" + projectName);
-			var sampNameEncoding = ajaxRet('/' + rName + '/sampleNamesEncoding/' + projectName);
-			
-			var encodedSampNames =[];
-	    	for (sampN in sampNames){
-	    		encodedSampNames.push(sampNameEncoding[sampNames[sampN]]);
-	    	}
-			ajaxPost('/' + rName + '/sampInfo' + "/" + projectName, {"sampNames":encodedSampNames}, function(tab){ mainPopInfoTab = tab; });
+			ajaxPost('/' + rName + '/sampInfo' + "/" + projectName, {"sampNames":sampNames}, function(tab){ mainPopInfoTab = tab; });
 			var cols = 10;
 			var linkPre = "/" + rName + "/individualSamplePage/" + projectName + "/";
 			var mouseOverC = "#999";
 			var mouseLeaveC = "#FFF";
 			var addTo = "#sampLinks";
 			
-			createLinksTableDifferentLinks(addTo, linkPre, sampNames, encodedSampNames,8, mouseOverC, mouseLeaveC);
+			createLinksTable(addTo, linkPre, sampNames,8, mouseOverC, mouseLeaveC);
 			var groupNames = ajaxRet("/" + rName + "/getGroupNames/" + projectName);
 			
 			var linkPreGroup = "/" + rName + "/showSubGroupsPage/" + projectName + "/";
@@ -89,22 +83,14 @@
 			    var currentSampNames = _.intersection(sampNames, allVals);
 			    var currentPopInfoTab = {};
 			    var currentPopSeqData = {};
-			    if(currentSampNames.length == 0){
-			    	mainPopInfoTab = {};
-			    }else{
-			    	var encodedCurrentSampNames =[];
-			    	for (sampN in currentSampNames){
-			    		encodedCurrentSampNames.push(sampNameEncoding[currentSampNames[sampN]]);
-			    	}
-			    	ajaxPost('/' + rName + '/sampInfo/' + projectName, {"sampNames":encodedCurrentSampNames}, function(tab){ mainPopInfoTab = tab; });
-			    	ajaxPost('/' + rName + '/popInfoForSamps/' + projectName, {"sampNames":encodedCurrentSampNames}, function(tab){ currentPopInfoTab = tab; });
-			    	ajaxPost('/' + rName + '/popSeqDataForSamps/' + projectName, {"sampNames":encodedCurrentSampNames}, function(tab){ currentPopSeqData = tab; });
-			    }
+		    	ajaxPost('/' + rName + '/sampInfo/' + projectName, {"sampNames":currentSampNames}, function(tab){ mainPopInfoTab = tab; });
+		    	ajaxPost('/' + rName + '/popInfoForSamps/' + projectName, {"sampNames":currentSampNames}, function(tab){ currentPopInfoTab = tab; });
+		    	ajaxPost('/' + rName + '/popSeqDataForSamps/' + projectName, {"sampNames":currentSampNames}, function(tab){ currentPopSeqData = tab; });
 			 	sampleTable.updateWithData(mainPopInfoTab);
 			 	sampleChart.updateWithData(mainPopInfoTab);
 			 	popTable.updateWithData(currentPopInfoTab);
 			 	SeqViewer.updateData(currentPopSeqData);
-			 	$("#sampleHeader").scrollView();
+			 	$("#sampleHeader").scrollView(60, 0);
 			};
 			//create samp menu 
 			var sampMenu = new njhCheckboxMenu("#sampNameMenu", sampNames, updateChartOnClick);

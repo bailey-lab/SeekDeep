@@ -1,3 +1,25 @@
+//
+// SeekDeep - A library for analyzing amplicon sequence data
+// Copyright (C) 2012-2016 Nicholas Hathaway <nicholas.hathaway@umassmed.edu>,
+// Jeffrey Bailey <Jeffrey.Bailey@umassmed.edu>
+//
+// This file is part of SeekDeep.
+//
+// SeekDeep is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// SeekDeep is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with SeekDeep.  If not, see <http://www.gnu.org/licenses/>.
+//
+//
+
 
 
 function njhTable(masterDivId, tableMasterData, tableDownloadStubName, addChart){
@@ -22,7 +44,7 @@ function njhTable(masterDivId, tableMasterData, tableDownloadStubName, addChart)
 	var self = this;
 	//add download button for table 
 	menuOrganized.append("br");
-	menuOrganized.append("button").text("Download Table").attr("class", "njhTabSaveButton");
+	menuOrganized.append("button").text("Download Table").attr("class", "njhTabSaveButton btn btn-success");
 	menuOrganized.select(".njhTabSaveButton").append("a").attr("class", "njhTabDownLink");
 	menuOrganized.select(".njhTabSaveButton").on("click", function() {
 		var allVals = [];
@@ -50,6 +72,12 @@ function njhTable(masterDivId, tableMasterData, tableDownloadStubName, addChart)
 	this.chart;
 	if (addChart) {
 		this.addChart();
+	}
+	if(this.tableMasterData["hideOnStartColNames"].length > 0){
+		this.tableMasterData["hideOnStartColNames"].forEach(function(d){
+			menuOrganized.select("#" + String(d).replaceAll(".", "\\.")).property("checked", false);
+		});
+		this.updateTableOnClickOrganized();
 	}
 }
 
@@ -107,7 +135,9 @@ njhTable.prototype.addChart = function(){
 		},
 		bindto : this.masterDivId + " .njhTableChart"
 	});
-	this.chart.hide(this.tableMasterData["hideOnStartColNames"]);
+	if(this.tableMasterData["hideOnStartColNames"].length > 0){
+		this.chart.hide(this.tableMasterData["hideOnStartColNames"]);
+	}
 };
 
 njhTable.prototype.updateWithData = function(updatedDataTab){
