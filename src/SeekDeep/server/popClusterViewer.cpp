@@ -633,7 +633,7 @@ int popClusteringViewer(const bib::progutils::CmdArgs & inputCommands){
 
 	uint32_t port = 9881;
 	std::string name = "pcv";
-	std::string resourceDirName = bib::files::make_path(SeekDeepDev_INSTALLDIR, "etc/serverResources").string();
+	std::string resourceDirName = bib::files::make_path(SeekDeep_INSTALLDIR, "etc/serverResources").string();
 
 	setUp.setOption(resourceDirName, "-resourceDirName",
 			"Name of the resource Directory where the js and hmtl is located",
