@@ -35,7 +35,7 @@ VecStr getColorsStrsForNamesMultiples(VecStr popNames){
 	auto keys = getVectorOfMapKeys(popColors);
 	bib::sort(keys);
 	for(const auto & pColorKey : keys){
-		popColorsStrs.emplace_back("#" + popColors[pColorKey].hexStr_);
+		popColorsStrs.emplace_back(popColors[pColorKey].getHexStr());
 	}
 	return popColorsStrs;
 }
@@ -86,10 +86,6 @@ pcm::pcm(Json::Value config, std::shared_ptr<seqCache> seqs) :
 		}
 	}
 	allSampleNames_ = std::vector<std::string>(allUniSampNames.begin(), allUniSampNames.end());
-	for(const auto & pos : iter::range(allSampleNames_.size())){
-		codedNumToSampName_[pos] = allSampleNames_[pos];
-		sampNameToCodedNum_[allSampleNames_[pos]] = pos;
-	}
 
 	if(bfs::exists(mainDir_ + "/groups")){
 		auto sampFiles = bib::files::listAllFiles(mainDir_ + "/groups", true, VecStr{"sampFile.tab.txt"});
@@ -154,34 +150,24 @@ Json::Value pcm::getAllSampleNames(){
 	return ret;
 }
 
-Json::Value pcm::getSampleNamesEncoding(){
-	bib::scopedMessage mess(messStrFactory(__PRETTY_FUNCTION__), std::cout, debug_);
-	Json::Value ret;
-	for(const auto & sampName : sampNameToCodedNum_){
-		ret[sampName.first] = sampName.second;
-	}
-	return ret;
-}
-
-Json::Value pcm::getEncodingForSampleNames(){
-	bib::scopedMessage mess(messStrFactory(__PRETTY_FUNCTION__), std::cout, debug_);
-	Json::Value ret;
-	for(const auto & sampName : sampNameToCodedNum_){
-		ret[sampName.second] = sampName.first;
-	}
-	return ret;
-}
 
 Json::Value pcm::getSampInfo(const VecStr & sampNames){
-	bib::scopedMessage mess(messStrFactory(__PRETTY_FUNCTION__, {{"sampNames", vectorToString(sampNames, ",")}}), std::cout, debug_);
-	Json::Value ret;
+	bib::scopedMessage mess(messStrFactory(__PRETTY_FUNCTION__, MapStrStr{{"sampNames", vectorToString(sampNames, ",")}}), std::cout, debug_);
 
-	auto sampNameToCodedNum = sampNameToCodedNum_;
-	auto containsSampName = [&sampNames, &sampNameToCodedNum](const std::string & str) {
-		return bib::in(estd::to_string(sampNameToCodedNum[str]), sampNames);
+
+	auto containsSampName = [&sampNames](const std::string & str) {
+		return bib::in(str, sampNames);
 	};
 	auto trimedTab = sampTable_.extractByComp("s_Name", containsSampName);
-	ret = cppcmsJsonToJson(tableToJsonRowWise(trimedTab,"s_Name", VecStr{}));
+	VecStr visibleColumns = VecStr { "s_Sample",
+		"h_popUID", "h_SampCnt", "h_SampFrac", "s_ReadCntTotUsed",
+		"s_FinalClusterCnt", "c_clusterID", "c_AveragedFrac", "c_ReadCnt",
+		"c_RepCnt" };
+	if(bib::in(std::string("bestExpected"), sampTable_.columnNames_)){
+		visibleColumns.emplace_back("bestExpected");
+	}
+	Json::Value ret = tableToJsonByRow(trimedTab, "s_Name", visibleColumns);
+
 	auto popNames = trimedTab.getColumn("h_popUID");
 	removeDuplicates(popNames);
 	auto popColorsStrs = getColorsStrsForNamesMultiples(popNames);
@@ -195,11 +181,20 @@ void pcm::loadInPopSeqs(){
 	if(!seqs_->containsRecord(popSeqDataUid) || !seqs_->recordValid(popSeqDataUid)){
 		/**todo make safter for non fastq pop clustering */
 		//read pop seqs
-		auto files = bib::files::listAllFiles(mainDir_ + "population/", false, {std::regex{".*\\.fastq"}});
+		auto files = bib::files::listAllFiles(mainDir_ + "population/", false, {std::regex{".*\\.fast.*"}});
 		SeqIOOptions popOpts;
+		if(debug_){
+			std::cout << "files.size(): " << files.size() << std::endl;
+			std::cout << files.begin()->first.string() << std::endl;
+			std::cout << bib::files::getExtension(files.begin()->first.string()) << std::endl;
+		}
 		popOpts.firstName_ = files.begin()->first.string();
 		popOpts.inFormat_ = SeqIOOptions::getInFormat(bib::files::getExtension(files.begin()->first.string()));
+		popOpts.outFormat_ = SeqIOOptions::getOutFormat(bib::files::getExtension(files.begin()->first.string()));
 		popOpts.processed_ = true;
+		if(debug_){
+			std::cout << popOpts.toJson() << std::endl;
+		}
 		SeqInput reader(popOpts);
 		reader.openIn();
 		auto reads = reader.readAllReads<readObject>();
@@ -209,91 +204,88 @@ void pcm::loadInPopSeqs(){
 		seqs_->updateAddCache(popSeqDataUid, std::make_shared<std::vector<readObject>>(std::vector<readObject>(reads)));
 	}
 }
+
 Json::Value pcm::getPosSeqData(){
 	bib::scopedMessage mess(messStrFactory(__PRETTY_FUNCTION__), std::cout, debug_);
 	loadInPopSeqs();
 	std::string popSeqDataUid = projectName_ + "_seqs";
-	return cppcmsJsonToJson(seqs_->getJson(popSeqDataUid));
+	return seqs_->getJson(popSeqDataUid);
 }
 
 Json::Value pcm::getPopInfo() {
 	bib::scopedMessage mess(messStrFactory(__PRETTY_FUNCTION__), std::cout, debug_);
-
-	auto ret = cppcmsJsonToJson(tableToJsonRowWise(popTable_, "h_popUID", VecStr { "h_ReadCnt" },
+	VecStr visibleColumns = { "h_popUID", "p_TotalInputReadCnt",
+			"p_TotalInputClusterCnt", "p_TotalPopulationSampCnt", "p_TotalHaplotypes",
+			"p_meanCoi", "p_medianCoi", "p_minCoi", "p_maxCoi", "h_PopFrac",
+			"h_SumOfAllFracs", "h_AvgFracFoundAt", "h_ReadFrac", "h_SampCnt",
+			"h_SampFrac", "h_ReadCnt", "h_ClusterCnt",  };
+	if(bib::in(std::string("bestExpected"), popTable_.columnNames_)){
+		visibleColumns.emplace_back("bestExpected");
+	}
+	auto ret = tableToJsonByRow(popTable_, "h_popUID", visibleColumns,
 			VecStr { "p_TotalInputReadCnt", "p_TotalInputClusterCnt",
-					"p_TotalPopulationSampCnt", "p_TotalHaplotypes", "p_meanMoi",
-					"p_medianMoi", "p_minMoi", "p_maxMoi" }));
+					"p_TotalPopulationSampCnt", "p_TotalHaplotypes", "p_meanCoi",
+					"p_medianCoi", "p_minCoi", "p_maxCoi" });
 	return ret;
 }
 Json::Value pcm::getPopSeqDataForSamps(const VecStr & sampNames){
-	bib::scopedMessage mess(messStrFactory(__PRETTY_FUNCTION__, {{"sampNames", vectorToString(sampNames, ",")}}), std::cout, debug_);
+	bib::scopedMessage mess(messStrFactory(__PRETTY_FUNCTION__, MapStrStr { {
+			"sampNames", vectorToString(sampNames, ",") } }), std::cout, debug_);
 	loadInPopSeqs();
 	std::string popSeqDataUid = projectName_ + "_seqs";
-	auto sampNameToCodedNum = sampNameToCodedNum_;
-	auto containsSampName = [&sampNames, &sampNameToCodedNum](const std::string & str) {
-		return bib::in(estd::to_string(sampNameToCodedNum[str]), sampNames);
+	auto containsSampName = [&sampNames](const std::string & str) {
+		return bib::in(str, sampNames);
 	};
 	auto trimedTab = sampTable_.extractByComp("s_Name", containsSampName);
-	Json::Value ret = cppcmsJsonToJson(tableToJsonRowWise(trimedTab,"s_Name", VecStr{}));
+
 	auto popNames = trimedTab.getColumn("h_popUID");
 	removeDuplicates(popNames);
-	auto currentReads = readVec::getSeqsWithNames(*seqs_->getRecord(popSeqDataUid),popNames);
+	auto currentReads = readVec::getSeqsWithNames(
+			*seqs_->getRecord(popSeqDataUid), popNames);
 	std::string popSeqDataUidCurrent = projectName_ + "_seqs_selected";
-	seqs_->updateAddCache(popSeqDataUidCurrent, std::make_shared<std::vector<readObject>>(std::vector<readObject>(currentReads)));
-	return cppcmsJsonToJson(seqs_->getJson(popSeqDataUidCurrent));
+	seqs_->updateAddCache(popSeqDataUidCurrent,
+			std::make_shared<std::vector<readObject>>(
+					std::vector<readObject>(currentReads)));
+	return seqs_->getJson(popSeqDataUidCurrent);
 }
 
 Json::Value pcm::getPopInfoForSamps(const VecStr & sampNames){
-	bib::scopedMessage mess(messStrFactory(__PRETTY_FUNCTION__, {{"sampNames", vectorToString(sampNames, ",")}}), std::cout, debug_);
-	auto sampNameToCodedNum = sampNameToCodedNum_;
-	auto containsSampName = [&sampNames, &sampNameToCodedNum](const std::string & str) {
-		return bib::in(estd::to_string(sampNameToCodedNum[str]), sampNames);
+	bib::scopedMessage mess(messStrFactory(__PRETTY_FUNCTION__, MapStrStr{{"sampNames", vectorToString(sampNames, ",")}}), std::cout, debug_);
+	auto containsSampName = [&sampNames](const std::string & str) {
+		return bib::in(str, sampNames);
 	};
 	auto trimedTab = sampTable_.extractByComp("s_Name", containsSampName);
-	Json::Value ret = cppcmsJsonToJson(tableToJsonRowWise(trimedTab,"s_Name", VecStr{}));
+	Json::Value ret = tableToJsonByRow(trimedTab,"s_Name", VecStr{});
 	auto popNames = trimedTab.getColumn("h_popUID");
 	removeDuplicates(popNames);
 	auto trimedPopTab = popTable_.extractByComp("h_popUID", [&popNames](const std::string & str){return bib::in(str, popNames);});
-	return cppcmsJsonToJson(tableToJsonRowWise(trimedPopTab, "h_popUID", VecStr { "h_ReadCnt" },
+	return tableToJsonByRow(trimedPopTab, "h_popUID", VecStr { },
 			VecStr { "p_TotalInputReadCnt", "p_TotalInputClusterCnt",
-					"p_TotalPopulationSampCnt", "p_TotalHaplotypes", "p_meanMoi",
-					"p_medianMoi", "p_minMoi", "p_maxMoi" }));
+					"p_TotalPopulationSampCnt", "p_TotalHaplotypes", "p_meanCoi",
+					"p_medianCoi", "p_minCoi", "p_maxCoi" });
 }
 
 
 
 
-
-
-std::string pcm::decodeSampEncoding(const std::string& sampName){
-	bib::scopedMessage mess(messStrFactory(__PRETTY_FUNCTION__, {{"sampName", sampName}} ), std::cout, debug_);
-	return codedNumToSampName_[bib::lexical_cast<uint32_t>(sampName)];
-}
-
-
-
-Json::Value pcm::getSeqData(std::string encodeSampName) {
-	std::string deCodedSampName = decodeSampEncoding(encodeSampName);
+Json::Value pcm::getSeqData(std::string sampName) {
 	bib::scopedMessage mess(
-			messStrFactory(__PRETTY_FUNCTION__, { { "encodeSampName",
-					encodeSampName }, { "deCodedSampName", deCodedSampName } }),
+			messStrFactory(__PRETTY_FUNCTION__, MapStrStr{ { "sampName",
+					sampName } }),
 			std::cout, debug_);
-	if (bib::in(deCodedSampName, clusteredSampleNames_)) {
-		std::string fileName = "";
-		/*auto files = bib::files::listAllFiles(
-				bib::appendAsNeededRet(mainDir_, "/") + "final/", false,
-				{ std::regex(deCodedSampName + R"(\.fast.*)") });*/
-		auto files = bib::files::listAllFiles(
-				bib::appendAsNeededRet(mainDir_, "/") + "final/", false,
-				VecStr { deCodedSampName + ".fast" });
-		if (files.empty()) {
+	if (bib::in(sampName, clusteredSampleNames_)) {
+		std::string fileName = bib::files::make_path(mainDir_, "final", sampName + ".fastq").string();
+		if(!bfs::exists(fileName)){
+			fileName = bib::files::make_path(mainDir_, "final", sampName + ".fasta").string();
+		}
+
+		if(!bfs::exists(fileName)){
 			std::cerr << "No files starting with "
-					<< bib::appendAsNeededRet(mainDir_, "/") + "final/" + deCodedSampName
+					<< bib::appendAsNeededRet(mainDir_, "/") + "final/" + sampName
 					<< " found in " << bib::appendAsNeededRet(mainDir_, "/") + "final/"
 					<< std::endl;
 		} else {
-			fileName = files.begin()->first.string();
-			std::string seqUid = projectName_ + "_" + deCodedSampName;
+			std::string seqUid = projectName_ + "_" + sampName;
 			if (!seqs_->containsRecord(seqUid) || !seqs_->recordValid(seqUid)) {
 				SeqIOOptions sampOpts;
 				sampOpts.inFormat_ = SeqIOOptions::getInFormat(bib::files::getExtension(fileName));
@@ -304,7 +296,7 @@ Json::Value pcm::getSeqData(std::string encodeSampName) {
 				seqs_->updateAddCache(seqUid,
 											std::make_shared<std::vector<readObject>>(reader.readAllReads<readObject>()));
 			}
-			return cppcmsJsonToJson(seqs_->getJson(seqUid));
+			return seqs_->getJson(seqUid);
 		}
 		if (fexists(fileName)) {
 
@@ -312,7 +304,7 @@ Json::Value pcm::getSeqData(std::string encodeSampName) {
 			std::cerr << "File " << fileName << " does not exist" << std::endl;
 		}
 	} else {
-		std::cerr << "SampName: " << deCodedSampName << " not found" << std::endl;
+		std::cerr << "SampName: " << sampName << " not found" << std::endl;
 	}
 	return Json::Value();
 }
@@ -328,14 +320,15 @@ Json::Value pcm::getIndexExtractionInfo(){
 
 		auto statsCopy = extractInfo_.allStatsTab_;
 		statsCopy.trimElementsAtFirstOccurenceOf("(");
-		auto ret = tableToJsonRowWise(statsCopy, "IndexName", VecStr{"SamllFragments(len<50)","failedForwardPrimer", "failedQualityFiltering", "contamination"});
-		return cppcmsJsonToJson(ret);
+		//auto ret = tableToJsonByRow(statsCopy, "IndexName", VecStr{"SamllFragments(len<50)","failedForwardPrimer", "failedQualityFiltering", "contamination"});
+		auto ret = tableToJsonByRow(statsCopy, "IndexName", VecStr{});
+		return ret;
 	}
 	return Json::Value();
 }
 
 Json::Value pcm::getSampleExtractionInfo(const VecStr & sampNames){
-	bib::scopedMessage mess(messStrFactory(__PRETTY_FUNCTION__, {{"sampNames", vectorToString(sampNames, ",")}}), std::cout, debug_);
+	bib::scopedMessage mess(messStrFactory(__PRETTY_FUNCTION__, MapStrStr{{"sampNames", vectorToString(sampNames, ",")}}), std::cout, debug_);
 	if(extractInfo_.allStatsTab_.content_.empty()){
 		if(debug_){
 			std::cerr <<  __PRETTY_FUNCTION__ << ": Extraction Info not loaded" << std::endl;
@@ -343,16 +336,16 @@ Json::Value pcm::getSampleExtractionInfo(const VecStr & sampNames){
 	}else{
 		auto sampTabCopy = extractInfo_.profileBySampTab_;
 		sampTabCopy.trimElementsAtFirstOccurenceOf("(");
-		auto sampNameToCodedNum = sampNameToCodedNum_;
-		auto containsSampName = [&sampNames, &sampNameToCodedNum](const std::string & str) {
-			return bib::in(estd::to_string(sampNameToCodedNum[str]), sampNames);
+
+		auto containsSampName = [&sampNames](const std::string & str) {
+			return bib::in(str, sampNames);
 		};
 		sampTabCopy = sampTabCopy.extractByComp("Sample", containsSampName);
 		for(auto & row : sampTabCopy.content_){
 			row[sampTabCopy.getColPos("Sample")] = row[sampTabCopy.getColPos("Sample")] + "_" +  row[sampTabCopy.getColPos("MidName")];
 		}
-		auto ret = tableToJsonRowWise(sampTabCopy, "Sample", VecStr{});
-		return cppcmsJsonToJson(ret);
+		auto ret = tableToJsonByRow(sampTabCopy, "Sample", VecStr{});
+		return ret;
 	}
 	return Json::Value();
 }
@@ -360,32 +353,31 @@ Json::Value pcm::getSampleExtractionInfo(const VecStr & sampNames){
 
 Json::Value pcm::getGroupPopInfoForSamps(std::string group,
 		std::string subGroup, const VecStr & sampNames) {
-	bib::scopedMessage mess(messStrFactory(__PRETTY_FUNCTION__, {
+	bib::scopedMessage mess(messStrFactory(__PRETTY_FUNCTION__, MapStrStr{
 			{ "group", group }, { "subGroup", subGroup }, { "sampNames",
 					vectorToString(sampNames, ",") } }), std::cout, debug_);
 	if (setUpGroup(group, subGroup)) {
 		Json::Value ret;
-		auto sampNameToCodedNum = sampNameToCodedNum_;
 		auto containsSampName =
-				[&sampNames, &sampNameToCodedNum](const std::string & str) {
-					return bib::in(estd::to_string(sampNameToCodedNum[str]), sampNames);
+				[&sampNames](const std::string & str) {
+					return bib::in(str, sampNames);
 				};
 		auto trimedTab = groupInfos_[group][subGroup].sampTable_.extractByComp(
 				"s_Name", containsSampName);
-		trimedTab.sortTable("s_Sample", false);
-		ret = cppcmsJsonToJson(
-				tableToJsonRowWise(trimedTab, "s_Sample", VecStr { }));
+		//trimedTab.sortTable("s_Sample", false);
+		ret =
+				tableToJsonByRow(trimedTab, "s_Sample", VecStr { });
 		auto popNames = trimedTab.getColumn("h_popUID");
 		removeDuplicates(popNames);
 		auto trimedPopTab = groupInfos_[group][subGroup].popTable_.extractByComp(
 				"h_popUID",
 				[&popNames](const std::string & str) {return bib::in(str, popNames);});
-		return cppcmsJsonToJson(
-				tableToJsonRowWise(trimedPopTab, "h_popUID", VecStr { "h_ReadCnt" },
+		return
+				tableToJsonByRow(trimedPopTab, "h_popUID", VecStr { },
 						VecStr { "p_TotalInputReadCnt", "p_TotalInputClusterCnt",
 								"p_TotalPopulationSampCnt", "p_TotalHaplotypes",
-								"p_TotalUniqueHaplotypes", "p_meanMoi", "p_medianMoi",
-								"p_minMoi", "p_maxMoi" }));
+								"p_TotalUniqueHaplotypes", "p_meanCoi", "p_medianCoi",
+								"p_minCoi", "p_maxCoi" });
 	} else {
 		std::cout << "group: " << group << ":" << subGroup
 				<< " not found, redirecting" << std::endl;
@@ -393,26 +385,25 @@ Json::Value pcm::getGroupPopInfoForSamps(std::string group,
 	return Json::Value();
 }
 Json::Value pcm::getGroupPopSeqDataForSamps(std::string group, std::string subGroup, const VecStr & sampNames){
-	bib::scopedMessage mess(messStrFactory(__PRETTY_FUNCTION__ ,{{"group", group}, {"subGroup", subGroup},{"sampNames", vectorToString(sampNames, ",")}	}), std::cout, debug_);
+	bib::scopedMessage mess(messStrFactory(__PRETTY_FUNCTION__ ,MapStrStr{{"group", group}, {"subGroup", subGroup},{"sampNames", vectorToString(sampNames, ",")}	}), std::cout, debug_);
 	if(setUpGroup(group, subGroup)){
 		std::string seqUid = projectName_ + "_" + group + "_" + subGroup + "_seqs";
 		if(!seqs_->containsRecord(seqUid) || ! seqs_->recordValid(seqUid)){
 			seqs_->updateAddCache(seqUid, std::make_shared<std::vector<readObject>>(groupInfos_[group][subGroup].popReads_));
 		}
 		Json::Value ret;
-		auto sampNameToCodedNum = sampNameToCodedNum_;
-		auto containsSampName = [&sampNames, &sampNameToCodedNum](const std::string & str) {
-			return bib::in(estd::to_string(sampNameToCodedNum[str]), sampNames);
+		auto containsSampName = [&sampNames](const std::string & str) {
+			return bib::in(str, sampNames);
 		};
 		auto trimedTab = groupInfos_[group][subGroup].sampTable_.extractByComp("s_Name", containsSampName);
-		trimedTab.sortTable("s_Sample",false);
-		ret = cppcmsJsonToJson(tableToJsonRowWise(trimedTab, "s_Sample", VecStr{}));
+		//trimedTab.sortTable("s_Sample",false);
+		ret = tableToJsonByRow(trimedTab, "s_Sample", VecStr{});
 		auto popNames = trimedTab.getColumn("h_popUID");
 		removeDuplicates(popNames);
 		auto currentReads = readVec::getSeqsWithNames(*seqs_->getRecord(seqUid),popNames);
 		std::string popSeqDataUidCurrent = seqUid + "_selected";
 		seqs_->updateAddCache(popSeqDataUidCurrent, std::make_shared<std::vector<readObject>>(std::vector<readObject>(currentReads)));
-		return cppcmsJsonToJson(seqs_->getJson(popSeqDataUidCurrent));
+		return seqs_->getJson(popSeqDataUidCurrent);
 	}else{
 		std::cout << "group: " << group << ":" << subGroup<< " not found, redirecting" << std::endl;
 	}
@@ -421,23 +412,34 @@ Json::Value pcm::getGroupPopSeqDataForSamps(std::string group, std::string subGr
 
 
 Json::Value pcm::getGroupPopInfo(std::string group, std::string subGroup){
-	bib::scopedMessage mess(messStrFactory(__PRETTY_FUNCTION__ ,{{"group", group}, {"subGroup", subGroup}	}), std::cout, debug_);
+	bib::scopedMessage mess(messStrFactory(__PRETTY_FUNCTION__ ,MapStrStr{{"group", group}, {"subGroup", subGroup}	}), std::cout, debug_);
 	if(setUpGroup(group, subGroup)){
-		auto ret = tableToJsonRowWise(groupInfos_[group][subGroup].popTable_, "h_popUID", VecStr{"h_ReadCnt"}, VecStr{"p_TotalInputReadCnt","p_TotalInputClusterCnt","p_TotalPopulationSampCnt","p_TotalHaplotypes","p_TotalUniqueHaplotypes","p_meanMoi","p_medianMoi","p_minMoi","p_maxMoi"});
-		return cppcmsJsonToJson(ret);
+		VecStr visibleColumns = { "h_popUID", "p_TotalInputReadCnt",
+				"p_TotalInputClusterCnt", "p_TotalPopulationSampCnt", "p_TotalHaplotypes",
+				"p_meanCoi", "p_medianCoi", "p_minCoi", "p_maxCoi", "h_PopFrac",
+				"h_SumOfAllFracs", "h_AvgFracFoundAt", "h_ReadFrac", "h_SampCnt",
+				"h_SampFrac", "h_ReadCnt", "h_ClusterCnt", "g_GroupName", "g_hapsFoundOnlyInThisGroup" };
+		if(bib::in(std::string("bestExpected"), groupInfos_[group][subGroup].popTable_.columnNames_)){
+			visibleColumns.emplace_back("bestExpected");
+		}
+		auto ret = tableToJsonByRow(groupInfos_[group][subGroup].popTable_, "h_popUID", visibleColumns,
+				VecStr { "p_TotalInputReadCnt", "p_TotalInputClusterCnt",
+						"p_TotalPopulationSampCnt", "p_TotalHaplotypes", "p_meanCoi",
+						"p_medianCoi", "p_minCoi", "p_maxCoi" });
+		return ret;
 	}else{
 		std::cout << "group: " << group << ":" << subGroup<< " not found, redirecting" << std::endl;
 	}
 	return Json::Value();
 }
 Json::Value pcm::getGroupPopSeqData(std::string group, std::string subGroup){
-	bib::scopedMessage mess(messStrFactory(__PRETTY_FUNCTION__ ,{{"group", group}, {"subGroup", subGroup}	}), std::cout, debug_);
+	bib::scopedMessage mess(messStrFactory(__PRETTY_FUNCTION__ ,MapStrStr{{"group", group}, {"subGroup", subGroup}	}), std::cout, debug_);
 	if(setUpGroup(group, subGroup)){
 		std::string seqUid = projectName_ + "_" + group + "_" + subGroup;
 		if(!seqs_->containsRecord(seqUid) || ! seqs_->recordValid(seqUid)){
 			seqs_->updateAddCache(seqUid, std::make_shared<std::vector<readObject>>(groupInfos_[group][subGroup].popReads_));
 		}
-		return cppcmsJsonToJson(seqs_->getJson(seqUid));
+		return seqs_->getJson(seqUid);
 	}else{
 		std::cout << "group: " << group << ":" << subGroup<< " not found, redirecting" << std::endl;
 	}
@@ -445,18 +447,23 @@ Json::Value pcm::getGroupPopSeqData(std::string group, std::string subGroup){
 }
 
 Json::Value pcm::getGroupSampInfo(std::string group, std::string subGroup, const VecStr & sampNames){
-	bib::scopedMessage mess(messStrFactory(__PRETTY_FUNCTION__, {
+	bib::scopedMessage mess(messStrFactory(__PRETTY_FUNCTION__, MapStrStr{
 			{ "group", group }, { "subGroup", subGroup }, { "sampNames",
 					vectorToString(sampNames) } }), std::cout, debug_);
 	if (setUpGroup(group, subGroup)) {
-		Json::Value ret;
-		auto sampNameToCodedNum = sampNameToCodedNum_;
-		auto containsSampName = [&sampNames, &sampNameToCodedNum](const std::string & str) {
-			return bib::in(estd::to_string(sampNameToCodedNum[str]), sampNames);
+		auto containsSampName = [&sampNames](const std::string & str) {
+			return bib::in(str, sampNames);
 		};
 		auto trimedTab = groupInfos_[group][subGroup].sampTable_.extractByComp("s_Name", containsSampName);
-		trimedTab.sortTable("s_Sample",false);
-		ret = cppcmsJsonToJson(tableToJsonRowWise(trimedTab, "s_Sample", VecStr{}));
+		//trimedTab.sortTable("s_Sample",false);
+		VecStr visibleColumns = VecStr { "s_Sample","g_GroupName",
+			"h_popUID", "h_SampCnt", "h_SampFrac", "s_ReadCntTotUsed",
+			"s_FinalClusterCnt", "c_clusterID", "c_AveragedFrac", "c_ReadCnt",
+			"c_RepCnt" };
+		if(bib::in(std::string("bestExpected"), sampTable_.columnNames_)){
+			visibleColumns.emplace_back("bestExpected");
+		}
+		Json::Value ret = tableToJsonByRow(trimedTab, "s_Name", visibleColumns);
 		auto popNames = trimedTab.getColumn("h_popUID");
 		ret["popColors"] = bib::json::toJson(getColorsStrsForNamesMultiples(popNames));
 		return ret;
@@ -467,7 +474,7 @@ Json::Value pcm::getGroupSampInfo(std::string group, std::string subGroup, const
 }
 
 Json::Value pcm::getGroupSampleNames(std::string group, std::string subGroup){
-	bib::scopedMessage mess(messStrFactory(__PRETTY_FUNCTION__ ,{{"group", group}, {"subGroup", subGroup}	}), std::cout, debug_);
+	bib::scopedMessage mess(messStrFactory(__PRETTY_FUNCTION__ ,MapStrStr{{"group", group}, {"subGroup", subGroup}	}), std::cout, debug_);
 	if(setUpGroup(group, subGroup)){
 		Json::Value ret = bib::json::toJson(groupInfos_[group][subGroup].clusteredSampleNames_);
 		return ret;
@@ -477,7 +484,7 @@ Json::Value pcm::getGroupSampleNames(std::string group, std::string subGroup){
 	return Json::Value();
 }
 Json::Value pcm::getSubGroupsForGroup(std::string group){
-	bib::scopedMessage mess(messStrFactory(__PRETTY_FUNCTION__ ,{{"group", group}} ), std::cout, debug_);
+	bib::scopedMessage mess(messStrFactory(__PRETTY_FUNCTION__ ,MapStrStr{{"group", group}} ), std::cout, debug_);
 	auto search = groupInfosDirNames_.find(group);
 	if(search == groupInfosDirNames_.end()){
 		std::cout << "No group: " << group << "\n";
@@ -495,7 +502,7 @@ Json::Value pcm::getSubGroupsForGroup(std::string group){
 
 
 Json::Value pcm::getGroupPopInfos(std::string group){
-	bib::scopedMessage mess(messStrFactory(__PRETTY_FUNCTION__ ,{{"group", group}} ), std::cout, debug_);
+	bib::scopedMessage mess(messStrFactory(__PRETTY_FUNCTION__ ,MapStrStr{{"group", group}} ), std::cout, debug_);
 	auto search = groupInfosDirNames_.find(group);
 	Json::Value ret;
 
@@ -511,21 +518,21 @@ Json::Value pcm::getGroupPopInfos(std::string group){
 		}
 		VecStr groupInfoColNames { "g_GroupName", "p_TotalInputReadCnt",
 				"p_TotalInputClusterCnt", "p_TotalPopulationSampCnt",
-				"p_TotalHaplotypes", "p_TotalUniqueHaplotypes", "p_meanMoi", "p_medianMoi", "p_minMoi",
-				"p_maxMoi", "g_hapsFoundOnlyInThisGroup"};
+				"p_TotalHaplotypes", "p_TotalUniqueHaplotypes", "p_meanCoi", "p_medianCoi", "p_minCoi",
+				"p_maxCoi", "g_hapsFoundOnlyInThisGroup"};
 		table outTab(groupInfoColNames);
 		for(const auto & k : keys){
 			outTab.rbind(groupInfos_[group][k].popTable_.getColumns(groupInfoColNames), false);
 		}
 		outTab = outTab.getUniqueRows();
 		outTab.sortTable("g_GroupName", false);
-		ret = cppcmsJsonToJson(tableToJsonRowWise(outTab, "g_GroupName", VecStr{}));
+		ret = tableToJsonByRow(outTab, "g_GroupName", VecStr{});
 	}
 	return ret;
 }
 
 bool pcm::setUpGroup(std::string group, std::string subGroup){
-	bib::scopedMessage mess(messStrFactory(__PRETTY_FUNCTION__ ,{{"group", group}, {"subGroup", subGroup}	}), std::cout, debug_);
+	bib::scopedMessage mess(messStrFactory(__PRETTY_FUNCTION__ ,MapStrStr{{"group", group}, {"subGroup", subGroup}	}), std::cout, debug_);
 	auto search = groupInfosDirNames_.find(group);
 	if(search == groupInfosDirNames_.end()){
 		std::cout << "No group: " << group << "\n";
@@ -538,7 +545,7 @@ bool pcm::setUpGroup(std::string group, std::string subGroup){
 			std::cout << "options: " << vectorToString(getVectorOfMapKeys(search->second), ", ") << "\n";
 			return false;
 		}else{
-			if(groupInfos_[group].find(subGroup) == groupInfos_[group].end()){
+			if(!bib::in(subGroup, groupInfos_)){
 				/**@todo should check to see if file exists*/
 				table sampTab = table(subSearch->second + "/sampFile.tab.txt", "\t", true);
 				table popTab = table(subSearch->second + "/popFile.tab.txt", "\t", true);

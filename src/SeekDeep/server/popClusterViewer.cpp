@@ -26,24 +26,29 @@
 //
 //
 #include "popClusterViewer.hpp"
-
+#include <boost/range/iterator_range.hpp>
 namespace bibseq {
+
 
 
 
 pcv::pcv(cppcms::service& srv, std::map<std::string, std::string> config) :
 		bibseq::seqApp(srv, config), config_(config){
+	debug_ = config["debug"] == "true";
 	bool pass = configTest(config, requiredOptions(), "pcv");
-	if(pass){
-		std::cout << "Passed config test" << std::endl;
-	}else{
-		std::cout << "Didn't pass config test " << std::endl;
+	if (debug_) {
+		if (pass) {
+			std::cout << "Passed config test" << std::endl;
+		} else {
+			std::cout << "Didn't pass config test " << std::endl;
+		}
 	}
+
 
 	rootName_ =  config["name"];
 	configDir_ = config["configDir"];
 	serverResourceDir_ = bib::appendAsNeededRet(config["resources"],"/");
-	debug_ = config["debug"] == "true";
+
 	//add html
 	pages_.emplace("mainPageHtml",
 			bib::files::make_path(serverResourceDir_, "pcv/mainPage.html"));
@@ -62,7 +67,6 @@ pcv::pcv(cppcms::service& srv, std::map<std::string, std::string> config) :
 	for(auto & fCache : pages_){
 		fCache.second.replaceStr("/pcv", rootName_);
 	}
-
 	//add pcv javascript and css
 	jsAndCss_.emplace("jsPcv", getVectorOfMapKeys(bib::files::listAllFiles(config["resources"] + "pcv/js",false,VecStr{})));
 	jsAndCss_.emplace("cssPcv", getVectorOfMapKeys(bib::files::listAllFiles(config["resources"] + "pcv/css",false,VecStr{})));
@@ -103,9 +107,6 @@ pcv::pcv(cppcms::service& srv, std::map<std::string, std::string> config) :
 
 	dispMap_1word(&pcv::getAllSampleNames, this, "allSampleNames");
 
-	dispMap_1word(&pcv::getSampleNamesEncoding, this, "sampleNamesEncoding");
-	dispMap_1word(&pcv::getEncodingForSampleNames, this, "encodingForSampleNames");
-
 	dispMap_1word(&pcv::showExtractionInfo, this, "showExtractionInfo");
 	dispMap_1word(&pcv::getIndexExtractionInfo, this, "getIndexExtractionInfo");
 	dispMap_1word(&pcv::getSampleExtractionInfo, this, "getSampleExtractionInfo");
@@ -120,8 +121,9 @@ pcv::pcv(cppcms::service& srv, std::map<std::string, std::string> config) :
 	mapper().root(rootName_);
 
 	loadInProjects();
-
-	std::cout << "Finished set up" << std::endl;
+	if (debug_) {
+		std::cout << "Finished set up" << std::endl;
+	}
 }
 
 void pcv::main(std::string url) {
@@ -159,6 +161,12 @@ void pcv::loadInProjects(){
 	bib::scopedMessage mess(messStrFactory(__PRETTY_FUNCTION__), std::cout, debug_);
 	auto files = bib::files::listAllFiles(configDir_, false, VecStr{});
 	for(const auto & f : files){
+		if(bib::beginsWith(f.first.string(), ".")){
+			continue;
+		}
+		if(!bib::endsWith(f.first.string(), ".config")){
+			continue;
+		}
 		if(!f.second){
 			Json::Reader jReader;
 			Json::Value configJson;
@@ -195,7 +203,7 @@ void pcv::individualSamplePage(std::string shortProjName, std::string sampName){
 	bib::scopedMessage mess(messStrFactory(__PRETTY_FUNCTION__, {{"shortProjName", shortProjName}, {"sampName",sampName}}), std::cout, debug_);
 	if(hasProject(shortProjName)){
 		auto proj = projectModels_.find(shortProjName);
-		sampName = proj->second.decodeSampEncoding(sampName);
+
 		if(bib::in(sampName, proj->second.clusteredSampleNames_)){
 			auto search = pages_.find("individualSample");
 			response().out() << search->second.get("/pcv", rootName_);
@@ -343,25 +351,6 @@ void pcv::getAllSampleNames(std::string shortProjName){
 	}
 }
 
-void pcv::getSampleNamesEncoding(std::string shortProjName){
-	bib::scopedMessage mess(messStrFactory(__PRETTY_FUNCTION__, {{"shortProjName", shortProjName}}), std::cout, debug_);
-	if (hasProject(shortProjName)) {
-		ret_json();
-		response().out() <<  projectModels_.find(shortProjName)->second.getSampleNamesEncoding();
-	} else {
-		std::cout << "Doesn't contain project " << shortProjName << std::endl;
-	}
-}
-
-void pcv::getEncodingForSampleNames(std::string shortProjName){
-	bib::scopedMessage mess(messStrFactory(__PRETTY_FUNCTION__, {{"shortProjName", shortProjName}}), std::cout, debug_);
-	if (hasProject(shortProjName)) {
-		ret_json();
-		response().out() <<  projectModels_.find(shortProjName)->second.getEncodingForSampleNames();
-	} else {
-		std::cout << "Doesn't contain project " << shortProjName << std::endl;
-	}
-}
 
 void pcv::getSampInfo(std::string shortProjName){
 	bib::scopedMessage mess(messStrFactory(__PRETTY_FUNCTION__, {{"shortProjName", shortProjName}}), std::cout, debug_);
@@ -644,16 +633,14 @@ int popClusteringViewer(const bib::progutils::CmdArgs & inputCommands){
 
 	uint32_t port = 9881;
 	std::string name = "pcv";
-	std::string resourceDirName = "";
+	std::string resourceDirName = bib::files::make_path(SeekDeepDev_INSTALLDIR, "etc/serverResources").string();
 
-	setUp.setOption(resourceDirName, "-resourceDirName", "Name of the resource Directory where the js and hmtl is located", true);
-	if(resourceDirName.back() != '/'){
-		resourceDirName.append("/");
-	}
+	setUp.setOption(resourceDirName, "-resourceDirName",
+			"Name of the resource Directory where the js and hmtl is located",
+			!bfs::exists(resourceDirName));
+	bib::appendAsNeeded(resourceDirName, "/");
 	setUp.setOption(configDir, "-configDir", "Name of the Master Result Directory", true);
-	if(configDir.back() != '/'){
-		configDir.append("/");
-	}
+	bib::appendAsNeeded(configDir, "/");
 	setUp.setOption(port, "-port", "Port Number to Serve On");
 	setUp.setOption(name, "-name", "Name of root of the server");
 	setUp.processDebug();

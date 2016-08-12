@@ -27,10 +27,8 @@
 // along with SeekDeep.  If not, see <http://www.gnu.org/licenses/>.
 //
 //
+
 #include "SeekDeep.h"
-
-
-
 
 int main(int argc, char* argv[]) {
 	try {
@@ -41,3 +39,5 @@ int main(int argc, char* argv[]) {
 		return 1;
 	}
 }
+
+

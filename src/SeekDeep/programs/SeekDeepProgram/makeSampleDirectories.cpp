@@ -1,4 +1,3 @@
-#pragma once
 //
 // SeekDeep - A library for analyzing amplicon sequence data
 // Copyright (C) 2012-2016 Nicholas Hathaway <nicholas.hathaway@umassmed.edu>,
@@ -20,29 +19,28 @@
 // along with SeekDeep.  If not, see <http://www.gnu.org/licenses/>.
 //
 //
+//  main.cpp
+//  SeekDeep
 //
-//  SeekDeepRunner.hpp
-//  sequenceTools
+//  Created by Nicholas Hathaway on 8/11/13.
+//  Copyright (c) 2013 Nicholas Hathaway. All rights reserved.
 //
-//  Created by Nicholas Hathaway on 10/24/14.
-//  Copyright (c) 2014 Nicholas Hathaway. All rights reserved.
-//
+#include "SeekDeepRunner.hpp"
 
-
-
-#include <bibcpp.h>
-#include "SeekDeep/programs/SeekDeepProgram/SeekDeepSetUp.hpp"
 
 namespace bibseq {
 
-class SeekDeepRunner : public bib::progutils::oneRing {
+int SeekDeepRunner::makeSampleDirectories(const bib::progutils::CmdArgs & inputCommands) {
+	SeekDeepSetUp setUp(inputCommands);
+	std::string sampleNameFilename = "";
+	bool separatedDirs = false;
+	setUp.setOption(separatedDirs, "--separatedDirs",
+			"Create a separate directory for each index");
+	setUp.setUpMakeSampleDirectories(sampleNameFilename);
+	setUpSampleDirs(sampleNameFilename, setUp.pars_.directoryName_, separatedDirs);
+	setUp.startARunLog(setUp.pars_.directoryName_);
+	setUp.logRunTime(std::cout);
+	return 0;
+}
 
- public:
-  SeekDeepRunner();
-  static int extractor(const bib::progutils::CmdArgs & inputCommands);
-  static int qluster(const bib::progutils::CmdArgs & inputCommands);
-  static int processClusters(const bib::progutils::CmdArgs & inputCommands);
-  static int makeSampleDirectories(const bib::progutils::CmdArgs & inputCommands);
-};
-}  // namespace bibseq
-
+}  // namespace bib

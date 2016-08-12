@@ -177,7 +177,8 @@ void SeekDeepSetUp::setUpExtractor(extractorPars & pars) {
 		tempOut.str(std::string());
 		exit(0);
 	}
-
+	processVerbose();
+	processDebug();
 	setOption(pars.noForwardPrimer, "-noForwardPrimer",
 			"No Forward Primer Required");
 	setOption(pars.forwardPrimerToUpperCase, "-fUpper",
@@ -223,7 +224,6 @@ void SeekDeepSetUp::setUpExtractor(extractorPars & pars) {
 
 	setOption(pars.barcodesBothEnds, "-barcodeBothEnds",
 			"Look for Barcodes in Both Primers");
-	processDebug();
 
 	pars.variableStart = setOption(pars.variableStop, "-variableStart",
 			"variableStart");
@@ -267,8 +267,12 @@ void SeekDeepSetUp::setUpExtractor(extractorPars & pars) {
 		pars.qualityWindowStep = 5;
 		pars.qualityWindowThres = 25;
 	}
+
 	bool compareSeqSuccess = processSeq(pars.compareSeq, "-compareSeq",
 			"Comparison Sequence For Contamination ");
+	if(compareSeqSuccess){
+		commands_.lookForOptionCaseInsen(pars.compareSeqFilename, "-compareSeq");
+	}
 	setOption(pars.contaminationKLen, "-contaminationKLen",
 			"Contamination Kmer Length comparison");
 	setOption(pars.kmerCutOff, "-kmerCutOff",
@@ -280,6 +284,8 @@ void SeekDeepSetUp::setUpExtractor(extractorPars & pars) {
 					"Need to have -compareSeq if checking for contamination");
 		}
 	}
+	setOption(pars.contaminationMutlipleCompare, "-contaminationMutlipleCompare",
+			"Compare to all the sequences within the compare seq file if a file is given");
 	setOption(pars.multipleTargets, "--multipleTargets",
 			"Id file contains multiple targets");
 	if (pars.multipleTargets) {
@@ -309,6 +315,9 @@ void SeekDeepSetUp::setUpExtractor(extractorPars & pars) {
 			failed_ = true;
 		}
 	}
+
+	pars.trimAtQual = setOption(pars.trimAtQualCutOff, "--trimAtQual",
+			"Trim Reads at first occurrence of quality score");
 
 	pars_.gapInfo_.gapOpen_ = 5;
 	pars_.gapInfo_.gapExtend_ = 1;
@@ -468,16 +477,31 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 		exit(0);
 	}
 	processDefaultReader(true);
-	setOption(pars.parameters, "-par", "ParametersFilename", true);
+
 	setOption(pars.binParameters, "-binPar",
 			"Parameters Filename for when reads are binned");
 	setOption(pars.ionTorrent, "-ionTorrent",
 			"Flag to indicate reads are ion torrent and therefore turns on -useCompPerCutOff,-adjustHomopolyerRuns, and -qualTrim");
+	setOption(pars.illumina, "-illumina",
+				"Flag to indicate reads are illumina");
+	bool needsParFlag = !pars.illumina && !pars.ionTorrent;
 	if (pars.ionTorrent) {
-		pars.removeLowQualBases = true;
-		pars_.adjustHomopolyerRuns_ = true;
-		pars.useCompPerCutOff = true;
+		pars_.colOpts_.iTOpts_.removeLowQualityBases_ = true;
+		pars_.colOpts_.iTOpts_.adjustHomopolyerRuns_ = true;
+		//pars.useCompPerCutOff = true;
+		auto temp = CollapseIterations::gen454ItDefaultPars(100);
+		pars.iteratorMap = temp;
 	}
+
+	if(pars.illumina){
+		pars.iteratorMap = CollapseIterations::genIlluminaDefaultPars(100);
+		pars_.colOpts_.iTOpts_.weighHomopolyer_ = false;
+	}
+
+	setOption(pars.parameters, "-par", "ParametersFilename", needsParFlag);
+	setOption(pars_.colOpts_.iTOpts_.adjustHomopolyerRuns_, "-adjustHomopolyerRuns",
+				"Adjust homopolymer runs to be same quality scores");
+
 	setOption(pars.compPerCutOff, "-compPerCutOff",
 			"Percentage of reads in one direction Cut Off");
 	setOption(pars.useCompPerCutOff, "-useCompPerCutOff",
@@ -488,68 +512,82 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 	setOption(pars.diffCutOffStr, "-diffCutOffs",
 			"Difference Cutoff to form Nuc Comp Clusters");
 
-	pars.diffCutOffVec = vecStrToVecNum<double>(
+	pars_.colOpts_.nucCompBinOpts_.diffCutOffVec_ = vecStrToVecNum<double>(
 			tokenizeString(pars.diffCutOffStr, ","));
 
-	setOption(pars.findBest, "-findBestNuc", "Find Best Nucleotide Cluster");
-	setOption(pars.useNucComp, "-useNucComp",
+	setOption(pars_.colOpts_.nucCompBinOpts_.findBestNuc_, "-findBestNuc", "Find Best Nucleotide Cluster");
+	setOption(pars_.colOpts_.nucCompBinOpts_.useNucComp_, "-useNucComp",
 			"Cluster on Nucleotide Composition First");
 
-	setOption(pars.useMinLenNucComp, "-useMinLenNucComp",
+	setOption(pars_.colOpts_.nucCompBinOpts_.useMinLenNucComp_, "-useMinLenNucComp",
 			"Use Nucleotide Composition of Only Front of seqs");
 
 	setOption(pars.startWithSingles, "-startWithSingles",
 			"Start The Clustering With Singletons, rather then adding them afterwards");
-
+	setOption(pars.mapBackSinglets, "-mapBackSinglets",
+				"If Singlets are left out, map them back in for frequency estimates");
+	setOption(pars.singletCutOff, "-singletCutOff",
+				"Naturally the cut off for being a singlet is by default 1 but can use -singletCutOff to raise the number");
 
 	setOption(pars.createMinTree, "--createMinTree",
 			"Create Psudo minimum Spanning Trees For Mismatches for Final Clusters");
-	setOption(pars.useKmerBinning, "-useKmerBinning", "useKmerBinning");
-	setOption(pars.kmerCutOff, "-kmerCutOff", "kmerCutOff");
-	setOption(pars.kCompareLen, "-kCompareLen", "kCompareLen");
+	setOption(pars_.colOpts_.kmerBinOpts_.useKmerBinning_, "-useKmerBinning", "useKmerBinning");
+	setOption(pars_.colOpts_.kmerBinOpts_.kmerCutOff_, "-kmerCutOff", "kmerCutOff");
+	setOption(pars_.colOpts_.kmerBinOpts_.kCompareLen_, "-kCompareLen", "kCompareLen");
 
 	setOption(pars.leaveOutSinglets, "-leaveOutSinglets",
 			"Leave out singlet clusters out of all analysis");
 	setOption(pars.onPerId, "-onPerId", "Cluster on Percent Identity Instead");
 
-	pars.removeLowQualBases = setOption(pars.lowQualityCutOff, "-qualTrim",
+	pars_.colOpts_.iTOpts_.removeLowQualityBases_= setOption(pars_.colOpts_.iTOpts_.lowQualityBaseTrim_, "-qualTrim",
 			"LowQualityCutOff");
 	setOption(pars.qualRep, "-qualRep",
 			"QualityRepresentative_for_unique_clusters");
 	setOption(pars.extra, "-extra", "Extra");
-	setOption(pars.markChimeras, "-markChimeras", "MarkChimeras");
-	setOption(pars.parFreqs, "-parfreqs", "Parent_freq_multiplier_cutoff");
+	setOption(pars_.chiOpts_.checkChimeras_, "-markChimeras", "MarkChimeras");
+	setOption(pars_.chiOpts_.parentFreqs_, "-parfreqs", "Parent_freq_multiplier_cutoff");
 
-	setOption(pars.snapShots, "-snapshots", "OutputSnapShots");
+	setOption(pars.snapShotsOpts_.snapShots_, "-snapshots", "OutputSnapShots");
 	setOption(pars.sortBy, "-sortBy", "SortClustersBy");
 	pars.additionalOut = setOption(pars.additionalOutLocationFile,
 			"-additionalOut", "AdditionalOutFilename");
 	setOption(pars.collapsingTandems, "-collapseTandems", "CollapsingTandems");
 
-	setOption(pars.noAlign_, "--noAlignCompare",
+	setOption(pars_.colOpts_.alignOpts_.noAlign_, "--noAlignCompare",
 			"Do comparisons without aligning");
-
+	processSkipOnNucComp();
 	processVerbose();
 	processDebug();
+	pars_.colOpts_.verboseOpts_.verbose_ = pars_.verbose_;
+	pars_.colOpts_.verboseOpts_.debug_ = pars_.debug_;
 	processRefFilename();
 	bool mustMakeDirectory = true;
 	processDirectoryOutputName(mustMakeDirectory);
+	pars_.gap_ = "5,1";
+	pars_.gapRight_ = "0,0";
+	pars_.gapLeft_ = "5,1";
 	processAlignerDefualts();
-	pars.smallReadSize = pars_.kLength_ * 2;
+	pars.smallReadSize = pars_.colOpts_.kmerOpts_.kLength_ * 2;
 	setOption(pars.smallReadSize, "--smallReadSize",
 			"A cut off to remove small reads");
 	if (!failed_) {
-		if (pars.onPerId) {
-			processIteratorMapOnPerId(pars.parameters, pars.iteratorMap);
-		} else {
-			processIteratorMap(pars.parameters, pars.iteratorMap);
-		}
-		if (pars.binParameters != "") {
+		if ("" != pars.parameters) {
 			if (pars.onPerId) {
-				processIteratorMapOnPerId(pars.binParameters, pars.binIteratorMap);
+				pars.iteratorMap = processIteratorMapOnPerId(pars.parameters);
 			} else {
-				processIteratorMap(pars.binParameters, pars.binIteratorMap);
+				//std::cout << __PRETTY_FUNCTION__ << 2 << std::endl;
+				pars.iteratorMap = processIteratorMap(pars.parameters);
+				//std::cout << __PRETTY_FUNCTION__ << 3 << std::endl;
 			}
+		}
+		if ("" != pars.binParameters) {
+			if (pars.onPerId) {
+				pars.binIteratorMap = processIteratorMapOnPerId(pars.binParameters);
+			} else {
+				pars.binIteratorMap = processIteratorMap(pars.binParameters);
+			}
+		} else {
+			pars.binIteratorMap = pars.iteratorMap;
 		}
 		if (pars_.verbose_) {
 			std::cout << "p: " << pars_.qScorePars_.primaryQual_ << std::endl;
@@ -559,7 +597,6 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 		}
 	}
 	finishSetUp(std::cout);
-
 }
 
 void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
@@ -605,7 +642,7 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 						"files should be named output.fastq, others will be ignored"
 				<< std::endl;
 		tempOut
-				<< "-par : parameters file, see SeekDeep qluster -help for details on the format of the file"
+				<< "-par : parameters file, see SeekDeep qluster --help for details on the format of the file"
 				<< std::endl;
 		tempOut << bib::bashCT::bold << "Optional commands" << bib::bashCT::reset
 				<< std::endl;
@@ -613,7 +650,7 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 				"to cluster_CURRENT_DATE" << std::endl;
 		tempOut << "-onPerId : Cluster reads on percent identity rather"
 				" than specific errors, format of parameters file would have to change,"
-				" see SeekDeep qluster -help for details" << std::endl;
+				" see SeekDeep qluster --help for details" << std::endl;
 		tempOut
 				<< "-experimentName [option] : Name prefix to give to the final population haplotypes, defaults to PopUID"
 				<< std::endl;
@@ -676,13 +713,16 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 		tempOut.str(std::string());
 		exit(0);
 	}
+
 	setOption(pars.ionTorrent, "-ionTorrent",
 			"Flag to indicate reads are ion torrent and therefore turns on -useCompPerCutOff,-adjustHomopolyerRuns, and -qualTrim");
 	if (pars.ionTorrent) {
 		pars.removeLowQualBases = true;
-		pars_.adjustHomopolyerRuns_ = true;
+		pars_.colOpts_.iTOpts_.adjustHomopolyerRuns_ = true;
 	}
 
+	setOption(pars.masterDir, "--masterDir", "Master directory containing sample sequence files");
+	pars.masterDir = bfs::absolute(pars.masterDir).string();
 	pars.removeLowQualBases = setOption(pars.lowQualityCutOff, "-qualTrim",
 			"LowQualityCutOff");
 	setOption(pars.writeExcludedOriginals, "--writeExcludedOriginals",
@@ -704,16 +744,31 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 			"Check to see if a chimera appears as a high variant in another sample");
 	processDebug();
 	processVerbose();
+	pars_.colOpts_.verboseOpts_.verbose_ = pars_.verbose_;
+	pars_.colOpts_.verboseOpts_.debug_ = pars_.debug_;
 	setOption(pars.onPerId, "-onPerId", "Cluster on Percent Identity Instead");
 	// input file info
 	pars_.ioOptions_.lowerCaseBases_ = "upper";
+	pars_.ioOptions_.processed_ = true;
+
 	processDefaultReader(true);
-	setOption(pars.parameters, "-par", "ParametersFileName", true);
+	bool noErrorsSet  = false;
+	setOption(noErrorsSet, "--noErrors", "Parameters with no errors");
+	bool strictErrorsSet = false;
+	setOption(strictErrorsSet, "--strictErrors", "Parameters with a several low quality mismatches");
+	setOption(pars.parameters, "-par", "ParametersFileName", !noErrorsSet && !strictErrorsSet);
+
 	setOption(pars.binParameters, "-binPar", "bin Parameters Filename");
 
 	setOption(pars.runsRequired, "-runsRequired", "runsRequired");
 	setOption(pars.experimentName, "-experimentName", "ExperimentName");
+	if (bib::containsSubString(pars.experimentName, ".")) {
+		addWarning("Error in populationCollapse::populationCollapse, populationName can't contain '.', "
+						+ pars.experimentName);
+		failed_ = true;
+	}
 	setOption(pars.clusterCutOff, "-clusterCutOff", "Cluster Size Cut Off");
+	setOption(pars.noTrees, "--noTrees", "Don't generate html difference trees");
 	processDirectoryOutputName("clusters_" + getCurrentDate(), true);
 
 	setOption(pars.extra, "-extra", "ExtraOutput");
@@ -724,9 +779,9 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 			"PopulationClusteringFractionCutoff");
 	pars.differentPar = setOption(pars.parametersPopulation, "-popPar",
 			"ParametersForPopulationCollapse");
-	setOption(pars.checkChimeras, "-markChimeras", "MarkChimeras");
+	setOption(pars_.chiOpts_.checkChimeras_, "-markChimeras", "MarkChimeras");
 	setOption(pars.keepChimeras, "-keepChimeras", "KeepChimeras");
-	setOption(pars.parFreqs, "-parFreqs", "ParentFrequence_multiplier_cutoff");
+	setOption(pars_.chiOpts_.parentFreqs_, "-parFreqs", "ParentFrequence_multiplier_cutoff");
 
 	setOption(pars.plotRepAgreement, "-plotRepAgreement", "Plot Rep Agreement");
 	processAlignerDefualts();
@@ -737,25 +792,31 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 		std::cout << "ge: " << pars_.gapInfo_.gapExtend_ << std::endl;
 	}
 	if (!failed_ ) {
-		// read in the parameters from the parameters file
-		if (pars.onPerId) {
-			processIteratorMapOnPerId(pars.parameters, pars.iteratorMap);
-		} else {
-			processIteratorMap(pars.parameters, pars.iteratorMap);
+		if("" != pars.parameters){
+			// read in the parameters from the parameters file
+			if (pars.onPerId) {
+				pars.iteratorMap = processIteratorMapOnPerId(pars.parameters);
+			} else {
+				pars.iteratorMap = processIteratorMap(pars.parameters);
+			}
+		}else if(noErrorsSet){
+			pars.iteratorMap = CollapseIterations::genStrictNoErrorsDefaultPars(100);
+		}else if(strictErrorsSet){
+			pars.iteratorMap = CollapseIterations::genStrictDefaultPars(100);
 		}
+
 		if (pars.binParameters != "") {
 			if (pars.onPerId) {
-				processIteratorMapOnPerId(pars.binParameters, pars.binIteratorMap);
+				pars.binIteratorMap = processIteratorMapOnPerId(pars.binParameters);
 			} else {
-				processIteratorMap(pars.binParameters, pars.binIteratorMap);
+				pars.binIteratorMap = processIteratorMap(pars.binParameters);
 			}
 		}
 		if (pars.differentPar) {
 			if (pars.onPerId) {
-				processIteratorMapOnPerId(pars.parametersPopulation,
-						pars.popIteratorMap);
+				pars.popIteratorMap = processIteratorMapOnPerId(pars.parametersPopulation);
 			} else {
-				processIteratorMap(pars.parametersPopulation, pars.popIteratorMap);
+				pars.popIteratorMap = processIteratorMap(pars.parametersPopulation);
 			}
 		} else {
 			pars.popIteratorMap = pars.iteratorMap;
@@ -815,13 +876,16 @@ void SeekDeepSetUp::setUpMakeSampleDirectories(
 	}
 	setOption(sampleNameFilename, "-file", "SampleNamesFileName", true);
 	setOption(pars_.directoryName_, "-dout", "MainOutDirectoryName", true);
-	setOption(pars_.overWriteDir_, "--overWriteDir", "If the directory already exists over write it");
-  if (!failed_) {
-    std::string newDirectoryName = "./" +
-    		replaceString(replaceString(pars_.directoryName_, "./", ""), "TODAY", getCurrentDate()) +"/";
-  	pars_.directoryName_ =
-        bib::files::makeDir("./", replaceString(pars_.directoryName_, "./", ""), pars_.overWriteDir_);
-  }
+	setOption(pars_.overWriteDir_, "--overWriteDir",
+			"If the directory already exists over write it");
+	if (!failed_) {
+		std::string newDirectoryName = "./"
+				+ bib::replaceString(bib::replaceString(pars_.directoryName_, "./", ""), "TODAY",
+						getCurrentDate()) + "/";
+		pars_.directoryName_ = bib::files::makeDir("./",
+				bib::files::MkdirPar(bib::replaceString(pars_.directoryName_, "./", ""),
+						pars_.overWriteDir_));
+	}
 	finishSetUp(std::cout);
 }
 

@@ -68,24 +68,20 @@ private:
 	std::unordered_map<std::string, std::unordered_map<std::string, std::string>> groupInfosDirNames_;
 
 	VecStr allSampleNames_;
-	std::unordered_map<std::string, uint32_t> sampNameToCodedNum_;
-	std::unordered_map<uint32_t, std::string> codedNumToSampName_;
 
 	std::string mainDir_;
 	std::string projectName_;
 	std::string shortName_;
 
 	std::string extractionDir_;
-
 	ExtractionInfo extractInfo_;
+
 	Json::Value config_;
 	std::shared_ptr<seqCache> seqs_;
 
 	bool debug_ = false;
-
-
-
 	friend class pcv;
+
 public:
 	pcm(Json::Value config, std::shared_ptr<seqCache> seqs);
 
@@ -102,10 +98,7 @@ public:
 	Json::Value getProjectName();
 	Json::Value getSampleNames();
 	Json::Value getAllSampleNames();
-	Json::Value getSampleNamesEncoding();
-	Json::Value getEncodingForSampleNames();
 
-	std::string decodeSampEncoding(const std::string& sampName);
 	Json::Value getSampInfo(const VecStr & sampNames);
 	Json::Value getPosSeqData();
 	Json::Value getPopInfo();
