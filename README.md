@@ -22,6 +22,7 @@ git checkout v2.4.0
 make   
 ```
 
+
 #Dependecnies
 Need to have g++-5, or clang++-3.8 compiler, the default assumption is clang++, can change what compilier is used by giving -CC and -CXX to ./congifure.py  
 Examples  
@@ -43,7 +44,7 @@ Also though SeekDeep does not use cmake, several of the libraries it uses do dep
 #Bash Completion  
 
 SeekDeep tends to have long flags so that they don't use their meaning but it's somewhat annoying to type them out so bash completion has been added.  Put the content of the file at bashCompletion/SeekDeep into a file ~/.bash_completion and it will be source on your next login or use the bellow command while in the SeekDeep directory  
-./setup.py -addBashCompletion  
+./setup.py --addBashCompletion  
 Which will actually do exactly described above, afterwards while typing flags use the tab key to complete them  
 
 ========
