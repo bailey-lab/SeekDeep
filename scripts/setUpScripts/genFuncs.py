@@ -11,7 +11,7 @@ class genHelper:
                          "MLPACK","LIBLINEAR","CURL","GTKMM", "BIBSEQ", "BIBCPP", "SEEKDEEP", 
                          "BIBSEQDEV", "SEEKDEEPDEV", "CATCH", "JSONCPP",
                           "TWOBIT", "SEQSERVER","NJHRINSIDE", "PSTREAMS", "MONGOC", "MONGOCXX", "SHAREDMUTEX",
-                           "MAGIC", "HTS"]
+                           "MAGIC", "HTS", "RESTBED"]
         neededLibraries = {}
         for lib in neededLibs:
             if ":" in lib:

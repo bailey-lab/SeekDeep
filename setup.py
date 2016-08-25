@@ -240,6 +240,8 @@ class Packages():
         self.packages_["bibseq"] = self.__bibseq()
         self.packages_["bibcpp"] = self.__bibcpp()
         self.packages_["seekdeep"] = self.__SeekDeep()
+        self.packages_["bibseqdev"] = self.__bibseqDev()
+        self.packages_["seekdeepdev"] = self.__SeekDeepDev()
         self.packages_["seqserver"] = self.__seqserver()
         self.packages_["njhrinside"] = self.__njhRInside()
         self.packages_["twobit"] = self.__twobit()
@@ -259,7 +261,9 @@ class Packages():
         self.packages_["samtools"] = self.__samtools()
         self.packages_["bcftools"] = self.__bcftools()
         self.packages_["hts"] = self.__hts()
+        self.packages_["restbed"] = self.__restbed()
         '''
+        
         self.packages_["mlpack"] = self.__mlpack()
         self.packages_["liblinear"] = self.__liblinear()
         '''
@@ -527,11 +531,54 @@ class Packages():
     
     def __hts(self):
         name = "hts"
+        url = "https://github.com/samtools/htslib.git"
         buildCmd = "CC={CC} CXX={CXX} && autoheader && autoconf && ./configure --prefix={local_dir} && make -j {num_cores} && make install -j {num_cores}"
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "1.3.1")
-        pack.addVersion("https://github.com/samtools/htslib.git", "1.3.1")
-        pack.versions_["1.3.1"].additionalLdFlags_ = ["-lz -lm -lpthread"]
+
+        if self.args.noInternet:
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
+                pack = pickle.load(input)
+                pack.defaultBuildCmd_ = buildCmd
+        elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
+                    pack = pickle.load(input)
+                    pack.defaultBuildCmd_ = buildCmd
+        else:
+            refs = pack.getGitRefs(url)
+            for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
+                pack.addVersion(url, ref)
+                pack.versions_[ref].additionalLdFlags_ = ["-lz -lm -lpthread"]
+            Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
+                pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
         return pack
+    
+    def __restbed(self):
+        name = "restbed"
+        url = "https://github.com/Corvusoft/restbed.git"
+        buildCmd = "git submodule init && git submodule update && mkdir build && cd build && CC={CC} CXX={CXX} cmake -DBUILD_TESTS=YES -DBUILD_EXAMPLES=YES -DBUILD_SSL=NO -DBUILD_SHARED=YES -DCMAKE_INSTALL_PREFIX={local_dir} .. && make install -j {num_cores}"
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "4.0")
+        if self.args.noInternet:
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
+                pack = pickle.load(input)
+                pack.defaultBuildCmd_ = buildCmd
+        elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
+                    pack = pickle.load(input)
+                    pack.defaultBuildCmd_ = buildCmd
+        else:
+            refs = pack.getGitRefs(url)
+            for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
+                pack.addVersion(url, ref)
+                pack.versions_[ref].libPath_ = pack.versions_[ref].libPath_ + "rary"
+            Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
+                pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
+        #pack.addVersion("https://github.com/Corvusoft/restbed.git", "4.0")
+        #pack.versions_["4.0"].additionalLdFlags_ = ["-lz -lm -lpthread"]
+        return pack
+    
+    
 
     '''
     def __mlpack(self):
@@ -690,7 +737,34 @@ class Packages():
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
                 pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
         return pack
-
+    
+    def __bibseqDev(self):
+        url = "git@github.com:bailey-lab/bibseqPrivate.git"
+        name = "bibseqDev"
+        buildCmd = self.__bibProjectBuildCmd()
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "master")
+        pack.bibProject_ = True
+        try:
+            if self.args.noInternet:
+                with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
+                    pack = pickle.load(input)
+                    pack.defaultBuildCmd_ = buildCmd
+            elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
+                with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
+                        pack = pickle.load(input)
+                        pack.defaultBuildCmd_ = buildCmd
+            else:
+                
+                refs = pack.getGitRefs(url)
+                for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
+                    pack.addVersion(url, ref)
+                    pack.versions_[ref].additionalLdFlags_ = ["-lcurl"]
+                Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
+                with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
+                    pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
+        except Exception as inst: 
+            print CT.boldRed("failed to update cache for ") + name + " which doesn't matter unless you are installing this lib"
+        return pack 
     
     def __twobit(self):
         url = "https://github.com/weng-lab/TwoBit.git"
@@ -761,6 +835,32 @@ class Packages():
                 pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
         return pack
     
+    def __SeekDeepDev(self):
+        url = "git@github.com:bailey-lab/SeekDeepPrivate.git"
+        name = "SeekDeepDev"
+        buildCmd = self.__bibProjectBuildCmd()
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "master")
+        pack.bibProject_ = True
+        try:
+            if self.args.noInternet:
+                with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
+                    pack = pickle.load(input)
+                    pack.defaultBuildCmd_ = buildCmd
+            elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
+                with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
+                        pack = pickle.load(input)
+                        pack.defaultBuildCmd_ = buildCmd
+            else:
+                refs = pack.getGitRefs(url)
+                for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
+                    pack.addVersion(url, ref)
+                Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
+                with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
+                    pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
+        except Exception as inst:
+            print inst 
+            print CT.boldRed("failed to update cache for ") + name + " which doesn't matter unless you are installing this lib"
+        return pack
     
     def __seqserver(self):
         url = "https://github.com/nickjhathaway/seqServer.git"
@@ -1098,6 +1198,8 @@ class Setup:
                        "bibseq": self.bibseq,
                        "seekdeep": self.SeekDeep,
                        "bibcpp": self.bibcpp,
+                       "bibseqdev": self.bibseqDev,
+                       "seekdeepdev": self.SeekDeepDev,
                        "seqserver": self.seqserver,
                        "njhrinside": self.njhRInside,
                        "jsoncpp": self.jsoncpp,
@@ -1117,7 +1219,8 @@ class Setup:
                        "lastz": self.lastz,
                        "samtools": self.samtools,
                        "bcftools": self.bcftools,
-                       "hts": self.hts
+                       "hts": self.hts,
+                       "restbed": self.restbed
                        }
         '''
         "mlpack": self.mlpack,
@@ -1574,12 +1677,19 @@ class Setup:
         
     def twobit(self, version):
         self.__defaultBibBuild("twobit", version)
-                
+        
+            
     def sharedMutex(self, version):
         self.__defaultBibBuild("sharedmutex", version)
     
+    def bibseqDev(self, version):
+        self.__defaultBibBuild("bibseqdev", version)
+        
     def SeekDeep(self, version):
         self.__defaultBibBuild("seekdeep", version)
+    
+    def SeekDeepDev(self, version):
+        self.__defaultBibBuild("seekdeepdev", version)
         
     def seqserver(self, version):
         self.__defaultBibBuild("seqserver", version)
@@ -1658,8 +1768,11 @@ class Setup:
         self.__defaultBuild("bcftools", version)  
     
     def hts(self, version):
-        self.__defaultBuild("hts", version)   
-    
+        self.__defaultBuild("hts", version)
+        
+    def restbed(self, version):
+        self.__defaultBuild("restbed", version)   
+    #
     
     
     def downloadFiles(self):
@@ -1731,6 +1844,7 @@ class Setup:
             if not gitWhich:
                 print "Can't find git"
             raise Exception("")
+        
     def clearCache(self):
         Utils.rm_rf(self.dirMaster_.cache_dir)
         Utils.mkdir(self.dirMaster_.cache_dir)
