@@ -556,7 +556,11 @@ class Packages():
     def __restbed(self):
         name = "restbed"
         url = "https://github.com/Corvusoft/restbed.git"
-        buildCmd = "git submodule init && git submodule update && mkdir build && cd build && CC={CC} CXX={CXX} cmake -DBUILD_TESTS=YES -DBUILD_EXAMPLES=YES -DBUILD_SSL=NO -DBUILD_SHARED=YES -DCMAKE_INSTALL_PREFIX={local_dir} .. && make install -j {num_cores}"
+        if not Utils.isMac():
+            buildCmd = """git submodule init && git submodule update && sed -i 's/CMAKE_CXX_FLAGS} -stdlib=libc\+\+/CMAKE_CXX_FLAGS}/g' cmake/build_configuration.cmake && mkdir build && cd build && CC={CC} CXX={CXX} cmake -DBUILD_TESTS=YES -DBUILD_EXAMPLES=YES -DBUILD_SSL=NO -DBUILD_SHARED=YES -DCMAKE_INSTALL_PREFIX={local_dir} .. && make install -j {num_cores}"""
+        else:
+            buildCmd = """git submodule init && git submodule update && mkdir build && cd build && CC={CC} CXX={CXX} cmake -DBUILD_TESTS=YES -DBUILD_EXAMPLES=YES -DBUILD_SSL=NO -DBUILD_SHARED=YES -DCMAKE_INSTALL_PREFIX={local_dir} .. && make install -j {num_cores}"""
+
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "4.0")
         if self.args.noInternet:
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
