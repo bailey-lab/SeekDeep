@@ -557,7 +557,7 @@ class Packages():
         name = "restbed"
         url = "https://github.com/Corvusoft/restbed.git"
         if not Utils.isMac():
-            buildCmd = """git submodule init && git submodule update && sed -i 's/CMAKE_CXX_FLAGS}} -stdlib=libc\+\+/CMAKE_CXX_FLAGS}/g' cmake/build_configuration.cmake && mkdir build && cd build && CC={CC} CXX={CXX} cmake -DBUILD_TESTS=YES -DBUILD_EXAMPLES=YES -DBUILD_SSL=NO -DBUILD_SHARED=YES -DCMAKE_INSTALL_PREFIX={local_dir} .. && make install -j {num_cores}"""
+            buildCmd = """git submodule init && git submodule update && sed -i 's/CMAKE_CXX_FLAGS}} -stdlib=libc\+\+/CMAKE_CXX_FLAGS}}/g' cmake/build_configuration.cmake && mkdir build && cd build && CC={CC} CXX={CXX} cmake -DBUILD_TESTS=YES -DBUILD_EXAMPLES=YES -DBUILD_SSL=NO -DBUILD_SHARED=YES -DCMAKE_INSTALL_PREFIX={local_dir} .. && make install -j {num_cores}"""
         else:
             buildCmd = """git submodule init && git submodule update && mkdir build && cd build && CC={CC} CXX={CXX} cmake -DBUILD_TESTS=YES -DBUILD_EXAMPLES=YES -DBUILD_SSL=NO -DBUILD_SHARED=YES -DCMAKE_INSTALL_PREFIX={local_dir} .. && make install -j {num_cores}"""
 
