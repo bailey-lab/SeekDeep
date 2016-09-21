@@ -389,7 +389,14 @@ class Packages():
         pack.versions_["1.3.4"].altLibName_ = "ssl" #a trick to control order of -l flags for libs
         pack.versions_["1.3.4"].additionalLdFlags_ = ["-lcrypto","-lmongoc-1.0", "-lbson-1.0"]  
         if not Utils.isMac():
-            pack.versions_["1.3.4"].additionalLdFlags_.append("-lrt") 
+            pack.versions_["1.3.4"].additionalLdFlags_.append("-lrt")
+        pack.addVersion(url, "1.4.1")
+        pack.versions_["1.4.1"].additionalIncludePaths_.append(pack.versions_["1.4.1"].includePath_ + "/libmongoc-1.0")
+        pack.versions_["1.4.1"].includePath_ = pack.versions_["1.4.1"].includePath_ + "/libbson-1.0"
+        pack.versions_["1.4.1"].altLibName_ = "ssl" #a trick to control order of -l flags for libs
+        pack.versions_["1.4.1"].additionalLdFlags_ = ["-lcrypto","-lmongoc-1.0", "-lbson-1.0"]  
+        if not Utils.isMac():
+            pack.versions_["1.4.1"].additionalLdFlags_.append("-lrt") 
         return pack
     
     def __mongocxx(self):
@@ -405,6 +412,10 @@ class Packages():
         pack.versions_["r3.0.1"].additionalIncludePaths_.append(pack.versions_["r3.0.1"].includePath_ + "/mongocxx/v_noabi")
         pack.versions_["r3.0.1"].includePath_ = pack.versions_["r3.0.1"].includePath_ + "/bsoncxx/v_noabi"
         pack.versions_["r3.0.1"].additionalLdFlags_ = ["-lbsoncxx"]
+        pack.addVersion(url, "r3.0.2", [LibNameVer("mongoc", "1.4.1")])
+        pack.versions_["r3.0.2"].additionalIncludePaths_.append(pack.versions_["r3.0.2"].includePath_ + "/mongocxx/v_noabi")
+        pack.versions_["r3.0.2"].includePath_ = pack.versions_["r3.0.2"].includePath_ + "/bsoncxx/v_noabi"
+        pack.versions_["r3.0.2"].additionalLdFlags_ = ["-lbsoncxx"]
         return pack
 
     def __cppitertools(self):
