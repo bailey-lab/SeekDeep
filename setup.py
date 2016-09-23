@@ -489,7 +489,8 @@ class Packages():
     def __armadillo(self):
         name = "armadillo"
         buildCmd = "mkdir -p build && cd build && CC={CC} CXX={CXX} cmake -DCMAKE_INSTALL_PREFIX:PATH={local_dir} .. && make -j {num_cores} install"
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "7.300.1")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "7.400.2")
+        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/armadillo/armadillo-7.400.2.tar.gz", "7.400.2")
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/armadillo/armadillo-7.300.1.tar.gz", "7.300.1")
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/armadillo/armadillo-7.100.3.tar.gz", "7.100.3")
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/armadillo/armadillo-6.700.3.tar.gz", "6.700.3")
