@@ -262,6 +262,7 @@ class Packages():
         self.packages_["bcftools"] = self.__bcftools()
         self.packages_["hts"] = self.__hts()
         self.packages_["restbed"] = self.__restbed()
+        self.packages_["mipwrangler"] = self.__MIPWrangler()
         '''
         
         self.packages_["mlpack"] = self.__mlpack()
@@ -901,6 +902,29 @@ class Packages():
                 pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
         return pack
     
+    def __MIPWrangler(self):
+        url = "git@github.com:bailey-lab/MIPWrangler.git"
+        name = "MIPWrangler"
+        buildCmd = self.__bibProjectBuildCmd()
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "develop")
+        pack.bibProject_ = True
+        if self.args.noInternet:
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
+                pack = pickle.load(input)
+                pack.defaultBuildCmd_ = buildCmd
+        elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
+                    pack = pickle.load(input)
+                    pack.defaultBuildCmd_ = buildCmd
+        else:
+            refs = pack.getGitRefs(url)
+            for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
+                pack.addVersion(url, ref)
+            Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
+                pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
+        return pack
+    
     def __njhRInside(self):
         url = "https://github.com/nickjhathaway/njhRInside.git"
         name = "njhRInside"
@@ -1236,7 +1260,8 @@ class Setup:
                        "samtools": self.samtools,
                        "bcftools": self.bcftools,
                        "hts": self.hts,
-                       "restbed": self.restbed
+                       "restbed": self.restbed,
+                       "mipwrangler": self.MIPWrangler
                        }
         '''
         "mlpack": self.mlpack,
@@ -1709,6 +1734,9 @@ class Setup:
         
     def seqserver(self, version):
         self.__defaultBibBuild("seqserver", version)
+        
+    def MIPWrangler(self, version):
+        self.__defaultBibBuild("mipwrangler", version)
         
     def njhRInside(self, version):
         self.__defaultBibBuild("njhrinside", version)
