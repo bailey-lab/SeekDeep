@@ -505,13 +505,16 @@ class Packages():
     def __libpca(self):
         name = "libpca"
         buildCmd = """CC={CC} CXX={CXX}
-        LDFLAGS="-Wl,-rpath,{external}/local/armadillo/7.500.2/armadillo/lib -L{external}/local/armadillo/7.500.2/armadillo/lib" CXXFLAGS="-isystem{external}/local/armadillo/7.500.2/armadillo/include"
+        LDFLAGS="-Wl,-rpath,{external}/local/armadillo/7.500.2/armadillo/lib -L{external}/local/armadillo/7.500.2/armadillo/lib" CXXFLAGS="-isystem{external}/local/armadillo/7.500.2/armadillo/include -larmadillo"
           ./configure --prefix {local_dir} && make -j {num_cores} install"""
         buildCmd = " ".join(buildCmd.split())
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "7.500.2")
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/libpca/libpca-1.3.3.tar.gz", "1.3.3", [LibNameVer("armadillo", "7.500.2")])
+        armPack = self.__armadillo()
+        armLdFlags = armPack.versions_["7.500.2"].getLdFlags(self.dirMaster_.install_dir)
+        armIncFlags = armPack.versions_["7.500.2"].getIncludeFlags(self.dirMaster_.install_dir)
         pack.defaultBuildCmd_ = """CC={CC} CXX={CXX}
-        LDFLAGS="-Wl,-rpath,{external}/local/armadillo/7.500.2/armadillo/lib -L{external}/local/armadillo/7.500.2/armadillo/lib" CXXFLAGS="-isystem{external}/local/armadillo/7.500.2/armadillo/include"
+        LDFLAGS=" """ + armLdFlags + """ " CXXFLAGS=" """ + armIncFlags + """ "
           ./configure --prefix {local_dir}  && make -j {num_cores} install"""
         pack.defaultBuildCmd_ = " ".join(pack.defaultBuildCmd_.split())
         pack.versions_["1.3.3"] .altLibName_ = "pca" 
