@@ -232,6 +232,7 @@ class Packages():
         self.packages_["cppitertools"] = self.__cppitertools()
         self.packages_["cppprogutils"] = self.__cppprogutils()
         self.packages_["boost"] = self.__boost()
+        self.packages_["boost_filesystem"] = self.__boost_filesystem()
         self.packages_["r"] = self.__r()
         self.packages_["cppcms"] = self.__cppcms()
         self.packages_["bamtools"] = self.__bamtools()
@@ -1056,6 +1057,60 @@ class Packages():
         pack.versions_["1_60_0"].libName_ = ""
         return pack
     
+    def __boost_filesystem(self):
+        name = "boost_filesystem"
+        buildCmd = ""
+        boostLibs = "filesystem,system"
+        if Utils.isMac():
+            #print "here"
+            setUpDir = os.path.dirname(os.path.abspath(__file__))
+            gccJamLoc =  os.path.join(setUpDir, "scripts/etc/boost/gcc.jam")
+            gccJamOutLoc = "{build_sub_dir}/tools/build/src/tools/gcc.jam"
+            #print gccJamLoc
+            #print gccJamOutLoc
+            installNameToolCmd  = """ 
+            && install_name_tool -change $(otool -L {local_dir}/lib/libboost_filesystem.dylib | egrep -o "\\S.*libboost_system.dylib") {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_filesystem.dylib
+            && install_name_tool -id {local_dir}/lib/libboost_filesystem.dylib {local_dir}/lib/libboost_filesystem.dylib
+            && install_name_tool -id {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_system.dylib
+            """
+        if self.args.clang:
+            if Utils.isMac():
+                buildCmd = """./bootstrap.sh --with-toolset=clang --prefix={local_dir} --with-libraries=""" + boostLibs + """
+                  &&  ./b2  toolset=clang cxxflags=\"-stdlib=libc++ -std=c++14\" linkflags=\"-stdlib=libc++\" -j {num_cores} install 
+                  &&  install_name_tool -change libboost_system.dylib {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_filesystem.dylib
+                  """
+            else:
+                buildCmd = """ln -s $(for x in $(which -a {CC}); do echo $(realpath $x); done | egrep clang | head -1) clang && PATH=$(realpath .):$PATH && ln -s $(for x in $(which -a {CXX}); do echo $(realpath $x); done | egrep clang | head -1) clang++ && ./bootstrap.sh --with-toolset=clang --prefix={local_dir}  --with-libraries=""" + boostLibs + """ &&  ./b2 toolset=clang cxxflags=\"-std=c++14\" -j {num_cores} install && rm clang && rm clang++"""
+        elif "g++" in self.args.CXX:
+            if "-" in self.args.CXX:
+                gccVer = self.args.CXX[(self.args.CXX.find("-") + 1):]
+                if Utils.isMac():
+                    buildCmd = "cp " + gccJamLoc + "  " + gccJamOutLoc + """ && ./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
+                     && echo "using gcc : """ + str(gccVer) + """ : {CXX} : <linker-type>darwin ;" >> tools/build/src/user-config.jam
+                     && ./b2 --toolset=gcc-""" + str(gccVer) +  """ -j {num_cores} install 
+                     """ + installNameToolCmd
+                else:
+                    buildCmd = """./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
+                     && echo "using gcc : """ + str(gccVer) + """ : {CXX} ;" >> tools/build/src/user-config.jam
+                     && ./b2 --toolset=gcc-""" + str(gccVer) +  """ -j {num_cores} install 
+                     """
+            else:
+                if Utils.isMac():
+                    buildCmd = "cp " + gccJamLoc + "  " + gccJamOutLoc + """ && echo "using gcc :  : g++ : <linker-type>darwin ;" >> tools/build/src/user-config.jam
+                     && ./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
+                     && ./b2 --toolset=gcc -j {num_cores} install 
+                     """ + installNameToolCmd
+                else:
+                    buildCmd = """./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
+                     && ./b2 --toolset=gcc -j {num_cores} install 
+                     """
+        buildCmd = " ".join(buildCmd.split())
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "1_60_0")
+        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/boost_filesystem/boost_filesystem_1_60_0.tar.gz", "1_60_0")
+        pack.versions_["1_60_0"].additionalLdFlags_ = ["-lboost_system", "-lboost_filesystem"]
+        pack.versions_["1_60_0"].libName_ = ""
+        return pack
+    
     def getPackagesNames(self):
         return sorted(self.packages_.keys())
     
@@ -1250,6 +1305,7 @@ class Setup:
     def __initSetUpFuncs(self):
         self.setUps = {"zi_lib": self.zi_lib,
                        "boost": self.boost,
+                       "boost_filesystem": self.boost_filesystem,
                        "cppitertools": self.cppitertools,
                        "catch": self.catch,
                        "cppprogutils": self.cppprogutils,
@@ -1258,7 +1314,6 @@ class Setup:
                        "cppcms": self.cppcms,
                        "armadillo": self.armadillo,
                        "libpca": self.libpca,
-                       
                        "bibseq": self.bibseq,
                        "seekdeep": self.SeekDeep,
                        "bibcpp": self.bibcpp,
@@ -1698,6 +1753,9 @@ class Setup:
 
     def boost(self, version):
         self.__defaultBuild("boost", version)
+        
+    def boost_filesystem(self, version):
+        self.__defaultBuild("boost_filesystem", version)
 
     def r(self, version):
         package = "r"
