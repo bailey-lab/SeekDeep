@@ -224,34 +224,18 @@ class Packages():
     '''class to hold and setup all the necessary paths for 
     downloading, building, and then installing packages/libraries'''
     def __init__(self, externalLoc, args):
-        self.dirMaster_ = LibDirMaster(externalLoc); #top dir to hold tars,build, local directories
+        self.dirMaster_ = LibDirMaster(externalLoc); #top dir to hold tars, build, local directories
         self.args = args
         self.packages_ = {} #dictionary to hold path infos
-        self.packages_["zi_lib"] = self.__zi_lib()
-        self.packages_["pstreams"] = self.__pstreams()
-        self.packages_["cppitertools"] = self.__cppitertools()
-        self.packages_["cppprogutils"] = self.__cppprogutils()
         self.packages_["boost"] = self.__boost()
         self.packages_["boost_filesystem"] = self.__boost_filesystem()
         self.packages_["r"] = self.__r()
         self.packages_["cppcms"] = self.__cppcms()
-        self.packages_["bamtools"] = self.__bamtools()
-        self.packages_["jsoncpp"] = self.__jsoncpp()
         self.packages_["armadillo"] = self.__armadillo()
-        self.packages_["bibseq"] = self.__bibseq()
-        self.packages_["bibcpp"] = self.__bibcpp()
-        self.packages_["seekdeep"] = self.__SeekDeep()
-        self.packages_["bibseqdev"] = self.__bibseqDev()
-        self.packages_["seekdeepdev"] = self.__SeekDeepDev()
-        self.packages_["seqserver"] = self.__seqserver()
-        self.packages_["njhrinside"] = self.__njhRInside()
-        self.packages_["twobit"] = self.__twobit()
-        self.packages_["sharedmutex"] = self.__sharedMutex()
         self.packages_["dlib"] = self.__dlib()
         self.packages_["libsvm"] = self.__libsvm()
         self.packages_["mongoc"] = self.__mongoc()
         self.packages_["mongocxx"] = self.__mongocxx()
-        self.packages_["catch"] = self.__catch()
         self.packages_["mathgl"] = self.__mathgl()
         self.packages_["magic"] = self.__magic()
         self.packages_["zlib"] = self.__zlib()
@@ -261,10 +245,29 @@ class Packages():
         self.packages_["lastz"] = self.__lastz()
         self.packages_["samtools"] = self.__samtools()
         self.packages_["bcftools"] = self.__bcftools()
-        self.packages_["hts"] = self.__hts()
-        self.packages_["restbed"] = self.__restbed()
-        self.packages_["mipwrangler"] = self.__MIPWrangler()
         self.packages_["libpca"] = self.__libpca()
+        #git repos
+        self.packages_["bamtools"] = self.__bamtools()
+        self.packages_["jsoncpp"] = self.__jsoncpp()
+        self.packages_["catch"] = self.__catch()
+        self.packages_["hts"] = self.__hts()
+        self.packages_["zi_lib"] = self.__zi_lib()
+        self.packages_["pstreams"] = self.__pstreams()
+        self.packages_["cppitertools"] = self.__cppitertools()
+        self.packages_["cppprogutils"] = self.__cppprogutils()
+        self.packages_["restbed"] = self.__restbed()
+        #bib setup
+        self.packages_["bibseq"] = self.__bibseq()
+        self.packages_["bibcpp"] = self.__bibcpp()
+        self.packages_["seekdeep"] = self.__SeekDeep()
+        self.packages_["seqserver"] = self.__seqserver()
+        self.packages_["njhrinside"] = self.__njhRInside()
+        self.packages_["twobit"] = self.__twobit()
+        self.packages_["sharedmutex"] = self.__sharedMutex()
+        #developer
+        self.packages_["mipwrangler"] = self.__MIPWrangler()
+        self.packages_["bibseqdev"] = self.__bibseqDev()
+        self.packages_["seekdeepdev"] = self.__SeekDeepDev()
         '''
         
         self.packages_["mlpack"] = self.__mlpack()
@@ -275,7 +278,7 @@ class Packages():
         '''get package info if it exists'''
         if name in self.packages_:
             return self.packages_[name]
-        raise Exception(name + " not found in paths")
+        raise Exception(name + " not found in Packages")
 
     def __zi_lib(self):
         name = "zi_lib"
@@ -1176,7 +1179,7 @@ class Packages():
                 f.write("\n")
                 f.write("#Default CXXFLAGS\n")
                 f.write("COMLIBS += " + self.getDefaultIncludeFlags() + "\n")
-                dLdFlags = self.getDefaultLDFlags( )
+                dLdFlags = self.getDefaultLDFlags()
                 if "" != dLdFlags:
                     f.write("#Default LDFLAGS\n")
                     f.write("LD_FLAGS += " + dLdFlags + "\n")
@@ -1223,8 +1226,6 @@ class Packages():
             return True
         else:
             return False
-    
-
     
     def getDefaultIncludeFlags(self):
         return "-I./src/"

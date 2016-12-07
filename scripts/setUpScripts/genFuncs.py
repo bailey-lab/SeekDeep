@@ -7,10 +7,13 @@ from utils import Utils
 class genHelper:
     @staticmethod
     def generateCompfileFull(outFileName, externalDirLoc, cc, cxx, outName, installDirName, installDirLoc, neededLibs,ldFlags = "", cxxFlags = ""):
-        availableLibs = ["CPPITERTOOLS","CPPPROGUTILS","ZI_LIB","BOOST","R","BAMTOOLS","CPPCMS","MATHGL","ARMADILLO",
-                         "MLPACK","LIBLINEAR","CURL","GTKMM", "BIBSEQ", "BIBCPP", "SEEKDEEP", 
+        availableLibs = ["CPPITERTOOLS","CPPPROGUTILS","ZI_LIB","BOOST",
+                         "R","BAMTOOLS","CPPCMS","MATHGL","ARMADILLO",
+                         "MLPACK","LIBLINEAR","CURL","GTKMM", "BIBSEQ",
+                          "BIBCPP", "SEEKDEEP", 
                          "BIBSEQDEV", "SEEKDEEPDEV", "CATCH", "JSONCPP",
-                          "TWOBIT", "SEQSERVER","NJHRINSIDE", "PSTREAMS", "MONGOC", "MONGOCXX", "SHAREDMUTEX",
+                          "TWOBIT", "SEQSERVER","NJHRINSIDE", "PSTREAMS",
+                           "MONGOC", "MONGOCXX", "SHAREDMUTEX",
                            "MAGIC", "HTS", "RESTBED", "LIBPCA", "BOOST_FILESYSTEM"]
         neededLibraries = {}
         for lib in neededLibs:
@@ -19,10 +22,7 @@ class genHelper:
                 neededLibraries[libSplit[0].upper()] = libSplit[1]
             else:
                 neededLibraries[lib.upper()] = ""
-        """
-            @todo: Make some of these default to an envirnment CC and CXX and maybe even CXXFLAGS as well 
-            @todo: Make availableLibs a more universal constant
-        """
+
         with open(outFileName, "w") as f:
             f.write("CC = {CC}\n".format(CC = cc))
             f.write("CXX = {CXX}\n".format(CXX = cxx))
@@ -51,8 +51,8 @@ class genHelper:
                         f.write("USE_{LIB} = 1\n".format(LIB = lib))
                     else:
                         f.write("USE_{LIB} = 1#{BRANCH}\n".format(LIB = lib, BRANCH = neededLibraries[lib]))
-                else:
-                    f.write("USE_{LIB} = 0\n".format(LIB = lib))
+                #else:
+                #    f.write("USE_{LIB} = 0\n".format(LIB = lib))
                     
 
 
