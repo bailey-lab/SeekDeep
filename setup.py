@@ -772,7 +772,18 @@ class Packages():
             refs = pack.getGitRefs(url)
             for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
                 pack.addVersion(url, ref)
-                pack.versions_[ref].additionalLdFlags_ = ["-lcurl"]
+                needCurl = False
+                if not ref.startswith("v"):
+                    needCurl = True
+                else:
+                    major = int(ref[1]);
+                    minor = int(ref[3]);
+                    patch = int(ref[5]);
+                    if not major >= 3 and not (major == 2 and minor > 4):
+                        needCurl = True
+                if needCurl:
+                    pack.versions_[ref].additionalLdFlags_ = ["-lcurl"]
+                
             Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
                 pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
@@ -798,7 +809,7 @@ class Packages():
                 refs = pack.getGitRefs(url)
                 for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
                     pack.addVersion(url, ref)
-                    pack.versions_[ref].additionalLdFlags_ = ["-lcurl"]
+                    #pack.versions_[ref].additionalLdFlags_ = ["-lcurl"]
                 Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
                 with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
                     pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
