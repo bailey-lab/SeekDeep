@@ -16,7 +16,7 @@ http://baileylab.umassmed.edu/SeekDeep/
 ```bash
 git clone https://github.com/bailey-lab/SeekDeep.git   
 cd SeekDeep  
-git checkout v2.4.0
+git checkout v2.5.0
 ./configure.py  
 ./setup.py --compfile compfile.mk --outMakefile makefile-common.mk
 make   

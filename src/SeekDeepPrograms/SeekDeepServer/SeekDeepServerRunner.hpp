@@ -1,3 +1,11 @@
+#pragma once
+//
+
+//  ServerRunner.hpp
+//
+//  Created by Nick Hathaway on 2015/06/24.
+//  Copyright (c) 2015 Nick Hathaway. All rights reserved.
+//
 //
 // SeekDeep - A library for analyzing amplicon sequence data
 // Copyright (C) 2012-2016 Nicholas Hathaway <nicholas.hathaway@umassmed.edu>,
@@ -19,28 +27,20 @@
 // along with SeekDeep.  If not, see <http://www.gnu.org/licenses/>.
 //
 //
-//  main.cpp
-//  SeekDeep
-//
-//  Created by Nicholas Hathaway on 8/11/13.
-//  Copyright (c) 2013 Nicholas Hathaway. All rights reserved.
-//
-#include "SeekDeepRunner.hpp"
+#include "SeekDeepServerSetUp.hpp"
+#include "SeekDeep/server.h"
 
 
 namespace bibseq {
 
-int SeekDeepRunner::makeSampleDirectories(const bib::progutils::CmdArgs & inputCommands) {
-	SeekDeepSetUp setUp(inputCommands);
-	std::string sampleNameFilename = "";
-	bool separatedDirs = false;
-	setUp.setOption(separatedDirs, "--separatedDirs",
-			"Create a separate directory for each index");
-	setUp.setUpMakeSampleDirectories(sampleNameFilename);
-	setUpSampleDirs(sampleNameFilename, setUp.pars_.directoryName_, separatedDirs);
-	setUp.startARunLog(setUp.pars_.directoryName_);
-	setUp.logRunTime(std::cout);
-	return 0;
-}
+class SeekDeepServerRunner : public bib::progutils::programRunner {
+ public:
+  SeekDeepServerRunner();
+  
+  static int genProjectConfig(const bib::progutils::CmdArgs & inputCommands);
+  static int popClusteringViewer(const bib::progutils::CmdArgs & inputCommands);
 
-}  // namespace bib
+
+};
+
+} // namespace bibseq

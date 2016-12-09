@@ -31,7 +31,7 @@
 
 
 #include <bibcpp.h>
-#include "SeekDeep/programs/SeekDeepProgram/SeekDeepSetUp.hpp"
+#include "SeekDeepPrograms/SeekDeepProgram/SeekDeepSetUp.hpp"
 
 namespace bibseq {
 

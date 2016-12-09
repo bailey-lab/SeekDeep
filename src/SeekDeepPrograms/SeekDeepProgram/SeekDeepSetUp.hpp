@@ -1,10 +1,10 @@
 #pragma once
 //
-
-//  SeekDeepUtils.h
+//  SeekDeepSetUp.hpp
+//  sequenceTools
 //
-//  Created by Nick Hathaway on 2015/06/24.
-//  Copyright (c) 2015 Nick Hathaway. All rights reserved.
+//  Created by Nicholas Hathaway on 10/24/13.
+//  Copyright (c) 2013 Nicholas Hathaway. All rights reserved.
 //
 //
 // SeekDeep - A library for analyzing amplicon sequence data
@@ -27,5 +27,26 @@
 // along with SeekDeep.  If not, see <http://www.gnu.org/licenses/>.
 //
 //
-#include "SeekDeep/programs/SeekDeepUtils/SeekDeepUtilsSetUp.hpp"
-#include "SeekDeep/programs/SeekDeepUtils/SeekDeepUtilsRunner.hpp"
+#include <bibseq.h>
+#include <bibseq/programUtils/seqSetUp.hpp>
+
+#include "SeekDeep.h"
+
+namespace bibseq {
+
+
+
+class SeekDeepSetUp : public seqSetUp {
+
+ public:
+	using seqSetUp::seqSetUp;
+
+	void setUpExtractor(extractorPars & pars);
+	void setUpClusterDown(clusterDownPars & pars);
+	void setUpMultipleSampleCluster(processClustersPars & pars);
+	void setUpMakeSampleDirectories(makeSampleDirectoriesPars & pars);
+
+};
+}  // namespace bibseq
+
+

@@ -222,10 +222,14 @@ void SeekDeepSetUp::setUpExtractor(extractorPars & pars) {
 		setOption(pars.primerLen, "-len,-primerLen", "PrimerLen");
 	}
 
-	setOption(pars.barcodesBothEnds, "-barcodeBothEnds",
+	setOption(pars.mDetPars.barcodesBothEnds_, "-barcodeBothEnds",
 			"Look for Barcodes in Both Primers");
+	setOption(pars.midEndsRevComp, "--midEndsRevComp",
+			"Barcodes on both ends are in the reverse complement of each other");
+	setOption(pars.mDetPars.checkForShorten_, "-checkShortenBars",
+			"Check for shorten Barcodes if the first base may have been trimmed off");
 
-	pars.variableStart = setOption(pars.variableStop, "-variableStart",
+	setOption(pars.mDetPars.variableStop_, "-variableStart",
 			"variableStart");
 	if (setOption(pars.qualCheck, "-qualCheck", "Qual Check Level")) {
 		pars.checkingQCheck = true;
@@ -233,6 +237,10 @@ void SeekDeepSetUp::setUpExtractor(extractorPars & pars) {
 	if (setOption(pars.qualCheckCutOff, "-qualCheckCutOff",
 			"Cut Off for fraction of bases above qual check of "
 					+ estd::to_string(pars.qualCheck))) {
+		pars.checkingQCheck = true;
+	}
+	setOption(pars.illumina, "--illumina", "If input reads are from Illumina");
+	if(pars.illumina){
 		pars.checkingQCheck = true;
 	}
 	processDefaultReader(true);
@@ -249,7 +257,7 @@ void SeekDeepSetUp::setUpExtractor(extractorPars & pars) {
 	// unknown primers and ids
 	setOption(pars.multiplex, "-multiplex",
 			"Indicates that the Reads are multiplex barcoded");
-	setOption(pars.checkComplement, "-checkComplement",
+	setOption(pars.mDetPars.checkComplement_, "-checkComplement",
 			"Check the Complement of the Seqs As Well");
 	// setOption(within, "-within");
 
@@ -732,12 +740,10 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 	setOption(pars.recheckChimeras, "--recheckChimeras",
 			"Re Check chimeras after replicate comparison");
 	setOption(pars.eventBasedRef, "-eventBasedRef", "Do Event Based Ref Count");
-	setOption(pars.grayScale, "-gray", "grayScale");
-	setOption(pars.sat, "-sat", "sat");
-	setOption(pars.lum, "-lum", "lum");
 	setOption(pars.customCutOffs, "--custumCutOffs",
 			"Two Column Table, first column is sample name, second is a custom frac cut off, if sample not found will default to -fracCutOff");
 	setOption(pars.previousPopFilename, "-previousPop", "previousPopFilename");
+	processComparison(pars.previousPopErrors, "previousPop");
 	setOption(pars.groupingsFile, "--groupingsFile",
 			"A file to sort samples into different groups");
 	setOption(pars.investigateChimeras, "--investigateChimeras",
@@ -747,6 +753,7 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 	pars_.colOpts_.verboseOpts_.verbose_ = pars_.verbose_;
 	pars_.colOpts_.verboseOpts_.debug_ = pars_.debug_;
 	setOption(pars.onPerId, "-onPerId", "Cluster on Percent Identity Instead");
+	processSkipOnNucComp();
 	// input file info
 	pars_.ioOptions_.lowerCaseBases_ = "upper";
 	pars_.ioOptions_.processed_ = true;
@@ -756,7 +763,13 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 	setOption(noErrorsSet, "--noErrors", "Parameters with no errors");
 	bool strictErrorsSet = false;
 	setOption(strictErrorsSet, "--strictErrors", "Parameters with a several low quality mismatches");
-	setOption(pars.parameters, "-par", "ParametersFileName", !noErrorsSet && !strictErrorsSet);
+	bool strictErrorsSetHq1 = false;
+	setOption(strictErrorsSetHq1, "--strictErrors-hq1", "Parameters with a several low quality mismatches and 1 high quality mismatch");
+
+	uint32_t hqMismatches = 0;
+	setOption(hqMismatches, "--hq", "Number of high quality mismatches to allow");
+
+	setOption(pars.parameters, "-par", "ParametersFileName", !noErrorsSet && !strictErrorsSet && !strictErrorsSetHq1);
 
 	setOption(pars.binParameters, "-binPar", "bin Parameters Filename");
 
@@ -775,6 +788,7 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 	processRefFilename();
 	setOption(pars.noPopulation, "-noPopulation",
 			"Don't do Population Clustering");
+
 	setOption(pars.fracCutoff, "-fracCutOff",
 			"PopulationClusteringFractionCutoff");
 	pars.differentPar = setOption(pars.parametersPopulation, "-popPar",
@@ -782,6 +796,8 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 	setOption(pars_.chiOpts_.checkChimeras_, "-markChimeras", "MarkChimeras");
 	setOption(pars.keepChimeras, "-keepChimeras", "KeepChimeras");
 	setOption(pars_.chiOpts_.parentFreqs_, "-parFreqs", "ParentFrequence_multiplier_cutoff");
+
+	setOption(pars.numThreads, "--numThreads", "Number of threads to use");
 
 	setOption(pars.plotRepAgreement, "-plotRepAgreement", "Plot Rep Agreement");
 	processAlignerDefualts();
@@ -802,7 +818,14 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 		}else if(noErrorsSet){
 			pars.iteratorMap = CollapseIterations::genStrictNoErrorsDefaultPars(100);
 		}else if(strictErrorsSet){
-			pars.iteratorMap = CollapseIterations::genStrictDefaultPars(100);
+			if (hqMismatches > 0) {
+				pars.iteratorMap = CollapseIterations::genStrictDefaultParsWithHqs(100,
+						hqMismatches);
+			} else {
+				pars.iteratorMap = CollapseIterations::genStrictDefaultPars(100);
+			}
+		} else if (strictErrorsSetHq1) {
+			pars.iteratorMap = CollapseIterations::genStrictDefaultParsHq1(100);
 		}
 
 		if (pars.binParameters != "") {
@@ -827,7 +850,7 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 }
 
 void SeekDeepSetUp::setUpMakeSampleDirectories(
-		std::string& sampleNameFilename) {
+		makeSampleDirectoriesPars & pars) {
 	if (needsHelp()) {
 		std::stringstream tempStream;
 		tempStream << "makeSampleDirectoires" << std::endl;
@@ -874,8 +897,11 @@ void SeekDeepSetUp::setUpMakeSampleDirectories(
 				"names.tab.txt -dout clustering" << std::endl;
 		exit(0);
 	}
-	setOption(sampleNameFilename, "-file", "SampleNamesFileName", true);
-	setOption(pars_.directoryName_, "-dout", "MainOutDirectoryName", true);
+	processVerbose();
+	setOption(pars.separatedDirs, "--separatedDirs",
+				"Create a separate directory for each index");
+	setOption(pars.sampleNameFilename, "--file", "Sample Names Filename", true);
+	setOption(pars_.directoryName_, "-dout", "Main Out Directory Name", true);
 	setOption(pars_.overWriteDir_, "--overWriteDir",
 			"If the directory already exists over write it");
 	if (!failed_) {

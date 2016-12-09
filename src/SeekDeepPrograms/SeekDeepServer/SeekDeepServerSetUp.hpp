@@ -1,10 +1,11 @@
 #pragma once
-/*
- * programs.h
- *
- *  Created on: Jan 28, 2015
- *      Author: nickhathaway
- */
+//
+
+//  ServerRunnerSetUp.hpp
+//
+//  Created by Nick Hathaway on 2015/06/24.
+//  Copyright (c) 2015 Nick Hathaway. All rights reserved.
+//
 //
 // SeekDeep - A library for analyzing amplicon sequence data
 // Copyright (C) 2012-2016 Nicholas Hathaway <nicholas.hathaway@umassmed.edu>,
@@ -26,4 +27,16 @@
 // along with SeekDeep.  If not, see <http://www.gnu.org/licenses/>.
 //
 //
-#include "SeekDeep/programs/SeekDeepProgram.h"
+#include <bibseq.h>
+#include <bibseq/programUtils/seqSetUp.hpp>
+#include <bibcpp.h>
+namespace bibseq {
+
+class SeekDeepServerSetUp : public seqSetUp {
+
+ public:
+    using seqSetUp::seqSetUp;
+};
+} // namespace bibseq
+
+

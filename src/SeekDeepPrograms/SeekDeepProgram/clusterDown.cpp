@@ -133,7 +133,8 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 	KmerMaps kMaps = indexKmers(clusters, setUp.pars_.colOpts_.kmerOpts_.kLength_, setUp.pars_.colOpts_.kmerOpts_.runCutOff_,
 			setUp.pars_.colOpts_.kmerOpts_.kmersByPosition_, setUp.pars_.expandKmerPos_, setUp.pars_.expandKmerSize_);
 	// create aligner class object
-	aligner alignerObj = aligner(maxSize, setUp.pars_.gapInfo_, setUp.pars_.scoring_, kMaps,
+	aligner alignerObj(maxSize,
+			setUp.pars_.gapInfo_, setUp.pars_.scoring_, kMaps,
 			setUp.pars_.qScorePars_,
 			setUp.pars_.colOpts_.alignOpts_.countEndGaps_,
 			setUp.pars_.colOpts_.iTOpts_.weighHomopolyer_);
@@ -281,8 +282,8 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 				"outputInfo");
 	} else {
 		profiler::getFractionInfoCluster(clusters, setUp.pars_.directoryName_,
-				"outputInfo", setUp.pars_.refIoOptions_.firstName_, alignerObj, setUp.pars_.local_,
-				true);
+				"outputInfo", setUp.pars_.refIoOptions_.firstName_, alignerObj,
+				setUp.pars_.local_);
 	}
 	std::ofstream startingInfo;
 	openTextFile(startingInfo, setUp.pars_.directoryName_ + "startingInfo.txt", ".txt",

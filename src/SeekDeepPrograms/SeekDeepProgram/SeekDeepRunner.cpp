@@ -1,10 +1,3 @@
-#pragma once
-/*
- * server.hpp
- *
- *  Created on: Jun 24, 2015
- *      Author: nick
- */
 //
 // SeekDeep - A library for analyzing amplicon sequence data
 // Copyright (C) 2012-2016 Nicholas Hathaway <nicholas.hathaway@umassmed.edu>,
@@ -26,12 +19,33 @@
 // along with SeekDeep.  If not, see <http://www.gnu.org/licenses/>.
 //
 //
+//  main.cpp
+//  SeekDeep
+//
+//  Created by Nicholas Hathaway on 8/11/13.
+//  Copyright (c) 2013 Nicholas Hathaway. All rights reserved.
+//
+#include "SeekDeepRunner.hpp"
+#include <bibcpp.h>
+#include <SeekDeepPrograms/SeekDeepServerRunner.h>
+#include "SeekDeepPrograms/SeekDeepUtils.h"
+
+namespace bibseq {
+
+SeekDeepRunner::SeekDeepRunner() :
+		bib::progutils::oneRing(
+				{ addRing<SeekDeepUtilsRunner>(),
+					addRing<SeekDeepServerRunner>()
+				},
+				{
+						addFunc("extractor", extractor, false),
+						addFunc("processClusters", processClusters,false),
+						addFunc("qluster", qluster, false),
+						addFunc("clusterDown",qluster, true),
+						addFunc("makeSampleDirectories", makeSampleDirectories, false)
+				}, "SeekDeep", "2", "5", "0-dev") {
+}
 
 
-#include "SeekDeep/server/PopClusProject.hpp"
-#include "SeekDeep/server/pcv.hpp"
 
-
-
-
-
+}  // namespace bibseq

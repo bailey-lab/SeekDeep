@@ -67,12 +67,21 @@ int SeekDeepRunner::processClusters(const bib::progutils::CmdArgs & inputCommand
 	// start a run log
 	setUp.startARunLog(setUp.pars_.directoryName_);
 	// parameters file
-	setUp.writeParametersFile(setUp.pars_.directoryName_ + "parametersUsed.txt", false,
-			false);
+	setUp.writeParametersFile(setUp.pars_.directoryName_ + "parametersUsed.txt",
+			false, false);
+	//write clustering parameters
+	auto parsDir = bib::files::makeDir(setUp.pars_.directoryName_, bib::files::MkdirPar("pars"));
+	std::ofstream parsOutFile;
+	openTextFile(parsOutFile, OutOptions(bib::files::make_path(parsDir, "pars.tab.txt").string()));
+	pars.iteratorMap.writePars(parsOutFile);
+	std::ofstream popParsOutFile;
+	openTextFile(popParsOutFile, OutOptions(bib::files::make_path(parsDir, "popPars.tab.txt").string()));
+	pars.popIteratorMap.writePars(popParsOutFile);
+
+
 	//process custom cut offs
 	std::map<std::string, double> customCutOffsMap = processCustomCutOffs(pars.customCutOffs);
 	//read in the files in the corresponding sample directories
-
 	auto analysisFiles = bib::files::listAllFiles(pars.masterDir, true,
 			{ std::regex { "^" + setUp.pars_.ioOptions_.firstName_ + "$" } }, 3);
 
@@ -123,41 +132,80 @@ int SeekDeepRunner::processClusters(const bib::progutils::CmdArgs & inputCommand
 			setUp.pars_.qScorePars_, setUp.pars_.colOpts_.alignOpts_.countEndGaps_,
 			setUp.pars_.colOpts_.iTOpts_.weighHomopolyer_);
 	alignerObj.processAlnInfoInput(setUp.pars_.alnInfoDirName_);
+
+
+
 	// create collapserObj used for clustering
 	collapser collapserObj(setUp.pars_.colOpts_);
 	collapserObj.opts_.kmerOpts_.checkKmers_ = false;
 	// output info about the read In reads
 
 	collapse::SampleCollapseCollection sampColl(setUp.pars_.ioOptions_, pars.masterDir,
-			setUp.pars_.directoryName_, PopNamesInfo(pars.experimentName,samplesDirs),  pars.clusterCutOff);
+			setUp.pars_.directoryName_,
+			PopNamesInfo(pars.experimentName, samplesDirs),
+			pars.clusterCutOff);
 
 	if("" != pars.groupingsFile){
 		sampColl.addGroupMetaData(pars.groupingsFile);
 	}
 
-	for (const auto & samp : samplesDirs) {
-		if(setUp.pars_.verbose_){
-			std::cout << "Starting: " << samp << std::endl;
+	{
+		bib::concurrent::LockableQueue<std::string> sampleQueue(samplesDirs);
+		bibseq::concurrent::AlignerPool alnPool(alignerObj, pars.numThreads);
+		alnPool.initAligners();
+		alnPool.outAlnDir_ = setUp.pars_.outAlnInfoDirName_;
+
+		auto setupClusterSamples = [&sampleQueue, &alnPool,&collapserObj,&pars, &setUp,&expectedSeqs,&sampColl](){
+			std::string samp = "";
+			auto currentAligner = alnPool.popAligner();
+			while(sampleQueue.getVal(samp)){
+				if(setUp.pars_.verbose_){
+					std::cout << "Starting: " << samp << std::endl;
+				}
+
+				sampColl.setUpSample(samp, *currentAligner, collapserObj, setUp.pars_.chiOpts_);
+				sampColl.clusterSample(samp, *currentAligner, collapserObj, pars.iteratorMap);
+
+				//exclude clusters that don't have the necessary replicate number
+				//defaults to the number of input replicates if none supplied
+				if (0 != pars.runsRequired) {
+					sampColl.sampleCollapses_.at(samp)->excludeBySampNum(pars.runsRequired, false);
+				} else {
+					sampColl.sampleCollapses_.at(samp)->excludeBySampNum(
+							sampColl.sampleCollapses_.at(samp)->input_.info_.infos_.size(), false);
+				}
+
+				if (!expectedSeqs.empty()) {
+					sampColl.sampleCollapses_.at(samp)->collapsed_.checkAgainstExpected(
+							expectedSeqs, *currentAligner, false);
+					for(const auto & clus : sampColl.sampleCollapses_.at(samp)->collapsed_.clusters_){
+						if("" ==  clus.expectsString ){
+							std::stringstream ss;
+							ss << __PRETTY_FUNCTION__ << ": Error, expects string is blank" << std::endl;
+							ss << clus.seqBase_.name_ << std::endl;
+							throw std::runtime_error{ss.str()};
+						}
+					}
+				}
+
+				sampColl.dumpSample(samp);
+
+				if(setUp.pars_.verbose_){
+					std::cout << "Ending: " << samp << std::endl;
+				}
+			}
+		};
+		std::vector<std::thread> threads;
+		for(uint32_t t = 0; t < pars.numThreads; ++t){
+			threads.emplace_back(std::thread(setupClusterSamples));
 		}
-		sampColl.setUpSample(samp, alignerObj, collapserObj, setUp.pars_.chiOpts_);
-		sampColl.clusterSample(samp, alignerObj, collapserObj, pars.iteratorMap);
-		//exclude clusters that don't have the necessary replicate number
-		//defaults to the number of input replicates if none supplied
-		if (0 != pars.runsRequired) {
-			sampColl.sampleCollapses_[samp]->excludeBySampNum(pars.runsRequired, false);
-		} else {
-			sampColl.sampleCollapses_[samp]->excludeBySampNum(
-					sampColl.sampleCollapses_[samp]->input_.info_.infos_.size(), false);
-		}
-		if (!expectedSeqs.empty()) {
-			sampColl.sampleCollapses_[samp]->collapsed_.checkAgainstExpected(
-					expectedSeqs, alignerObj, false, false);
-		}
-		sampColl.dumpSample(samp);
-		if(setUp.pars_.verbose_){
-			std::cout << "Ending: " << samp << std::endl;
+		for(auto & t : threads){
+			t.join();
 		}
 	}
+
+	//read in the dump alignment cache
+	alignerObj.processAlnInfoInput(setUp.pars_.alnInfoDirName_);
 
 	if (pars.investigateChimeras) {
 		sampColl.investigateChimeras(pars.chiCutOff, alignerObj);
@@ -165,7 +213,9 @@ int SeekDeepRunner::processClusters(const bib::progutils::CmdArgs & inputCommand
 
 	//exclude
 	for(const auto & sampleName : samplesDirs){
+
 		sampColl.setUpSampleFromPrevious(sampleName);
+
 		if (!pars.keepChimeras) {
 			//now exclude all marked chimeras, currently this will also remark chimeras unnecessarily
 			sampColl.sampleCollapses_[sampleName]->excludeChimeras(false, pars.chiCutOff);
@@ -188,11 +238,15 @@ int SeekDeepRunner::processClusters(const bib::progutils::CmdArgs & inputCommand
 	if(setUp.pars_.verbose_){
 		std::cout << bib::bashCT::boldGreen("Pop Clustering") << std::endl;
 	}
-	sampColl.doPopulationClustering(sampColl.createPopInput(),
-			alignerObj, collapserObj, pars.popIteratorMap);
-
-	if ("" != pars.previousPopFilename) {
-		sampColl.renamePopWithSeqs(getSeqs<readObject>(pars.previousPopFilename));
+	if(!pars.noPopulation){
+		sampColl.doPopulationClustering(sampColl.createPopInput(),
+				alignerObj, collapserObj, pars.popIteratorMap);
+	}
+	if(setUp.pars_.verbose_){
+		std::cout << bib::bashCT::boldRed("Done Pop Clustering") << std::endl;
+	}
+	if ("" != pars.previousPopFilename && !pars.noPopulation) {
+		sampColl.renamePopWithSeqs(getSeqs<readObject>(pars.previousPopFilename), pars.previousPopErrors);
 	}
 
 	if (!expectedSeqs.empty()) {
@@ -205,11 +259,87 @@ int SeekDeepRunner::processClusters(const bib::progutils::CmdArgs & inputCommand
 
 	sampColl.symlinkInSampleFinals();
 	sampColl.outputRepAgreementInfo();
-	sampColl.dumpPopulation();
-
+	if(!pars.noPopulation){
+		sampColl.dumpPopulation();
+	}
 	if("" != pars.groupingsFile){
 		sampColl.createGroupInfoFiles();
 	}
+
+	sampColl.createCoreJsonFile();
+
+	//collect extraction dirs
+	std::set<bfs::path> extractionDirs;
+	for(const auto & file : analysisFiles){
+		auto metaDataJsonFnp = bib::files::make_path(file.first.parent_path(), "metaData.json");
+		if(bfs::exists(metaDataJsonFnp)){
+			auto metaJson = bib::json::parseFile(metaDataJsonFnp.string());
+			if(metaJson.isMember("extractionDir")){
+				extractionDirs.emplace(metaJson["extractionDir"].asString());
+			}
+		}
+	}
+	if(setUp.pars_.verbose_){
+		std::cout << "Extraction Dirs" << std::endl;
+		std::cout << bib::conToStr(extractionDirs, "\n") << std::endl;
+	}
+	table profileTab;
+	table statsTab;
+	for(const auto & extractDir : extractionDirs){
+		auto profileFnp = bib::files::make_path(extractDir, "extractionProfile.tab.txt");
+		auto statsFnp = bib::files::make_path(extractDir, "extractionStats.tab.txt");
+		if(bfs::exists(profileFnp)){
+			table currentProfileTab(profileFnp.string(), "\t", true);
+			auto minLenPos = getPositionsOfTargetStartsWith(currentProfileTab.columnNames_, "len<");
+			auto maxLenPos = getPositionsOfTargetStartsWith(currentProfileTab.columnNames_, "len>");
+			currentProfileTab.columnNames_[minLenPos.front()] = "minlen";
+			currentProfileTab.columnNames_[maxLenPos.front()] = "maxlen";
+			auto oldColumnNames = currentProfileTab.columnNames_;
+			currentProfileTab.addColumn(VecStr{extractDir.filename().string()}, "extractionDir");
+			currentProfileTab = currentProfileTab.getColumns(catenateVectors(VecStr{"extractionDir"}, oldColumnNames));
+
+			if(profileTab.empty()){
+				profileTab = currentProfileTab;
+			}else{
+				profileTab.rbind(currentProfileTab, false);
+			}
+		}
+		if(bfs::exists(statsFnp)){
+			table curentStatsTab(statsFnp.string(), "\t", true);
+			auto oldColumnNames = curentStatsTab.columnNames_;
+			curentStatsTab.addColumn(VecStr{extractDir.filename().string()}, "extractionDir");
+			curentStatsTab = curentStatsTab.getColumns(catenateVectors(VecStr{"extractionDir"}, oldColumnNames));
+			if(statsTab.empty()){
+				statsTab = curentStatsTab;
+			}else{
+				statsTab.rbind(curentStatsTab, false);
+			}
+		}
+	}
+
+	auto extractionOutputDir = bib::files::make_path(setUp.pars_.directoryName_,
+			"extractionInfo");
+	bib::files::makeDirP(bib::files::MkdirPar(extractionOutputDir.string()));
+	if (!profileTab.empty()) {
+		profileTab.sortTable("extractionDir", false);
+		auto profileTabOpts =
+				TableIOOpts::genTabFileOut(
+						bib::files::make_path(extractionOutputDir,
+								"extractionProfile.tab.txt").string(), true);
+		profileTabOpts.out_.overWriteFile_ = true;
+		profileTab.outPutContents(profileTabOpts);
+	}
+	if (!statsTab.empty()) {
+		auto statsTabOpts =
+				TableIOOpts::genTabFileOut(
+						bib::files::make_path(extractionOutputDir,
+								"extractionStats.tab.txt").string(), true);
+		statsTabOpts.out_.overWriteFile_ = true;
+		statsTab.sortTable("extractionDir", false);
+		statsTab.outPutContents(statsTabOpts);
+	}
+
+
 	alignerObj.processAlnInfoOutput(setUp.pars_.outAlnInfoDirName_,
 			setUp.pars_.verbose_);
 	setUp.rLog_ << alignerObj.numberOfAlingmentsDone_ << "\n";

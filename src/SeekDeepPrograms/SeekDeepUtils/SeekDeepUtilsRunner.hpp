@@ -1,3 +1,11 @@
+#pragma once
+//
+
+//  SeekDeepUtilsRunner.hpp
+//
+//  Created by Nick Hathaway on 2015/06/24.
+//  Copyright (c) 2015 Nick Hathaway. All rights reserved.
+//
 //
 // SeekDeep - A library for analyzing amplicon sequence data
 // Copyright (C) 2012-2016 Nicholas Hathaway <nicholas.hathaway@umassmed.edu>,
@@ -19,29 +27,21 @@
 // along with SeekDeep.  If not, see <http://www.gnu.org/licenses/>.
 //
 //
-//  main.cpp
-//  SeekDeep
-//
-//  Created by Nicholas Hathaway on 8/11/13.
-//  Copyright (c) 2013 Nicholas Hathaway. All rights reserved.
-//
-#include "SeekDeepRunner.hpp"
-#include <bibcpp.h>
-#include "SeekDeep/programs/SeekDeepUtils.h"
+#include "SeekDeepUtilsSetUp.hpp"
+#include "SeekDeep/server.h"
+#include "SeekDeep/objects.h"
 
 namespace bibseq {
 
-SeekDeepRunner::SeekDeepRunner() :
-		bib::progutils::oneRing( { addRing<SeekDeepUtilsRunner>() },
-				{
-						addFunc("extractor", extractor, false),
-						addFunc("processClusters", processClusters,false),
-						addFunc("qluster", qluster, false),
-						addFunc("clusterDown",qluster, true),
-						addFunc("makeSampleDirectories", makeSampleDirectories, false)
-				}, "SeekDeep", "2", "4", "0") {
-}
+class SeekDeepUtilsRunner : public bib::progutils::programRunner {
+ public:
+  SeekDeepUtilsRunner();
+  
+  static int dryRunQaulityFiltering(const bib::progutils::CmdArgs & inputCommands);
+	static int runMultipleCommands(const bib::progutils::CmdArgs & inputCommands);
 
+	static int setupPairedEndDir(const bib::progutils::CmdArgs & inputCommands);
 
+};
 
-}  // namespace bibseq
+} // namespace bibseq
