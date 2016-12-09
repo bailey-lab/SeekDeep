@@ -19,31 +19,36 @@
 // along with SeekDeep.  If not, see <http://www.gnu.org/licenses/>.
 //
 //
-function createProjectNavBarSkeleton(wrappingNavSelector, rName, projectName){
+function createProjectNavBarSkeleton(wrappingNavSelector, names){
+	//get rootName
+	var rName = getRootName();
+	var projectName = names["projectName"];
 	addFixedTopNavSkeleton(wrappingNavSelector, "SeekDeep", "mainNav", "projectNav");
  	addNavLink("#mainNav", "Home", "/" + rName, "#siteHomeLink");
 	addNavDrop("#mainNav", "Projects", "projectDrop");
 	addNavLink("#mainNav", projectName, "/" + rName + "/mainProjectPage/"+ projectName, "projectHomeLink", true);
-	addNavLink("#projectNav", "Extraction Info", "/" + rName + "/showExtractionInfo/" + projectName, "extractionLink");
+	addNavLink("#projectNav", "Extraction Info", "/" + rName + "/extractionInfo/" + projectName, "extractionLink");
 	addNavDrop("#projectNav", "Groups", "groupsDrop");
 	addNavDrop("#projectNav", "Samples", "samplesDrop");
 }
 
-function populateProjectNavBar(wrappingNavSelector, rName, projectName, groupName, sampName){
+//names should have fields should have at least projectName and possibly groupName,sampName
+//names should also have array fields projectNames, groupNames, sampNames
+function populateProjectNavBar(wrappingNavSelector, names){
+	//get rootName
+	var rName = getRootName();
    	//get project names
-	var projectsNames;
-	ajax("/" + rName + "/projectsNames", function(mn){ projectsNames = mn; });
+	var projectName = names["shortName"];
+	var projectsNames = names["projects"];
 	var projLinkPre = "/" + rName + "/mainProjectPage/";
-	
 	//get group names
-	var groupNames;
-	ajax("/" + rName + "/getGroupNames/" + projectName, function(gn){ groupNames = gn; });
-    var linkPreGroup = "/" + rName + "/showSubGroupsPage/" + projectName + "/";
+	var groupName = (names.hasOwnProperty("groupName")) ?   names["groupName"] : "";
+	var groupNames = names["groups"];
+    var linkPreGroup = "/" + rName + "/groupInfoPage/" + projectName + "/";
 	//get sample names
-	var sampNames;
-	ajax("/" + rName + "/sampleNames/" + projectName, function(mn){ sampNames = mn; });
-
-    var linkPreSample = "/" + rName + "/individualSamplePage/" + projectName + "/";
+    var sampName = (names.hasOwnProperty("sampleName")) ?   names["sampleName"] : "";
+	var sampNames = names["samples"];
+    var linkPreSample = "/" + rName + "/sampleMainPage/" + projectName + "/";
 	
     d3.select("#projectDrop")
 		.selectAll("li")
@@ -95,24 +100,23 @@ function populateProjectNavBar(wrappingNavSelector, rName, projectName, groupNam
 }
 
 
-function createProjectNavBar(wrappingNavSelector, rName, projectName, groupName, sampName){
-	createProjectNavBarSkeleton(wrappingNavSelector, rName, projectName);
-	populateProjectNavBar(wrappingNavSelector, rName, projectName, groupName, sampName);
+function createProjectNavBar(wrappingNavSelector, names){
+	createProjectNavBarSkeleton(wrappingNavSelector, names);
+	populateProjectNavBar(wrappingNavSelector, names);
 }
 
 
-function createMainPageNavBarSkeleton(wrappingNavSelector, rName){
+
+function createMainPageNavBarSkeleton(wrappingNavSelector){
+	var rName = getRootName();
 	addFixedTopNavSkeleton(wrappingNavSelector, "SeekDeep", "mainNav", "projectNav");
  	addNavLink("#mainNav", "Home", "/" + rName, "#siteHomeLink");
 	addNavDrop("#mainNav", "Projects", "projectDrop");
 }
 
-function populateMainPageNavBar(wrappingNavSelector, rName){
-   	//get project names
-	var projectsNames;
-	ajax("/" + rName + "/projectsNames", function(mn){ projectsNames = mn; });
+function populateMainPageNavBar(wrappingNavSelector, projectsNames){
+	var rName = getRootName();
 	var projLinkPre = "/" + rName + "/mainProjectPage/";
-
     d3.select("#projectDrop")
 		.selectAll("li")
 		.data(projectsNames)
@@ -124,8 +128,18 @@ function populateMainPageNavBar(wrappingNavSelector, rName){
 }
 
 
-function createMainPageNavBar(wrappingNavSelector, rName){
-	createMainPageNavBarSkeleton(wrappingNavSelector, rName);
-	populateMainPageNavBar(wrappingNavSelector, rName);
+function createMainPageNavBar(wrappingNavSelector, projectsNames){
+	createMainPageNavBarSkeleton(wrappingNavSelector);
+	populateMainPageNavBar(wrappingNavSelector, projectsNames);
 }
+
+function getNameUrls(projectName){
+	var rName = getRootName();
+	var infoUrls = ["/" + rName + "/projectsNames/"];
+	infoUrls.push("/" + rName + "/projectName/" + projectName);
+	infoUrls.push("/" + rName + "/sampleNames/" + projectName);
+	infoUrls.push("/" + rName + "/getGroupNames/" + projectName)
+	return infoUrls;
+}
+
 
