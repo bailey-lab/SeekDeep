@@ -2008,14 +2008,7 @@ def parse_args():
 
 def runSetup():
     args = parse_args()
-
-    Packages.getPackagesInMakefileCommon(args.outMakefile)
-    
-    sys.exit()
-
     s = Setup(args)
-    
-
     s.externalChecks()
     if(args.instRPackageName):
         s.installRPackageName(args.instRPackageName[0], s.packages_["r"].defaultVersion_)
