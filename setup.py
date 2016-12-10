@@ -231,7 +231,7 @@ class Packages():
             self.packages_["boost"] = self.__boost()
         if "boost_filesystem" in libsNeeded:
             self.packages_["boost_filesystem"] = self.__boost_filesystem()
-        if "boost_filesystem" in libsNeeded:
+        if "r" in libsNeeded:
             self.packages_["r"] = self.__r()
         if "cppcms" in libsNeeded:
             self.packages_["cppcms"] = self.__cppcms()
