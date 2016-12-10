@@ -260,7 +260,7 @@ class Packages():
         self.packages_["bibseq"] = self.__bibseq()
         self.packages_["bibcpp"] = self.__bibcpp()
         self.packages_["seekdeep"] = self.__SeekDeep()
-        self.packages_["experimental"] = self.__experimental()
+        self.packages_["elucidator"] = self.__elucidator()
         self.packages_["seqserver"] = self.__seqserver()
         self.packages_["njhrinside"] = self.__njhRInside()
         self.packages_["twobit"] = self.__twobit()
@@ -860,9 +860,9 @@ class Packages():
                 pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
         return pack
     
-    def __experimental(self):
-        url = "git@github.com:nickjhathaway/experimental.git"
-        name = "experimental"
+    def __elucidator(self):
+        url = "git@github.com:nickjhathaway/elucidator.git"
+        name = "elucidator"
         buildCmd = self.__bibProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v2.3.3")
         pack.bibProject_ = True
@@ -1299,7 +1299,7 @@ class Setup:
                        "seekdeep": self.SeekDeep,
                        "bibcpp": self.bibcpp,
                        "seqserver": self.seqserver,
-                       "experimental": self.experimental,
+                       "elucidator": self.elucidator,
                        "njhrinside": self.njhRInside,
                        "jsoncpp": self.jsoncpp,
                        "pstreams": self.pstreams,
@@ -1790,8 +1790,8 @@ class Setup:
     def seqserver(self, version):
         self.__defaultBibBuild("seqserver", version)
     
-    def experimental(self, version):
-        self.__defaultBibBuild("experimental", version)
+    def elucidator(self, version):
+        self.__defaultBibBuild("elucidator", version)
         
     def MIPWrangler(self, version):
         self.__defaultBibBuild("mipwrangler", version)
