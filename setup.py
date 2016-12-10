@@ -1051,33 +1051,33 @@ class Packages():
         if self.args.clang:
             if Utils.isMac():
                 buildCmd = """./bootstrap.sh --with-toolset=clang --prefix={local_dir} --with-libraries=""" + boostLibs + """
-                  &&  ./b2  toolset=clang cxxflags=\"-stdlib=libc++ -std=c++14\" linkflags=\"-stdlib=libc++\" -j {num_cores} install 
+                  &&  ./b2 -d 0  toolset=clang cxxflags=\"-stdlib=libc++ -std=c++14\" linkflags=\"-stdlib=libc++\" -j {num_cores} install 
                   &&  install_name_tool -change libboost_system.dylib {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_filesystem.dylib
                   """
             else:
-                buildCmd = """ln -s $(for x in $(which -a {CC}); do echo $(realpath $x); done | egrep clang | head -1) clang && PATH=$(realpath .):$PATH && ln -s $(for x in $(which -a {CXX}); do echo $(realpath $x); done | egrep clang | head -1) clang++ && ./bootstrap.sh --with-toolset=clang --prefix={local_dir}  --with-libraries=""" + boostLibs + """ &&  ./b2 toolset=clang cxxflags=\"-std=c++14\" -j {num_cores} install && rm clang && rm clang++"""
+                buildCmd = """ln -s $(for x in $(which -a {CC}); do echo $(realpath $x); done | egrep clang | head -1) clang && PATH=$(realpath .):$PATH && ln -s $(for x in $(which -a {CXX}); do echo $(realpath $x); done | egrep clang | head -1) clang++ && ./bootstrap.sh --with-toolset=clang --prefix={local_dir}  --with-libraries=""" + boostLibs + """ &&  ./b2 -d 0 toolset=clang cxxflags=\"-std=c++14\" -j {num_cores} install && rm clang && rm clang++"""
         elif "g++" in self.args.CXX:
             if "-" in self.args.CXX:
                 gccVer = self.args.CXX[(self.args.CXX.find("-") + 1):]
                 if Utils.isMac():
                     buildCmd = "cp " + gccJamLoc + "  " + gccJamOutLoc + """ && ./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
                      && echo "using gcc : """ + str(gccVer) + """ : {CXX} : <linker-type>darwin ;" >> tools/build/src/user-config.jam
-                     && ./b2 --toolset=gcc-""" + str(gccVer) +  """ -j {num_cores} install 
+                     && ./b2 -d 0 --toolset=gcc-""" + str(gccVer) +  """ -j {num_cores} install 
                      """ + installNameToolCmd
                 else:
                     buildCmd = """./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
                      && echo "using gcc : """ + str(gccVer) + """ : {CXX} ;" >> tools/build/src/user-config.jam
-                     && ./b2 --toolset=gcc-""" + str(gccVer) +  """ -j {num_cores} install 
+                     && ./b2 -d 0 --toolset=gcc-""" + str(gccVer) +  """ -j {num_cores} install 
                      """
             else:
                 if Utils.isMac():
                     buildCmd = "cp " + gccJamLoc + "  " + gccJamOutLoc + """ && echo "using gcc :  : g++ : <linker-type>darwin ;" >> tools/build/src/user-config.jam
                      && ./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
-                     && ./b2 --toolset=gcc -j {num_cores} install 
+                     && ./b2 -d 0 --toolset=gcc -j {num_cores} install 
                      """ + installNameToolCmd
                 else:
                     buildCmd = """./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
-                     && ./b2 --toolset=gcc -j {num_cores} install 
+                     && ./b2 -d 0 --toolset=gcc -j {num_cores} install 
                      """
         buildCmd = " ".join(buildCmd.split())
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "1_60_0")
@@ -1111,33 +1111,33 @@ class Packages():
         if self.args.clang:
             if Utils.isMac():
                 buildCmd = """./bootstrap.sh --with-toolset=clang --prefix={local_dir} --with-libraries=""" + boostLibs + """
-                  &&  ./b2  toolset=clang cxxflags=\"-stdlib=libc++ -std=c++14\" linkflags=\"-stdlib=libc++\" -j {num_cores} install 
+                  &&  ./b2 -d 0  toolset=clang cxxflags=\"-stdlib=libc++ -std=c++14\" linkflags=\"-stdlib=libc++\" -j {num_cores} install 
                   &&  install_name_tool -change libboost_system.dylib {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_filesystem.dylib
                   """
             else:
-                buildCmd = """ln -s $(for x in $(which -a {CC}); do echo $(realpath $x); done | egrep clang | head -1) clang && PATH=$(realpath .):$PATH && ln -s $(for x in $(which -a {CXX}); do echo $(realpath $x); done | egrep clang | head -1) clang++ && ./bootstrap.sh --with-toolset=clang --prefix={local_dir}  --with-libraries=""" + boostLibs + """ &&  ./b2 toolset=clang cxxflags=\"-std=c++14\" -j {num_cores} install && rm clang && rm clang++"""
+                buildCmd = """ln -s $(for x in $(which -a {CC}); do echo $(realpath $x); done | egrep clang | head -1) clang && PATH=$(realpath .):$PATH && ln -s $(for x in $(which -a {CXX}); do echo $(realpath $x); done | egrep clang | head -1) clang++ && ./bootstrap.sh --with-toolset=clang --prefix={local_dir}  --with-libraries=""" + boostLibs + """ &&  ./b2 -d 0 toolset=clang cxxflags=\"-std=c++14\" -j {num_cores} install && rm clang && rm clang++"""
         elif "g++" in self.args.CXX:
             if "-" in self.args.CXX:
                 gccVer = self.args.CXX[(self.args.CXX.find("-") + 1):]
                 if Utils.isMac():
                     buildCmd = "cp " + gccJamLoc + "  " + gccJamOutLoc + """ && ./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
                      && echo "using gcc : """ + str(gccVer) + """ : {CXX} : <linker-type>darwin ;" >> tools/build/src/user-config.jam
-                     && ./b2 --toolset=gcc-""" + str(gccVer) +  """ -j {num_cores} install 
+                     && ./b2 -d 0 --toolset=gcc-""" + str(gccVer) +  """ -j {num_cores} install 
                      """ + installNameToolCmd
                 else:
                     buildCmd = """./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
                      && echo "using gcc : """ + str(gccVer) + """ : {CXX} ;" >> tools/build/src/user-config.jam
-                     && ./b2 --toolset=gcc-""" + str(gccVer) +  """ -j {num_cores} install 
+                     && ./b2 -d 0 --toolset=gcc-""" + str(gccVer) +  """ -j {num_cores} install 
                      """
             else:
                 if Utils.isMac():
                     buildCmd = "cp " + gccJamLoc + "  " + gccJamOutLoc + """ && echo "using gcc :  : g++ : <linker-type>darwin ;" >> tools/build/src/user-config.jam
                      && ./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
-                     && ./b2 --toolset=gcc -j {num_cores} install 
+                     && ./b2 -d 0 --toolset=gcc -j {num_cores} install 
                      """ + installNameToolCmd
                 else:
                     buildCmd = """./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
-                     && ./b2 --toolset=gcc -j {num_cores} install 
+                     && ./b2 -d 0 --toolset=gcc -j {num_cores} install 
                      """
         buildCmd = " ".join(buildCmd.split())
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "1_60_0")
@@ -1581,7 +1581,13 @@ class Setup:
         Utils.clear_dir(bPath.build_dir)
         Utils.untar(fnp, bPath.build_dir)
         ##probably not the best way to do this as there is no guarantee that there is a directory there
-        untaredDir = os.listdir(bPath.build_dir)[0]
+        ##untaredDir = os.listdir(bPath.build_dir)[0]
+        untarContents = os.listdir(bPath.build_dir);
+        for untarContent in untarContents:
+            if os.path.isdir(os.path.join(bPath.build_dir,untarContent)):
+                untaredDir = untarContent;
+                break;
+        
         os.rename(os.path.join(bPath.build_dir, untaredDir), bPath.build_sub_dir)
         try:
             Utils.run_in_dir(cmd, bPath.build_sub_dir)
