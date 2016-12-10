@@ -2057,6 +2057,11 @@ class Setup:
     def clearCache(self):
         Utils.rm_rf(self.dirMaster_.cache_dir)
         Utils.mkdir(self.dirMaster_.cache_dir)
+    
+    def clean(self):
+        Utils.rm_rf(self.dirMaster_.ext_build)
+        Utils.rm_rf(self.dirMaster_.ext_tars)
+    
         
 
 
@@ -2088,6 +2093,7 @@ def parse_args():
     parser.add_argument('--verbose', action = 'store_true')
     parser.add_argument('--symlinkBin', action = 'store_true', help = "Symlink in executables into a directory bin next to external")
     parser.add_argument('--clearCache', action = 'store_true')
+    parser.add_argument('--clean', action = 'store_true',  help = "Remove intermediate build files to save space")
 
     return parser.parse_args()
 
@@ -2105,6 +2111,10 @@ def runSetup():
         return 0
     if args.updateBibProjects:
         s.updateBibProjects(args.updateBibProjects)
+        return 0
+    
+    if args.clean:
+        s.clean()
         return 0
     if args.printLibs:
         s.printAvailableSetUps()
