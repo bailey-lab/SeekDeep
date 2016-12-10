@@ -227,6 +227,9 @@ class Packages():
         self.dirMaster_ = LibDirMaster(externalLoc); #top dir to hold tars, build, local directories
         self.args = args
         self.packages_ = {} #dictionary to hold path infos
+        self.setUpPackagesNeeded(libsNeeded);
+        
+    def setUpPackagesNeeded(self, libsNeeded):
         if "boost" in libsNeeded:
             self.packages_["boost"] = self.__boost()
         if "boost_filesystem" in libsNeeded:
@@ -1232,6 +1235,7 @@ class Packages():
         if self.checkForPackVer(packVer):
             pack = self.package(packVer.name)
             for dep in pack.versions_[packVer.version].depends_:
+                self.setUpPackagesNeeded([str(dep.name).lower()])
                 self.addPackage(packVers, LibNameVer(str(dep.name).lower(), dep.version))
             found = False
             for otherPackVer in packVers:
