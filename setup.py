@@ -1765,9 +1765,13 @@ class Setup:
             else:
                 libSplit = lib.split(":")
                 #self.packages_.addPackage(self.setUpsNeeded,LibNameVer(libSplit[0].lower(),libSplit[1]))
-                self.setUpsNeeded.append(LibNameVer(libSplit[0].lower(),libSplit[1]))
+                self.foundSetUpsNeeded.append(LibNameVer(libSplit[0].lower(),libSplit[1]))
+        packNames = [foundSetup.name for foundSetup in self.foundSetUpsNeeded]
+        self.setupPackages(packNames)
+        for setupFound in self.foundSetUpsNeeded:
+            self.packages_.addPackage(self.setUpsNeeded, setupFound)
+
         for set in self.setUpsNeeded:
-            self.packages_.checkForPackVer(set)
             pack = self.__package(set.name)
             bPaths = pack.versions_[set.version].bPaths_
             if os.path.exists(bPaths.local_dir):
