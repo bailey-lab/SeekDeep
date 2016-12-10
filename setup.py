@@ -3,7 +3,7 @@
 
 
 import subprocess, sys, os, argparse,shutil
-from collections import namedtuple
+from collections import namedtuple, defaultdict
 sys.path.append(os.path.join(os.path.dirname(__file__), "scripts/pyUtils"))
 sys.path.append(os.path.join(os.path.dirname(__file__), "scripts/setUpScripts"))
 from utils import Utils
@@ -1122,9 +1122,15 @@ class Packages():
             os.remove(filename)
             self.writeMakefile(packVers, filename, overwrite, append)
         elif os.path.exists(filename) and append:
+            packsInFile = self.getPackagesInMakefileCommon(filename);
             with open(filename, "a") as f:
                 for packVer in packVers:
                     pack = self.package(packVer.name)
+                    if packVer.name in packsInFile:
+                        if packsInFile[packVer.name] == packVer.version:
+                            continue
+                        else:
+                            raise Exception("Package " + packVer.name + " already in " + filename + " but with a different version, present: " + packsInFile[packVer.name] + ", adding: " + packVer.version)
                     #if bib project, add the flags of it's dependencies
                     if pack.bibProject_:
                         cmd = "python ./setup.py --compfile compfile.mk --numCores 1 --append --outMakefile {makefileCommon}".format(makefileCommon = os.path.abspath(filename))
@@ -1187,8 +1193,17 @@ class Packages():
                         found = True
             if not found:
                 packVers.append(packVer)
-            
-                
+    
+    @staticmethod
+    def getPackagesInMakefileCommon(makefileFnp):
+        packagesAlready = {}
+        with open(makefileFnp, "r") as makefile:
+            for line in makefile:
+                if ':' in line and line.startswith("#") and "CXXFLAGS" in line:
+                    toks = line[1:].split()
+                    firstToks = toks[0].split(":")
+                    packagesAlready[firstToks[0]] = firstToks[1]
+        return packagesAlready            
                 
     def isInstalled(self, packVer):
         if os.path.exists(os.path.join(self.dirMaster_.install_dir, joinNameVer(packVer))):
@@ -1955,6 +1970,8 @@ class Setup:
     def clearCache(self):
         Utils.rm_rf(self.dirMaster_.cache_dir)
         Utils.mkdir(self.dirMaster_.cache_dir)
+        
+
 
 def ubuntu(self):
         pkgs = """libbz2-dev python2.7-dev cmake libpcre3-dev zlib1g-dev libgcrypt11-dev libicu-dev
@@ -1984,14 +2001,21 @@ def parse_args():
     parser.add_argument('--verbose', action = 'store_true')
     parser.add_argument('--symlinkBin', action = 'store_true', help = "Symlink in executables into a directory bin next to external")
     parser.add_argument('--clearCache', action = 'store_true')
-    
+
     return parser.parse_args()
 
 
 
 def runSetup():
     args = parse_args()
+
+    Packages.getPackagesInMakefileCommon(args.outMakefile)
+    
+    sys.exit()
+
     s = Setup(args)
+    
+
     s.externalChecks()
     if(args.instRPackageName):
         s.installRPackageName(args.instRPackageName[0], s.packages_["r"].defaultVersion_)
