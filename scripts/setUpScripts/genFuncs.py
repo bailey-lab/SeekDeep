@@ -15,7 +15,7 @@ class genHelper:
                           "TWOBIT", "SEQSERVER","NJHRINSIDE", "PSTREAMS",
                            "MONGOC", "MONGOCXX", "SHAREDMUTEX",
                            "MAGIC", "HTS", "RESTBED", "LIBPCA", "BOOST_FILESYSTEM", 
-                           "ELUCIDATOR"]
+                           "ELUCIDATOR", "EIGEN"]
         neededLibraries = {}
         for lib in neededLibs:
             if ":" in lib:
