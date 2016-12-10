@@ -223,50 +223,90 @@ class CPPLibPackage():
 class Packages():
     '''class to hold and setup all the necessary paths for 
     downloading, building, and then installing packages/libraries'''
-    def __init__(self, externalLoc, args):
+    def __init__(self, externalLoc, args, libsNeeded = []):
         self.dirMaster_ = LibDirMaster(externalLoc); #top dir to hold tars, build, local directories
         self.args = args
         self.packages_ = {} #dictionary to hold path infos
-        self.packages_["boost"] = self.__boost()
-        self.packages_["boost_filesystem"] = self.__boost_filesystem()
-        self.packages_["r"] = self.__r()
-        self.packages_["cppcms"] = self.__cppcms()
-        self.packages_["armadillo"] = self.__armadillo()
-        self.packages_["dlib"] = self.__dlib()
-        self.packages_["libsvm"] = self.__libsvm()
-        self.packages_["mongoc"] = self.__mongoc()
-        self.packages_["mongocxx"] = self.__mongocxx()
-        self.packages_["mathgl"] = self.__mathgl()
-        self.packages_["magic"] = self.__magic()
-        self.packages_["zlib"] = self.__zlib()
-        self.packages_["muscle"] = self.__muscle()
-        self.packages_["bowtie2"] = self.__bowtie2()
-        self.packages_["flash"] = self.__flash()
-        self.packages_["lastz"] = self.__lastz()
-        self.packages_["samtools"] = self.__samtools()
-        self.packages_["bcftools"] = self.__bcftools()
-        self.packages_["libpca"] = self.__libpca()
+        if "boost" in libsNeeded:
+            self.packages_["boost"] = self.__boost()
+        if "boost_filesystem" in libsNeeded:
+            self.packages_["boost_filesystem"] = self.__boost_filesystem()
+        if "boost_filesystem" in libsNeeded:
+            self.packages_["r"] = self.__r()
+        if "cppcms" in libsNeeded:
+            self.packages_["cppcms"] = self.__cppcms()
+        if "armadillo" in libsNeeded:
+            self.packages_["armadillo"] = self.__armadillo()
+        if "dlib" in libsNeeded:
+            self.packages_["dlib"] = self.__dlib()
+        if "libsvm" in libsNeeded:
+            self.packages_["libsvm"] = self.__libsvm()
+        if "mongoc" in libsNeeded:
+            self.packages_["mongoc"] = self.__mongoc()
+        if "mongocxx" in libsNeeded:
+            self.packages_["mongocxx"] = self.__mongocxx()
+        if "mathgl" in libsNeeded:
+            self.packages_["mathgl"] = self.__mathgl()
+        if "magic" in libsNeeded:
+            self.packages_["magic"] = self.__magic()
+        if "zlib" in libsNeeded:
+            self.packages_["zlib"] = self.__zlib()
+        if "muscle" in libsNeeded:
+            self.packages_["muscle"] = self.__muscle()
+        if "bowtie2" in libsNeeded:
+            self.packages_["bowtie2"] = self.__bowtie2()
+        if "flash" in libsNeeded:
+            self.packages_["flash"] = self.__flash()
+        if "lastz" in libsNeeded:
+            self.packages_["lastz"] = self.__lastz()
+        if "samtools" in libsNeeded:
+            self.packages_["samtools"] = self.__samtools()
+        if "bcftools" in libsNeeded:
+            self.packages_["bcftools"] = self.__bcftools()
+        if "libpca" in libsNeeded:
+            self.packages_["libpca"] = self.__libpca()
+        if "eigen" in libsNeeded:
+            self.packages_["eigen"] = self.__eigen()
+        
         #git repos
-        self.packages_["bamtools"] = self.__bamtools()
-        self.packages_["jsoncpp"] = self.__jsoncpp()
-        self.packages_["catch"] = self.__catch()
-        self.packages_["hts"] = self.__hts()
-        self.packages_["zi_lib"] = self.__zi_lib()
-        self.packages_["pstreams"] = self.__pstreams()
-        self.packages_["cppitertools"] = self.__cppitertools()
-        self.packages_["cppprogutils"] = self.__cppprogutils()
-        self.packages_["restbed"] = self.__restbed()
+        if "bamtools" in libsNeeded:
+            self.packages_["bamtools"] = self.__bamtools()
+        if "jsoncpp" in libsNeeded:
+            self.packages_["jsoncpp"] = self.__jsoncpp()
+        if "catch" in libsNeeded:
+            self.packages_["catch"] = self.__catch()
+        if "hts" in libsNeeded:
+            self.packages_["hts"] = self.__hts()
+        if "zi_lib" in libsNeeded:
+            self.packages_["zi_lib"] = self.__zi_lib()
+        if "pstreams" in libsNeeded:
+            self.packages_["pstreams"] = self.__pstreams()
+        if "cppitertools" in libsNeeded:
+            self.packages_["cppitertools"] = self.__cppitertools()
+        if "cppprogutils" in libsNeeded:
+            self.packages_["cppprogutils"] = self.__cppprogutils()
+        if "restbed" in libsNeeded:
+            self.packages_["restbed"] = self.__restbed()
         #bib setup
-        self.packages_["bibseq"] = self.__bibseq()
-        self.packages_["bibcpp"] = self.__bibcpp()
-        self.packages_["seekdeep"] = self.__SeekDeep()
-        self.packages_["elucidator"] = self.__elucidator()
-        self.packages_["seqserver"] = self.__seqserver()
-        self.packages_["njhrinside"] = self.__njhRInside()
-        self.packages_["twobit"] = self.__twobit()
-        self.packages_["sharedmutex"] = self.__sharedMutex()
-        #developer
-        self.packages_["mipwrangler"] = self.__MIPWrangler()
+        if "bibseq" in libsNeeded:
+            self.packages_["bibseq"] = self.__bibseq()
+        if "bibcpp" in libsNeeded:
+            self.packages_["bibcpp"] = self.__bibcpp()
+        if "seekdeep" in libsNeeded:
+            self.packages_["seekdeep"] = self.__SeekDeep()
+        if "seqserver" in libsNeeded:
+            self.packages_["seqserver"] = self.__seqserver()
+        if "njhrinside" in libsNeeded:
+            self.packages_["njhrinside"] = self.__njhRInside()
+        if "twobit" in libsNeeded:
+            self.packages_["twobit"] = self.__twobit()
+        if "sharedmutex" in libsNeeded:
+            self.packages_["sharedmutex"] = self.__sharedMutex()
+        #developer, private repos
+        if "elucidator" in libsNeeded:
+            self.packages_["elucidator"] = self.__elucidator()
+        if "mipwrangler" in libsNeeded:
+            self.packages_["mipwrangler"] = self.__MIPWrangler()
         '''
         
         self.packages_["mlpack"] = self.__mlpack()
@@ -523,6 +563,15 @@ class Packages():
         pack.versions_["1.3.3"] .altLibName_ = "pca" 
         return pack
     
+    def __eigen(self):
+        name = "eigen"
+        buildCmd = """mkdir build && cd build && CC={CC} CXX={CXX} cmake -DCMAKE_INSTALL_PREFIX={local_dir} .. && make install -j {num_cores}"""
+        buildCmd = " ".join(buildCmd.split())
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "3.3.1")
+        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/eigen/eigen-3.3.1.tar.bz2", "3.3.1")
+        pack.versions_["3.3.1"].libPath_ = "";
+        pack.versions_["3.3.1"].includePath_ = os.path.join(joinNameVer(pack.versions_["3.3.1"].nameVer_), "include", "eigen3")
+        return pack
     
     
     def __muscle(self):
@@ -1258,6 +1307,7 @@ class Setup:
         self.args = args # command line arguments parsed by argument parser
         self.setUps = {} # all available set ups
         self.setUpsNeeded = [] # the setups that need to be done
+        self.foundSetUpsNeeded = [] #the setups given by either parsing the comp file or command line, to be processed/check to be put into self.setUpsNeeded
         self.installed = [] # the setups that able to install
         self.failedInstall = [] # the setups that failed
         self.CC = "" # the c compilier being used
@@ -1267,16 +1317,28 @@ class Setup:
             self.noInternet_ = True
         self.__initSetUpFuncs()
         self.__processArgsForCompilers()
+        self.__processArgsForSetupsNeeded()
+        #add packages but with only the setups needed found
+        packNames = [foundSetup.name for foundSetup in self.foundSetUpsNeeded]
+        self.setupPackages(packNames)
+        #then add setups needed found to be parsed/checked by packages
+        for setupFound in self.foundSetUpsNeeded:
+            self.packages_.addPackage(self.setUpsNeeded, setupFound)
+        
+        
+    def setupPackages(self, packNames=[]):
         #if we have internet and the cache is more than a day old, clear it
         if Utils.connectedInternet:
             cacheDate = datetime.datetime.fromtimestamp(os.path.getmtime(self.dirMaster_.cache_dir))
             now = datetime.datetime.now()
             if 86400 < (now - cacheDate).total_seconds():
                 self.clearCache()
-        if args.clearCache:
+        if self.args.clearCache:
             self.clearCache()
-        self.packages_ = Packages(self.extDirLoc, self.args) # path object to hold the paths for install
-        self.__processArgsForSetupsNeeded()
+        self.packages_ = Packages(self.extDirLoc, self.args, packNames) # path object to hold the paths for install
+        
+    def getAllAvailablePackages(self):
+        return self.setUps.keys()
         
     def setup(self):
         if self.args.forceUpdate:
@@ -1335,7 +1397,8 @@ class Setup:
                        "bcftools": self.bcftools,
                        "hts": self.hts,
                        "restbed": self.restbed,
-                       "mipwrangler": self.MIPWrangler
+                       "mipwrangler": self.MIPWrangler,
+                       "eigen": self.eigen
                        }
         '''
         "mlpack": self.mlpack,
@@ -1343,11 +1406,12 @@ class Setup:
         '''
     def printAvailableSetUps(self):
         self.__initSetUpFuncs()
-        print "Available installs:"
-        print "To Install use ./setup.py --libs lib1,lib2,lib3"
-        print "E.g. ./setup.py --libs bamtools,boost"
-        installs = self.setUps.keys()
+        installs = self.getAllAvailablePackages()
         installs.sort()
+        self.setupPackages(installs)
+        print "Available installs:"
+        print "To Install use ./setup.py --libs lib1:ver,lib2:ver,lib3:ver"
+        print "E.g. ./setup.py --libs bamtools:v2.4.0,boost:1_60_0"
         for set in installs:
             print set
             pack = self.__package(set)
@@ -1377,9 +1441,14 @@ class Setup:
                     raise Exception("Need to give version for " + lib)
                 else:
                     libSplit = lib.split(":")
-                    self.packages_.addPackage(self.setUpsNeeded,LibNameVer(libSplit[0].lower(), libSplit[1]))
+                    self.foundSetUpsNeeded.append(LibNameVer(libSplit[0].lower(), libSplit[1]));
+                    #self.packages_.addPackage(self.setUpsNeeded,LibNameVer(libSplit[0].lower(), libSplit[1]))
         if self.args.compfile:
             self.parseSetUpNeeded(self.args.compfile[0])
+        #check to see if package is available
+        for foundSetup in self.foundSetUpsNeeded:
+            if foundSetup.name not in self.setUps:
+                raise Exception("Error " + foundSetup.name + " not available, options are: " + ",".join(self.getAllAvailablePackages()))
     
     def __processArgsForCompilers(self):
         if self.args.compfile:
@@ -1415,7 +1484,8 @@ class Setup:
                     if "#" in v:
                         valSplit = v.split("#")
                         if valSplit[0] == '1':
-                            self.packages_.addPackage(self.setUpsNeeded, LibNameVer(k[4:].lower(),valSplit[1]))
+                            self.foundSetUpsNeeded.append(LibNameVer(k[4:].lower(),valSplit[1]));
+                            #self.packages_.addPackage(self.setUpsNeeded, LibNameVer(k[4:].lower(),valSplit[1]))
                     else:
                         raise Exception("Need to supply version in compfile with USE_PACKAGE#Version")
                 
@@ -1892,6 +1962,9 @@ class Setup:
         
     def restbed(self, version):
         self.__defaultBuild("restbed", version)   
+        
+    def eigen(self, version):
+        self.__defaultBuild("eigen", version)   
     #
     
     
@@ -2034,8 +2107,9 @@ def runSetup():
             Utils.run(cmd)
     else:
         if len(s.setUpsNeeded) == 0 and not args.compfile:
-            s.printAvailableSetUps()
-            return 1
+            print ("To see available setup use " + __file__ + " --printLibs")
+            #s.printAvailableSetUps()
+            return 0
         elif args.printGitRefs:
             s.printGitRefs()
             return 0
