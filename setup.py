@@ -444,7 +444,7 @@ class Packages():
         pack.versions_["1.4.1"].altLibName_ = "ssl" #a trick to control order of -l flags for libs
         pack.versions_["1.4.1"].additionalLdFlags_ = ["-lcrypto","-lmongoc-1.0", "-lbson-1.0"]  
         if not Utils.isMac():
-            pack.versions_["1.5.0"].additionalLdFlags_.append("-lrt") 
+            pack.versions_["1.4.1"].additionalLdFlags_.append("-lrt") 
         pack.addVersion(url, "1.5.0")
         pack.versions_["1.5.0"].additionalIncludePaths_.append(pack.versions_["1.5.0"].includePath_ + "/libmongoc-1.0")
         pack.versions_["1.5.0"].includePath_ = pack.versions_["1.5.0"].includePath_ + "/libbson-1.0"
