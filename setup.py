@@ -847,6 +847,8 @@ class Packages():
                     patch = int(ref[5]);
                     if not major >= 3 and not (major == 2 and minor > 4):
                         needCurl = True
+                if "develop" in ref:
+                    needCurl = False
                 if needCurl:
                     pack.versions_[ref].additionalLdFlags_ = ["-lcurl"]
                 
