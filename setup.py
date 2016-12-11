@@ -535,7 +535,8 @@ class Packages():
                 repos=\"http://cran.us.r-project.org\", Ncpus = {num_cores}, lib =.libPaths()[length(.libPaths()  )])' | $({local_dir}/""" + rHomeLoc + """)/bin/R --slave --vanilla
                 """
         buildCmd = " ".join(buildCmd.split())
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "3.3.0")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "3.3.2")
+        pack.versions_["3.3.2"] = CPPLibPackageVersionR("R", "http://baileylab.umassmed.edu/sourceCodes/R/R-3.3.2.tar.gz", "3.3.2", self.dirMaster_)
         pack.versions_["3.3.0"] = CPPLibPackageVersionR("R", "http://baileylab.umassmed.edu/sourceCodes/R/R-3.3.0.tar.gz", "3.3.0", self.dirMaster_)
         pack.versions_["3.2.4"] = CPPLibPackageVersionR("R", "http://baileylab.umassmed.edu/sourceCodes/R/R-3.2.4.tar.gz", "3.2.4", self.dirMaster_)
         pack.versions_["3.2.3"] = CPPLibPackageVersionR("R", "http://baileylab.umassmed.edu/sourceCodes/R/R-3.2.3.tar.gz", "3.2.3", self.dirMaster_)
@@ -1101,6 +1102,9 @@ class Packages():
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/boost/boost_1_60_0.tar.bz2", "1_60_0")
         pack.versions_["1_60_0"].additionalLdFlags_ = ["-lboost_system", "-lboost_filesystem"]
         pack.versions_["1_60_0"].libName_ = ""
+        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/boost/boost_1_62_0.tar.bz2", "1_62_0")
+        pack.versions_["1_62_0"].additionalLdFlags_ = ["-lboost_system", "-lboost_filesystem"]
+        pack.versions_["1_62_0"].libName_ = ""
         return pack
     
     def __boost_filesystem(self):
