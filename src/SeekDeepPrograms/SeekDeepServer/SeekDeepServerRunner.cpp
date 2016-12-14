@@ -75,6 +75,20 @@ int SeekDeepServerRunner::popClusteringViewer(const bib::progutils::CmdArgs & in
 	resourceDirName = bib::appendAsNeededRet(resourceDirName.string(), "/");
 	configDir = bib::appendAsNeededRet(configDir.string(), "/");
 
+	VecStr warnings;
+	if(!bfs::exists(resourceDirName)){
+		std::stringstream ss;
+		ss << __PRETTY_FUNCTION__ << ": error, resource directory " << resourceDirName << " doesn't exist";
+		warnings.emplace_back(ss.str());
+	}
+	if(!bfs::exists(configDir)){
+		std::stringstream ss;
+		ss << __PRETTY_FUNCTION__ << ": error, configuration directory " << configDir << " doesn't exist";
+		warnings.emplace_back(ss.str());
+	}
+	if(!warnings.empty()){
+		throw std::runtime_error{bib::conToStr(warnings, "\n")};
+	}
   //
   Json::Value appConfig;
   corePars.addCoreOpts(appConfig);
