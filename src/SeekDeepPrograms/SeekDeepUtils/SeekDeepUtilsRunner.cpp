@@ -950,7 +950,8 @@ int SeekDeepUtilsRunner::setupPairedEndDir(const bib::progutils::CmdArgs & input
 
 
 	//qluster cmds;
-	std::string qlusterCmdTemplate = "cd {REP}_extraction && " + setUp.commands_.masterProgram_ + " qluster "
+	auto extractionDirs = bib::files::make_path(bfs::absolute(analysisSetup.dir_), "{REP}_extraction");
+	std::string qlusterCmdTemplate = "cd " + extractionDirs.string() + " && " + setUp.commands_.masterProgram_ + " qluster "
 			"--fastq {TARGET}{MIDREP}.fastq  --illumina --qualThres 25,20 "
 			"--alnInfoDir alnCache_{TARGET}{MIDREP} --markChimeras --overWriteDir "
 			"--additionalOut ../popClustering/locationByIndex/{TARGET}.tab.txt "
@@ -1026,13 +1027,17 @@ int SeekDeepUtilsRunner::setupPairedEndDir(const bib::progutils::CmdArgs & input
 	if(nullptr != analysisSetup.groupMetaData_){
 		processClusterTemplate += " --groupingsFile " + bib::files::make_path(bfs::absolute(analysisSetup.infoDir_), "groupMeta.tab.txt").string();
 	}
-
-	if(analysisSetup.samplesForTargets_.size() > 1){
-		for(const auto & tar : analysisSetup.samplesForTargets_){
-			processClusterCmds.emplace_back("cd popClustering/" + tar.first + " && " + processClusterTemplate);
+	auto popDir = bib::files::make_path(bfs::absolute(analysisSetup.dir_),
+			"popClustering");
+	if (analysisSetup.samplesForTargets_.size() > 1) {
+		for (const auto & tar : analysisSetup.samplesForTargets_) {
+			processClusterCmds.emplace_back(
+					"cd " + bib::files::make_path(popDir, tar.first).string() + " && "
+							+ processClusterTemplate);
 		}
-	}else{
-		processClusterCmds.emplace_back("cd popClustering && " + processClusterTemplate);
+	} else {
+		processClusterCmds.emplace_back(
+				"cd " + popDir.string() + " && " + processClusterTemplate);
 	}
 	OutOptions processClusterCmdsOpts(bib::files::make_path(analysisSetup.dir_, "processClusterCmds.txt").string());
 	std::ofstream processClusterCmdsFile;
@@ -1072,7 +1077,7 @@ int SeekDeepUtilsRunner::setupPairedEndDir(const bib::progutils::CmdArgs & input
 
 	startServerCmdFile << "if [[ $# -ne 2 ]] && [[ $# -ne 0 ]]; then" << std::endl;
 	startServerCmdFile
-			<< "	echo \"Illegal number of parameters, needs either 0 or 2 argument, if 2 args 1) port number to server on 2) the name to serve on\""
+			<< "	echo \"Illegal number of parameters, needs either 0 or 2 arguments, if 2 args 1) port number to server on 2) the name to serve on\""
 			<< std::endl;
 	startServerCmdFile << "	echo \"Examples\"" << std::endl;
 	startServerCmdFile << "	echo \"./startServerCmd.txt\"" << std::endl;
@@ -1101,6 +1106,7 @@ int SeekDeepUtilsRunner::setupPairedEndDir(const bib::progutils::CmdArgs & input
 	runAnalysisFile << "#!/usr/bin/env bash" << std::endl;
 	runAnalysisFile << "" << std::endl;
 	runAnalysisFile << "##run all parts of the pipeline" << std::endl;
+	runAnalysisFile << "##except start the server which is done by running ./startServerCmd.sh" << std::endl;
 	runAnalysisFile << "" << std::endl;
 	runAnalysisFile << "numThreads=1" << std::endl;
 	runAnalysisFile << "" << std::endl;
@@ -1108,10 +1114,18 @@ int SeekDeepUtilsRunner::setupPairedEndDir(const bib::progutils::CmdArgs & input
 	runAnalysisFile << "	numThreads=$1" << std::endl;
 	runAnalysisFile << "fi" << std::endl;
 	runAnalysisFile << "" << std::endl;
-	runAnalysisFile << "sequenceTools runMultipleCommands --cmdFile extractorCmds.txt      --numThreads $numThreads --raw" << std::endl;
-	runAnalysisFile << "sequenceTools runMultipleCommands --cmdFile qlusterCmds.txt        --numThreads $numThreads --raw" << std::endl;
-	runAnalysisFile << "sequenceTools runMultipleCommands --cmdFile processClusterCmds.txt --numThreads $numThreads --raw" << std::endl;
-	runAnalysisFile << "sequenceTools runMultipleCommands --cmdFile genConfigCmds.txt      --numThreads $numThreads --raw" << std::endl;
+	runAnalysisFile << "" << setUp.commands_.masterProgram_
+			<< " runMultipleCommands --cmdFile extractorCmds.txt      --numThreads $numThreads --raw"
+			<< std::endl;
+	runAnalysisFile << "" << setUp.commands_.masterProgram_
+			<< " runMultipleCommands --cmdFile qlusterCmds.txt        --numThreads $numThreads --raw"
+			<< std::endl;
+	runAnalysisFile << "" << setUp.commands_.masterProgram_
+			<< " runMultipleCommands --cmdFile processClusterCmds.txt --numThreads $numThreads --raw"
+			<< std::endl;
+	runAnalysisFile << "" << setUp.commands_.masterProgram_
+			<< " runMultipleCommands --cmdFile genConfigCmds.txt      --numThreads $numThreads --raw"
+			<< std::endl;
 	runAnalysisFile << "" << std::endl;
 	//make file executable
 	chmod(runAnalysisOpts.outFilename_.c_str(), S_IWUSR | S_IRUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IEXEC | S_IXGRP);
