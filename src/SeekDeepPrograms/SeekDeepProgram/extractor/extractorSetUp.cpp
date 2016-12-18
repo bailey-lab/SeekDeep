@@ -80,9 +80,9 @@ void SeekDeepSetUp::setUpExtractor(extractorPars & pars) {
 				<< std::endl;
 		tempOut << bib::bashCT::boldBlack("Quality filtering options") << std::endl;
 		tempOut << " --minLen [option]: The minimum length for the read to be "
-				"extracted including primers, defaults to " << pars.minLen << std::endl;
+				"extracted including primers, defaults to " << "20% less than the median input length" << std::endl;
 		tempOut << " --maxLen [option]: The maximum length for the read to be "
-				"extracted including primers, defaults to " << pars.maxLength
+				"extracted including primers, defaults to " << "20% more than the median input length"
 				<< std::endl;
 		tempOut << " --qualWindow [option]: Quality window checking options, "
 				"given separated by commas and in the order of windowSize, "
