@@ -535,7 +535,7 @@ class Packages():
                 repos=\"http://cran.us.r-project.org\", Ncpus = {num_cores}, lib =.libPaths()[length(.libPaths()  )] )' | $({local_dir}/""" + rHomeLoc + """)/bin/R --slave --vanilla
                 """
         buildCmd = " ".join(buildCmd.split())
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "3.3.2")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "3.3.0")
         pack.versions_["3.3.2"] = CPPLibPackageVersionR("R", "http://baileylab.umassmed.edu/sourceCodes/R/R-3.3.2.tar.gz", "3.3.2", self.dirMaster_)
         pack.versions_["3.3.0"] = CPPLibPackageVersionR("R", "http://baileylab.umassmed.edu/sourceCodes/R/R-3.3.0.tar.gz", "3.3.0", self.dirMaster_)
         pack.versions_["3.2.4"] = CPPLibPackageVersionR("R", "http://baileylab.umassmed.edu/sourceCodes/R/R-3.2.4.tar.gz", "3.2.4", self.dirMaster_)
@@ -1824,8 +1824,8 @@ class Setup:
         bPath = rPack.versions_[version].bPaths_
         for pack in sourceFile.split(","):
             rHomeLoc = "bin/R RHOME"
-            if Utils.isMac():
-                rHomeLoc = "R.framework/Resources/bin/R RHOME"
+            #if Utils.isMac():
+            #    rHomeLoc = "R.framework/Resources/bin/R RHOME"
             cmd = """echo '.libPaths(.libPaths()[length(.libPaths()  )] ); install.packages(\"{SOURCEFILE}\", repos = NULL, type="source", Ncpus = {num_cores}, lib =.libPaths()[length(.libPaths()  )])' | $({local_dir}/{RHOMELOC})/bin/R --slave --vanilla
                 """.format(local_dir=Utils.shellquote(bPath.local_dir).replace(' ', '\ '),SOURCEFILE = pack, RHOMELOC =rHomeLoc, num_cores=self.num_cores())
             print CT.boldBlack(cmd)
@@ -1839,8 +1839,8 @@ class Setup:
         bPath = rPack.versions_[version].bPaths_
         for pack in packageName.split(","):
             rHomeLoc = "bin/R RHOME"
-            if Utils.isMac():
-                rHomeLoc = "R.framework/Resources/bin/R RHOME"
+            #if Utils.isMac():
+            #    rHomeLoc = "R.framework/Resources/bin/R RHOME"
             cmd = """echo '.libPaths(.libPaths()[length(.libPaths()  )] ); install.packages(\"{PACKAGENAME}\", repos=\"http://cran.us.r-project.org\", Ncpus = {num_cores}, lib =.libPaths()[length(.libPaths()  )])'  | $({local_dir}/{RHOMELOC})/bin/R --slave --vanilla
                 """.format(local_dir=Utils.shellquote(bPath.local_dir).replace(' ', '\ '),PACKAGENAME = pack, RHOMELOC =rHomeLoc,num_cores=self.num_cores() )
             print CT.boldBlack(cmd)
@@ -2122,10 +2122,12 @@ def runSetup():
     s = Setup(args)
     s.externalChecks()
     if(args.instRPackageName):
-        s.installRPackageName(args.instRPackageName[0], s.packages_["r"].defaultVersion_)
+        s.setupPackages("r")
+        s.installRPackageName(s.packages_.packages_["r"].defaultVersion_, args.instRPackageName[0])
         return 0
     if(args.instRPackageSource):
-        s.installRPackageSource(args.instRPackageSource[0], s.packages_["r"].defaultVersion_)
+        s.setupPackages("r")
+        s.installRPackageSource( s.packages_.packages_["r"].defaultVersion_, args.instRPackageSource[0])
         return 0
     if args.updateBibProjects:
         s.updateBibProjects(args.updateBibProjects)
