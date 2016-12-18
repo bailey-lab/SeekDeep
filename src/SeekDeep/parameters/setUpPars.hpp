@@ -103,7 +103,7 @@ struct clusterDownPars {
   bool useCompPerCutOff = false;
   bool ionTorrent = false;
   bool illumina = false;
-
+  bool tech454 = false;
 
   bool onPerId = false;
 	bool extra = false;

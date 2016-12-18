@@ -36,18 +36,20 @@ void SeekDeepSetUp::setUpExtractor(extractorPars & pars) {
 	if (needsHelp()) {
 		std::stringstream tempOut;
 		tempOut << "extractor" << std::endl;
-		tempOut << "Extracts sequences from fasta/fastq  files and some "
+		tempOut << "Extracts sequences from fasta/fastq/sff files and some "
 				"pre-filtering" << std::endl;
 		tempOut << "Commands, order not necessary and case insensitive"
 				<< std::endl;
 		tempOut << bib::bashCT::bold << "Required commands" << bib::bashCT::reset
 				<< std::endl;
-		tempOut << "Input can be fasta or fastq" << std::endl;
-		std::cout << cleanOut(tempOut.str(), width_, indent_);
-		tempOut.str(std::string());
-		printInputUsage(std::cout);
+		tempOut << "Input can be fasta/fastq/sff" << std::endl;
+		tempOut << bib::bashCT::bold << "Input options:" << bib::bashCT::reset << std::endl;
+		tempOut << "1a) --fasta [option]: Name of the fasta file" << std::endl;
+		tempOut << "1b) --fastq [option]: Name of the fastq file" << std::endl;
+		tempOut << "1c) --sff [option]: Name of the sff text file" << std::endl;
+		tempOut << "1c) --sffBin [option]: Name of the sff binary file" << std::endl;
 		tempOut
-				<< "2) -id [option]: Full name of the id file with primers and Ids info"
+				<< "2) --id [option]: Full name of the id file with primers and Ids info"
 				<< std::endl;
 
 		tempOut << "\tThe id file should be tab delimited and contains the "
@@ -65,106 +67,106 @@ void SeekDeepSetUp::setUpExtractor(extractorPars & pars) {
 		std::cout << "\tMID02	ACGCTCGACA" << std::endl;
 		tempOut << bib::bashCT::bold << "Optional commands" << bib::bashCT::reset
 				<< std::endl;
-		tempOut << "-dout [option]: Name of an output directory, will default "
+		tempOut << "--dout [option]: Name of an output directory, will default "
 				"to the name of the input file plus the date if none given"
 				<< std::endl;
-		tempOut << "-multiplex : Whether the id file is multiplex with "
+		tempOut << "--multiplex : Whether the id file is multiplex with "
 				"multiple MIDs, the program will assume only primers are "
 				"given if this is not switched on" << std::endl;
-		tempOut << "-checkComplement : Check the complement of the sequences "
+		tempOut << "--checkComplement : Check the complement of the sequences "
 				"for the barcodes as well" << std::endl;
 		tempOut
-				<< "-rename : Rename the sequence to the associated primers and mids "
+				<< "--rename : Rename the sequence to the associated primers and mids "
 				<< std::endl;
 		tempOut << bib::bashCT::boldBlack("Quality filtering options") << std::endl;
-		tempOut << " -minLen [option]: The minimum length for the read to be "
+		tempOut << " --minLen [option]: The minimum length for the read to be "
 				"extracted including primers, defaults to " << pars.minLen << std::endl;
-		tempOut << " -maxLen [option]: The maximum length for the read to be "
+		tempOut << " --maxLen [option]: The maximum length for the read to be "
 				"extracted including primers, defaults to " << pars.maxLength
 				<< std::endl;
-		tempOut << " -qualWindow [option]: Quality window checking options, "
+		tempOut << " --qualWindow [option]: Quality window checking options, "
 				"given separated by commas and in the order of windowSize, "
 				"windowStep, and windowMinimumThres, ex. 50,5,20 (default)"
 				<< std::endl;
-		tempOut << "-qualCheck	Qual Check Level; default" << pars.qualCheck
+		tempOut << "--qualCheck	Qual Check Level; default" << pars.qualCheck
 				<< std::endl;
 		tempOut
-				<< "-qualCheckCutOff	Cut Off for fraction of bases above qual check of "
+				<< "--qualCheckCutOff	Cut Off for fraction of bases above qual check of "
 				<< pars.qualCheck << "; default=" << pars.qualCheckCutOff << std::endl;
-		tempOut << " -numberOfNs [option]: the number of N's(the symbol for "
+		tempOut << " --numberOfNs [option]: the number of N's(the symbol for "
 				"unknown base) to be allowed in sequence, defaults to 0" << std::endl;
-		tempOut << " -samllFragmentCutOff [option]: the size cutoff for a "
+		tempOut << " --samllFragmentCutOff [option]: the size cutoff for a "
 				"sequence to be considered simply a fragment, defaults to 50"
 				<< std::endl;
 		tempOut << bib::bashCT::bold << "Options for looking for primers"
 				<< bib::bashCT::reset << std::endl;
-		tempOut << "-noReverse: if you don't want to look for the reverse "
+		tempOut << "--noReverse: if you don't want to look for the reverse "
 				"primer as well as the forward primer, will default to "
 				"looking for both" << std::endl;
-		tempOut << "-rPrimerCoverage [option] : fraction of the reverse "
+		tempOut << "--rPrimerCoverage [option] : fraction of the reverse "
 				"primer that needs to be present, defaults to "
 				<< pars.rPrimerErrors.distances_.query_.coverage_ << "  so at least "
 						"half of the primer needs to be present" << std::endl;
 		tempOut
-				<< "-rPrimerMismatches [option] : Number of mismatches to allow in reverse primer "
+				<< "--rPrimerMismatches [option] : Number of mismatches to allow in reverse primer "
 						", defaults to " << pars.rPrimerErrors.hqMismatches_ << std::endl;
 		tempOut
-				<< "-rUpper: set this to make the reverse primer into "
+				<< "--rUpper: set this to make the reverse primer into "
 						"upper case, the default is to make it and everything that follows it lower case"
 				<< std::endl;
 		tempOut
-				<< "-noForwardPrimer: Don't look for the forward primer, this means only one primer pair can be put in the id file"
+				<< "--noForwardPrimer: Don't look for the forward primer, this means only one primer pair can be put in the id file"
 				<< std::endl;
-		tempOut << "-fPrimerCoverage [option] : fraction of the forward "
+		tempOut << "--fPrimerCoverage [option] : fraction of the forward "
 				"primer that needs to be present, defaults to "
 				<< pars.fPrimerErrors.distances_.query_.coverage_ << std::endl;
 		tempOut
-				<< "-fPrimerMismatches [option] : Number of mismatches to allow in forward primer "
+				<< "--fPrimerMismatches [option] : Number of mismatches to allow in forward primer "
 						", defaults to " << pars.fPrimerErrors.hqMismatches_ << std::endl;
 		tempOut
-				<< "-fUpper: set this to make the forward primer into "
+				<< "--fUpper: set this to make the forward primer into "
 						"upper case, the default is to make everything up to and including to it lower case"
 				<< std::endl;
 		tempOut << bib::bashCT::bold
 				<< "Options for screening for possible contamination"
 				<< bib::bashCT::reset << std::endl;
 		tempOut
-				<< "-contamination : Where to screen for possible "
+				<< "--contamination : Where to screen for possible "
 						"contamination, a comparison sequence needs to be supplied if "
 						"this is turned on, this option is supported for when using multiple primer pairs yet"
 				<< std::endl;
 		tempOut
-				<< "-compareSeq [option]: A comparison sequence to which the "
+				<< "--compareSeq [option]: A comparison sequence to which the "
 						"reads are compared and and if they are dissimilar enough they will be removed as contamination"
 				<< std::endl;
 		tempOut
-				<< "-contaminationKLen [option]:	Contamination Kmer Length, defaults to "
+				<< "--contaminationKLen [option]:	Contamination Kmer Length, defaults to "
 				<< pars.contaminationKLen << std::endl;
 		tempOut
-				<< "-kmerCutOff [option]:	Kmer cut off for contamination check, defaults to "
+				<< "--kmerCutOff [option]:	Kmer cut off for contamination check, defaults to "
 				<< pars.kmerCutOff << std::endl;
 		tempOut << bib::bashCT::bold
 				<< "Options for when extracting with multiple targets"
 				<< bib::bashCT::reset << std::endl;
 		tempOut
-				<< "--multipleTargets : A flag to indicate you are extracting on multiple targets"
+				<< "---multipleTargets : A flag to indicate you are extracting on multiple targets"
 				<< std::endl;
 		tempOut
-				<< "--lenCutOffs [option]: a filename containing specific cut offs for each target need three columns, target,minlen,and maxlen."
-						"  If target is not found here length cut offs will default to options assoiciated with -minLen and -maxLen"
+				<< "--lenCutOffs [option]: a filename containing specific cut offs for each target need three columns, target, minlen,and maxlen."
+						"  If target is not found here length cut offs will default to options associated with --minLen and --maxLen"
 				<< std::endl;
 		tempOut
-				<< "-compareSeq [option]: When the --multipleTargets flag is on this can be a fasta or fastq file containing a different seq for each target"
+				<< "--compareSeq [option]: When the --multipleTargets flag is on this can be a fasta or fastq file containing a different seq for each target"
 				<< std::endl;
 		std::cout << cleanOut(tempOut.str(), width_, indent_);
 		tempOut.str(std::string());
 		std::cout << "examples: " << std::endl
-				<< "\tSeekDeep extractor -fasta reads.fasta -id "
-						"idFile.tab.txt -dout outPutDir " << std::endl
-				<< "\tSeekDeep extractor -stub reads -id "
-						"idFile.tab.txt -dout outPutDir " << std::endl
+				<< "\tSeekDeep extractor --fasta reads.fasta --id "
+						"idFile.tab.txt --dout outPutDir " << std::endl
+				<< "\tSeekDeep extractor --stub reads --id "
+						"idFile.tab.txt --dout outPutDir " << std::endl
 				<< "\tSeekDeep extractor "
-						"-fastq reads.fastq -id idFile.tab.txt" << std::endl;
+						"--fastq reads.fastq --id idFile.tab.txt" << std::endl;
 		tempOut.str(std::string());
 		tempOut << bib::bashCT::bold << "Output Files:" << bib::bashCT::reset
 				<< std::endl;
@@ -186,30 +188,30 @@ void SeekDeepSetUp::setUpExtractor(extractorPars & pars) {
 	}
 	processVerbose();
 	processDebug();
-	setOption(pars.noForwardPrimer, "-noForwardPrimer",
+	setOption(pars.noForwardPrimer, "--noForwardPrimer",
 			"No Forward Primer Required");
-	setOption(pars.forwardPrimerToUpperCase, "-fUpper",
+	setOption(pars.forwardPrimerToUpperCase, "--fUpper",
 			"Leave reverse primer upper case");
-	setOption(pars.fPrimerErrors.distances_.query_.coverage_, "-fCoverage",
+	setOption(pars.fPrimerErrors.distances_.query_.coverage_, "--fCoverage",
 			"Amount of Forward Primer to find");
-	setOption(pars.fPrimerErrors.hqMismatches_, "-fNumOfMismatches",
+	setOption(pars.fPrimerErrors.hqMismatches_, "--fNumOfMismatches",
 			"Number of Mismatches to allow in Forward Primer");
-	setOption(pars.fPrimerErrors.oneBaseIndel_, "-fOneBaseIndels",
+	setOption(pars.fPrimerErrors.oneBaseIndel_, "--fOneBaseIndels",
 			"Number Of One base indels to allow in forward primer");
-	setOption(pars.fPrimerErrors.twoBaseIndel_, "-fTwoBaseIndels",
+	setOption(pars.fPrimerErrors.twoBaseIndel_, "--fTwoBaseIndels",
 			"Number Of Two base indels to allow in forward primer");
 	//fPrimerErrors.largeBaseIndel_ = .99;
-	setOption(pars.noReversePrimer, "-noReverse",
+	setOption(pars.noReversePrimer, "--noReverse",
 			"Don't look for reverse Primer");
-	setOption(pars.reversePrimerToUpperCase, "-rUpper",
+	setOption(pars.reversePrimerToUpperCase, "--rUpper",
 			"Leave reverse primer upper case");
-	setOption(pars.rPrimerErrors.distances_.query_.coverage_, "-rPrimerCoverage",
+	setOption(pars.rPrimerErrors.distances_.query_.coverage_, "--rPrimerCoverage",
 			"Amount Of Reverse Primer Required");
-	setOption(pars.rPrimerErrors.hqMismatches_, "-rNumOfMismatches",
+	setOption(pars.rPrimerErrors.hqMismatches_, "--rNumOfMismatches",
 			"Number of Mismatches to allow in Reverse Primer");
-	setOption(pars.rPrimerErrors.oneBaseIndel_, "-rOneBaseIndels",
+	setOption(pars.rPrimerErrors.oneBaseIndel_, "--rOneBaseIndels",
 			"Number Of One base indels to allow in reverse primer");
-	setOption(pars.rPrimerErrors.twoBaseIndel_, "-rTwoBaseIndels",
+	setOption(pars.rPrimerErrors.twoBaseIndel_, "--rTwoBaseIndels",
 			"Number Of Two base indels to allow in reverse primer");
 	//rPrimerErrors.largeBaseIndel_ = .99;
 
@@ -222,26 +224,26 @@ void SeekDeepSetUp::setUpExtractor(extractorPars & pars) {
 			"A name to append to the output files");
 	processAlnInfoInput();
 
-	setOption(pars.rename, "-rename", "Rename With Barcode Names");
-	setOption(pars.barcodeErrors, "-barcodeErrors", "Errors Allowed in Barcode");
-	setOption(pars.trimTcag, "-trimTcag", "trim TCAG(454 tag) if it is present ");
-	if (setOption(pars.HMP, "-HMP", "HMP")) {
-		setOption(pars.primerLen, "-len,-primerLen", "PrimerLen");
+	setOption(pars.rename, "--rename", "Rename With Barcode Names");
+	setOption(pars.barcodeErrors, "--barcodeErrors", "Errors Allowed in Barcode");
+	setOption(pars.trimTcag, "--trimTcag", "trim TCAG(454 tag) if it is present ");
+	if (setOption(pars.HMP, "--HMP", "HMP")) {
+		setOption(pars.primerLen, "--len,--primerLen", "PrimerLen");
 	}
 
-	setOption(pars.mDetPars.barcodesBothEnds_, "-barcodeBothEnds",
+	setOption(pars.mDetPars.barcodesBothEnds_, "--barcodeBothEnds",
 			"Look for Barcodes in Both Primers");
 	setOption(pars.midEndsRevComp, "--midEndsRevComp",
 			"Barcodes on both ends are in the reverse complement of each other");
-	setOption(pars.mDetPars.checkForShorten_, "-checkShortenBars",
+	setOption(pars.mDetPars.checkForShorten_, "--checkShortenBars",
 			"Check for shorten Barcodes if the first base may have been trimmed off");
 
-	setOption(pars.mDetPars.variableStop_, "-variableStart",
+	setOption(pars.mDetPars.variableStop_, "--variableStart",
 			"variableStart");
-	if (setOption(pars.qualCheck, "-qualCheck", "Qual Check Level")) {
+	if (setOption(pars.qualCheck, "--qualCheck", "Qual Check Level")) {
 		pars.checkingQCheck = true;
 	}
-	if (setOption(pars.qualCheckCutOff, "-qualCheckCutOff",
+	if (setOption(pars.qualCheckCutOff, "--qualCheckCutOff",
 			"Cut Off for fraction of bases above qual check of "
 					+ estd::to_string(pars.qualCheck))) {
 		pars.checkingQCheck = true;
@@ -253,27 +255,27 @@ void SeekDeepSetUp::setUpExtractor(extractorPars & pars) {
 	processDefaultReader(true);
 	bool mustMakeDirectory = true;
 	processDirectoryOutputName(mustMakeDirectory);
-	if (setOption(pars.idFilename, "-id", "The name of the ID file")) {
+	if (setOption(pars.idFilename, "--id", "The name of the ID file")) {
 		if (!fexists(pars.idFilename)) {
 			failed_ = true;
 			warnings_.emplace_back("error in opening " + pars.idFilename);
 		}
 	}
 
-	setOption(pars.idFileDelim, "-idFileDelim", "Id File Delim");
+	setOption(pars.idFileDelim, "--idFileDelim", "Id File Delim");
 	// unknown primers and ids
-	setOption(pars.multiplex, "-multiplex",
+	setOption(pars.multiplex, "--multiplex",
 			"Indicates that the Reads are multiplex barcoded");
-	setOption(pars.mDetPars.checkComplement_, "-checkComplement",
+	setOption(pars.mDetPars.checkComplement_, "--checkComplement",
 			"Check the Complement of the Seqs As Well");
 	// setOption(within, "-within");
 
-	setOption(pars.minLen, "-minlen", "Minimum read length");
-	setOption(pars.maxLength, "-maxlen", "Maximum read length");
+	setOption(pars.minLen, "--minlen", "Minimum read length");
+	setOption(pars.maxLength, "--maxlen", "Maximum read length");
 
-	setOption(pars.numberOfNs, "-numberofns", "Number Of Ns Cut Off");
+	setOption(pars.numberOfNs, "--numberofns", "Number Of Ns Cut Off");
 	std::string qualWindow = "";
-	if (setOption(qualWindow, "-qualWindow",
+	if (setOption(qualWindow, "--qualWindow",
 			"Sliding Quality Window, goes WindowSize,WindowStep,Thresdhold")) {
 		seqUtil::processQualityWindowString(qualWindow, pars.qualityWindowLength,
 				pars.qualityWindowStep, pars.qualityWindowThres);
@@ -283,50 +285,50 @@ void SeekDeepSetUp::setUpExtractor(extractorPars & pars) {
 		pars.qualityWindowThres = 25;
 	}
 
-	bool compareSeqSuccess = processSeq(pars.compareSeq, "-compareSeq",
+	bool compareSeqSuccess = processSeq(pars.compareSeq, "--compareSeq",
 			"Comparison Sequence For Contamination ");
 	if(compareSeqSuccess){
-		commands_.lookForOptionCaseInsen(pars.compareSeqFilename, "-compareSeq");
+		commands_.lookForOptionCaseInsen(pars.compareSeqFilename, "--compareSeq");
 	}
-	setOption(pars.contaminationKLen, "-contaminationKLen",
+	setOption(pars.contaminationKLen, "--contaminationKLen",
 			"Contamination Kmer Length comparison");
-	setOption(pars.kmerCutOff, "-kmerCutOff",
+	setOption(pars.kmerCutOff, "--kmerCutOff",
 			"Kmer cut off for contamination check");
-	if (setOption(pars.screenForPossibleContamination, "-contamination",
+	if (setOption(pars.screenForPossibleContamination, "--contamination",
 			"Screening For Contamination")) {
 		if (!compareSeqSuccess) {
 			warnings_.emplace_back(
-					"Need to have -compareSeq if checking for contamination");
+					"Need to have --compareSeq if checking for contamination");
 		}
 	}
-	setOption(pars.contaminationMutlipleCompare, "-contaminationMutlipleCompare",
+	setOption(pars.contaminationMutlipleCompare, "--contaminationMutlipleCompare",
 			"Compare to all the sequences within the compare seq file if a file is given");
 	setOption(pars.multipleTargets, "--multipleTargets",
 			"Id file contains multiple targets");
 	if (pars.multipleTargets) {
 		if (pars.screenForPossibleContamination) {
-			commands_.lookForOptionCaseInsen(pars.compareSeqFilename, "-compareSeq");
+			commands_.lookForOptionCaseInsen(pars.compareSeqFilename, "--compareSeq");
 		}
 	}
 	setOption(pars.multipleLenCutOffFilename, "--lenCutOffs",
 			"Length cut offs for when extracting multiple targets");
-	setOption(pars.qualWindowTrim, "-qualWindowTrim", "Trim To Qual Window");
-	setOption(pars.smallFragmentCutoff, "-smallFragmentCutOff",
+	setOption(pars.qualWindowTrim, "--qualWindowTrim", "Trim To Qual Window");
+	setOption(pars.smallFragmentCutoff, "--smallFragmentCutOff",
 			"Small Fragment Cut Off Size");
 
-	setOption(pars.mothurExtract, "-mothurExtract",
+	setOption(pars.mothurExtract, "--mothurExtract",
 			"Extract Data Files for mothur analysis");
-	setOption(pars.pyroExtract, "-pyro",
+	setOption(pars.pyroExtract, "--pyro",
 				"Do Pyro extract for files necessary for AmpliconNoise");
 	if (pars.mothurExtract || pars.pyroExtract) {
-		if (!setOption(pars.maxFlowCutoff, "-maxFlows", "Max Flows", true)) {
-			addWarning("Need to supply maxFlows if doing -pyro or -mothurExtract");
+		if (!setOption(pars.maxFlowCutoff, "--maxFlows", "Max Flows", true)) {
+			addWarning("Need to supply maxFlows if doing --pyro or --mothurExtract");
 			failed_ = true;
 		}
 		if (SeqIOOptions::inFormats::SFFBIN != pars_.ioOptions_.inFormat_
 				&& SeqIOOptions::inFormats::SFFTXT != pars_.ioOptions_.inFormat_) {
 			addWarning(
-					"Seq input format needs to be sff or sffbin if using -pyro or -mothurExtract");
+					"Seq input format needs to be sff or sffbin if using --pyro or --mothurExtract");
 			failed_ = true;
 		}
 	}

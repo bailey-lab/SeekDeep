@@ -36,9 +36,9 @@ void SeekDeepSetUp::setUpMakeSampleDirectories(
 		tempStream << "Commands, order not necessary, flags are case insensitive"
 				<< std::endl;
 		tempStream << "Required commands" << std::endl;
-		tempStream << "-file [option], name of the file of sample names to read in"
+		tempStream << "--file [option], name of the file of sample names to read in"
 				<< std::endl;
-		tempStream << "-dout [option], name of the main directory to create"
+		tempStream << "--dout [option], name of the main directory to create"
 				<< std::endl;
 		tempStream << "File should be tab delimited and a few examples are below"
 				<< std::endl;
@@ -71,15 +71,15 @@ void SeekDeepSetUp::setUpMakeSampleDirectories(
 		std::cout << "2\t095-00\tMID01\tMID02" << std::endl;
 		std::cout << "2\t095-24\tMID03\tMID04" << std::endl;
 
-		std::cout << "examples, SeekDeep makesampleDirectories -file "
-				"names.tab.txt -dout clustering" << std::endl;
+		std::cout << "examples, SeekDeep makesampleDirectories --file "
+				"names.tab.txt --dout clustering" << std::endl;
 		exit(0);
 	}
 	processVerbose();
 	setOption(pars.separatedDirs, "--separatedDirs",
 				"Create a separate directory for each index");
 	setOption(pars.sampleNameFilename, "--file", "Sample Names Filename", true);
-	setOption(pars_.directoryName_, "-dout", "Main Out Directory Name", true);
+	setOption(pars_.directoryName_, "--dout", "Main Out Directory Name", true);
 	setOption(pars_.overWriteDir_, "--overWriteDir",
 			"If the directory already exists over write it");
 	if (!failed_) {

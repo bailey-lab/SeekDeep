@@ -48,7 +48,7 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 		// std::cout << cleanOut(tempOut.str(), width_, indent_);
 		// tempOut.str(std::string());
 		printInputUsage(tempOut);
-		tempOut << "-par [option]: parameter file" << std::endl << std::endl;
+		tempOut << "--par [option]: parameter file" << std::endl << std::endl;
 
 		tempOut
 				<< "Parameter file is set up as where each line is one iteration and that line indicates "
@@ -83,7 +83,7 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 						"into them though they can still collapse into larger clusters"
 				<< std::endl;
 		tempOut
-				<< "Alternatively if the -onPerId is used, this parameter flag can contain percent idendities instead"
+				<< "Alternatively if the --onPerId is used, this parameter flag can contain percent idendities instead"
 				<< std::endl;
 		tempOut << "example: " << std::endl;
 		std::cout << cleanOut(tempOut.str(), width_, indent_);
@@ -97,9 +97,9 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 				<< std::endl;
 		tempOut << bib::bashCT::bold << "Optional commands" << bib::bashCT::reset
 				<< std::endl;
-		tempOut << "-dout [option]: Name of an output directory, will default "
+		tempOut << "--dout [option]: Name of an output directory, will default "
 				"to the stub name plus the date" << std::endl;
-		tempOut << "-additionaOut [option]: Name of a tab delimited file with "
+		tempOut << "--additionaOut [option]: Name of a tab delimited file with "
 				"two columns, column one is the name of the ID and column two "
 				"is the file path location of additional output directory"
 				", such a file can be made by makeSampleDirectories" << std::endl;
@@ -112,36 +112,36 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 		printAlnInfoDirUsage(tempOut);
 		printAdditionaInputUsage(tempOut, pars_.ioOptions_.lowerCaseBases_);
 		tempOut
-				<< "-qualRep [option] : Sets the quality for the identical clusters, "
+				<< "--qualRep [option] : Sets the quality for the identical clusters, "
 						"Options are median (default), average, bestQual, or worst"
 				<< std::endl;
-		tempOut << "-qualTrim [option]: Will trim off any bases below this "
+		tempOut << "--qualTrim [option]: Will trim off any bases below this "
 				"quality, mainly used to trim bases with a quality of 1 (80% "
 				"chance of error) by setting this to 2" << std::endl;
-		tempOut << "-adjustHomopolyerRuns : Will take average quality across "
+		tempOut << "--adjustHomopolyerRuns : Will take average quality across "
 				"a homopolymer run and set all the quality to this average, "
 				"mainly used with Ion Torrent reads due to the very low "
 				"quality of the last base in a long homopolymer run" << std::endl;
 		tempOut << bib::bashCT::bold << "Additional Processing options"
 				<< bib::bashCT::reset << std::endl;
-		tempOut << "-markChimeras : Have the program mark possible chimeras "
+		tempOut << "--markChimeras : Have the program mark possible chimeras "
 				"before outputting" << std::endl;
-		tempOut << "-parFreqs [option] : The minimum frequency multiplier "
+		tempOut << "--parFreqs [option] : The minimum frequency multiplier "
 				"reads must have in order to be considered to be a possible "
 				"parent of a chimera or for sequences to be collapsed on gaps "
 				"in tandem repeats, defaults to 2" << std::endl;
 		tempOut << bib::bashCT::bold << "Technology Specific flags"
 				<< bib::bashCT::reset << std::endl;
 		tempOut
-				<< "-useCompPerCutOff: This turns on filtering off clustering that have reads that only come from one direction, only should be used if reads were extracted in both direction like in ion torrent"
+				<< "--useCompPerCutOff: This turns on filtering off clustering that have reads that only come from one direction, only should be used if reads were extracted in both direction like in ion torrent"
 				<< std::endl;
 		tempOut
-				<< "-ionTorrent : This turns on several of the previously mentioned flags as they are beneficial for ion torrent data, turns on -qualTrim,-adjustHomopolyerRuns, and -useCompPerCutOff"
+				<< "--ionTorrent : This turns on several of the previously mentioned flags as they are beneficial for ion torrent data, turns on --qualTrim,--adjustHomopolyerRuns, and --useCompPerCutOff"
 				<< std::endl;
 		tempOut << bib::bashCT::bold << "Percent Identity Falgs"
 				<< bib::bashCT::reset << std::endl;
 		tempOut
-				<< "-onPerId: cluster on percent identity rather than specific errors"
+				<< "--onPerId: cluster on percent identity rather than specific errors"
 				<< std::endl;
 
 		printReferenceComparisonUsage(tempOut);
@@ -149,13 +149,13 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 		tempOut.str(std::string());
 		std::cout << "examples" << std::endl;
 		std::cout << "\tSeekDeep " << commands_.subProgram_
-				<< " -fasta MID1.fasta -qual "
-						"MID1.fasta.qual -par par" << std::endl;
+				<< " --fasta MID1.fasta --qual "
+						"MID1.fasta.qual --par par" << std::endl;
 		std::cout << "\tSeekDeep " << commands_.subProgram_
-				<< " -fastq MID1.fastq -par par -local" << std::endl;
+				<< " --fastq MID1.fastq --par par --local" << std::endl;
 		std::cout << "\tSeekDeep " << commands_.subProgram_
-				<< " -stub MID1 -par par -local "
-						"-qualThres 25,20" << std::endl;
+				<< " --stub MID1 --par par --local "
+						"--qualThres 25,20" << std::endl;
 		std::cout << cleanOut(tempOut.str(), width_, indent_);
 		tempOut.str(std::string());
 		tempOut << bib::bashCT::bold << "Output Files:" << bib::bashCT::reset
@@ -178,11 +178,12 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 	}
 	processDefaultReader(true);
 
-	setOption(pars.binParameters, "-binPar",
+	setOption(pars.binParameters, "--binPar",
 			"Parameters Filename for when reads are binned");
-	setOption(pars.ionTorrent, "-ionTorrent",
-			"Flag to indicate reads are ion torrent and therefore turns on -useCompPerCutOff,-adjustHomopolyerRuns, and -qualTrim");
-	setOption(pars.illumina, "-illumina",
+	setOption(pars.ionTorrent, "--ionTorrent",
+			"Flag to indicate reads are ion torrent and therefore turns on --useCompPerCutOff,--adjustHomopolyerRuns, and --qualTrim");
+	setOption(pars.tech454, "--454", "Flag to indicate reads are 454");
+	setOption(pars.illumina, "--illumina",
 				"Flag to indicate reads are illumina");
 	bool needsParFlag = !pars.illumina && !pars.ionTorrent;
 	if (pars.ionTorrent) {
@@ -193,65 +194,70 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 		pars.iteratorMap = temp;
 	}
 
+	if(pars.tech454){
+		auto temp = CollapseIterations::gen454ItDefaultPars(100);
+		pars.iteratorMap = temp;
+	}
+
 	if(pars.illumina){
 		pars.iteratorMap = CollapseIterations::genIlluminaDefaultPars(100);
 		pars_.colOpts_.iTOpts_.weighHomopolyer_ = false;
 	}
 
-	setOption(pars.parameters, "-par", "ParametersFilename", needsParFlag);
-	setOption(pars_.colOpts_.iTOpts_.adjustHomopolyerRuns_, "-adjustHomopolyerRuns",
+	setOption(pars.parameters, "--par", "ParametersFilename", needsParFlag);
+	setOption(pars_.colOpts_.iTOpts_.adjustHomopolyerRuns_, "--adjustHomopolyerRuns",
 				"Adjust homopolymer runs to be same quality scores");
 
-	setOption(pars.compPerCutOff, "-compPerCutOff",
+	setOption(pars.compPerCutOff, "--compPerCutOff",
 			"Percentage of reads in one direction Cut Off");
-	setOption(pars.useCompPerCutOff, "-useCompPerCutOff",
+	setOption(pars.useCompPerCutOff, "--useCompPerCutOff",
 			"Throw out clusters that are made up reads of > "
 					+ estd::to_string(pars.useCompPerCutOff * 100)
 					+ "% of reads in only one direction, used with Ion Torrent Reads");
 
-	setOption(pars.diffCutOffStr, "-diffCutOffs",
+	setOption(pars.diffCutOffStr, "--diffCutOffs",
 			"Difference Cutoff to form Nuc Comp Clusters");
 
 	pars_.colOpts_.nucCompBinOpts_.diffCutOffVec_ = vecStrToVecNum<double>(
 			tokenizeString(pars.diffCutOffStr, ","));
 
-	setOption(pars_.colOpts_.nucCompBinOpts_.findBestNuc_, "-findBestNuc", "Find Best Nucleotide Cluster");
-	setOption(pars_.colOpts_.nucCompBinOpts_.useNucComp_, "-useNucComp",
+	setOption(pars_.colOpts_.nucCompBinOpts_.findBestNuc_, "--findBestNuc", "Find Best Nucleotide Cluster");
+	setOption(pars_.colOpts_.nucCompBinOpts_.useNucComp_, "--useNucComp",
 			"Cluster on Nucleotide Composition First");
 
-	setOption(pars_.colOpts_.nucCompBinOpts_.useMinLenNucComp_, "-useMinLenNucComp",
+	setOption(pars_.colOpts_.nucCompBinOpts_.useMinLenNucComp_, "--useMinLenNucComp",
 			"Use Nucleotide Composition of Only Front of seqs");
 
-	setOption(pars.startWithSingles, "-startWithSingles",
+	setOption(pars.startWithSingles, "--startWithSingles",
 			"Start The Clustering With Singletons, rather then adding them afterwards");
-	setOption(pars.mapBackSinglets, "-mapBackSinglets",
+	setOption(pars.mapBackSinglets, "--mapBackSinglets",
 				"If Singlets are left out, map them back in for frequency estimates");
-	setOption(pars.singletCutOff, "-singletCutOff",
-				"Naturally the cut off for being a singlet is by default 1 but can use -singletCutOff to raise the number");
+	setOption(pars.singletCutOff, "--singletCutOff",
+				"Naturally the cut off for being a singlet is by default 1 but can use --singletCutOff to raise the number");
 
 	setOption(pars.createMinTree, "--createMinTree",
 			"Create Psudo minimum Spanning Trees For Mismatches for Final Clusters");
-	setOption(pars_.colOpts_.kmerBinOpts_.useKmerBinning_, "-useKmerBinning", "useKmerBinning");
-	setOption(pars_.colOpts_.kmerBinOpts_.kmerCutOff_, "-kmerCutOff", "kmerCutOff");
-	setOption(pars_.colOpts_.kmerBinOpts_.kCompareLen_, "-kCompareLen", "kCompareLen");
+	setOption(pars_.colOpts_.kmerBinOpts_.useKmerBinning_, "--useKmerBinning", "useKmerBinning");
+	setOption(pars_.colOpts_.kmerBinOpts_.kmerCutOff_, "--kmerCutOff", "kmerCutOff");
+	setOption(pars_.colOpts_.kmerBinOpts_.kCompareLen_, "--kCompareLen", "kCompareLen");
 
-	setOption(pars.leaveOutSinglets, "-leaveOutSinglets",
+	setOption(pars.leaveOutSinglets, "--leaveOutSinglets",
 			"Leave out singlet clusters out of all analysis");
-	setOption(pars.onPerId, "-onPerId", "Cluster on Percent Identity Instead");
+	setOption(pars.onPerId, "--onPerId", "Cluster on Percent Identity Instead");
 
-	pars_.colOpts_.iTOpts_.removeLowQualityBases_= setOption(pars_.colOpts_.iTOpts_.lowQualityBaseTrim_, "-qualTrim",
+	pars_.colOpts_.iTOpts_.removeLowQualityBases_= setOption(pars_.colOpts_.iTOpts_.lowQualityBaseTrim_, "--qualTrim",
 			"LowQualityCutOff");
-	setOption(pars.qualRep, "-qualRep",
+	setOption(pars.qualRep, "--qualRep",
 			"QualityRepresentative_for_unique_clusters");
-	setOption(pars.extra, "-extra", "Extra");
-	setOption(pars_.chiOpts_.checkChimeras_, "-markChimeras", "MarkChimeras");
-	setOption(pars_.chiOpts_.parentFreqs_, "-parfreqs", "Parent_freq_multiplier_cutoff");
+	setOption(pars.extra, "--extra", "Extra");
+	setOption(pars_.chiOpts_.checkChimeras_, "--markChimeras", "MarkChimeras");
+	setOption(pars_.chiOpts_.parentFreqs_, "--parfreqs", "Parent_freq_multiplier_cutoff");
 
-	setOption(pars.snapShotsOpts_.snapShots_, "-snapshots", "OutputSnapShots");
-	setOption(pars.sortBy, "-sortBy", "SortClustersBy");
+	setOption(pars.snapShotsOpts_.snapShots_, "--snapshots", "OutputSnapShots");
+	setOption(pars.sortBy, "--sortBy", "SortClustersBy");
 	pars.additionalOut = setOption(pars.additionalOutLocationFile,
-			"-additionalOut", "AdditionalOutFilename");
-	setOption(pars.collapsingTandems, "-collapseTandems", "CollapsingTandems");
+			"--additionalOut", "AdditionalOutFilename");
+	setOption(pars.collapsingTandems, "--collapseTandems", "CollapsingTandems");
 
 	setOption(pars_.colOpts_.alignOpts_.noAlign_, "--noAlignCompare",
 			"Do comparisons without aligning");

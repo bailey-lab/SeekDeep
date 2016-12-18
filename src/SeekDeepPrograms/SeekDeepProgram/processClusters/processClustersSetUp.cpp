@@ -72,48 +72,48 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 				<< std::endl;
 		printInputUsage(tempOut);
 		tempOut
-				<< "in the previous example tree the flag would be -fastq output.fastq and all seq "
+				<< "in the previous example tree the flag would be --fastq output.fastq and all seq "
 						"files should be named output.fastq, others will be ignored"
 				<< std::endl;
 		tempOut
-				<< "-par : parameters file, see SeekDeep qluster --help for details on the format of the file"
+				<< "--par : parameters file, see SeekDeep qluster --help for details on the format of the file"
 				<< std::endl;
 		tempOut << bib::bashCT::bold << "Optional commands" << bib::bashCT::reset
 				<< std::endl;
-		tempOut << "-dout [option]: Name of an output directory, will default "
+		tempOut << "--dout [option]: Name of an output directory, will default "
 				"to cluster_CURRENT_DATE" << std::endl;
-		tempOut << "-onPerId : Cluster reads on percent identity rather"
+		tempOut << "--onPerId : Cluster reads on percent identity rather"
 				" than specific errors, format of parameters file would have to change,"
 				" see SeekDeep qluster --help for details" << std::endl;
 		tempOut
-				<< "-experimentName [option] : Name prefix to give to the final population haplotypes, defaults to PopUID"
+				<< "--experimentName [option] : Name prefix to give to the final population haplotypes, defaults to PopUID"
 				<< std::endl;
 
 		tempOut << bib::bashCT::boldBlack("Final analysis inclusion criteria")
 				<< std::endl;
-		tempOut << "-fracCutOff [option] : The fraction threshold to be "
+		tempOut << "--fracCutOff [option] : The fraction threshold to be "
 				"included in final analysis, threshold is compared to the averaged "
 				"fraction across runs, defaults to 0.005 " << std::endl;
-		tempOut << "-runsRequired [option] : Number of runs a cluster has to "
+		tempOut << "--runsRequired [option] : Number of runs a cluster has to "
 				"appear in to be"
 				" included in final analysis, defaults to all the runs included "
 				"in the sample" << std::endl;
 		tempOut << bib::bashCT::bold << "Population clustering options"
 				<< bib::bashCT::reset << std::endl;
-		tempOut << "-popPar [option] : Separate population paramters for "
+		tempOut << "--popPar [option] : Separate population paramters for "
 				"clustering will default to the parameters given for the "
 				"between sample clustering" << std::endl;
 
 		tempOut << bib::bashCT::bold << "Additional Pre-processing options"
 				<< bib::bashCT::reset << std::endl;
-		tempOut << "-cutoff [option]: Size of cluster not to include in "
+		tempOut << "--cutoff [option]: Size of cluster not to include in "
 				"clustering, defaults to 1" << std::endl;
-		tempOut << "-markChimeras : Have the program mark possible chimeras "
+		tempOut << "--markChimeras : Have the program mark possible chimeras "
 				"before starting clustering" << std::endl;
-		tempOut << "-parFreqs [option] : The minimum frequency multiplier "
+		tempOut << "--parFreqs [option] : The minimum frequency multiplier "
 				"reads must have in order to be considered to be a possible "
 				"parrent of a chimera, defaults to 2" << std::endl;
-		tempOut << "-keepChimeras : Whether to include chimeras in the final "
+		tempOut << "--keepChimeras : Whether to include chimeras in the final "
 				"analysis,"
 				" defaults to excluded any cluster made of at least half of "
 				"reads with CHI_ flag in"
@@ -124,12 +124,12 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 		printQualThresUsage(tempOut);
 		printAlnInfoDirUsage(tempOut);
 		tempOut << "examples" << std::endl;
-		tempOut << "SeekDeep processClusters -fasta output.fasta "
-				"-par pars.txt" << std::endl;
-		tempOut << "SeekDeep processClusters -fasta output.fasta "
-				"-par pars.txt" << std::endl;
-		tempOut << "SeekDeep processClusters -fasta output.fasta -par "
-				"pars.txt -popPar otherPars.txt" << std::endl;
+		tempOut << "SeekDeep processClusters --fasta output.fasta "
+				"--par pars.txt" << std::endl;
+		tempOut << "SeekDeep processClusters --fasta output.fasta "
+				"--par pars.txt" << std::endl;
+		tempOut << "SeekDeep processClusters --fasta output.fasta --par "
+				"pars.txt --popPar otherPars.txt" << std::endl;
 		std::cout << cleanOut(tempOut.str(), width_, indent_);
 		tempOut.str(std::string());
 		tempOut << bib::bashCT::bold << "Output Files:" << bib::bashCT::reset
@@ -148,8 +148,8 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 		exit(0);
 	}
 
-	setOption(pars.ionTorrent, "-ionTorrent",
-			"Flag to indicate reads are ion torrent and therefore turns on -useCompPerCutOff,-adjustHomopolyerRuns, and -qualTrim");
+	setOption(pars.ionTorrent, "--ionTorrent",
+			"Flag to indicate reads are ion torrent and therefore turns on --useCompPerCutOff,--adjustHomopolyerRuns, and --qualTrim");
 	if (pars.ionTorrent) {
 		pars.removeLowQualBases = true;
 		pars_.colOpts_.iTOpts_.adjustHomopolyerRuns_ = true;
@@ -157,7 +157,7 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 
 	setOption(pars.masterDir, "--masterDir", "Master directory containing sample sequence files");
 	pars.masterDir = bfs::absolute(pars.masterDir).string();
-	pars.removeLowQualBases = setOption(pars.lowQualityCutOff, "-qualTrim",
+	pars.removeLowQualBases = setOption(pars.lowQualityCutOff, "--qualTrim",
 			"LowQualityCutOff");
 	setOption(pars.writeExcludedOriginals, "--writeExcludedOriginals",
 			"Write out the excluded Originals");
@@ -165,10 +165,10 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 			"The Fraction of a cluster to determine if it chimeric");
 	setOption(pars.recheckChimeras, "--recheckChimeras",
 			"Re Check chimeras after replicate comparison");
-	setOption(pars.eventBasedRef, "-eventBasedRef", "Do Event Based Ref Count");
+	setOption(pars.eventBasedRef, "--eventBasedRef", "Do Event Based Ref Count");
 	setOption(pars.customCutOffs, "--custumCutOffs",
-			"Two Column Table, first column is sample name, second is a custom frac cut off, if sample not found will default to -fracCutOff");
-	setOption(pars.previousPopFilename, "-previousPop", "previousPopFilename");
+			"Two Column Table, first column is sample name, second is a custom frac cut off, if sample not found will default to --fracCutOff");
+	setOption(pars.previousPopFilename, "--previousPop", "previousPopFilename");
 	processComparison(pars.previousPopErrors, "previousPop");
 	setOption(pars.groupingsFile, "--groupingsFile",
 			"A file to sort samples into different groups");
@@ -178,7 +178,7 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 	processVerbose();
 	pars_.colOpts_.verboseOpts_.verbose_ = pars_.verbose_;
 	pars_.colOpts_.verboseOpts_.debug_ = pars_.debug_;
-	setOption(pars.onPerId, "-onPerId", "Cluster on Percent Identity Instead");
+	setOption(pars.onPerId, "--onPerId", "Cluster on Percent Identity Instead");
 	processSkipOnNucComp();
 	// input file info
 	pars_.ioOptions_.lowerCaseBases_ = "upper";
@@ -195,37 +195,37 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 	uint32_t hqMismatches = 0;
 	setOption(hqMismatches, "--hq", "Number of high quality mismatches to allow");
 
-	setOption(pars.parameters, "-par", "ParametersFileName", !noErrorsSet && !strictErrorsSet && !strictErrorsSetHq1);
+	setOption(pars.parameters, "--par", "ParametersFileName", !noErrorsSet && !strictErrorsSet && !strictErrorsSetHq1);
 
-	setOption(pars.binParameters, "-binPar", "bin Parameters Filename");
+	setOption(pars.binParameters, "--binPar", "bin Parameters Filename");
 
-	setOption(pars.runsRequired, "-runsRequired", "runsRequired");
-	setOption(pars.experimentName, "-experimentName", "ExperimentName");
+	setOption(pars.runsRequired, "--runsRequired", "runsRequired");
+	setOption(pars.experimentName, "--experimentName", "ExperimentName");
 	if (bib::containsSubString(pars.experimentName, ".")) {
 		addWarning("Error in populationCollapse::populationCollapse, populationName can't contain '.', "
 						+ pars.experimentName);
 		failed_ = true;
 	}
-	setOption(pars.clusterCutOff, "-clusterCutOff", "Cluster Size Cut Off");
+	setOption(pars.clusterCutOff, "--clusterCutOff", "Cluster Size Cut Off");
 	setOption(pars.noTrees, "--noTrees", "Don't generate html difference trees");
 	processDirectoryOutputName("clusters_" + getCurrentDate(), true);
 
-	setOption(pars.extra, "-extra", "ExtraOutput");
+	setOption(pars.extra, "--extra", "ExtraOutput");
 	processRefFilename();
-	setOption(pars.noPopulation, "-noPopulation",
+	setOption(pars.noPopulation, "--noPopulation",
 			"Don't do Population Clustering");
 
-	setOption(pars.fracCutoff, "-fracCutOff",
+	setOption(pars.fracCutoff, "--fracCutOff",
 			"PopulationClusteringFractionCutoff");
-	pars.differentPar = setOption(pars.parametersPopulation, "-popPar",
+	pars.differentPar = setOption(pars.parametersPopulation, "--popPar",
 			"ParametersForPopulationCollapse");
-	setOption(pars_.chiOpts_.checkChimeras_, "-markChimeras", "MarkChimeras");
-	setOption(pars.keepChimeras, "-keepChimeras", "KeepChimeras");
-	setOption(pars_.chiOpts_.parentFreqs_, "-parFreqs", "ParentFrequence_multiplier_cutoff");
+	setOption(pars_.chiOpts_.checkChimeras_, "--markChimeras", "MarkChimeras");
+	setOption(pars.keepChimeras, "--keepChimeras", "KeepChimeras");
+	setOption(pars_.chiOpts_.parentFreqs_, "--parFreqs", "ParentFrequence_multiplier_cutoff");
 
 	setOption(pars.numThreads, "--numThreads", "Number of threads to use");
 
-	setOption(pars.plotRepAgreement, "-plotRepAgreement", "Plot Rep Agreement");
+	setOption(pars.plotRepAgreement, "--plotRepAgreement", "Plot Rep Agreement");
 	processAlignerDefualts();
 	if (pars_.debug_ && !failed_) {
 		std::cout << "p: " << pars_.qScorePars_.primaryQual_ << std::endl;
