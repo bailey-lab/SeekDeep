@@ -531,7 +531,7 @@ class Packages():
         buildCmd = """./configure --prefix={local_dir} --enable-R-shlib --with-x=no CC={CC} CXX={CXX} OBJC={CC}
                 && make -j {num_cores}
                 && make install
-                && echo 'install.packages(c(\"gridExtra\", \"ape\", \"ggplot2\", \"seqinr\",\"Rcpp\", \"RInside\"),
+                && echo '.libPaths(.libPaths()[length(.libPaths()  )] ); install.packages(c(\"gridExtra\", \"ape\", \"ggplot2\", \"seqinr\",\"Rcpp\", \"RInside\"),
                 repos=\"http://cran.us.r-project.org\", Ncpus = {num_cores}, lib =.libPaths()[length(.libPaths()  )] )' | $({local_dir}/""" + rHomeLoc + """)/bin/R --slave --vanilla
                 """
         buildCmd = " ".join(buildCmd.split())
@@ -1826,7 +1826,7 @@ class Setup:
             rHomeLoc = "bin/R RHOME"
             if Utils.isMac():
                 rHomeLoc = "R.framework/Resources/bin/R RHOME"
-            cmd = """echo 'install.packages(\"{SOURCEFILE}\", repos = NULL, type="source", Ncpus = {num_cores}, lib =.libPaths()[length(.libPaths()  )])' | $({local_dir}/{RHOMELOC})/bin/R --slave --vanilla
+            cmd = """echo '.libPaths(.libPaths()[length(.libPaths()  )] ); install.packages(\"{SOURCEFILE}\", repos = NULL, type="source", Ncpus = {num_cores}, lib =.libPaths()[length(.libPaths()  )])' | $({local_dir}/{RHOMELOC})/bin/R --slave --vanilla
                 """.format(local_dir=Utils.shellquote(bPath.local_dir).replace(' ', '\ '),SOURCEFILE = pack, RHOMELOC =rHomeLoc, num_cores=self.num_cores())
             print CT.boldBlack(cmd)
             cmd = " ".join(cmd.split())
@@ -1841,7 +1841,7 @@ class Setup:
             rHomeLoc = "bin/R RHOME"
             if Utils.isMac():
                 rHomeLoc = "R.framework/Resources/bin/R RHOME"
-            cmd = """echo 'install.packages(\"{PACKAGENAME}\", repos=\"http://cran.us.r-project.org\", Ncpus = {num_cores}, lib =.libPaths()[length(.libPaths()  )])'  | $({local_dir}/{RHOMELOC})/bin/R --slave --vanilla
+            cmd = """echo '.libPaths(.libPaths()[length(.libPaths()  )] ); install.packages(\"{PACKAGENAME}\", repos=\"http://cran.us.r-project.org\", Ncpus = {num_cores}, lib =.libPaths()[length(.libPaths()  )])'  | $({local_dir}/{RHOMELOC})/bin/R --slave --vanilla
                 """.format(local_dir=Utils.shellquote(bPath.local_dir).replace(' ', '\ '),PACKAGENAME = pack, RHOMELOC =rHomeLoc,num_cores=self.num_cores() )
             print CT.boldBlack(cmd)
             cmd = " ".join(cmd.split())
