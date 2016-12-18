@@ -69,8 +69,8 @@ class CPPLibPackageVersionR():
         self.setExecutableLoc(localPath)
         ret = "-DSTRICT_R_HEADERS"
         ret = ret + " " + Utils.runAndCapture(self.rExecutable_ + " CMD config --cppflags")
-        ret = ret + " " + Utils.runAndCapture("echo 'Rcpp:::CxxFlags()' | " + self.rExecutable_ + " --vanilla --slave")
-        ret = ret + " " + Utils.runAndCapture("echo 'RInside:::CxxFlags()' | " + self.rExecutable_ + " --vanilla --slave")
+        ret = ret + " " + Utils.runAndCapture("echo '.libPaths(.libPaths()[length(.libPaths()  )] ); Rcpp:::CxxFlags()' | " + self.rExecutable_ + " --vanilla --slave")
+        ret = ret + " " + Utils.runAndCapture("echo '.libPaths(.libPaths()[length(.libPaths()  )] ); RInside:::CxxFlags()' | " + self.rExecutable_ + " --vanilla --slave")
         return ' '.join(ret.split())
         
     def getLdFlags(self, localPath):
@@ -80,8 +80,8 @@ class CPPLibPackageVersionR():
         ret = ret + " " + Utils.runAndCapture(self.rExecutable_ + " CMD config BLAS_LIBS")
         ret = ret + " " + Utils.runAndCapture(self.rExecutable_ + " CMD config LAPACK_LIBS")
         ret = ret + " " + "-Wl,-rpath," + self.rHome_ + "/lib"
-        ret = ret + " " + Utils.runAndCapture("echo 'Rcpp:::LdFlags()' | " + self.rExecutable_ + " --vanilla --slave")
-        ret = ret + " " + Utils.runAndCapture("echo 'RInside:::LdFlags()' | " + self.rExecutable_ + " --vanilla --slave")
+        ret = ret + " " + Utils.runAndCapture("echo '.libPaths(.libPaths()[length(.libPaths()  )] ); Rcpp:::LdFlags()' | " + self.rExecutable_ + " --vanilla --slave")
+        ret = ret + " " + Utils.runAndCapture("echo '.libPaths(.libPaths()[length(.libPaths()  )] ); RInside:::LdFlags()' | " + self.rExecutable_ + " --vanilla --slave")
         return ' '.join(ret.split())
     
     def getDownloadUrl(self):
@@ -158,7 +158,7 @@ class CPPLibPackage():
         verName = verName.replace("/", "__")
         build_dir = os.path.join(self.externalLibDir_.ext_build, self.name_, verName)
         fn = os.path.basename(url)
-        fn_noex = fn.replace(".tar.gz", "").replace(".tar.bz2", "").replace(".git", "")
+        #fn_noex = fn.replace(".tar.gz", "").replace(".tar.bz2", "").replace(".git", "")
         build_sub_dir = os.path.join(self.externalLibDir_.ext_build, self.name_, verName, self.name_)
         local_dir = os.path.join(self.externalLibDir_.install_dir, self.name_, verName, self.name_)
         self.versions_[verName] = CPPLibPackageVersion(self.name_, verName,BuildPaths(url, build_dir, build_sub_dir, local_dir), depends)
@@ -328,12 +328,12 @@ class Packages():
         buildCmd = ""
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly", "master")
         if self.args.noInternet:
-            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
-                pack = pickle.load(input)
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                pack = pickle.load(inputPkl)
                 pack.defaultBuildCmd_ = buildCmd
         elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
-            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
-                    pack = pickle.load(input)
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                    pack = pickle.load(inputPkl)
                     pack.defaultBuildCmd_ = buildCmd
         else:
             
@@ -354,12 +354,12 @@ class Packages():
         buildCmd = ""
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly", "RELEASE_0_8_1")
         if self.args.noInternet:
-            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
-                pack = pickle.load(input)
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                pack = pickle.load(inputPkl)
                 pack.defaultBuildCmd_ = buildCmd
         elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
-            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
-                    pack = pickle.load(input)
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                    pack = pickle.load(inputPkl)
                     pack.defaultBuildCmd_ = buildCmd
         else:
             refs = pack.getGitRefs(url)
@@ -376,12 +376,12 @@ class Packages():
         buildCmd = "mkdir -p build && cd build && CC={CC} CXX={CXX} cmake -DCMAKE_INSTALL_PREFIX:PATH={local_dir} .. && make -j {num_cores} install"
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v2.4.0")
         if self.args.noInternet:
-            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
-                pack = pickle.load(input)
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                pack = pickle.load(inputPkl)
                 pack.defaultBuildCmd_ = buildCmd
         elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
-            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
-                    pack = pickle.load(input)
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                    pack = pickle.load(inputPkl)
                     pack.defaultBuildCmd_ = buildCmd
         else:
             refs = pack.getGitRefs(url)
@@ -400,12 +400,12 @@ class Packages():
         buildCmd = "mkdir -p build && cd build && CC={CC} CXX={CXX} cmake -DCMAKE_CXX_FLAGS=-fPIC -DCMAKE_EXE_LINKER_FLAGS=-fPIC -DCMAKE_INSTALL_PREFIX:PATH={local_dir} ..  && make -j {num_cores} install"
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "1.7.1")
         if self.args.noInternet:
-            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
-                pack = pickle.load(input)
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                pack = pickle.load(inputPkl)
                 pack.defaultBuildCmd_ = buildCmd
         elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
-            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
-                    pack = pickle.load(input)
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                    pack = pickle.load(inputPkl)
                     pack.defaultBuildCmd_ = buildCmd
         else:
             refs = pack.getGitRefs(url)
@@ -483,12 +483,12 @@ class Packages():
         buildCmd = ""
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly", "v0.1")
         if self.args.noInternet:
-            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
-                pack = pickle.load(input)
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                pack = pickle.load(inputPkl)
                 pack.defaultBuildCmd_ = buildCmd
         elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
-            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
-                    pack = pickle.load(input)
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                    pack = pickle.load(inputPkl)
                     pack.defaultBuildCmd_ = buildCmd
         else:
             refs = pack.getGitRefs(url)
@@ -505,12 +505,12 @@ class Packages():
         buildCmd = ""
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly", "v1.3.3")
         if self.args.noInternet:
-            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
-                pack = pickle.load(input)
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                pack = pickle.load(inputPkl)
                 pack.defaultBuildCmd_ = buildCmd
         elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
-            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
-                    pack = pickle.load(input)
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                    pack = pickle.load(inputPkl)
                     pack.defaultBuildCmd_ = buildCmd
         else:
             refs = pack.getGitRefs(url)
@@ -532,7 +532,7 @@ class Packages():
                 && make -j {num_cores}
                 && make install
                 && echo 'install.packages(c(\"gridExtra\", \"ape\", \"ggplot2\", \"seqinr\",\"Rcpp\", \"RInside\"),
-                repos=\"http://cran.us.r-project.org\", Ncpus = {num_cores}, lib =.libPaths()[length(.libPaths()  )])' | $({local_dir}/""" + rHomeLoc + """)/bin/R --slave --vanilla
+                repos=\"http://cran.us.r-project.org\", Ncpus = {num_cores}, lib =.libPaths()[length(.libPaths()  )] )' | $({local_dir}/""" + rHomeLoc + """)/bin/R --slave --vanilla
                 """
         buildCmd = " ".join(buildCmd.split())
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "3.3.2")
@@ -638,12 +638,12 @@ class Packages():
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "1.3.1")
 
         if self.args.noInternet:
-            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
-                pack = pickle.load(input)
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                pack = pickle.load(inputPkl)
                 pack.defaultBuildCmd_ = buildCmd
         elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
-            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
-                    pack = pickle.load(input)
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                    pack = pickle.load(inputPkl)
                     pack.defaultBuildCmd_ = buildCmd
         else:
             refs = pack.getGitRefs(url)
@@ -665,12 +665,12 @@ class Packages():
 
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "4.0")
         if self.args.noInternet:
-            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
-                pack = pickle.load(input)
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                pack = pickle.load(inputPkl)
                 pack.defaultBuildCmd_ = buildCmd
         elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
-            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
-                    pack = pickle.load(input)
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                    pack = pickle.load(inputPkl)
                     pack.defaultBuildCmd_ = buildCmd
         else:
             refs = pack.getGitRefs(url)
@@ -802,12 +802,12 @@ class Packages():
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly", "v2.0.0")
         #pack.bibProject_ = True
         if self.args.noInternet:
-            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
-                pack = pickle.load(input)
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                pack = pickle.load(inputPkl)
                 pack.defaultBuildCmd_ = buildCmd
         elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
-            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
-                    pack = pickle.load(input)
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                    pack = pickle.load(inputPkl)
                     pack.defaultBuildCmd_ = buildCmd
         else:
             refs = pack.getGitRefs(url)
@@ -827,12 +827,12 @@ class Packages():
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v2.3.0")
         pack.bibProject_ = True
         if self.args.noInternet:
-            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
-                pack = pickle.load(input)
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                pack = pickle.load(inputPkl)
                 pack.defaultBuildCmd_ = buildCmd
         elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
-            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
-                    pack = pickle.load(input)
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                    pack = pickle.load(inputPkl)
                     pack.defaultBuildCmd_ = buildCmd
         else:
             refs = pack.getGitRefs(url)
@@ -844,7 +844,7 @@ class Packages():
                 else:
                     major = int(ref[1]);
                     minor = int(ref[3]);
-                    patch = int(ref[5]);
+                    #patch = int(ref[5]);
                     if not major >= 3 and not (major == 2 and minor > 4):
                         needCurl = True
                 if "develop" in ref:
@@ -864,12 +864,12 @@ class Packages():
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v2.0.1")
         pack.bibProject_ = True
         if self.args.noInternet:
-            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
-                pack = pickle.load(input)
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                pack = pickle.load(inputPkl)
                 pack.defaultBuildCmd_ = buildCmd
         elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
-            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
-                    pack = pickle.load(input)
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                    pack = pickle.load(inputPkl)
                     pack.defaultBuildCmd_ = buildCmd
         else:
             refs = pack.getGitRefs(url)
@@ -887,12 +887,12 @@ class Packages():
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v0.3")
         pack.bibProject_ = True
         if self.args.noInternet:
-            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
-                pack = pickle.load(input)
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                pack = pickle.load(inputPkl)
                 pack.defaultBuildCmd_ = buildCmd
         elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
-            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
-                    pack = pickle.load(input)
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                    pack = pickle.load(inputPkl)
                     pack.defaultBuildCmd_ = buildCmd
         else:
             refs = pack.getGitRefs(url)
@@ -910,12 +910,12 @@ class Packages():
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v2.3.3")
         pack.bibProject_ = True
         if self.args.noInternet:
-            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
-                pack = pickle.load(input)
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                pack = pickle.load(inputPkl)
                 pack.defaultBuildCmd_ = buildCmd
         elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
-            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
-                    pack = pickle.load(input)
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                    pack = pickle.load(inputPkl)
                     pack.defaultBuildCmd_ = buildCmd
         else:
             refs = pack.getGitRefs(url)
@@ -933,12 +933,12 @@ class Packages():
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v2.3.3")
         pack.bibProject_ = True
         if self.args.noInternet:
-            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
-                pack = pickle.load(input)
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                pack = pickle.load(inputPkl)
                 pack.defaultBuildCmd_ = buildCmd
         elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
-            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
-                    pack = pickle.load(input)
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                    pack = pickle.load(inputPkl)
                     pack.defaultBuildCmd_ = buildCmd
         else:
             refs = pack.getGitRefs(url)
@@ -958,12 +958,12 @@ class Packages():
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v1.3.1")
         pack.bibProject_ = True
         if self.args.noInternet:
-            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
-                pack = pickle.load(input)
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                pack = pickle.load(inputPkl)
                 pack.defaultBuildCmd_ = buildCmd
         elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
-            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
-                    pack = pickle.load(input)
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                    pack = pickle.load(inputPkl)
                     pack.defaultBuildCmd_ = buildCmd
         else:
             refs = pack.getGitRefs(url)
@@ -981,12 +981,12 @@ class Packages():
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "develop")
         pack.bibProject_ = True
         if self.args.noInternet:
-            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
-                pack = pickle.load(input)
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                pack = pickle.load(inputPkl)
                 pack.defaultBuildCmd_ = buildCmd
         elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
-            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
-                    pack = pickle.load(input)
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                    pack = pickle.load(inputPkl)
                     pack.defaultBuildCmd_ = buildCmd
         else:
             refs = pack.getGitRefs(url)
@@ -1004,12 +1004,12 @@ class Packages():
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "1.1.1")
         pack.bibProject_ = True
         if self.args.noInternet:
-            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
-                pack = pickle.load(input)
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                pack = pickle.load(inputPkl)
                 pack.defaultBuildCmd_ = buildCmd
         elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
-            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
-                    pack = pickle.load(input)
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                    pack = pickle.load(inputPkl)
                     pack.defaultBuildCmd_ = buildCmd
         else:
             refs = pack.getGitRefs(url)
@@ -1027,12 +1027,12 @@ class Packages():
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v2.3.0")
         pack.bibProject_ = True
         if self.args.noInternet:
-            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
-                pack = pickle.load(input)
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                pack = pickle.load(inputPkl)
                 pack.defaultBuildCmd_ = buildCmd
         elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
-            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as input:
-                    pack = pickle.load(input)
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                    pack = pickle.load(inputPkl)
                     pack.defaultBuildCmd_ = buildCmd
         else:
             refs = pack.getGitRefs(url)
@@ -1203,8 +1203,8 @@ class Packages():
                     #if bib project, add the flags of it's dependencies
                     if pack.bibProject_:
                         cmd = "python ./setup.py --compfile compfile.mk --numCores 1 --append --outMakefile {makefileCommon}".format(makefileCommon = os.path.abspath(filename))
-                        dir = pack.getBuildSubDir(packVer.version)
-                        Utils.run_in_dir(cmd, dir)
+                        buildSubDir = pack.getBuildSubDir(packVer.version)
+                        Utils.run_in_dir(cmd, buildSubDir)
                     pvIncFlags = self.getIncludeFlags(packVer)
                     if "" != pvIncFlags:
                         f.write("#" + packVer.name + ":" + packVer.version + " CXXFLAGS\n")
@@ -1234,8 +1234,8 @@ class Packages():
                     #if bib project, add the flags of it's dependencies
                     if pack.bibProject_:
                             cmd = "python ./setup.py --compfile compfile.mk --numCores 1 --append --outMakefile {makefileCommon}".format(makefileCommon = os.path.abspath(filename))
-                            dir = pack.getBuildSubDir(packVer.version)
-                            Utils.run_in_dir(cmd, dir)
+                            buildSubDir = pack.getBuildSubDir(packVer.version)
+                            Utils.run_in_dir(cmd, buildSubDir)
                     pvIncFlags = self.getIncludeFlags(packVer)
                     if "" != pvIncFlags:
                         f.write("#" + packVer.name + ":" + packVer.version + " CXXFLAGS\n")
@@ -1363,17 +1363,17 @@ class Setup:
         
     def setup(self):
         if self.args.forceUpdate:
-            for set in self.setUpsNeeded:
-                if not set.name in self.setUps.keys():
-                    print CT.boldBlack( "Unrecognized option ") + CT.boldRed(set.name)
+            for setUpNeeded in self.setUpsNeeded:
+                if not setUpNeeded.name in self.setUps.keys():
+                    print CT.boldBlack( "Unrecognized option ") + CT.boldRed(setUpNeeded.name)
                 else:
-                    self.rmDirsForLib(set)
+                    self.rmDirsForLib(setUpNeeded)
                     
-        for set in self.setUpsNeeded:
-            if not set.name in self.setUps.keys():
-                print CT.boldBlack( "Unrecognized option ") + CT.boldRed(set.name)
+        for setUpNeeded in self.setUpsNeeded:
+            if not setUpNeeded.name in self.setUps.keys():
+                print CT.boldBlack( "Unrecognized option ") + CT.boldRed(setUpNeeded.name)
             else:
-                self.__setup(set.name, set.version)
+                self.__setup(setUpNeeded.name, setUpNeeded.version)
 
         for p in self.installed:
             print p.name + ":" + str(p.version), CT.boldGreen("installed")
@@ -1433,9 +1433,9 @@ class Setup:
         print "Available installs:"
         print "To Install use ./setup.py --libs lib1:ver,lib2:ver,lib3:ver"
         print "E.g. ./setup.py --libs bamtools:v2.4.0,boost:1_60_0"
-        for set in installs:
-            print set
-            pack = self.__package(set)
+        for installAvail in installs:
+            print installAvail
+            pack = self.__package(installAvail)
             sys.stdout.write("\t")
             sys.stdout.write(",".join([p.replace("__", "/") for p in pack.getVersions()]))
             sys.stdout.write("\n")
@@ -1443,9 +1443,9 @@ class Setup:
     def printGitRefs(self):
         self.__initSetUpFuncs()
         print "Git branches and tags:"
-        for set in self.setUpsNeeded:
-            print set.name
-            pack = self.__package(set.name)
+        for setUpNeeded in self.setUpsNeeded:
+            print setUpNeeded.name
+            pack = self.__package(setUpNeeded.name)
             refs = pack.getGitRefs(pack.versions_[pack.defaultVersion_].bPaths_.url)
             print "\t" + "Branches"
             for b in refs.branches:
@@ -1798,18 +1798,18 @@ class Setup:
         for setupFound in self.foundSetUpsNeeded:
             self.packages_.addPackage(self.setUpsNeeded, setupFound)
 
-        for set in self.setUpsNeeded:
-            pack = self.__package(set.name)
-            bPaths = pack.versions_[set.version].bPaths_
+        for setUpNeeded in self.setUpsNeeded:
+            pack = self.__package(setUpNeeded.name)
+            bPaths = pack.versions_[setUpNeeded.version].bPaths_
             if os.path.exists(bPaths.local_dir):
                 print "Removing " + CT.boldBlack(bPaths.local_dir)
                 Utils.rm_rf(bPaths.local_dir)
-        for set in self.setUpsNeeded:
-            pack = self.__package(set.name)
-            bPath = pack.versions_[set.version].bPaths_
-            if os.path.exists(os.path.join(bPath.build_dir,set.name, "makefile-common.mk")):
-                os.remove(os.path.join(bPath.build_dir,set.name, "makefile-common.mk"))
-            self.__setup(set.name, set.version)
+        for setUpNeeded in self.setUpsNeeded:
+            pack = self.__package(setUpNeeded.name)
+            bPath = pack.versions_[setUpNeeded.version].bPaths_
+            if os.path.exists(os.path.join(bPath.build_dir,setUpNeeded.name, "makefile-common.mk")):
+                os.remove(os.path.join(bPath.build_dir,setUpNeeded.name, "makefile-common.mk"))
+            self.__setup(setUpNeeded.name, setUpNeeded.version)
         for p in self.installed:
             print p.name + ":" + str(p.version), CT.boldGreen("installed")
 
@@ -2000,28 +2000,28 @@ class Setup:
     
     
     def downloadFiles(self):
-        for set in self.setUpsNeeded:
+        for setUpNeeded in self.setUpsNeeded:
             topTempDir = os.path.join(self.dirMaster_.base_dir, "temp")
-            self.packages_.checkForPackVer(set)
-            pack = self.__package(set.name) 
-            packVer = pack.versions_[set.version]
+            self.packages_.checkForPackVer(setUpNeeded)
+            pack = self.__package(setUpNeeded.name) 
+            packVer = pack.versions_[setUpNeeded.version]
             downloadDir = os.path.join(self.dirMaster_.ext_tars, pack.name_)
             Utils.mkdir(downloadDir)
             if pack.bibProject_:
                 downloadCmd = "python ./configure.py -CC {CC} -CXX {CXX} -externalLibDir {external} && ./setup.py --compfile compfile.mk --justDownload".format(external = Utils.shellquote(self.dirMaster_.base_dir), num_cores=self.num_cores(), CC=self.CC, CXX=self.CXX)
                 Utils.mkdir(topTempDir)
-                packVer = pack.versions_[set.version]
+                packVer = pack.versions_[setUpNeeded.version]
                 tempDir = os.path.join(topTempDir, pack.name_)
                 cloneCmd = "git clone {url} {d}".format(url=packVer.bPaths_.url, d = tempDir)
                 tagCmd = "git checkout {tag}".format(tag=packVer.nameVer_.version.replace("__", "/"))
                 Utils.run(cloneCmd)
                 Utils.run_in_dir(tagCmd, tempDir)
                 Utils.run_in_dir(downloadCmd, tempDir)
-                if "develop" == set.version or "master" == set.version or "release" in set.version:
-                    archiveCmd = "git archive --prefix={name}/ -o {downloadDir}/{version}.tar.gz HEAD".format(name = pack.name_, downloadDir = downloadDir, version = set.version)
+                if "develop" == setUpNeeded.version or "master" == setUpNeeded.version or "release" in setUpNeeded.version:
+                    archiveCmd = "git archive --prefix={name}/ -o {downloadDir}/{version}.tar.gz HEAD".format(name = pack.name_, downloadDir = downloadDir, version = setUpNeeded.version)
                     Utils.run_in_dir(archiveCmd, tempDir)
                 shutil.rmtree(tempDir)
-            if pack.bibProject_ and ("develop" == set.version or "master" == set.version or "release" in set.version):
+            if pack.bibProject_ and ("develop" == setUpNeeded.version or "master" == setUpNeeded.version or "release" in setUpNeeded.version):
                 pass
             else:
                 url = packVer.getDownloadUrl()
@@ -2083,8 +2083,9 @@ class Setup:
 
 
 def ubuntu(self):
-        pkgs = """libbz2-dev python2.7-dev cmake libpcre3-dev zlib1g-dev libgcrypt11-dev libicu-dev
+    pkgs = """libbz2-dev python2.7-dev cmake libpcre3-dev zlib1g-dev libgcrypt11-dev libicu-dev
 python doxygen doxygen-gui auctex xindy graphviz libcurl4-openssl-dev""".split()
+    return pkgs
 
 
 
@@ -2161,12 +2162,12 @@ def runSetup():
                 s.setup()
                 if args.outMakefile:
                     packVers = []
-                    for set in s.setUpsNeeded:
-                        s.packages_.addPackage(packVers,set)
+                    for setUpNeeded in s.setUpsNeeded:
+                        s.packages_.addPackage(packVers,setUpNeeded)
                     s.packages_.writeMakefile(packVers, args.outMakefile, args.overWrite, args.append)
                 if args.symlinkBin:
-                    for set in s.setUpsNeeded:
-                        s.linkInBin(set.name, set.version, args.overWrite)
+                    for setUpNeeded in s.setUpsNeeded:
+                        s.linkInBin(setUpNeeded.name, setUpNeeded.version, args.overWrite)
                 return 0
 
 if __name__ == '__main__':
