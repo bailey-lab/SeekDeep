@@ -163,8 +163,6 @@ void SeekDeepSetUp::setUpExtractor(extractorPars & pars) {
 		std::cout << "examples: " << std::endl
 				<< "\tSeekDeep extractor --fasta reads.fasta --id "
 						"idFile.tab.txt --dout outPutDir " << std::endl
-				<< "\tSeekDeep extractor --stub reads --id "
-						"idFile.tab.txt --dout outPutDir " << std::endl
 				<< "\tSeekDeep extractor "
 						"--fastq reads.fastq --id idFile.tab.txt" << std::endl;
 		tempOut.str(std::string());
