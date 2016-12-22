@@ -104,6 +104,9 @@ struct clusterDownPars {
   bool ionTorrent = false;
   bool illumina = false;
   bool tech454 = false;
+  uint32_t hq = 0;
+
+  double otuPerc = .99;
 
   bool onPerId = false;
 	bool extra = false;

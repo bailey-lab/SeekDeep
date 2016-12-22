@@ -186,22 +186,55 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 	setOption(pars.illumina, "--illumina",
 				"Flag to indicate reads are illumina");
 	bool needsParFlag = !pars.illumina && !pars.ionTorrent;
+
+	setOption(pars.hq, "--hq",
+			"When the --illumina,--454,or --ionTorrent flag is on also allow this many high quality mismatch to the defaults for those techs");
 	if (pars.ionTorrent) {
 		pars_.colOpts_.iTOpts_.removeLowQualityBases_ = true;
 		pars_.colOpts_.iTOpts_.adjustHomopolyerRuns_ = true;
 		//pars.useCompPerCutOff = true;
-		auto temp = CollapseIterations::gen454ItDefaultPars(100);
-		pars.iteratorMap = temp;
 	}
 
-	if(pars.tech454){
-		auto temp = CollapseIterations::gen454ItDefaultPars(100);
-		pars.iteratorMap = temp;
+	if((pars.tech454 | pars.ionTorrent) & pars.illumina){
+		failed_ = true;
+		std::stringstream ss;
+		if(pars.tech454){
+			ss << "Error, both --454 and --illumina where used" << "\n";
+		}else{
+			ss << "Error, both --ionTorrent and --illumina where used" << "\n";
+		}
+		addWarning(ss.str());
+	}
+
+	if(pars.tech454 | pars.ionTorrent){
+		if(pars.hq  > 0){
+			pars.iteratorMap = CollapseIterations::gen454ItDefaultParsWithHqs(100, pars.hq);
+		}else{
+			pars.iteratorMap = CollapseIterations::gen454ItDefaultPars(100);
+		}
 	}
 
 	if(pars.illumina){
-		pars.iteratorMap = CollapseIterations::genIlluminaDefaultPars(100);
+		if(pars.hq  > 0){
+			pars.iteratorMap = CollapseIterations::genIlluminaDefaultParsWithHqs(100, pars.hq);
+		}else{
+			pars.iteratorMap = CollapseIterations::genIlluminaDefaultPars(100);
+		}
 		pars_.colOpts_.iTOpts_.weighHomopolyer_ = false;
+	}
+	bool otuSet = setOption(pars.otuPerc, "--otu",
+			"Collapse on this OTU percentage, should be between (0,1) ");
+	if (otuSet) {
+		if (pars.otuPerc <= 0 | pars.otuPerc >= 1) {
+			failed_ = true;
+			std::stringstream ss;
+			ss
+					<< "Error, otu percentage should be between 0 and 1 (non inclusive), not"
+					<< pars.otuPerc << "\n";
+			addWarning(ss.str());
+		}
+		pars.onPerId = true;
+		pars.iteratorMap = CollapseIterations::genOtuPars(100, pars.otuPerc);
 	}
 
 	setOption(pars.parameters, "--par", "ParametersFilename", needsParFlag);
@@ -276,6 +309,7 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 	pars.smallReadSize = pars_.colOpts_.kmerOpts_.kLength_ * 2;
 	setOption(pars.smallReadSize, "--smallReadSize",
 			"A cut off to remove small reads");
+
 	if (!failed_) {
 		if ("" != pars.parameters) {
 			if (pars.onPerId) {

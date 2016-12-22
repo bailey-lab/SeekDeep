@@ -308,16 +308,12 @@ int SeekDeepRunner::extractor(const bib::progutils::CmdArgs & inputCommands) {
 		} else {
 			currentMid = MidDeterminator::midPos("all", 0, 0, 0);
 		}
-
-
-
 		if (seq->seqBase_.name_.find("_Comp") != std::string::npos) {
 			++counts[currentMid.midName_].second;
 		} else {
 			++counts[currentMid.midName_].first;
 		}
 		if (!currentMid) {
-
 			std::string unRecName = "unrecognizedBarcode_" + MidDeterminator::midPos::getFailureCaseName(currentMid.fCase_);
 			bool possibleContaimination = false;
 			if(pars.screenForPossibleContamination){
@@ -355,8 +351,6 @@ int SeekDeepRunner::extractor(const bib::progutils::CmdArgs & inputCommands) {
 				++readsNotMatchedToBarcode;
 				MidDeterminator::increaseFailedBarcodeCounts(currentMid, failBarCodeCounts);
 			}
-
-
 			readerOuts.openWrite(unRecName, seq);
 		}else{
 			readLens.emplace_back(len(*seq));
@@ -366,7 +360,6 @@ int SeekDeepRunner::extractor(const bib::progutils::CmdArgs & inputCommands) {
 				readerOuts.openWriteFlow(currentMid.midName_ + "flow", *reader.in_.lastSffRead_);
 			}
 		}
-
 	}
 	if (setUp.pars_.verbose_) {
 		std::cout << std::endl;
