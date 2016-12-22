@@ -107,7 +107,7 @@ struct clusterDownPars {
   uint32_t hq = 0;
 
   double otuPerc = .99;
-
+  bool onHqPerId = false;
   bool onPerId = false;
 	bool extra = false;
 	uint32_t smallReadSize = 20;

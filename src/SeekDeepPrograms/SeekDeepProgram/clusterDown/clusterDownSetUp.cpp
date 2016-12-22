@@ -227,6 +227,9 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 	}
 	bool otuSet = setOption(pars.otuPerc, "--otu",
 			"Collapse on this OTU percentage, should be between (0,1) ");
+	setOption(pars.onHqPerId, "--onHqPerId",
+				"Collapse on percent identity calculated only using high quality differences");
+
 	if (otuSet) {
 		if (pars.otuPerc <= 0 | pars.otuPerc >= 1) {
 			failed_ = true;
@@ -237,7 +240,7 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 			addWarning(ss.str());
 		}
 		pars.onPerId = true;
-		pars.iteratorMap = CollapseIterations::genOtuPars(100, pars.otuPerc);
+		pars.iteratorMap = CollapseIterations::genOtuPars(100, pars.otuPerc, pars.onHqPerId);
 		needsParFlag = false;
 	}
 
