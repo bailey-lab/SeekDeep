@@ -185,7 +185,7 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 	setOption(pars.tech454, "--454", "Flag to indicate reads are 454");
 	setOption(pars.illumina, "--illumina",
 				"Flag to indicate reads are illumina");
-	bool needsParFlag = !pars.illumina && !pars.ionTorrent;
+	bool needsParFlag = true;
 
 	setOption(pars.hq, "--hq",
 			"When the --illumina,--454,or --ionTorrent flag is on also allow this many high quality mismatch to the defaults for those techs");
@@ -193,6 +193,7 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 		pars_.colOpts_.iTOpts_.removeLowQualityBases_ = true;
 		pars_.colOpts_.iTOpts_.adjustHomopolyerRuns_ = true;
 		//pars.useCompPerCutOff = true;
+		needsParFlag = false;
 	}
 
 	if((pars.tech454 | pars.ionTorrent) & pars.illumina){
@@ -212,6 +213,7 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 		}else{
 			pars.iteratorMap = CollapseIterations::gen454ItDefaultPars(100);
 		}
+		needsParFlag = false;
 	}
 
 	if(pars.illumina){
@@ -221,6 +223,7 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 			pars.iteratorMap = CollapseIterations::genIlluminaDefaultPars(100);
 		}
 		pars_.colOpts_.iTOpts_.weighHomopolyer_ = false;
+		needsParFlag = false;
 	}
 	bool otuSet = setOption(pars.otuPerc, "--otu",
 			"Collapse on this OTU percentage, should be between (0,1) ");
@@ -235,6 +238,7 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 		}
 		pars.onPerId = true;
 		pars.iteratorMap = CollapseIterations::genOtuPars(100, pars.otuPerc);
+		needsParFlag = false;
 	}
 
 	setOption(pars.parameters, "--par", "ParametersFilename", needsParFlag);
