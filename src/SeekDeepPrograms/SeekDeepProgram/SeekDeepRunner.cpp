@@ -39,6 +39,7 @@ SeekDeepRunner::SeekDeepRunner() :
 				},
 				{
 						addFunc("extractor", extractor, false),
+						addFunc("extractorPairedEnd", extractorPairedEnd, false),
 						addFunc("processClusters", processClusters,false),
 						addFunc("qluster", qluster, false),
 						addFunc("clusterDown",qluster, true),
@@ -46,6 +47,6 @@ SeekDeepRunner::SeekDeepRunner() :
 				}, "SeekDeep", "2", "5", "0-dev") {
 }
 
-
+//
 
 }  // namespace bibseq

@@ -33,7 +33,7 @@ namespace bibseq {
 
 
 
-int SeekDeepRunner::extractor(const bib::progutils::CmdArgs & inputCommands) {
+int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputCommands) {
 	SeekDeepSetUp setUp(inputCommands);
 	extractorPars pars;
 	setUp.setUpExtractor(pars);
@@ -107,7 +107,7 @@ int SeekDeepRunner::extractor(const bib::progutils::CmdArgs & inputCommands) {
 				bib::files::MkdirPar("contamination", false));
 	}
 
-	std::shared_ptr<readObject> seq = std::make_shared<readObject>();
+	std::shared_ptr<PairedRead> seq = std::make_shared<PairedRead>();
 
 	// read in reads and remove lower case bases indicating tech low quality like
 	// tags and such
@@ -267,7 +267,8 @@ int SeekDeepRunner::extractor(const bib::progutils::CmdArgs & inputCommands) {
 		std::cout << bib::bashCT::boldGreen("Extracting on MIDs") << std::endl;
 	}
 
-	std::vector<size_t> readLens;
+	std::vector<size_t> readLensR1;
+	std::vector<size_t> readLensR2;
 
 
 	while (reader.readNextRead(seq)) {
@@ -290,6 +291,7 @@ int SeekDeepRunner::extractor(const bib::progutils::CmdArgs & inputCommands) {
 		//possibly trim reads at low quality
 		if(pars.trimAtQual){
 			readVecTrimmer::trimAtFirstQualScore(seq->seqBase_, pars.trimAtQualCutOff);
+			readVecTrimmer::trimAtFirstQualScore(seq->mateSeqBase_, pars.trimAtQualCutOff);
 			if(0 == len(*seq)){
 				startsWtihBadQualOut.openWrite(seq);
 				++startsWithBadQualCount;
@@ -355,7 +357,8 @@ int SeekDeepRunner::extractor(const bib::progutils::CmdArgs & inputCommands) {
 			}
 			readerOuts.openWrite(unRecName, seq);
 		}else{
-			readLens.emplace_back(len(*seq));
+			readLensR1.emplace_back(len(seq->seqBase_));
+			readLensR2.emplace_back(len(seq->mateSeqBase_));
 			/**@todo need to reorient the reads here before outputing if that's needed*/
 			readerOuts.openWrite(currentMid.first.midName_, seq);
 			if (pars.mothurExtract || pars.pyroExtract){
@@ -369,19 +372,33 @@ int SeekDeepRunner::extractor(const bib::progutils::CmdArgs & inputCommands) {
 	//close mid outs;
 	readerOuts.closeOutAll();
 	//if no length was supplied, calculate a min and max length off of the median read length
-	auto readLenMedian = vectorMedianRef(readLens);
-	auto lenStep = readLenMedian * .20;
+	auto readLenMedianR1 = vectorMedianRef(readLensR1);
+	auto lenStepR1 = readLenMedianR1 * .05;
+	auto readLenMedianR2 = vectorMedianRef(readLensR2);
+	auto lenStepR2 = readLenMedianR2 * .05;
 
-	if(std::numeric_limits<uint32_t>::max() == pars.minLen){
-		if(lenStep > readLenMedian){
-			pars.minLen = 0;
+	if(std::numeric_limits<uint32_t>::max() == pars.r1MinLen){
+		if(lenStepR1 > readLenMedianR1){
+			pars.r1MinLen = 0;
 		}else{
-			pars.minLen = ::round(readLenMedian - lenStep);
+			pars.r1MinLen = ::round(readLenMedianR1 - lenStepR1);
 		}
 	}
 
-	if(std::numeric_limits<uint32_t>::max() == pars.maxLength){
-		pars.maxLength = ::round(readLenMedian + lenStep);
+	if(std::numeric_limits<uint32_t>::max() == pars.r1MaxLen){
+		pars.r1MaxLen = ::round(readLenMedianR1 + lenStepR1);
+	}
+
+	if(std::numeric_limits<uint32_t>::max() == pars.r2MinLen){
+		if(lenStepR2 > readLenMedianR2){
+			pars.r2MinLen = 0;
+		}else{
+			pars.r2MinLen = ::round(readLenMedianR2 - lenStepR2);
+		}
+	}
+
+	if(std::numeric_limits<uint32_t>::max() == pars.r2MaxLen){
+		pars.r2MaxLen = ::round(readLenMedianR2 + lenStepR2);
 	}
 
 	struct lenCutOffs {
@@ -394,7 +411,9 @@ int SeekDeepRunner::extractor(const bib::progutils::CmdArgs & inputCommands) {
 	};
 
 
-	std::map<std::string, lenCutOffs> multipleLenCutOffs;
+	std::map<std::string, lenCutOffs> multipleLenCutOffsR1;
+	std::map<std::string, lenCutOffs> multipleLenCutOffsR2;
+	/*
 	if (pars.multipleLenCutOffFilename != "") {
 		table lenCutTab = table(pars.multipleLenCutOffFilename, "whitespace", true);
 		bib::for_each(lenCutTab.columnNames_,
@@ -417,13 +436,15 @@ int SeekDeepRunner::extractor(const bib::progutils::CmdArgs & inputCommands) {
 							row[lenCutTab.getColPos("minlen")]), bib::lexical_cast<uint32_t>(
 							row[lenCutTab.getColPos("maxlen")]) });
 		}
-	}
-	//lenCutOffs seqLenCutOffs(pars.minLen, pars.maxLength);
+	}*/
 	for(const auto & tar : pDetermine.primers_){
-		if(!bib::in(tar.first, multipleLenCutOffs)){
-			multipleLenCutOffs.emplace(tar.first,
-					lenCutOffs {pars.minLen, pars.maxLength });
-			//lenCutOffs seqLenCutOffs(pars.minLen, pars.maxLength);
+		if(!bib::in(tar.first, multipleLenCutOffsR1)){
+			multipleLenCutOffsR1.emplace(tar.first,
+					lenCutOffs {pars.r1MinLen, pars.r1MaxLen });
+		}
+		if(!bib::in(tar.first, multipleLenCutOffsR2)){
+			multipleLenCutOffsR2.emplace(tar.first,
+					lenCutOffs {pars.r2MinLen, pars.r2MaxLen });
 		}
 	}
 
@@ -728,7 +749,8 @@ int SeekDeepRunner::extractor(const bib::progutils::CmdArgs & inputCommands) {
 			}
 
 			//min len
-			multipleLenCutOffs.at(primerName).minLenChecker_.checkRead(seq->seqBase_);
+			multipleLenCutOffsR1.at(primerName).minLenChecker_.checkRead(seq->seqBase_);
+			multipleLenCutOffsR2.at(primerName).minLenChecker_.checkRead(seq->mateSeqBase_);
 
 			if (!seq->seqBase_.on_) {
 				stats.increaseCounts(fullname, seq->seqBase_.name_,
@@ -758,8 +780,9 @@ int SeekDeepRunner::extractor(const bib::progutils::CmdArgs & inputCommands) {
 				}
 			}
 			//min len again becuase the reverse primer search trims to the reverse primer so it could be short again
-			multipleLenCutOffs.at(primerName).minLenChecker_.checkRead(
-										seq->seqBase_);
+			multipleLenCutOffsR1.at(primerName).minLenChecker_.checkRead(seq->seqBase_);
+			multipleLenCutOffsR2.at(primerName).minLenChecker_.checkRead(seq->mateSeqBase_);
+
 
 			if (!seq->seqBase_.on_) {
 				stats.increaseCounts(fullname, seq->seqBase_.name_,
@@ -774,27 +797,28 @@ int SeekDeepRunner::extractor(const bib::progutils::CmdArgs & inputCommands) {
 			}
 
 			//contains n
-			nChecker.checkRead(seq->seqBase_);
+			nChecker.checkRead(*seq);
 			if (!seq->seqBase_.on_) {
 				stats.increaseCounts(fullname, seq->seqBase_.name_,
 						ExtractionStator::extractCase::CONTAINSNS);
 				midReaderOuts.openWrite(fullname + "bad", seq);
 				continue;
 			}
-
+			/*
 			//max len
-			multipleLenCutOffs.at(primerName).maxLenChecker_.checkRead(seq->seqBase_);
+			multipleLenCutOffsR1.at(primerName).maxLenChecker_.checkRead(seq->seqBase_);
+			multipleLenCutOffsR2.at(primerName).maxLenChecker_.checkRead(seq->mateSeqBase_);
 
 			if (!seq->seqBase_.on_) {
 				stats.increaseCounts(fullname, seq->seqBase_.name_,
 						ExtractionStator::extractCase::MAXLENBAD);
 				midReaderOuts.openWrite(fullname + "bad", seq);
 				continue;
-			}
+			}*/
 
 
 			//quality
-			qualChecker->checkRead(seq->seqBase_);
+			qualChecker->checkRead(*seq);
 
 			if (!seq->seqBase_.on_) {
 				stats.increaseCounts(fullname, seq->seqBase_.name_,

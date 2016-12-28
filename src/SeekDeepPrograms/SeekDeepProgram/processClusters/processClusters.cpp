@@ -169,16 +169,27 @@ int SeekDeepRunner::processClusters(const bib::progutils::CmdArgs & inputCommand
 				//exclude clusters that don't have the necessary replicate number
 				//defaults to the number of input replicates if none supplied
 				if (0 != pars.runsRequired) {
-					sampColl.sampleCollapses_.at(samp)->excludeBySampNum(pars.runsRequired, false);
+					sampColl.sampleCollapses_.at(samp)->excludeBySampNum(pars.runsRequired, true);
 				} else {
 					sampColl.sampleCollapses_.at(samp)->excludeBySampNum(
-							sampColl.sampleCollapses_.at(samp)->input_.info_.infos_.size(), false);
+							sampColl.sampleCollapses_.at(samp)->input_.info_.infos_.size(), true);
 				}
+				std::string sortBy = "fraction";
+				sampColl.sampleCollapses_.at(samp)->renameClusters(sortBy);
+
 
 				if (!expectedSeqs.empty()) {
+					sampColl.sampleCollapses_.at(samp)->excluded_.checkAgainstExpected(
+							expectedSeqs, *currentAligner, false);
 					sampColl.sampleCollapses_.at(samp)->collapsed_.checkAgainstExpected(
 							expectedSeqs, *currentAligner, false);
+					if(setUp.pars_.debug_){
+						std::cout << "sample: " << samp << std::endl;
+					}
 					for(const auto & clus : sampColl.sampleCollapses_.at(samp)->collapsed_.clusters_){
+						if(setUp.pars_.debug_){
+							std::cout << clus.seqBase_.name_ << " : " << clus.expectsString << std::endl;
+						}
 						if("" ==  clus.expectsString ){
 							std::stringstream ss;
 							ss << __PRETTY_FUNCTION__ << ": Error, expects string is blank" << std::endl;
@@ -215,24 +226,31 @@ int SeekDeepRunner::processClusters(const bib::progutils::CmdArgs & inputCommand
 	for(const auto & sampleName : samplesDirs){
 
 		sampColl.setUpSampleFromPrevious(sampleName);
-
+		if(setUp.pars_.debug_){
+			std::cout << "sample: " << sampleName << std::endl;
+		}
+		for(const auto & clus : sampColl.sampleCollapses_.at(sampleName)->collapsed_.clusters_){
+			if(setUp.pars_.debug_){
+				std::cout << clus.seqBase_.name_ << " : " << clus.expectsString << std::endl;
+			}
+		}
 		if (!pars.keepChimeras) {
 			//now exclude all marked chimeras, currently this will also remark chimeras unnecessarily
-			sampColl.sampleCollapses_[sampleName]->excludeChimeras(false, pars.chiCutOff);
+			sampColl.sampleCollapses_.at(sampleName)->excludeChimeras(false, pars.chiCutOff);
 		}
 		if (bib::in(sampleName, customCutOffsMap)) {
 			if (setUp.pars_.debug_) {
 				std::cout << "Custom Cut off for " << sampleName << " : "
 						<< customCutOffsMap[sampleName] << std::endl;
 			}
-			sampColl.sampleCollapses_[sampleName]->excludeFraction(customCutOffsMap[sampleName],
+			sampColl.sampleCollapses_.at(sampleName)->excludeFraction(customCutOffsMap[sampleName],
 					true);
 		} else {
-			sampColl.sampleCollapses_[sampleName]->excludeFraction(pars.fracCutoff, true);
+			sampColl.sampleCollapses_.at(sampleName)->excludeFraction(pars.fracCutoff, true);
 		}
 
 		std::string sortBy = "fraction";
-		sampColl.sampleCollapses_[sampleName]->renameClusters(sortBy);
+		sampColl.sampleCollapses_.at(sampleName)->renameClusters(sortBy);
 		sampColl.dumpSample(sampleName);
 	}
 	if(setUp.pars_.verbose_){

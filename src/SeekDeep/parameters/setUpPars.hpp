@@ -32,6 +32,10 @@ struct extractorPars{
   uint32_t minLen = std::numeric_limits<uint32_t>::max();
   uint32_t maxLength = std::numeric_limits<uint32_t>::max();
 
+  uint32_t r1MinLen = std::numeric_limits<uint32_t>::max();
+  uint32_t r2MinLen = std::numeric_limits<uint32_t>::max();
+  uint32_t r1MaxLen = std::numeric_limits<uint32_t>::max();
+  uint32_t r2MaxLen = std::numeric_limits<uint32_t>::max();
 
   uint32_t smallFragmentCutoff = 50;
 

@@ -40,7 +40,9 @@ class SeekDeepRunner : public bib::progutils::oneRing {
  public:
   SeekDeepRunner();
   static int extractor(const bib::progutils::CmdArgs & inputCommands);
+  static int extractorPairedEnd(const bib::progutils::CmdArgs & inputCommands);
   static int qluster(const bib::progutils::CmdArgs & inputCommands);
+  //.cpp
   static int processClusters(const bib::progutils::CmdArgs & inputCommands);
   static int makeSampleDirectories(const bib::progutils::CmdArgs & inputCommands);
 };
