@@ -56,10 +56,13 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 		std::cout << "Nucleotide Composition Binning cut offs" << std::endl;
 		printVector(setUp.pars_.colOpts_.nucCompBinOpts_.diffCutOffVec_, ", ", std::cout);
 	}
+	setUp.rLog_.setCurrentLapName("initialSetUp");
+	setUp.rLog_.logCurrentTime("Reading In Sequences");
 	// read in the sequences
 	SeqInput reader(setUp.pars_.ioOptions_);
 	reader.openIn();
 	auto reads = reader.readAllReads<readObject>();
+	setUp.rLog_.logCurrentTime("Various filtering and little modifications");
 	auto splitOnSize = readVecSplitter::splitVectorBellowLength(reads,
 			pars.smallReadSize);
 	reads = splitOnSize.first;
@@ -109,6 +112,7 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 	setUp.rLog_ << "Reading clusters from " << setUp.pars_.ioOptions_.firstName_ << " "
 			<< setUp.pars_.ioOptions_.secondName_ << "\n";
 	setUp.rLog_ << "Read in " << counter << " reads" << "\n";
+	setUp.rLog_.logCurrentTime("Collapsing to unique sequences");
 	// create cluster vector
 	std::vector<identicalCluster> identicalClusters;
 	std::vector<cluster> clusters;
@@ -129,9 +133,10 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 	setUp.rLog_ << "Unique clusters numbers: " << clusters.size() << "\n";
 	std::sort(clusters.begin(), clusters.end());
 	//readVecSorter::sortReadVector(clusters, sortBy);
-
+	setUp.rLog_.logCurrentTime("Indexing kmers");
 	KmerMaps kMaps = indexKmers(clusters, setUp.pars_.colOpts_.kmerOpts_.kLength_, setUp.pars_.colOpts_.kmerOpts_.runCutOff_,
 			setUp.pars_.colOpts_.kmerOpts_.kmersByPosition_, setUp.pars_.expandKmerPos_, setUp.pars_.expandKmerSize_);
+	setUp.rLog_.logCurrentTime("Creating aligner");
 	// create aligner class object
 	aligner alignerObj(maxSize,
 			setUp.pars_.gapInfo_, setUp.pars_.scoring_, kMaps,
@@ -159,9 +164,9 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 		}
 		std::cout << alignerObj.parts_.gapScores_.toJson() << std::endl;
 	}
-
+	setUp.rLog_.logCurrentTime("Reading in previous alignments");
 	alignerObj.processAlnInfoInput(setUp.pars_.alnInfoDirName_);
-
+	setUp.rLog_.logCurrentTime("Removing singlets");
 	collapser collapserObj = collapser(setUp.pars_.colOpts_);
 
 	uint32_t singletonNum = 0;
@@ -184,7 +189,7 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 			std::cout << "Removed " << singletons.size() << " singlets" << std::endl;
 		}
 	}
-
+	setUp.rLog_.logCurrentTime("Running initial clustering");
 	//run clustering
 	pars.snapShotsOpts_.snapShotsDirName_ = "firstSnaps";
 	collapserObj.runFullClustering(clusters, pars.iteratorMap,
@@ -192,6 +197,7 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 			setUp.pars_.ioOptions_, setUp.pars_.refIoOptions_, pars.snapShotsOpts_);
 	//run again with singlets if needed
 	if (!pars.startWithSingles && !pars.leaveOutSinglets) {
+		setUp.rLog_.logCurrentTime("Running singlet clustering");
 		addOtherVec(clusters, singletons);
 		pars.snapShotsOpts_.snapShotsDirName_ = "secondSnaps";
 		collapserObj.runFullClustering(clusters, pars.iteratorMap,
@@ -231,6 +237,7 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 
 
 	if (setUp.pars_.chiOpts_.checkChimeras_) {
+		setUp.rLog_.logCurrentTime("Checking chimeras");
 		std::ofstream chimerasInfoFile;
 		openTextFile(chimerasInfoFile,
 				setUp.pars_.directoryName_ + "chimeraNumberInfo.txt", ".txt", false, false);
@@ -260,6 +267,7 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 	}
 
 	if (pars.collapsingTandems) {
+		setUp.rLog_.logCurrentTime("Collapsing tandems");
 		SeqOutput::write(clusters,
 				SeqIOOptions(
 						setUp.pars_.directoryName_
@@ -277,6 +285,7 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 		std::cout << "Collapsed down to " << clusters.size() << " clusters"
 				<< std::endl;
 	}
+	setUp.rLog_.logCurrentTime("Writing outputs");
 	if (setUp.pars_.refIoOptions_.firstName_ == "") {
 		profiler::getFractionInfoCluster(clusters, setUp.pars_.directoryName_,
 				"outputInfo");
@@ -318,6 +327,7 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 					setUp.pars_.directoryName_ + setUp.pars_.ioOptions_.out_.outFilename_,
 					setUp.pars_.ioOptions_.outFormat_,setUp.pars_.ioOptions_.out_));
 	{
+		setUp.rLog_.logCurrentTime("Calling internal snps");
 		std::string snpDir = bib::files::makeDir(setUp.pars_.directoryName_,
 				bib::files::MkdirPar("internalSnpInfo", false));
 		for (const auto & readPos : iter::range(clusters.size())) {
@@ -360,6 +370,7 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 		}
 	}
 	if (pars.createMinTree) {
+		setUp.rLog_.logCurrentTime("Creating minimum spanning trees");
 		std::string minTreeDirname = bib::files::makeDir(setUp.pars_.directoryName_,
 				bib::files::MkdirPar("minTree", false));
 		auto clusSplit = readVecSplitter::splitVectorOnReadFraction(clusters,
@@ -443,6 +454,7 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 	}
 
 	if (setUp.pars_.writingOutAlnInfo_) {
+		setUp.rLog_.logCurrentTime("Writing prevous alignments");
 		alignerObj.alnHolder_.write(setUp.pars_.outAlnInfoDirName_);
 	}
 	//log number of alignments done
