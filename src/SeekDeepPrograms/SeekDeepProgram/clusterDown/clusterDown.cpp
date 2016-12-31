@@ -60,7 +60,8 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 	setUp.rLog_.logCurrentTime("Reading In Sequences");
 
 	//write out clustering parameters
-	std::string parDir = bib::files::makeDir(bib::files::MkdirPar(bib::files::make_path(setUp.pars_.directoryName_, "pars").string()));
+
+	std::string parDir = bib::files::makeDir(setUp.pars_.directoryName_, bib::files::MkdirPar("pars"));
 	std::ofstream parsOutFile;
 	openTextFile(parsOutFile, OutOptions(bib::files::join(parDir, "pars.txt")));
 	pars.iteratorMap.writePars(parsOutFile);
