@@ -58,6 +58,18 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 	}
 	setUp.rLog_.setCurrentLapName("initialSetUp");
 	setUp.rLog_.logCurrentTime("Reading In Sequences");
+
+	//write out clustering parameters
+	std::string parDir = bib::files::makeDir(bib::files::MkdirPar(bib::files::make_path(setUp.pars_.directoryName_, "pars").string()));
+	std::ofstream parsOutFile;
+	openTextFile(parsOutFile, OutOptions(bib::files::join(parDir, "pars.txt")));
+	pars.iteratorMap.writePars(parsOutFile);
+	if("" != pars.binParameters){
+		std::ofstream binParsOutFile;
+		openTextFile(binParsOutFile, OutOptions(bib::files::join(parDir, "binPars.txt")));
+		pars.binIteratorMap.writePars(binParsOutFile);
+	}
+
 	// read in the sequences
 	SeqInput reader(setUp.pars_.ioOptions_);
 	reader.openIn();
@@ -454,7 +466,7 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 	}
 
 	if (setUp.pars_.writingOutAlnInfo_) {
-		setUp.rLog_.logCurrentTime("Writing prevous alignments");
+		setUp.rLog_.logCurrentTime("Writing previous alignments");
 		alignerObj.alnHolder_.write(setUp.pars_.outAlnInfoDirName_);
 	}
 	//log number of alignments done
