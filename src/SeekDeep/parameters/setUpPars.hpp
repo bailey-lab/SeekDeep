@@ -149,6 +149,9 @@ struct processClustersPars {
   CollapseIterations binIteratorMap;
   bool eventBasedRef = false;
   bool writeExcludedOriginals = false;
+
+  bool illumina = false;
+
   bool ionTorrent = false;
   bool removeLowQualBases = false;
   uint32_t lowQualityCutOff = 3;
@@ -158,6 +161,11 @@ struct processClustersPars {
   bool plotRepAgreement = false;
 
   bool noTrees = false;
+
+	bool noErrorsSet = false;
+	bool strictErrorsSet = false;
+	bool strictErrorsSetHq1 = false;
+	uint32_t hqMismatches = 0;
 };
 
 

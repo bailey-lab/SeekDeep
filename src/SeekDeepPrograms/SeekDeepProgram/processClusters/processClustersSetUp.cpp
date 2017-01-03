@@ -148,8 +148,12 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 		exit(0);
 	}
 
+	setOption(pars.illumina, "--illumina",
+			"Flag to indicate reads are Illumina");
+
 	setOption(pars.ionTorrent, "--ionTorrent",
 			"Flag to indicate reads are ion torrent and therefore turns on --useCompPerCutOff,--adjustHomopolyerRuns, and --qualTrim");
+
 	if (pars.ionTorrent) {
 		pars.removeLowQualBases = true;
 		pars_.colOpts_.iTOpts_.adjustHomopolyerRuns_ = true;
@@ -185,17 +189,20 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 	pars_.ioOptions_.processed_ = true;
 
 	processDefaultReader(true);
-	bool noErrorsSet  = false;
-	setOption(noErrorsSet, "--noErrors", "Parameters with no errors");
-	bool strictErrorsSet = false;
-	setOption(strictErrorsSet, "--strictErrors", "Parameters with a several low quality mismatches");
-	bool strictErrorsSetHq1 = false;
-	setOption(strictErrorsSetHq1, "--strictErrors-hq1", "Parameters with a several low quality mismatches and 1 high quality mismatch");
 
-	uint32_t hqMismatches = 0;
-	setOption(hqMismatches, "--hq", "Number of high quality mismatches to allow");
+	setOption(pars.noErrorsSet, "--noErrors", "Parameters with no errors");
 
-	setOption(pars.parameters, "--par", "ParametersFileName", !noErrorsSet && !strictErrorsSet && !strictErrorsSetHq1);
+
+	setOption(pars.strictErrorsSetHq1, "--strictErrors-hq1", "Parameters with a several low quality mismatches and 1 high quality mismatch");
+	if(pars.strictErrorsSetHq1){
+		pars.strictErrorsSet = true;
+		pars.hqMismatches = 1;
+	}
+	setOption(pars.strictErrorsSet, "--strictErrors", "Parameters with a several low quality mismatches");
+
+	setOption(pars.hqMismatches, "--hq", "Number of high quality mismatches to allow");
+
+	setOption(pars.parameters, "--par", "ParametersFileName", !pars.noErrorsSet && !pars.strictErrorsSet && !pars.strictErrorsSetHq1);
 
 	setOption(pars.binParameters, "--binPar", "bin Parameters Filename");
 
@@ -233,25 +240,19 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 		std::cout << "go: " << pars_.gapInfo_.gapOpen_ << std::endl;
 		std::cout << "ge: " << pars_.gapInfo_.gapExtend_ << std::endl;
 	}
-	if (!failed_ ) {
-		if("" != pars.parameters){
+	if (!failed_) {
+		if ("" != pars.parameters) {
 			// read in the parameters from the parameters file
 			if (pars.onPerId) {
 				pars.iteratorMap = processIteratorMapOnPerId(pars.parameters);
 			} else {
 				pars.iteratorMap = processIteratorMap(pars.parameters);
 			}
-		}else if(noErrorsSet){
+		} else if (pars.noErrorsSet) {
 			pars.iteratorMap = CollapseIterations::genStrictNoErrorsDefaultPars(100);
-		}else if(strictErrorsSet){
-			if (hqMismatches > 0) {
-				pars.iteratorMap = CollapseIterations::genStrictDefaultParsWithHqs(100,
-						hqMismatches);
-			} else {
-				pars.iteratorMap = CollapseIterations::genStrictDefaultPars(100);
-			}
-		} else if (strictErrorsSetHq1) {
-			pars.iteratorMap = CollapseIterations::genStrictDefaultParsHq1(100);
+		} else if (pars.strictErrorsSet) {
+			pars.iteratorMap = CollapseIterations::genStrictDefaultParsWithHqs(100,
+												pars.hqMismatches, pars.illumina);
 		}
 
 		if (pars.binParameters != "") {
