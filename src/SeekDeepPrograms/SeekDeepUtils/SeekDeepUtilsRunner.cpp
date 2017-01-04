@@ -142,7 +142,10 @@ int SeekDeepUtilsRunner::runMultipleCommands(
 		logFile = bfs::path(filename).filename().replace_extension("").string() + "Log.json";
 	}
 	std::ofstream outFile;
-	openTextFile(outFile, logFile, ".json", setUp.pars_.ioOptions_.out_);
+	if(!setUp.pars_.debug_){
+		openTextFile(outFile, logFile, ".json", setUp.pars_.ioOptions_.out_);
+	}
+
 	std::ifstream inFile(filename);
 	if (!inFile) {
 		std::stringstream ss;
@@ -212,7 +215,10 @@ int SeekDeepUtilsRunner::runMultipleCommands(
 	for (const auto & out : allRunOutputs) {
 		cmdsLog.append(out.toJson());
 	}
-	outFile << allLog << std::endl;
+	if(!setUp.pars_.debug_){
+		outFile << allLog << std::endl;
+	}
+
 	return 0;
 }
 
