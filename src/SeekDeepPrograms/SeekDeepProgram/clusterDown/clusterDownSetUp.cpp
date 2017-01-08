@@ -294,8 +294,15 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 	setOption(pars.qualRep, "--qualRep",
 			"QualityRepresentative_for_unique_clusters");
 	setOption(pars.extra, "--extra", "Extra");
-	setOption(pars_.chiOpts_.checkChimeras_, "--markChimeras", "MarkChimeras");
-	setOption(pars_.chiOpts_.parentFreqs_, "--parfreqs", "Parent_freq_multiplier_cutoff");
+	setOption(pars.skipInternalSnps, "--skipInternalSnps", "Skip Internal(within the clusters) Snps Calling ");
+
+	pars_.chiOpts_.checkChimeras_ = true;
+	pars_.chiOpts_.parentFreqs_ = 3;
+	bool dontMarkChimeras = false;
+	setOption(dontMarkChimeras, "--noMarkChimeras", "Don't do Chimera marking");
+	pars_.chiOpts_.checkChimeras_ = !dontMarkChimeras;
+	setOption(pars_.chiOpts_.parentFreqs_, "--parfreqs",
+			"Parent_freq_multiplier_cutoff");
 
 	setOption(pars.snapShotsOpts_.snapShots_, "--snapshots", "OutputSnapShots");
 	setOption(pars.sortBy, "--sortBy", "SortClustersBy");

@@ -103,6 +103,8 @@ struct clusterDownPars {
   bool createMinTree = false;
   std::string diffCutOffStr = "0.1";
 
+  bool skipInternalSnps = false;
+
   double compPerCutOff = .98;
   bool useCompPerCutOff = false;
   bool ionTorrent = false;

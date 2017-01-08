@@ -332,14 +332,13 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 					setUp.pars_.ioOptions_.out_);
 			metaDataFile << metaData;
 		}
-
 	}
 
 	SeqOutput::write(clusters,
 			SeqIOOptions(
 					setUp.pars_.directoryName_ + setUp.pars_.ioOptions_.out_.outFilename_,
 					setUp.pars_.ioOptions_.outFormat_,setUp.pars_.ioOptions_.out_));
-	{
+	if(!pars.skipInternalSnps){
 		setUp.rLog_.logCurrentTime("Calling internal snps");
 		std::string snpDir = bib::files::makeDir(setUp.pars_.directoryName_,
 				bib::files::MkdirPar("internalSnpInfo", false));
