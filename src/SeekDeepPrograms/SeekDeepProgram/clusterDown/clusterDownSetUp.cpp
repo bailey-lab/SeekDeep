@@ -180,6 +180,8 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 
 	setOption(pars.binParameters, "--binPar",
 			"Parameters Filename for when reads are binned");
+	setOption(pars.binParameters, "--initialPar",
+				"Parameters Filename for when doing non singlet analysis first, otherwise defaults to regular parameters");
 	setOption(pars.ionTorrent, "--ionTorrent",
 			"Flag to indicate reads are ion torrent and therefore turns on --useCompPerCutOff,--adjustHomopolyerRuns, and --qualTrim");
 	setOption(pars.tech454, "--454", "Flag to indicate reads are 454");
@@ -209,8 +211,12 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 
 	if(pars.tech454 | pars.ionTorrent){
 		if(pars.hq  > 0){
+			pars.binIteratorMap = CollapseIterations::gen454ItDefaultParsWithHqs(100, pars.hq);
+			pars.intialParameters = CollapseIterations::gen454ItDefaultParsWithHqs(100, 0);
 			pars.iteratorMap = CollapseIterations::gen454ItDefaultParsWithHqs(100, pars.hq);
 		}else{
+			pars.binIteratorMap = CollapseIterations::gen454ItDefaultPars(100);
+			pars.intialParameters = CollapseIterations::gen454ItDefaultPars(100);
 			pars.iteratorMap = CollapseIterations::gen454ItDefaultPars(100);
 		}
 		needsParFlag = false;
@@ -218,8 +224,12 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 
 	if(pars.illumina){
 		if(pars.hq  > 0){
+			pars.binIteratorMap = CollapseIterations::genIlluminaDefaultParsWithHqs(100, pars.hq);
+			pars.intialParameters = CollapseIterations::genIlluminaDefaultParsWithHqs(100, 0);
 			pars.iteratorMap = CollapseIterations::genIlluminaDefaultParsWithHqs(100, pars.hq);
 		}else{
+			pars.binIteratorMap =  CollapseIterations::genIlluminaDefaultPars(100);
+			pars.intialParameters = CollapseIterations::genIlluminaDefaultPars(100);
 			pars.iteratorMap = CollapseIterations::genIlluminaDefaultPars(100);
 		}
 		pars_.colOpts_.iTOpts_.weighHomopolyer_ = false;
@@ -241,7 +251,9 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 			addWarning(ss.str());
 		}
 		pars.onPerId = true;
+		pars.binIteratorMap = CollapseIterations::genOtuPars(100, pars.otuPerc, pars.onHqPerId);
 		pars.iteratorMap = CollapseIterations::genOtuPars(100, pars.otuPerc, pars.onHqPerId);
+		pars.intialParameters = CollapseIterations::genOtuPars(100, pars.otuPerc, pars.onHqPerId);
 		needsParFlag = false;
 		pars_.colOpts_.kmerOpts_.runCutOff_ = 1;
 		pars_.colOpts_.kmerOpts_.runCutOffString_ = "1";
@@ -342,8 +354,19 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 			} else {
 				pars.binIteratorMap = processIteratorMap(pars.binParameters);
 			}
-		} else {
+		} else if("" != pars.parameters){
+			//set to reg iter map if it was set by --par flag
 			pars.binIteratorMap = pars.iteratorMap;
+		}
+		if ("" != pars.initalParsFnp) {
+			if (pars.onPerId) {
+				pars.intialParameters = processIteratorMapOnPerId(pars.initalParsFnp.string());
+			} else {
+				pars.binIteratorMap = processIteratorMap(pars.initalParsFnp.string());
+			}
+		} else if("" != pars.parameters){
+			//set to reg iter map if it was set by --par flag
+			pars.intialParameters = pars.iteratorMap;
 		}
 		if (pars_.verbose_) {
 			std::cout << "p: " << pars_.qScorePars_.primaryQual_ << std::endl;

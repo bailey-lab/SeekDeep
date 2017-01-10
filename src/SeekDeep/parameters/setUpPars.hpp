@@ -83,14 +83,18 @@ struct extractorPars{
 };
 
 struct clusterDownPars {
-	std::string parameters = "";
-	std::string binParameters = "";
+
 	std::string qualRep = "median";
 	std::string sortBy = "totalCount";
 
 	bool collapsingTandems = false;
 	bool additionalOut = false;
 	std::string additionalOutLocationFile = "";
+
+	bfs::path initalParsFnp = "";
+	std::string parameters = "";
+	std::string binParameters = "";
+	CollapseIterations intialParameters;
 	CollapseIterations iteratorMap;
 	CollapseIterations binIteratorMap;
 

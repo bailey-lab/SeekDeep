@@ -205,7 +205,7 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 	setUp.rLog_.logCurrentTime("Running initial clustering");
 	//run clustering
 	pars.snapShotsOpts_.snapShotsDirName_ = "firstSnaps";
-	collapserObj.runFullClustering(clusters, pars.iteratorMap,
+	collapserObj.runFullClustering(clusters, pars.intialParameters,
 			pars.binIteratorMap, alignerObj, setUp.pars_.directoryName_,
 			setUp.pars_.ioOptions_, setUp.pars_.refIoOptions_, pars.snapShotsOpts_);
 	//run again with singlets if needed
