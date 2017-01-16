@@ -270,6 +270,9 @@ int SeekDeepUtilsRunner::setupPairedEndDir(const bib::progutils::CmdArgs & input
 	uint32_t r1Trim = std::numeric_limits<uint32_t>::max();
 	uint32_t r2Trim = std::numeric_limits<uint32_t>::max();
 	bool noQualTrim = false;
+	bool byIndex = false;
+
+	bfs::path targetsToIndexFnp = "";
 
 	std::string extraExtractorCmds = "";
 	std::string extraQlusterCmds = "";
@@ -284,6 +287,8 @@ int SeekDeepUtilsRunner::setupPairedEndDir(const bib::progutils::CmdArgs & input
 	setUp.setOption(inputDir, "--inputDir", "Input Directory of raw data files", true);
 	setUp.setOption(maxOverlap, "--maxOverlap", "Max overlap allowed in stitcher");
 	setUp.setOption(numThreads, "--numThreads", "Number of CPUs to use");
+	setUp.setOption(byIndex, "--byIndex", "If the input sample names are by index and not targets");
+	setUp.setOption(targetsToIndexFnp, "--targetsToIndex", "A tsv file with two columns named targets and index where targets in a comma separated value with the targets for the index in index", byIndex);
 
 	setUp.setOption(extraExtractorCmds, "--extraExtractorCmds", "Extra extractor cmds to add to the defaults");
 	setUp.setOption(extraQlusterCmds, "--extraQlusterCmds", "Extra qluster cmds to add to the defaults");
@@ -367,11 +372,61 @@ int SeekDeepUtilsRunner::setupPairedEndDir(const bib::progutils::CmdArgs & input
 
 	PrimersAndMids ids(idFile);
 
-	auto targets = ids.getTargets();
-	auto sampNamesTargets = analysisSetup.getTargets();
-	bib::sort(targets);
-	bib::sort(sampNamesTargets);
+	if (!ids.containsMids() && byIndex) {
+		std::stringstream ss;
+		ss << __PRETTY_FUNCTION__
+				<< ": error, if input files don't have MID still, then the sample file"
+				<< samplesNamesFnp << " should be by target and not index" << "\n";
+		throw std::runtime_error { ss.str() };
+	}
 
+	if (ids.containsMids() && !byIndex) {
+		std::stringstream ss;
+		ss << __PRETTY_FUNCTION__
+				<< ": error, if input files have MIDs still, then the sample file"
+				<< samplesNamesFnp << " should be by index and not by target" << "\n";
+		throw std::runtime_error { ss.str() };
+	}
+	//if there are multiple targets and MIDs
+
+	auto targets = ids.getTargets();
+	auto sampNamesTargetsOrIndex = analysisSetup.getTargets();
+	VecStr sampNamesTargets;
+	bib::sort(targets);
+	std::unordered_map<std::string, VecStr> indexToTars;
+	if(byIndex){
+		table targetsToIndexTab(targetsToIndexFnp.string(), "\t", true);
+		std::set<std::string> tarsSet;
+		for(const auto & row : targetsToIndexTab.content_){
+			auto tars = tokenizeString(row[targetsToIndexTab.getColPos("targets")], ",");
+			auto index = row[targetsToIndexTab.getColPos("index")];
+			if(bib::in(index, indexToTars)){
+				std::stringstream ss;
+				ss << __PRETTY_FUNCTION__ << ": error already have targets for index: " << index << "\n";
+				ss << "Check to see if there are repeat values in " << targetsToIndexFnp << "\n";
+				throw std::runtime_error{ss.str()};
+			}
+			indexToTars[index] = tars;
+			tarsSet.insert(tars.begin(), tars.end());
+		}
+		sampNamesTargets = VecStr{tarsSet.begin(), tarsSet.end()};
+		VecStr missingIndex;
+		for(const auto & index : sampNamesTargetsOrIndex){
+			if(!bib::in(index, indexToTars)){
+				missingIndex.emplace_back(index);
+			}
+		}
+		if(!missingIndex.empty()){
+			std::stringstream ss;
+			ss << __PRETTY_FUNCTION__ << ": error, missing the following index from the index to targets file " << targetsToIndexFnp << "\n";
+			ss << "Targets: " << bib::conToStr(missingIndex, ", ") << "\n";
+			ss << "Indexes Read In: " << bib::conToStr(bib::getVecOfMapKeys(indexToTars), ", ") << "\n";
+			throw std::runtime_error{ss.str()};
+		}
+	}else{
+		sampNamesTargets = sampNamesTargetsOrIndex;
+	}
+	bib::sort(sampNamesTargets);
 	VecStr idMissingTargets;
 	VecStr sampNamesTargetsTarMissing;
 	for(const auto & tar : sampNamesTargets){
@@ -384,11 +439,14 @@ int SeekDeepUtilsRunner::setupPairedEndDir(const bib::progutils::CmdArgs & input
 			sampNamesTargetsTarMissing.emplace_back(tar);
 		}
 	}
+
+
+
 	if(!idMissingTargets.empty()){
 		std::stringstream ss;
-		ss << __PRETTY_FUNCTION__ << ": error, missing the following targets from the id file" << idFile << "\n";
+		ss << __PRETTY_FUNCTION__ << ": error, missing the following targets from the id file " << idFile << "\n";
 		ss << "Targets: " << bib::conToStr(idMissingTargets, ", ") << "\n";
-		ss << "AvailableTargs: " << bib::conToStr(targets, ", ") << "\n";
+		ss << "AvailableTargets: " << bib::conToStr(targets, ", ") << "\n";
 		throw std::runtime_error{ss.str()};
 	}
 
@@ -396,7 +454,7 @@ int SeekDeepUtilsRunner::setupPairedEndDir(const bib::progutils::CmdArgs & input
 		foundErrors = true;
 		errorOutput << __PRETTY_FUNCTION__ << ": warning, missing the following targets from the sample name file" << samplesNamesFnp << "\n";
 		errorOutput << "Targets: " << bib::conToStr(sampNamesTargetsTarMissing, ", ") << "\n";
-		errorOutput << "AvailableTargs: " << bib::conToStr(sampNamesTargets, ", ") << "\n";
+		errorOutput << "AvailableTargets: " << bib::conToStr(sampNamesTargets, ", ") << "\n";
 	}
 
 	if("" != groupMeta){
@@ -514,13 +572,17 @@ int SeekDeepUtilsRunner::setupPairedEndDir(const bib::progutils::CmdArgs & input
 	}
 
 	//now write id files
-
 	std::unordered_map<std::string, VecStr> targetsForReps;
-	for (const auto & tars : analysisSetup.samplesForTargets_) {
-		for (const auto & rep : tars.second.getReps()) {
-			targetsForReps[rep].emplace_back(tars.first);
+	if (byIndex) {
+		targetsForReps = indexToTars;
+	} else {
+		for (const auto & tars : analysisSetup.samplesForTargets_) {
+			for (const auto & rep : tars.second.getReps()) {
+				targetsForReps[rep].emplace_back(tars.first);
+			}
 		}
 	}
+
 	std::vector<VecStr> tarCombos;
 	for (auto & sampTars : targetsForReps) {
 		bib::sort(sampTars.second);
@@ -970,46 +1032,92 @@ int SeekDeepUtilsRunner::setupPairedEndDir(const bib::progutils::CmdArgs & input
 				bib::in(bib::replaceString(rep.first, "MID", "") , samplesExtracted) )
 				&& !(bib::in(rep.first, noReadsStitched) ||
 						bib::in(bib::replaceString(rep.first, "MID", "") , noReadsStitched))){
-			std::string fName = rep.first;
-			if(!bib::in(rep.first, samplesExtracted)){
-				fName = bib::replaceString(rep.first, "MID", "");
-			}
-			std::string sampName = rep.first;
-			if(!bib::beginsWith(rep.first, "MID")){
-				sampName = "MID" + rep.first;
-			}
-			auto tarsNames = bib::conToStr(rep.second, "_");
-			auto currentSampTemp = bib::replaceString(sampleNameTemplate, "{REP}", sampName);
-			auto cmds = VecStr{extractorCmdTemplate, idTemplate, currentSampTemp};
-			if(!noQualTrim){
-				cmds.emplace_back(qualTrimTemplate);
-			}
+			if (byIndex) {
+				std::string fName = rep.first;
+				std::string sampName = rep.first;
 
-			if(bfs::exists(bib::files::make_path(analysisSetup.idsDir_, tarsNames + "_lenCutOffs.tab.txt"))){
-				cmds.emplace_back(lenCutOffsTemplate);
-			}
-			if(ids.containsMids()){
-				cmds.emplace_back("--multiplex");
-			}
-			if(rep.second.size() > 1){
-				cmds.emplace_back("--multipleTargets");
-			}
-			if("" != extraExtractorCmds){
-				cmds.emplace_back(extraExtractorCmds);
-			}
-			auto currentExtractCmd = bib::conToStr(cmds, " ");
-			currentExtractCmd = bib::replaceString(currentExtractCmd, "{REP}", fName);
-			currentExtractCmd = bib::replaceString(currentExtractCmd, "{TARS}", tarsNames);
-			extractorCmds.emplace_back(currentExtractCmd);
-			for(const auto & tar : rep.second){
-				std::string currentQlusterCmdTemplate = qlusterCmdTemplate;
-				if("" != extraQlusterCmds){
-					currentQlusterCmdTemplate += " " + extraQlusterCmds;
+				auto tarsNames = bib::conToStr(rep.second, "_");
+				auto cmds = VecStr { extractorCmdTemplate, idTemplate};
+				if (!noQualTrim) {
+					cmds.emplace_back(qualTrimTemplate);
 				}
-				currentQlusterCmdTemplate = bib::replaceString(currentQlusterCmdTemplate,"{REP}", fName);
-				currentQlusterCmdTemplate = bib::replaceString(currentQlusterCmdTemplate,"{MIDREP}", sampName);
-				currentQlusterCmdTemplate = bib::replaceString(currentQlusterCmdTemplate,"{TARGET}", tar);
-				qlusterCmds.emplace_back(currentQlusterCmdTemplate);
+
+				if (bfs::exists(
+						bib::files::make_path(analysisSetup.idsDir_,
+								tarsNames + "_lenCutOffs.tab.txt"))) {
+					cmds.emplace_back(lenCutOffsTemplate);
+				}
+				cmds.emplace_back("--multiplex");
+				if (rep.second.size() > 1) {
+					cmds.emplace_back("--multipleTargets");
+				}
+				if ("" != extraExtractorCmds) {
+					cmds.emplace_back(extraExtractorCmds);
+				}
+				auto currentExtractCmd = bib::conToStr(cmds, " ");
+				currentExtractCmd = bib::replaceString(currentExtractCmd, "{REP}",
+						fName);
+				currentExtractCmd = bib::replaceString(currentExtractCmd, "{TARS}",
+						tarsNames);
+				extractorCmds.emplace_back(currentExtractCmd);
+				for (const auto & tar : rep.second) {
+					std::string currentQlusterCmdTemplate = qlusterCmdTemplate;
+					if ("" != extraQlusterCmds) {
+						currentQlusterCmdTemplate += " " + extraQlusterCmds;
+					}
+					currentQlusterCmdTemplate = bib::replaceString(
+							currentQlusterCmdTemplate, "{REP}", fName);
+					currentQlusterCmdTemplate = bib::replaceString(
+							currentQlusterCmdTemplate, "{MIDREP}", sampName);
+					currentQlusterCmdTemplate = bib::replaceString(
+							currentQlusterCmdTemplate, "{TARGET}", tar);
+					qlusterCmds.emplace_back(currentQlusterCmdTemplate);
+				}
+			}else{
+
+				std::string fName = rep.first;
+				if(!bib::in(rep.first, samplesExtracted)){
+					fName = bib::replaceString(rep.first, "MID", "");
+				}
+
+				std::string sampName = rep.first;
+				if(!bib::beginsWith(rep.first, "MID")){
+					sampName = "MID" + rep.first;
+				}
+
+				auto tarsNames = bib::conToStr(rep.second, "_");
+				auto currentSampTemp = bib::replaceString(sampleNameTemplate, "{REP}", sampName);
+				auto cmds = VecStr{extractorCmdTemplate, idTemplate, currentSampTemp};
+				if(!noQualTrim){
+					cmds.emplace_back(qualTrimTemplate);
+				}
+
+				if(bfs::exists(bib::files::make_path(analysisSetup.idsDir_, tarsNames + "_lenCutOffs.tab.txt"))){
+					cmds.emplace_back(lenCutOffsTemplate);
+				}
+				if(ids.containsMids()){
+					cmds.emplace_back("--multiplex");
+				}
+				if(rep.second.size() > 1){
+					cmds.emplace_back("--multipleTargets");
+				}
+				if("" != extraExtractorCmds){
+					cmds.emplace_back(extraExtractorCmds);
+				}
+				auto currentExtractCmd = bib::conToStr(cmds, " ");
+				currentExtractCmd = bib::replaceString(currentExtractCmd, "{REP}", fName);
+				currentExtractCmd = bib::replaceString(currentExtractCmd, "{TARS}", tarsNames);
+				extractorCmds.emplace_back(currentExtractCmd);
+				for(const auto & tar : rep.second){
+					std::string currentQlusterCmdTemplate = qlusterCmdTemplate;
+					if("" != extraQlusterCmds){
+						currentQlusterCmdTemplate += " " + extraQlusterCmds;
+					}
+					currentQlusterCmdTemplate = bib::replaceString(currentQlusterCmdTemplate,"{REP}", fName);
+					currentQlusterCmdTemplate = bib::replaceString(currentQlusterCmdTemplate,"{MIDREP}", sampName);
+					currentQlusterCmdTemplate = bib::replaceString(currentQlusterCmdTemplate,"{TARGET}", tar);
+					qlusterCmds.emplace_back(currentQlusterCmdTemplate);
+				}
 			}
 		}
 	}

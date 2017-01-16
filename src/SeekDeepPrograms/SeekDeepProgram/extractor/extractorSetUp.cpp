@@ -286,7 +286,7 @@ void SeekDeepSetUp::setUpExtractor(extractorPars & pars) {
 	bool compareSeqSuccess = processSeq(pars.compareSeq, "--compareSeq",
 			"Comparison Sequence For Contamination ");
 	if(compareSeqSuccess){
-		commands_.lookForOptionCaseInsen(pars.compareSeqFilename, "--compareSeq");
+		commands_.lookForOptionDashCaseInsen(pars.compareSeqFilename, "--compareSeq");
 	}
 	setOption(pars.contaminationKLen, "--contaminationKLen",
 			"Contamination Kmer Length comparison");
@@ -305,7 +305,7 @@ void SeekDeepSetUp::setUpExtractor(extractorPars & pars) {
 			"Id file contains multiple targets");
 	if (pars.multipleTargets) {
 		if (pars.screenForPossibleContamination) {
-			commands_.lookForOptionCaseInsen(pars.compareSeqFilename, "--compareSeq");
+			commands_.lookForOptionDashCaseInsen(pars.compareSeqFilename, "--compareSeq");
 		}
 	}
 	setOption(pars.multipleLenCutOffFilename, "--lenCutOffs",
