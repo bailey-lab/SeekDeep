@@ -172,6 +172,7 @@ struct processClustersPars {
 	bool strictErrorsSet = false;
 	bool strictErrorsSetHq1 = false;
 	uint32_t hqMismatches = 0;
+	uint32_t stopAfter = 100;
 };
 
 

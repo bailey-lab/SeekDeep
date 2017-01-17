@@ -201,6 +201,7 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 	setOption(pars.strictErrorsSet, "--strictErrors", "Parameters with a several low quality mismatches");
 
 	setOption(pars.hqMismatches, "--hq", "Number of high quality mismatches to allow");
+	setOption(pars.stopAfter, "--stopAfter", "Number of top haplotypes to check");
 
 	setOption(pars.parameters, "--par", "ParametersFileName", !pars.noErrorsSet && !pars.strictErrorsSet && !pars.strictErrorsSetHq1);
 
@@ -249,10 +250,11 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 				pars.iteratorMap = processIteratorMap(pars.parameters);
 			}
 		} else if (pars.noErrorsSet) {
-			pars.iteratorMap = CollapseIterations::genStrictNoErrorsDefaultPars(100);
+			pars.iteratorMap = CollapseIterations::genStrictNoErrorsDefaultPars(
+					pars.stopAfter);
 		} else if (pars.strictErrorsSet) {
-			pars.iteratorMap = CollapseIterations::genStrictDefaultParsWithHqs(100,
-												pars.hqMismatches, pars.illumina);
+			pars.iteratorMap = CollapseIterations::genStrictDefaultParsWithHqs(
+					pars.stopAfter, pars.hqMismatches, pars.illumina);
 		}
 
 		if (pars.binParameters != "") {
