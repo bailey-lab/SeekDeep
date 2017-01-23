@@ -34,10 +34,11 @@ void PrimersAndMids::Target::addSingleRef(const seqInfo & ref) {
 		ss << "TargetName: " << info_.primerPairName_ << "\n";
 		ss << "AddingRefName: " << ref.name_ << "\n";
 	}
+	refs_.emplace_back(ref);
 }
-void PrimersAndMids::Target::addMultileRef(const std::vector<seqInfo> & ref) {
+void PrimersAndMids::Target::addMultileRef(const std::vector<seqInfo> & refs) {
 	//mutliple refs so no name matchig
-	addOtherVec(refs_, ref);
+	addOtherVec(refs_, refs);
 }
 
 PrimersAndMids::PrimersAndMids(const bfs::path & idFileFnp) :
@@ -214,10 +215,54 @@ std::vector<seqInfo> PrimersAndMids::getRefSeqs(const VecStr & targets) const {
 					<< std::endl;
 			throw std::runtime_error { ss.str() };
 		}
-
 		if (!targets_.at(tar).refs_.empty()) {
 			addOtherVec(ret, targets_.at(tar).refs_);
 		}
+	}
+	return ret;
+}
+
+void PrimersAndMids::checkMidNamesThrow() const {
+	std::stringstream ss;
+	ss << __PRETTY_FUNCTION__ << ": error\n";
+	bool failed = false;
+	std::regex pat{"(^MID)([0-9]+$)"};
+	std::smatch match;
+	for (const auto & mid : mids_) {
+		if(!std::regex_match(mid.second.midName_, match, pat)){
+			ss << "MID names need to begin with MID and end with a number: failed " << bib::bashCT::red
+				<< mid.second.midName_ << bib::bashCT::reset << "\n";
+			failed = true;
+		}
+	}
+	if (failed) {
+		throw std::runtime_error { ss.str() };
+	}
+}
+
+
+std::map<std::string, PrimersAndMids::Target::lenCutOffs> PrimersAndMids::readInLenCutOffs(const bfs::path & lenCutOffsFnp){
+	std::map<std::string, PrimersAndMids::Target::lenCutOffs> ret;
+	table lenCutTab = table(lenCutOffsFnp.string(), "whitespace", true);
+	bib::for_each(lenCutTab.columnNames_,
+			[](std::string & str) {stringToLower(str);});
+	lenCutTab.setColNamePositions();
+	if (!bib::in(std::string("target"), lenCutTab.columnNames_)
+			|| !bib::in(std::string("minlen"), lenCutTab.columnNames_)
+			|| !bib::in(std::string("maxlen"), lenCutTab.columnNames_)) {
+		std::stringstream ss;
+		ss << "need to have columns " << "target, minlen, and maxlen"
+				<< " when reading in a table for multiple cut off lengths"
+				<< std::endl;
+		ss << "only have " << vectorToString(lenCutTab.columnNames_, ",")
+				<< std::endl;
+		throw std::runtime_error { bib::bashCT::boldRed(ss.str()) };
+	}
+	for (const auto & row : lenCutTab.content_) {
+		ret.emplace(row[lenCutTab.getColPos("target")],
+				PrimersAndMids::Target::lenCutOffs { bib::lexical_cast<uint32_t>(
+						row[lenCutTab.getColPos("minlen")]), bib::lexical_cast<uint32_t>(
+						row[lenCutTab.getColPos("maxlen")]) });
 	}
 	return ret;
 }

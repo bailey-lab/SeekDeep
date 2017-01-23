@@ -9,7 +9,7 @@
 
 
 
-#include "SeekDeep/objects/TarAmpPEAnalysisSetup.hpp"
+#include "SeekDeep/objects/TarAmpAnalysisSetup.hpp"
 #include "SeekDeep/objects/PrimersAndMids.hpp"
 
 

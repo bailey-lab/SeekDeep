@@ -33,7 +33,7 @@ public:
 		void addLenCutOff(uint32_t minLen, uint32_t maxLen, bool mark = true);
 
 		void addSingleRef(const seqInfo & ref);
-		void addMultileRef(const std::vector<seqInfo> & ref);
+		void addMultileRef(const std::vector<seqInfo> & refs);
 	};
 
 	PrimersAndMids(const bfs::path & idFileFnp);
@@ -66,6 +66,13 @@ public:
 	table genLenCutOffs(const VecStr & targets) const;
 
 	std::vector<seqInfo> getRefSeqs(const VecStr & targets) const;
+
+	void checkMidNamesThrow() const;
+
+
+	static std::map<std::string, PrimersAndMids::Target::lenCutOffs> readInLenCutOffs(
+			const bfs::path & lenCutOffsFnp);
+
 };
 
 }  // namespace bibseq
