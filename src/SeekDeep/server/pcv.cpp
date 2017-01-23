@@ -26,6 +26,7 @@ pcv::pcv(const Json::Value & config) :
 			bib::files::gatherFiles(bib::files::make_path(resourceDir_, "pcv/css"),
 					".css"));
 	loadInCollections();
+
 	addScripts(bib::files::make_path(resourceDir_, "pcv"));
 }
 
@@ -40,7 +41,6 @@ void pcv::loadInCollections(){
 		}
 		if(!f.second){
 			Json::Value configJson = bib::json::parseFile(f.first.string());
-
 			bib::json::MemberChecker checker(configJson);
 			checker.failMemberCheckThrow( { "shortName", "projectName", "mainDir" },
 					__PRETTY_FUNCTION__);
@@ -56,9 +56,17 @@ void pcv::loadInCollections(){
 					ss << coreJsonFnp << " doesn't exist" << "\n";
 					throw std::runtime_error { ss.str() };
 				}
-				collections_.emplace(configJson["shortName"].asString(),
-						std::make_unique<PopClusProject>(configJson));
-				collections_[configJson["shortName"].asString()]->registerSeqFiles(*seqs_);
+				Json::Value coreJson = bib::json::parseFile(coreJsonFnp.string());
+				if (0 == coreJson["popNames_"]["samples_"].size()) {
+					std::cerr << __PRETTY_FUNCTION__ << " folder "
+							<< bib::bashCT::boldRed(coreJson["masterOutputDir_"].asString())
+							<< " contains no data, not adding" << std::endl;
+				} else {
+					collections_.emplace(configJson["shortName"].asString(),
+							std::make_unique<PopClusProject>(configJson));
+					collections_[configJson["shortName"].asString()]->registerSeqFiles(
+							*seqs_);
+				}
 			}
 		}
 	}
