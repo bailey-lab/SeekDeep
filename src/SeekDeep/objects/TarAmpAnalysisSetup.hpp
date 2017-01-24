@@ -27,6 +27,10 @@ public:
 
 		uint32_t numThreads = 1;
 
+		std::string technology = "illumina";
+
+		std::string inputFilePat = ".*.fastq.gz";
+
 		//Illumina specific
 		//paired end specific
 		uint32_t maxOverlap = 250;
@@ -62,7 +66,12 @@ public:
 
 		static bool checkIfFnpExists(const bfs::path & fnp, VecStr & warnings);
 
-
+		bool techIs454()const;
+		bool techIsIllumina()const;
+		bool techIsIonTorrent()const;
+/*
+ * pars.technology != "454" && pars.technology != "iontorrent" && pars.technology != "illumina"
+ */
 	};
 
 	TarAmpAnalysisSetup(const TarAmpPars & pars);

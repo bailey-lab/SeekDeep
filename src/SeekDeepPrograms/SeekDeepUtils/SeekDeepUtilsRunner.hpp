@@ -40,7 +40,7 @@ class SeekDeepUtilsRunner : public bib::progutils::programRunner {
   static int dryRunQaulityFiltering(const bib::progutils::CmdArgs & inputCommands);
 	static int runMultipleCommands(const bib::progutils::CmdArgs & inputCommands);
 
-	static int setupPairedEndDir(const bib::progutils::CmdArgs & inputCommands);
+	static int setupTarAmpAnalysis(const bib::progutils::CmdArgs & inputCommands);
 	static int replaceUnderscores(const bib::progutils::CmdArgs & inputCommands);
 
 };

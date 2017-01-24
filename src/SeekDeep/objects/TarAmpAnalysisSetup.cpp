@@ -60,6 +60,19 @@ bool TarAmpAnalysisSetup::TarAmpPars::checkIfFnpExists(const bfs::path & fnp,
 }
 
 
+bool TarAmpAnalysisSetup::TarAmpPars::techIs454()const{
+	return "454" == technology;
+}
+
+bool TarAmpAnalysisSetup::TarAmpPars::techIsIllumina()const{
+	return "illumina" == technology;
+}
+
+bool TarAmpAnalysisSetup::TarAmpPars::techIsIonTorrent()const{
+	return "iontorrent" == technology;
+}
+
+
 bool TarAmpAnalysisSetup::TarAmpPars::checkForRequiredFnpPars(
 		VecStr & warnings) const {
 	bool status = true;

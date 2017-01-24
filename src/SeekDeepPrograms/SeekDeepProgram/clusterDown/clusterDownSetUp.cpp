@@ -49,7 +49,7 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 		// tempOut.str(std::string());
 		printInputUsage(tempOut);
 		tempOut << "--par [option]: parameter file" << std::endl << std::endl;
-
+		//" | "
 		tempOut
 				<< "Parameter file is set up as where each line is one iteration and that line indicates "
 						"which errors to allow on that iteration " << std::endl;
@@ -198,7 +198,7 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 		needsParFlag = false;
 	}
 
-	if((pars.tech454 | pars.ionTorrent) & pars.illumina){
+	if((pars.tech454 || pars.ionTorrent) && pars.illumina){
 		failed_ = true;
 		std::stringstream ss;
 		if(pars.tech454){
@@ -209,7 +209,7 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 		addWarning(ss.str());
 	}
 
-	if(pars.tech454 | pars.ionTorrent){
+	if(pars.tech454 || pars.ionTorrent){
 		if(pars.hq  > 0){
 			pars.binIteratorMap = CollapseIterations::gen454ItDefaultParsWithHqs(100, pars.hq);
 			pars.intialParameters = CollapseIterations::gen454ItDefaultParsWithHqs(100, 0);
@@ -242,7 +242,7 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 				"Collapse on percent identity calculated using regular otu percent identity rather than using only high quality differences");
 	pars.onHqPerId = !regOtu;
 	if (otuSet) {
-		if (pars.otuPerc <= 0 | pars.otuPerc >= 1) {
+		if ((pars.otuPerc <= 0) || (pars.otuPerc >= 1)) {
 			failed_ = true;
 			std::stringstream ss;
 			ss
