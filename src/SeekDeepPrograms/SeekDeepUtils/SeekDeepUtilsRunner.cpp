@@ -229,6 +229,8 @@ int SeekDeepUtilsRunner::runMultipleCommands(
 
 int SeekDeepUtilsRunner::replaceUnderscores(
 		const bib::progutils::CmdArgs & inputCommands) {
+	/**@todo add ability to search up to a pattern to replace
+	 *  on rather than just number of underscores*/
 
 	std::string pat = "";
 	bfs::path dir = "./";
