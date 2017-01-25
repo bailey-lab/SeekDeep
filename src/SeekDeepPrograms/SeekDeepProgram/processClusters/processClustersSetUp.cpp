@@ -232,8 +232,8 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 	setOption(pars_.chiOpts_.parentFreqs_, "--parFreqs", "ParentFrequence_multiplier_cutoff");
 
 	setOption(pars.numThreads, "--numThreads", "Number of threads to use");
-
-	setOption(pars.plotRepAgreement, "--plotRepAgreement", "Plot Rep Agreement");
+	setOption(pars_.colOpts_.clusOpts_.converge_, "--converge", "Keep clustering at each iteration until there is no more collapsing, could increase run time significantly");
+	//setOption(pars.plotRepAgreement, "--plotRepAgreement", "Plot Rep Agreement");
 	processAlignerDefualts();
 	if (pars_.debug_ && !failed_) {
 		std::cout << "p: " << pars_.qScorePars_.primaryQual_ << std::endl;
@@ -250,8 +250,14 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 				pars.iteratorMap = processIteratorMap(pars.parameters);
 			}
 		} else if (pars.noErrorsSet) {
-			pars.iteratorMap = CollapseIterations::genStrictNoErrorsDefaultPars(
-					pars.stopAfter);
+			if (pars.hqMismatches > 0) {
+				pars.iteratorMap =
+						CollapseIterations::genStrictNoErrorsDefaultParsWithHqs(
+								pars.stopAfter, pars.hqMismatches);
+			} else {
+				pars.iteratorMap = CollapseIterations::genStrictNoErrorsDefaultPars(
+						pars.stopAfter);
+			}
 		} else if (pars.strictErrorsSet) {
 			pars.iteratorMap = CollapseIterations::genStrictDefaultParsWithHqs(
 					pars.stopAfter, pars.hqMismatches, pars.illumina);

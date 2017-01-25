@@ -176,6 +176,8 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 		tempOut.str(std::string());
 		exit(0);
 	}
+	processVerbose();
+	processDebug();
 	processDefaultReader(true);
 
 	setOption(pars.binParameters, "--binPar",
@@ -313,10 +315,10 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 	bool dontMarkChimeras = false;
 	setOption(dontMarkChimeras, "--noMarkChimeras", "Don't do Chimera marking");
 	pars_.chiOpts_.checkChimeras_ = !dontMarkChimeras;
-	setOption(pars_.chiOpts_.parentFreqs_, "--parfreqs",
+	setOption(pars_.chiOpts_.parentFreqs_, "--parFreqs",
 			"Parent_freq_multiplier_cutoff");
 
-	setOption(pars.snapShotsOpts_.snapShots_, "--snapshots", "OutputSnapShots");
+	setOption(pars.snapShotsOpts_.snapShots_, "--snapShots", "Output Snap Shots of clustering results after each iteration");
 	setOption(pars.sortBy, "--sortBy", "SortClustersBy");
 	pars.additionalOut = setOption(pars.additionalOutLocationFile,
 			"--additionalOut", "AdditionalOutFilename");
@@ -325,8 +327,8 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 	setOption(pars_.colOpts_.alignOpts_.noAlign_, "--noAlignCompare",
 			"Do comparisons without aligning");
 	processSkipOnNucComp();
-	processVerbose();
-	processDebug();
+	setOption(pars_.colOpts_.clusOpts_.converge_, "--converge", "Keep clustering at each iteration until there is no more collapsing, could increase run time significantly");
+
 	pars_.colOpts_.verboseOpts_.verbose_ = pars_.verbose_;
 	pars_.colOpts_.verboseOpts_.debug_ = pars_.debug_;
 	processRefFilename();
