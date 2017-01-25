@@ -27,6 +27,8 @@
 //
 //
 
-#include "SeekDeep/programs.h"
+
 #include "SeekDeep/server.h"
+#include "SeekDeep/parameters.h"
+#include "SeekDeep/objects.h"
 

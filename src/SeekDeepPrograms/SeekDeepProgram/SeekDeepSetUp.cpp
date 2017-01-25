@@ -1,10 +1,3 @@
-#pragma once
-/*
- * server.hpp
- *
- *  Created on: Jun 24, 2015
- *      Author: nick
- */
 //
 // SeekDeep - A library for analyzing amplicon sequence data
 // Copyright (C) 2012-2016 Nicholas Hathaway <nicholas.hathaway@umassmed.edu>,
@@ -26,12 +19,17 @@
 // along with SeekDeep.  If not, see <http://www.gnu.org/licenses/>.
 //
 //
-
-
-#include "SeekDeep/server/PopClusProject.hpp"
-#include "SeekDeep/server/pcv.hpp"
-
-
+#include "SeekDeepSetUp.hpp"
+#include <bibcpp/bashUtils.h>
+namespace bibseq {
 
 
 
+
+
+
+
+
+
+
+}  // namespace bibseq

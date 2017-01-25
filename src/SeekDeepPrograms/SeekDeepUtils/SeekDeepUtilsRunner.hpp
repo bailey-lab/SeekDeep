@@ -1,10 +1,11 @@
 #pragma once
-/*
- * server.hpp
- *
- *  Created on: Jun 24, 2015
- *      Author: nick
- */
+//
+
+//  SeekDeepUtilsRunner.hpp
+//
+//  Created by Nick Hathaway on 2015/06/24.
+//  Copyright (c) 2015 Nick Hathaway. All rights reserved.
+//
 //
 // SeekDeep - A library for analyzing amplicon sequence data
 // Copyright (C) 2012-2016 Nicholas Hathaway <nicholas.hathaway@umassmed.edu>,
@@ -26,12 +27,22 @@
 // along with SeekDeep.  If not, see <http://www.gnu.org/licenses/>.
 //
 //
+#include "SeekDeepUtilsSetUp.hpp"
+#include "SeekDeep/server.h"
+#include "SeekDeep/objects.h"
 
+namespace bibseq {
 
-#include "SeekDeep/server/PopClusProject.hpp"
-#include "SeekDeep/server/pcv.hpp"
+class SeekDeepUtilsRunner : public bib::progutils::programRunner {
+ public:
+  SeekDeepUtilsRunner();
+  
+  static int dryRunQaulityFiltering(const bib::progutils::CmdArgs & inputCommands);
+	static int runMultipleCommands(const bib::progutils::CmdArgs & inputCommands);
 
+	static int setupTarAmpAnalysis(const bib::progutils::CmdArgs & inputCommands);
+	static int replaceUnderscores(const bib::progutils::CmdArgs & inputCommands);
 
+};
 
-
-
+} // namespace bibseq

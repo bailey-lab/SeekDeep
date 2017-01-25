@@ -6,19 +6,19 @@ from genFuncs import genHelper
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-CC', type=str, nargs=1)
-    parser.add_argument('-CXX', type=str, nargs=1)
-    parser.add_argument('-outname', type=str, nargs=1)
-    parser.add_argument('-outFilename', type=str, nargs=1, required = True)
-    parser.add_argument('-externalLoc', type=str, nargs=1)
-    parser.add_argument('-prefix', type=str, nargs=1)
-    parser.add_argument('-installName', type=str, nargs=1)
-    parser.add_argument('-neededLibs', type=str, nargs=1)
+    parser.add_argument('-CC', type=str)
+    parser.add_argument('-CXX', type=str)
+    parser.add_argument('-outname', type=str)
+    parser.add_argument('-outFilename', type=str, required = True)
+    parser.add_argument('-externalLoc', type=str)
+    parser.add_argument('-prefix', type=str)
+    parser.add_argument('-installName', type=str)
+    parser.add_argument('-neededLibs', type=str)
     parser.add_argument('-ldFlags', type=str)
+    parser.add_argument('-cxxFlags', type=str)
     return parser.parse_args()
 
 def main():
-    """@todo: Also add on adding CXXFLAGS or LDFLAGS and the such or look for environment ones"""
     args = parse_args()
     CC = genHelper.determineCC(args)
     CXX = genHelper.determineCXX(args)
@@ -28,18 +28,21 @@ def main():
     installName = "out"
     neededLibs = "none"
     ldFlags = ""
+    cxxFlags = ""
     if args.ldFlags and "" != args.ldFlags:
-        ldFlags = args.ldFlags        
+        ldFlags = args.ldFlags  
+    if args.cxxFlags and "" != args.cxxFlags:
+        cxxFlags = args.cxxFlags        
     if args.externalLoc:
-        external = args.externalLoc[0]
+        external = args.externalLoc
     if args.outname:
-        outname = args.outname[0]
+        outname = args.outname
     if args.installName:
-        installName = args.installName[0]
+        installName = args.installName
     if args.prefix:
-        prefix = args.prefix[0]
+        prefix = args.prefix
     if args.neededLibs:
-        neededLibs = args.neededLibs[0].split(",")
-    genHelper.generateCompfileFull(args.outFilename[0], external, CC, CXX, outname, installName, prefix, neededLibs, ldFlags)
+        neededLibs = args.neededLibs.split(",")
+    genHelper.generateCompfileFull(args.outFilename, external, CC, CXX, outname, installName, prefix, neededLibs, ldFlags, cxxFlags)
     
 main()

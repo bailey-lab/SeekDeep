@@ -160,6 +160,17 @@ class Utils:
         print "untarring", CT.boldGreen(fnp), "to", CT.boldBlue(d)
         tar.extractall(d)
         tar.close()
+        
+    @staticmethod
+    def getStrFromStrOrList(inputArg):
+        if type(inputArg) is list:
+            return str(inputArg[0])
+        elif type(inputArg) is not str:
+            return str(inputArg)
+        else:
+            return inputArg
+          
+        
 
     @staticmethod
     def clear_dir(d):

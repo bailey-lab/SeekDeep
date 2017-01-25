@@ -1,11 +1,11 @@
-#pragma once
-/*
- * server.hpp
- *
- *  Created on: Jun 24, 2015
- *      Author: nick
- */
+
+//  ServerRunnerSetUp.cpp
 //
+//  Created by Nick Hathaway on 2015/06/24.
+//  Copyright (c) 2015 Nick Hathaway. All rights reserved.
+//
+
+    //
 // SeekDeep - A library for analyzing amplicon sequence data
 // Copyright (C) 2012-2016 Nicholas Hathaway <nicholas.hathaway@umassmed.edu>,
 // Jeffrey Bailey <Jeffrey.Bailey@umassmed.edu>
@@ -26,12 +26,9 @@
 // along with SeekDeep.  If not, see <http://www.gnu.org/licenses/>.
 //
 //
+#include "../SeekDeepServer/SeekDeepServerSetUp.hpp"
+    
+    
+namespace bibseq {
 
-
-#include "SeekDeep/server/PopClusProject.hpp"
-#include "SeekDeep/server/pcv.hpp"
-
-
-
-
-
+} // namespace bibseq

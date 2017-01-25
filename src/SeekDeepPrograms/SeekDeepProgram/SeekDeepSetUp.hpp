@@ -1,10 +1,11 @@
 #pragma once
-/*
- * server.hpp
- *
- *  Created on: Jun 24, 2015
- *      Author: nick
- */
+//
+//  SeekDeepSetUp.hpp
+//  sequenceTools
+//
+//  Created by Nicholas Hathaway on 10/24/13.
+//  Copyright (c) 2013 Nicholas Hathaway. All rights reserved.
+//
 //
 // SeekDeep - A library for analyzing amplicon sequence data
 // Copyright (C) 2012-2016 Nicholas Hathaway <nicholas.hathaway@umassmed.edu>,
@@ -26,12 +27,26 @@
 // along with SeekDeep.  If not, see <http://www.gnu.org/licenses/>.
 //
 //
+#include <bibseq.h>
+#include <bibseq/programUtils/seqSetUp.hpp>
+
+#include "SeekDeep.h"
+
+namespace bibseq {
 
 
-#include "SeekDeep/server/PopClusProject.hpp"
-#include "SeekDeep/server/pcv.hpp"
 
+class SeekDeepSetUp : public seqSetUp {
 
+ public:
+	using seqSetUp::seqSetUp;
 
+	void setUpExtractor(extractorPars & pars);
+	void setUpClusterDown(clusterDownPars & pars);
+	void setUpMultipleSampleCluster(processClustersPars & pars);
+	void setUpMakeSampleDirectories(makeSampleDirectoriesPars & pars);
+
+};
+}  // namespace bibseq
 
 

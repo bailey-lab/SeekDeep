@@ -1,9 +1,9 @@
 #pragma once
 /*
- * server.hpp
+ * programs.h
  *
- *  Created on: Jun 24, 2015
- *      Author: nick
+ *  Created on: Jan 28, 2015
+ *      Author: nickhathaway
  */
 //
 // SeekDeep - A library for analyzing amplicon sequence data
@@ -28,8 +28,7 @@
 //
 
 
-#include "SeekDeep/server/PopClusProject.hpp"
-#include "SeekDeep/server/pcv.hpp"
+#include "SeekDeepPrograms/SeekDeepProgram.h"
 
 
 

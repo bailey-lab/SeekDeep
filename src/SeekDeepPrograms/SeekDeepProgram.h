@@ -1,10 +1,11 @@
 #pragma once
-/*
- * server.hpp
- *
- *  Created on: Jun 24, 2015
- *      Author: nick
- */
+//
+//  SeekDeep.h
+//  sequenceTools
+//
+//  Created by Nicholas Hathaway on 10/24/13.
+//  Copyright (c) 2013 Nicholas Hathaway. All rights reserved.
+//
 //
 // SeekDeep - A library for analyzing amplicon sequence data
 // Copyright (C) 2012-2016 Nicholas Hathaway <nicholas.hathaway@umassmed.edu>,
@@ -26,12 +27,5 @@
 // along with SeekDeep.  If not, see <http://www.gnu.org/licenses/>.
 //
 //
-
-
-#include "SeekDeep/server/PopClusProject.hpp"
-#include "SeekDeep/server/pcv.hpp"
-
-
-
-
-
+#include "SeekDeepPrograms/SeekDeepProgram/SeekDeepSetUp.hpp"
+#include "SeekDeepPrograms/SeekDeepProgram/SeekDeepRunner.hpp"

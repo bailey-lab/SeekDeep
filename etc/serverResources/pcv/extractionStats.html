@@ -2,16 +2,18 @@
 <!DOCTYPE HTML>
 <html>
   <head>
-	<title>Population Info</title>
-	<link rel="stylesheet" href="http://code.jquery.com/ui/1.11.2/themes/smoothness/jquery-ui.css">
-	<script src="http://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
-    <script src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.11.2/jquery-ui.min.js"></script>
-	<script src="/pcv/jsLibs"></script>
-	<script src="/pcv/jsOwn"></script>
-	<script src="/pcv/jsPcv"></script>
-	<link rel="stylesheet" href="/pcv/cssLibs">
-	<link rel="stylesheet" href="/pcv/cssOwn">
-	<link rel="stylesheet" href="/pcv/cssPcv">
+		<title>Population Info</title>
+		<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
+	  <script>
+		  var locSplit = window.location.toString().split(/[\/]+/);
+			var rName = locSplit[2];
+			$("head").append("<script rel='stylesheet' type='text/javascript' src='/" + rName + "/jsLibs' />");
+			$("head").append("<script rel='stylesheet' type='text/javascript' src='/" + rName + "/jsOwn' />");
+			$("head").append("<script rel='stylesheet' type='text/javascript' src='/" + rName + "/jsPcv' />");
+			$("head").append("<link rel='stylesheet' type='text/css' href='/" + rName + "/cssLibs' />");
+			$("head").append("<link rel='stylesheet' type='text/css' href='/" + rName + "/cssOwn' />");
+			$("head").append("<link rel='stylesheet' type='text/css' href='/" + rName + "/cssPcv' />");
+	  </script>
   </head>
   <body>
     <script>
@@ -35,7 +37,7 @@
 
 			
 			var sampNames = ajaxRet("/" + rName + "/allSampleNames/" + projectName);
-	    	var mainPopInfoTab;
+	    var mainPopInfoTab;
 			ajaxPost('/' + rName + '/getSampleExtractionInfo/' + projectName, {"sampNames": sampNames}, function(tab){ mainPopInfoTab = tab; });
 			
 
