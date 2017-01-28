@@ -61,7 +61,7 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 
 	//write out clustering parameters
 
-	std::string parDir = bib::files::makeDir(setUp.pars_.directoryName_, bib::files::MkdirPar("pars"));
+	std::string parDir = bib::files::makeDir(setUp.pars_.directoryName_, bib::files::MkdirPar("pars")).string();
 	std::ofstream parsOutFile;
 	openTextFile(parsOutFile, OutOptions(bib::files::join(parDir, "pars.txt")));
 	pars.iteratorMap.writePars(parsOutFile);
@@ -341,7 +341,7 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 	if(!pars.skipInternalSnps){
 		setUp.rLog_.logCurrentTime("Calling internal snps");
 		std::string snpDir = bib::files::makeDir(setUp.pars_.directoryName_,
-				bib::files::MkdirPar("internalSnpInfo", false));
+				bib::files::MkdirPar("internalSnpInfo", false)).string();
 		for (const auto & readPos : iter::range(clusters.size())) {
 			std::unordered_map<uint32_t,
 					std::unordered_map<char, std::vector<baseReadObject>>>mismatches;
@@ -384,7 +384,7 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 	if (pars.createMinTree) {
 		setUp.rLog_.logCurrentTime("Creating minimum spanning trees");
 		std::string minTreeDirname = bib::files::makeDir(setUp.pars_.directoryName_,
-				bib::files::MkdirPar("minTree", false));
+				bib::files::MkdirPar("minTree", false)).string();
 		auto clusSplit = readVecSplitter::splitVectorOnReadFraction(clusters,
 				0.005);
 		std::vector<readObject> tempReads;
@@ -417,7 +417,7 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 	}
 
 	std::string clusterDirectoryName = bib::files::makeDir(setUp.pars_.directoryName_,
-			bib::files::MkdirPar("clusters", false));
+			bib::files::MkdirPar("clusters", false)).string();
 	clusterVec::allWriteClustersInDir(clusters, clusterDirectoryName,
 			setUp.pars_.ioOptions_);
 
@@ -429,7 +429,7 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 			compStats << "cluster\tcompAmount" << std::endl;
 		}
 		std::string allInputReadsDir = bib::files::makeDir(setUp.pars_.directoryName_,
-				bib::files::MkdirPar("allInputReadsForEachCluster", false));
+				bib::files::MkdirPar("allInputReadsForEachCluster", false)).string();
 		for (const auto& clus : clusters) {
 			SeqOutput writer(
 					SeqIOOptions(allInputReadsDir + clus.seqBase_.name_,

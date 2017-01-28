@@ -88,7 +88,7 @@ void SeekDeepSetUp::setUpMakeSampleDirectories(
 						getCurrentDate()) + "/";
 		pars_.directoryName_ = bib::files::makeDir("./",
 				bib::files::MkdirPar(bib::replaceString(pars_.directoryName_, "./", ""),
-						pars_.overWriteDir_));
+						pars_.overWriteDir_)).string();
 	}
 	finishSetUp(std::cout);
 }
