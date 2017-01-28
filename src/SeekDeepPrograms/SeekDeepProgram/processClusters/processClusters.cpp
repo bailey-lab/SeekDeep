@@ -72,10 +72,10 @@ int SeekDeepRunner::processClusters(const bib::progutils::CmdArgs & inputCommand
 	//write clustering parameters
 	auto parsDir = bib::files::makeDir(setUp.pars_.directoryName_, bib::files::MkdirPar("pars"));
 	std::ofstream parsOutFile;
-	openTextFile(parsOutFile, OutOptions(bib::files::make_path(parsDir, "pars.tab.txt").string()));
+	openTextFile(parsOutFile, OutOptions(bib::files::make_path(parsDir, "pars.tab.txt")));
 	pars.iteratorMap.writePars(parsOutFile);
 	std::ofstream popParsOutFile;
-	openTextFile(popParsOutFile, OutOptions(bib::files::make_path(parsDir, "popPars.tab.txt").string()));
+	openTextFile(popParsOutFile, OutOptions(bib::files::make_path(parsDir, "popPars.tab.txt")));
 	pars.popIteratorMap.writePars(popParsOutFile);
 
 
@@ -83,7 +83,7 @@ int SeekDeepRunner::processClusters(const bib::progutils::CmdArgs & inputCommand
 	std::map<std::string, double> customCutOffsMap = processCustomCutOffs(pars.customCutOffs);
 	//read in the files in the corresponding sample directories
 	auto analysisFiles = bib::files::listAllFiles(pars.masterDir, true,
-			{ std::regex { "^" + setUp.pars_.ioOptions_.firstName_ + "$" } }, 3);
+			{ std::regex { "^" + setUp.pars_.ioOptions_.firstName_.string() + "$" } }, 3);
 
 	std::set<std::string> samplesDirsSet;
 	for (const auto & af : analysisFiles) {

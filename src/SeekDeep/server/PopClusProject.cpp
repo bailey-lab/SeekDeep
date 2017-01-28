@@ -33,16 +33,16 @@ PopClusProject::PopClusProject(const Json::Value & configJson) :
 	shortName_ = config_["shortName"].asString();
 	projectName_ = config_["projectName"].asString();
 
-	tabs_.popInfo_ = std::make_unique<TableCache>(TableIOOpts(InOptions(collection_->getPopInfoPath().string()), "\t", true));
-	tabs_.sampInfo_ = std::make_unique<TableCache>(TableIOOpts(InOptions(collection_->getSampInfoPath().string()), "\t", true));
+	tabs_.popInfo_ = std::make_unique<TableCache>(TableIOOpts(InOptions(collection_->getPopInfoPath()), "\t", true));
+	tabs_.sampInfo_ = std::make_unique<TableCache>(TableIOOpts(InOptions(collection_->getSampInfoPath()), "\t", true));
 
 	//set up group meta data
 	if(nullptr != collection_->groupDataPaths_){
 		for(const auto & group : collection_->groupDataPaths_->allGroupPaths_){
-			topGroupTabs_[group.first] = std::make_unique<TableCache>(TableIOOpts(InOptions(group.second.groupInfoFnp_.string()), "\t", true));
+			topGroupTabs_[group.first] = std::make_unique<TableCache>(TableIOOpts(InOptions(group.second.groupInfoFnp_), "\t", true));
 			for(const auto & subGroup : group.second.groupPaths_){
-				subGroupTabs_[group.first][subGroup.first].popInfo_ = std::make_unique<TableCache>(TableIOOpts(InOptions(subGroup.second.popFileFnp_.string()), "\t", true));
-				subGroupTabs_[group.first][subGroup.first].sampInfo_ = std::make_unique<TableCache>(TableIOOpts(InOptions(subGroup.second.sampFileFnp_.string()), "\t", true));
+				subGroupTabs_[group.first][subGroup.first].popInfo_ = std::make_unique<TableCache>(TableIOOpts(InOptions(subGroup.second.popFileFnp_), "\t", true));
+				subGroupTabs_[group.first][subGroup.first].sampInfo_ = std::make_unique<TableCache>(TableIOOpts(InOptions(subGroup.second.sampFileFnp_), "\t", true));
 			}
 		}
 	}
@@ -51,11 +51,11 @@ PopClusProject::PopClusProject(const Json::Value & configJson) :
 	auto extractionStatsFnp = bib::files::make_path(configJson["mainDir"].asString(), "extractionInfo", "extractionStats.tab.txt");
 
 	if(bfs::exists(extractionProfileFnp)){
-		extractionProfileTab_ = std::make_unique<TableCache>(TableIOOpts(InOptions(extractionProfileFnp.string()), "\t", true));
+		extractionProfileTab_ = std::make_unique<TableCache>(TableIOOpts(InOptions(extractionProfileFnp), "\t", true));
 	}
 
 	if(bfs::exists(extractionStatsFnp)){
-		extractionStatsTab_ = std::make_unique<TableCache>(TableIOOpts(InOptions(extractionStatsFnp.string()), "\t", true));
+		extractionStatsTab_ = std::make_unique<TableCache>(TableIOOpts(InOptions(extractionStatsFnp), "\t", true));
 	}
 
 }

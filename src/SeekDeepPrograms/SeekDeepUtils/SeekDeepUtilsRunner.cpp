@@ -850,7 +850,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	}
 
 	OutOptions wrningsOpts(
-			bib::files::make_path(analysisSetup.dir_, "WARNINGS_PLEASE_READ.txt").string());
+			bib::files::make_path(analysisSetup.dir_, "WARNINGS_PLEASE_READ.txt"));
 	if (foundErrors) {
 		std::ofstream outWarnings;
 		openTextFile(outWarnings, wrningsOpts);
@@ -1039,13 +1039,13 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	}
 
 	OutOptions extractorCmdsOpts(
-			bib::files::make_path(analysisSetup.dir_, "extractorCmds.txt").string());
+			bib::files::make_path(analysisSetup.dir_, "extractorCmds.txt"));
 	std::ofstream extractorCmdsFile;
 	openTextFile(extractorCmdsFile, extractorCmdsOpts);
 	printVector(extractorCmds, "\n", extractorCmdsFile);
 
 	OutOptions qlusterCmdsOpts(
-			bib::files::make_path(analysisSetup.dir_, "qlusterCmds.txt").string());
+			bib::files::make_path(analysisSetup.dir_, "qlusterCmds.txt"));
 	std::ofstream qlusterCmdsFile;
 	openTextFile(qlusterCmdsFile, qlusterCmdsOpts);
 	printVector(qlusterCmds, "\n", qlusterCmdsFile);
@@ -1073,7 +1073,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 						+ processClusterTemplate);
 	}
 	OutOptions processClusterCmdsOpts(
-			bib::files::make_path(analysisSetup.dir_, "processClusterCmds.txt").string());
+			bib::files::make_path(analysisSetup.dir_, "processClusterCmds.txt"));
 	std::ofstream processClusterCmdsFile;
 	openTextFile(processClusterCmdsFile, processClusterCmdsOpts);
 	printVector(processClusterCmds, "\n", processClusterCmdsFile);
@@ -1091,14 +1091,14 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 						"{TARGET}", tar));
 	}
 	OutOptions genConfigCmdsOpts(
-			bib::files::make_path(analysisSetup.dir_, "genConfigCmds.txt").string());
+			bib::files::make_path(analysisSetup.dir_, "genConfigCmds.txt"));
 	std::ofstream genConfigCmdsFile;
 	openTextFile(genConfigCmdsFile, genConfigCmdsOpts);
 	printVector(genConfigCmds, "\n", genConfigCmdsFile);
 
 	//start server config
 	OutOptions startServerCmdOpts(
-			bib::files::make_path(analysisSetup.dir_, "startServerCmd.sh").string());
+			bib::files::make_path(analysisSetup.dir_, "startServerCmd.sh"));
 	std::ofstream startServerCmdFile;
 	openTextFile(startServerCmdFile, startServerCmdOpts);
 	startServerCmdFile << "#!/usr/bin/env bash" << std::endl;
@@ -1133,7 +1133,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 
 	//start server config
 	OutOptions runAnalysisOpts(
-			bib::files::make_path(analysisSetup.dir_, "runAnalysis.sh").string());
+			bib::files::make_path(analysisSetup.dir_, "runAnalysis.sh"));
 	std::ofstream runAnalysisFile;
 	openTextFile(runAnalysisFile, runAnalysisOpts);
 	runAnalysisFile << "#!/usr/bin/env bash" << std::endl;
@@ -1170,7 +1170,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 		std::cerr << bib::bashCT::flashing << bib::bashCT::red << bib::bashCT::bold
 				<< "ERRORS FOUND!!" << bib::bashCT::reset << std::endl;
 		std::cerr << "Read Warnings in "
-				<< bib::bashCT::boldRed(wrningsOpts.outFilename_) << std::endl;
+				<< bib::bashCT::boldRed(wrningsOpts.outFilename_.string()) << std::endl;
 	}
 
 	return 0;

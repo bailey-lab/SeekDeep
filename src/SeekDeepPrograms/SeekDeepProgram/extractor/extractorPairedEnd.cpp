@@ -543,7 +543,7 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 	std::map<std::string, uint32_t> goodCounts;
 
 	for (const auto & f : barcodeFiles) {
-		auto barcodeName = bib::files::getFileName(f.first.string());
+		auto barcodeName = bfs::basename(f.first.string());
 		if ((counts[barcodeName].first + counts[barcodeName].second) == 0
 				&& pars.multiplex) {
 			//no reads extracted for barcode so skip filtering step

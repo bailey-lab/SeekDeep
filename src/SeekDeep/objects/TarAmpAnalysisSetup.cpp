@@ -541,7 +541,7 @@ void TarAmpAnalysisSetup::writeOutIdFiles() const{
 		}
 		idsMids_->writeIdFile(
 				OutOptions(
-						bib::files::make_path(idsDir_, collapse + ".id.txt").string()),
+						bib::files::make_path(idsDir_, collapse + ".id.txt")),
 				tarCombo);
 	}
 }

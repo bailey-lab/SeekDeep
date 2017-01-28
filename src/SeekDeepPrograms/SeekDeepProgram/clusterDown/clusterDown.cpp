@@ -244,7 +244,7 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 	}
 
 	readVecSorter::sortReadVector(clusters, "totalCount");
-	std::string seqName = bib::files::getFileName(setUp.pars_.ioOptions_.firstName_);
+	std::string seqName = bfs::basename(setUp.pars_.ioOptions_.firstName_);
 	readVecSorter::sort(clusters);
 	renameReadNames(clusters, seqName, true, false, false);
 
@@ -284,7 +284,7 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 		SeqOutput::write(clusters,
 				SeqIOOptions(
 						setUp.pars_.directoryName_
-								+ setUp.pars_.ioOptions_.out_.outFilename_ + "_befroeTanCol",
+								+ setUp.pars_.ioOptions_.out_.outFilename_.string() + "_befroeTanCol",
 						setUp.pars_.ioOptions_.outFormat_, setUp.pars_.ioOptions_.out_));
 		std::cout << "Collapsing on tandem repeat gaps" << std::endl;
 		std::cout << "Starting with " << clusters.size() << " clusters"
@@ -304,7 +304,7 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 				"outputInfo");
 	} else {
 		profiler::getFractionInfoCluster(clusters, setUp.pars_.directoryName_,
-				"outputInfo", setUp.pars_.refIoOptions_.firstName_, alignerObj,
+				"outputInfo", setUp.pars_.refIoOptions_.firstName_.string(), alignerObj,
 				setUp.pars_.local_);
 	}
 	std::ofstream startingInfo;
@@ -318,14 +318,14 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 	}
 	if (pars.additionalOut) {
 		std::string additionalOutDir = findAdditonalOutLocation(
-				pars.additionalOutLocationFile, setUp.pars_.ioOptions_.firstName_);
+				pars.additionalOutLocationFile, setUp.pars_.ioOptions_.firstName_.string());
 		if (additionalOutDir == "") {
 			std::cerr << bib::bashCT::red << bib::bashCT::bold;
 			std::cerr << "No additional out directory found for: "
 					<< setUp.pars_.ioOptions_.firstName_ << std::endl;
 			std::cerr << bib::bashCT::reset;
 		} else {
-			SeqOutput::write(clusters, SeqIOOptions(additionalOutDir + setUp.pars_.ioOptions_.out_.outFilename_,
+			SeqOutput::write(clusters, SeqIOOptions(additionalOutDir + setUp.pars_.ioOptions_.out_.outFilename_.string(),
 					setUp.pars_.ioOptions_.outFormat_,setUp.pars_.ioOptions_.out_));
 			std::ofstream metaDataFile;
 			openTextFile(metaDataFile, additionalOutDir + "/" + "metaData", ".json",
@@ -336,7 +336,7 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 
 	SeqOutput::write(clusters,
 			SeqIOOptions(
-					setUp.pars_.directoryName_ + setUp.pars_.ioOptions_.out_.outFilename_,
+					setUp.pars_.directoryName_ + setUp.pars_.ioOptions_.out_.outFilename_.string(),
 					setUp.pars_.ioOptions_.outFormat_,setUp.pars_.ioOptions_.out_));
 	if(!pars.skipInternalSnps){
 		setUp.rLog_.logCurrentTime("Calling internal snps");

@@ -254,7 +254,7 @@ void SeekDeepSetUp::setUpExtractor(extractorPars & pars) {
 	bool mustMakeDirectory = true;
 	processDirectoryOutputName(mustMakeDirectory);
 	if (setOption(pars.idFilename, "--id", "The name of the ID file")) {
-		if (!fexists(pars.idFilename)) {
+		if (!bfs::exists(pars.idFilename)) {
 			failed_ = true;
 			warnings_.emplace_back("error in opening " + pars.idFilename);
 		}
