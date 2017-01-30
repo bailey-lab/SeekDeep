@@ -314,7 +314,7 @@ int SeekDeepRunner::processClusters(const bib::progutils::CmdArgs & inputCommand
 			currentProfileTab.columnNames_[maxLenPos.front()] = "maxlen";
 			auto oldColumnNames = currentProfileTab.columnNames_;
 			currentProfileTab.addColumn(VecStr{extractDir.filename().string()}, "extractionDir");
-			currentProfileTab = currentProfileTab.getColumns(catenateVectors(VecStr{"extractionDir"}, oldColumnNames));
+			currentProfileTab = currentProfileTab.getColumns(concatVecs(VecStr{"extractionDir"}, oldColumnNames));
 
 			if(profileTab.empty()){
 				profileTab = currentProfileTab;
@@ -326,7 +326,7 @@ int SeekDeepRunner::processClusters(const bib::progutils::CmdArgs & inputCommand
 			table curentStatsTab(statsFnp.string(), "\t", true);
 			auto oldColumnNames = curentStatsTab.columnNames_;
 			curentStatsTab.addColumn(VecStr{extractDir.filename().string()}, "extractionDir");
-			curentStatsTab = curentStatsTab.getColumns(catenateVectors(VecStr{"extractionDir"}, oldColumnNames));
+			curentStatsTab = curentStatsTab.getColumns(concatVecs(VecStr{"extractionDir"}, oldColumnNames));
 			if(statsTab.empty()){
 				statsTab = curentStatsTab;
 			}else{

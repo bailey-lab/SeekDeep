@@ -1340,7 +1340,7 @@ std::vector<std::shared_ptr<restbed::Resource>> pcv::getAllResources() {
 
 
 VecStr pcv::requiredOptions() const {
-	return catenateVectors(super::requiredOptions(), VecStr { "configDir",
+	return concatVecs(super::requiredOptions(), VecStr { "configDir",
 			"resources" });
 }
 
