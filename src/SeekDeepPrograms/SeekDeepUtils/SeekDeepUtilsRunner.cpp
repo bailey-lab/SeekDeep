@@ -1112,8 +1112,8 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 			<< "	echo \"Illegal number of parameters, needs either 0 or 2 arguments, if 2 args 1) port number to server on 2) the name to serve on\""
 			<< std::endl;
 	startServerCmdFile << "	echo \"Examples\"" << std::endl;
-	startServerCmdFile << "	echo \"./startServerCmd.txt\"" << std::endl;
-	startServerCmdFile << "	echo \"./startServerCmd.txt 9882 pcv2\"	"
+	startServerCmdFile << "	echo \"./startServerCmd.sh\"" << std::endl;
+	startServerCmdFile << "	echo \"./startServerCmd.sh 9882 pcv2\"	"
 			<< std::endl;
 	startServerCmdFile << "	exit	" << std::endl;
 	startServerCmdFile << "fi" << std::endl;
