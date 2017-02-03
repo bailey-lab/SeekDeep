@@ -1887,7 +1887,7 @@ class Setup:
         self.__defaultBuild("r", version)
 
     def bamtools(self, version):
-        self.__defaultBuild("bamtools", version)
+        self.__defaultBibBuild("bamtools", version)
 
     def bibcpp(self, version):
         self.__defaultBibBuild("bibcpp", version)
