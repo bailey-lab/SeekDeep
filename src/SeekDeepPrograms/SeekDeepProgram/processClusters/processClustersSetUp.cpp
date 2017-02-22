@@ -106,7 +106,7 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 
 		tempOut << bib::bashCT::bold << "Additional Pre-processing options"
 				<< bib::bashCT::reset << std::endl;
-		tempOut << "--cutoff [option]: Size of cluster not to include in "
+		tempOut << "--clusterCutOff [option]: Size of cluster not to include in "
 				"clustering, defaults to 1" << std::endl;
 		tempOut << "--markChimeras : Have the program mark possible chimeras "
 				"before starting clustering" << std::endl;
