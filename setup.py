@@ -290,6 +290,8 @@ class Packages():
             self.packages_["cppprogutils"] = self.__cppprogutils()
         if "restbed" in libsNeeded:
             self.packages_["restbed"] = self.__restbed()
+        if "zlib-ng" in libsNeeded:
+            self.packages_["zlib-ng"] = self.__zlibng()
         #bib setup
         if "bibseq" in libsNeeded:
             self.packages_["bibseq"] = self.__bibseq()
@@ -655,6 +657,32 @@ class Packages():
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
                 pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
         return pack
+    
+    def __zlibng(self):
+        name = "zlib-ng"
+        url = "https://github.com/Dead2/zlib-ng"
+        buildCmd = "CC={CC} CXX={CXX} && ./configure --prefix={local_dir} && make -j {num_cores} && make install -j {num_cores}"
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "develop")
+
+        if self.args.noInternet:
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                pack = pickle.load(inputPkl)
+                pack.defaultBuildCmd_ = buildCmd
+        elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                    pack = pickle.load(inputPkl)
+                    pack.defaultBuildCmd_ = buildCmd
+        else:
+            refs = pack.getGitRefs(url)
+            for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
+                pack.addVersion(url, ref)
+                pack.versions_[ref].altLibName_ = "z"
+            Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
+                pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
+        return pack
+    
+    
     
     def __restbed(self):
         name = "restbed"
@@ -1411,6 +1439,7 @@ class Setup:
                        "mathgl": self.mathgl,
                        "magic": self.magic,
                        "zlib": self.zlib,
+                       "zlib-ng": self.zlibng,
                        "flash": self.flash,
                        "bowtie2": self.bowtie2,
                        "muscle": self.muscle,
@@ -1970,6 +1999,9 @@ class Setup:
     
     def zlib(self, version):
         self.__defaultBuild("zlib", version)
+    
+    def zlibng(self, version):
+        self.__defaultBuild("zlib-ng", version)
         
     def flash(self, version):
         self.__defaultBuild("flash", version)
