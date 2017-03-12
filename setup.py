@@ -270,8 +270,12 @@ class Packages():
             self.packages_["libpca"] = self.__libpca()
         if "eigen" in libsNeeded:
             self.packages_["eigen"] = self.__eigen()
+        if "glpk" in libsNeeded:
+            self.packages_["glpk"] = self.__glpk()
+        if "cmake" in libsNeeded:
+            self.packages_["cmake"] = self.__cmake()
         
-        #git repos
+        #git repos 
         if "bamtools" in libsNeeded:
             self.packages_["bamtools"] = self.__bamtools()
         if "jsoncpp" in libsNeeded:
@@ -590,6 +594,29 @@ class Packages():
         pack.versions_["3.3.1"].libPath_ = "";
         pack.versions_["3.3.1"].includePath_ = os.path.join(joinNameVer(pack.versions_["3.3.1"].nameVer_), "include", "eigen3")
         return pack
+
+    def __glpk(self):
+        name = "glpk"
+        buildCmd = """CC={CC} CXX={CXX}  ./configure 
+            --prefix={local_dir}
+            && make -j {num_cores} 
+            && make -j {num_cores} install"""
+        buildCmd = " ".join(buildCmd.split())
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "4.61")
+        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/glpk/glpk-4.61.tar.gz", "4.61")
+        return pack
+
+    def __cmake(self):
+        name = "cmake"
+        buildCmd = """CC={CC} CXX={CXX}  ./configure 
+            --prefix={local_dir}
+            && make -j {num_cores} 
+            && make -j {num_cores} install"""
+        buildCmd = " ".join(buildCmd.split())
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "3.7.2")
+        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/cmake/cmake-3.5.2.tar.gz", "3.5.2")
+        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/cmake/cmake-3.7.2.tar.gz", "3.7.2")
+        return pack
     
     
     def __muscle(self):
@@ -771,9 +798,11 @@ class Packages():
             && make -j {num_cores} 
             && make -j {num_cores} install"""
         buildCmd = " ".join(buildCmd.split())
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "1.2.8")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "1.2.11")
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/zlib/zlib-1.2.8.tar.gz", "1.2.8")
         pack.versions_["1.2.8"].altLibName_ = "z"
+        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/zlib/zlib-1.2.11.tar.gz", "1.2.11")
+        pack.versions_["1.2.11"].altLibName_ = "z"
         return pack
     
     def __mathgl(self):
@@ -1449,9 +1478,11 @@ class Setup:
                        "hts": self.hts,
                        "restbed": self.restbed,
                        "mipwrangler": self.MIPWrangler,
-                       "eigen": self.eigen
+                       "eigen": self.eigen,
+                       "glpk": self.glpk,
+                       "cmake": self.cmake
                        }
-        '''
+        ''' 
         "mlpack": self.mlpack,
         "liblinear": self.liblinear,
         '''
@@ -2028,7 +2059,13 @@ class Setup:
         self.__defaultBuild("restbed", version)   
         
     def eigen(self, version):
-        self.__defaultBuild("eigen", version)   
+        self.__defaultBuild("eigen", version)  
+        
+    def glpk(self, version):
+        self.__defaultBuild("glpk", version) 
+    
+    def cmake(self, version):
+        self.__defaultBuild("cmake", version)   
     #
     
     
