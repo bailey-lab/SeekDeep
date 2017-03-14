@@ -541,7 +541,8 @@ class Packages():
                 repos=\"http://cran.us.r-project.org\", Ncpus = {num_cores}, lib =.libPaths()[length(.libPaths()  )] )' | $({local_dir}/""" + rHomeLoc + """)/bin/R --slave --vanilla
                 """
         buildCmd = " ".join(buildCmd.split())
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "3.3.0")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "3.3.3")
+        pack.versions_["3.3.3"] = CPPLibPackageVersionR("R", "http://baileylab.umassmed.edu/sourceCodes/R/R-3.3.2.tar.gz", "3.3.3", self.dirMaster_)
         pack.versions_["3.3.2"] = CPPLibPackageVersionR("R", "http://baileylab.umassmed.edu/sourceCodes/R/R-3.3.2.tar.gz", "3.3.2", self.dirMaster_)
         pack.versions_["3.3.0"] = CPPLibPackageVersionR("R", "http://baileylab.umassmed.edu/sourceCodes/R/R-3.3.0.tar.gz", "3.3.0", self.dirMaster_)
         pack.versions_["3.2.4"] = CPPLibPackageVersionR("R", "http://baileylab.umassmed.edu/sourceCodes/R/R-3.2.4.tar.gz", "3.2.4", self.dirMaster_)
@@ -555,7 +556,8 @@ class Packages():
     def __armadillo(self):
         name = "armadillo"
         buildCmd = "mkdir -p build && cd build && CC={CC} CXX={CXX} cmake -DCMAKE_INSTALL_PREFIX:PATH={local_dir} .. && make -j {num_cores} install"
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "7.600.1")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "7.800.1")
+        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/armadillo/armadillo-7.800.1.tar.gz", "7.800.1")
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/armadillo/armadillo-7.600.1.tar.gz", "7.600.1")
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/armadillo/armadillo-7.500.2.tar.gz", "7.500.2")
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/armadillo/armadillo-7.400.2.tar.gz", "7.400.2")
@@ -569,15 +571,16 @@ class Packages():
     
     def __libpca(self):
         name = "libpca"
+        #the version will get overridden by setting pack.defaultBuildCmd_ latter, but the dependency check needs to install it first
         buildCmd = """CC={CC} CXX={CXX}
-        LDFLAGS="-Wl,-rpath,{external}/local/armadillo/7.500.2/armadillo/lib -L{external}/local/armadillo/7.500.2/armadillo/lib" CXXFLAGS="-isystem{external}/local/armadillo/7.500.2/armadillo/include -larmadillo"
+        LDFLAGS="-Wl,-rpath,{external}/local/armadillo/7.800.1/armadillo/lib -L{external}/local/armadillo/7.800.1/armadillo/lib" CXXFLAGS="-isystem{external}/local/armadillo/7.800.1/armadillo/include -larmadillo"
           ./configure --prefix {local_dir} && make -j {num_cores} install"""
         buildCmd = " ".join(buildCmd.split())
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "7.500.2")
-        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/libpca/libpca-1.3.3.tar.gz", "1.3.3", [LibNameVer("armadillo", "7.500.2")])
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "7.800.1")
+        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/libpca/libpca-1.3.3.tar.gz", "1.3.3", [LibNameVer("armadillo", "7.800.1")])
         armPack = self.__armadillo()
-        armLdFlags = armPack.versions_["7.500.2"].getLdFlags(self.dirMaster_.install_dir)
-        armIncFlags = armPack.versions_["7.500.2"].getIncludeFlags(self.dirMaster_.install_dir)
+        armLdFlags = armPack.versions_["7.800.1"].getLdFlags(self.dirMaster_.install_dir)
+        armIncFlags = armPack.versions_["7.800.1"].getIncludeFlags(self.dirMaster_.install_dir)
         pack.defaultBuildCmd_ = """CC={CC} CXX={CXX}
         LDFLAGS=" """ + armLdFlags + """ " CXXFLAGS=" """ + armIncFlags + """ "
           ./configure --prefix {local_dir}  && make -j {num_cores} install"""
@@ -2151,99 +2154,98 @@ class Setup:
     
         
 
-
-def ubuntu(self):
-    pkgs = """libbz2-dev python2.7-dev cmake libpcre3-dev zlib1g-dev libgcrypt11-dev libicu-dev
-python doxygen doxygen-gui auctex xindy graphviz libcurl4-openssl-dev""".split()
-    return pkgs
-
-
-
-def parse_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--compfile', type=str, nargs=1)
-    parser.add_argument('--libs', type=str, help="The libraries to install")
-    parser.add_argument('--printLibs', action = "store_true", help="Print Available Libs")
-    parser.add_argument('--printGitRefs', action = "store_true", help="Print Git branhes and tags for git projects")
-    parser.add_argument('--forceUpdate', action = "store_true", help="Remove already installed libs and re-install")
-    parser.add_argument('--updateBibProjects', type = str, help="Remove already installed libs and re-install")
-    parser.add_argument('--CC', type=str, nargs=1)
-    parser.add_argument('--CXX', type=str, nargs=1)
-    parser.add_argument('--instRPackageName',type=str, nargs=1)
-    parser.add_argument('--instRPackageSource',type=str, nargs=1) 
-    parser.add_argument('--addBashCompletion', dest = 'addBashCompletion', action = 'store_true')
-    parser.add_argument('--numCores', type=str)
-    parser.add_argument('--outMakefile', type=str)
-    parser.add_argument('--overWrite', action = 'store_true')
-    parser.add_argument('--append', action = 'store_true')
-    parser.add_argument('--noInternet', action = 'store_true')
-    parser.add_argument('--justDownload', action = 'store_true')
-    parser.add_argument('--verbose', action = 'store_true')
-    parser.add_argument('--symlinkBin', action = 'store_true', help = "Symlink in executables into a directory bin next to external")
-    parser.add_argument('--clearCache', action = 'store_true')
-    parser.add_argument('--clean', action = 'store_true',  help = "Remove intermediate build files to save space")
-
-    return parser.parse_args()
-
-
-
-def runSetup():
-    args = parse_args()
-    s = Setup(args)
-    s.externalChecks()
-    if(args.instRPackageName):
-        s.setupPackages("r")
-        s.installRPackageName(s.packages_.packages_["r"].defaultVersion_, args.instRPackageName[0])
-        return 0
-    if(args.instRPackageSource):
-        s.setupPackages("r")
-        s.installRPackageSource( s.packages_.packages_["r"].defaultVersion_, args.instRPackageSource[0])
-        return 0
-    if args.updateBibProjects:
-        s.updateBibProjects(args.updateBibProjects)
-        return 0
+class SetupRunner:
+    @staticmethod
+    def ubuntu(self):
+        pkgs = """libbz2-dev python2.7-dev cmake libpcre3-dev zlib1g-dev libgcrypt11-dev libicu-dev
+    python doxygen doxygen-gui auctex xindy graphviz libcurl4-openssl-dev""".split()
+        return pkgs
     
-    if args.clean:
-        s.clean()
-        return 0
-    if args.printLibs:
-        s.printAvailableSetUps()
-        return 0
-    elif args.addBashCompletion:
-        if(os.path.isdir("./bashCompletes")):
-            cmd = "echo >> ~/.bash_completion && cat bashCompletes/* >> ~/.bash_completion"
-            Utils.run(cmd)
-        if(os.path.isdir("./bash_completion.d")):
-            cmd = "echo >> ~/.bash_completion && cat bash_completion.d/* >> ~/.bash_completion"
-            Utils.run(cmd)
-        if(os.path.isdir("./etc/bash_completion.d")):
-            cmd = "echo >> ~/.bash_completion && cat ./etc/bash_completion.d/* >> ~/.bash_completion"
-            Utils.run(cmd)
-    else:
-        if len(s.setUpsNeeded) == 0 and not args.compfile:
-            print ("To see available setup use " + __file__ + " --printLibs")
-            #s.printAvailableSetUps()
+    @staticmethod
+    def parse_args():
+        parser = argparse.ArgumentParser()
+        parser.add_argument('--compfile', type=str, nargs=1)
+        parser.add_argument('--libs', type=str, help="The libraries to install")
+        parser.add_argument('--printLibs', action = "store_true", help="Print Available Libs")
+        parser.add_argument('--printGitRefs', action = "store_true", help="Print Git branhes and tags for git projects")
+        parser.add_argument('--forceUpdate', action = "store_true", help="Remove already installed libs and re-install")
+        parser.add_argument('--updateBibProjects', type = str, help="Remove already installed libs and re-install")
+        parser.add_argument('--CC', type=str, nargs=1)
+        parser.add_argument('--CXX', type=str, nargs=1)
+        parser.add_argument('--instRPackageName',type=str, nargs=1)
+        parser.add_argument('--instRPackageSource',type=str, nargs=1) 
+        parser.add_argument('--addBashCompletion', dest = 'addBashCompletion', action = 'store_true')
+        parser.add_argument('--numCores', type=str)
+        parser.add_argument('--outMakefile', type=str)
+        parser.add_argument('--overWrite', action = 'store_true')
+        parser.add_argument('--append', action = 'store_true')
+        parser.add_argument('--noInternet', action = 'store_true')
+        parser.add_argument('--justDownload', action = 'store_true')
+        parser.add_argument('--verbose', action = 'store_true')
+        parser.add_argument('--symlinkBin', action = 'store_true', help = "Symlink in executables into a directory bin next to external")
+        parser.add_argument('--clearCache', action = 'store_true')
+        parser.add_argument('--clean', action = 'store_true',  help = "Remove intermediate build files to save space")
+    
+        return parser.parse_args()
+
+    @staticmethod
+    def runSetup():
+        args = SetupRunner.parse_args()
+        s = Setup(args)
+        s.externalChecks()
+        if(args.instRPackageName):
+            s.setupPackages("r")
+            s.installRPackageName(s.packages_.packages_["r"].defaultVersion_, args.instRPackageName[0])
             return 0
-        elif args.printGitRefs:
-            s.printGitRefs()
+        if(args.instRPackageSource):
+            s.setupPackages("r")
+            s.installRPackageSource( s.packages_.packages_["r"].defaultVersion_, args.instRPackageSource[0])
             return 0
+        if args.updateBibProjects:
+            s.updateBibProjects(args.updateBibProjects)
+            return 0
+        
+        if args.clean:
+            s.clean()
+            return 0
+        if args.printLibs:
+            s.printAvailableSetUps()
+            return 0
+        elif args.addBashCompletion:
+            if(os.path.isdir("./bashCompletes")):
+                cmd = "echo >> ~/.bash_completion && cat bashCompletes/* >> ~/.bash_completion"
+                Utils.run(cmd)
+            if(os.path.isdir("./bash_completion.d")):
+                cmd = "echo >> ~/.bash_completion && cat bash_completion.d/* >> ~/.bash_completion"
+                Utils.run(cmd)
+            if(os.path.isdir("./etc/bash_completion.d")):
+                cmd = "echo >> ~/.bash_completion && cat ./etc/bash_completion.d/* >> ~/.bash_completion"
+                Utils.run(cmd)
         else:
-            if args.justDownload:
-                s.downloadFiles()
-            else:
-                s.setup()
-                if args.outMakefile:
-                    packVers = []
-                    for setUpNeeded in s.setUpsNeeded:
-                        s.packages_.addPackage(packVers,setUpNeeded)
-                    s.packages_.writeMakefile(packVers, args.outMakefile, args.overWrite, args.append)
-                if args.symlinkBin:
-                    for setUpNeeded in s.setUpsNeeded:
-                        s.linkInBin(setUpNeeded.name, setUpNeeded.version, args.overWrite)
+            if len(s.setUpsNeeded) == 0 and not args.compfile:
+                print ("To see available setup use " + __file__ + " --printLibs")
+                #s.printAvailableSetUps()
                 return 0
+            elif args.printGitRefs:
+                s.printGitRefs()
+                return 0
+            else:
+                if args.justDownload:
+                    s.downloadFiles()
+                else:
+                    s.setup()
+                    if args.outMakefile:
+                        packVers = []
+                        for setUpNeeded in s.setUpsNeeded:
+                            s.packages_.addPackage(packVers,setUpNeeded)
+                        s.packages_.writeMakefile(packVers, args.outMakefile, args.overWrite, args.append)
+                    if args.symlinkBin:
+                        for setUpNeeded in s.setUpsNeeded:
+                            s.linkInBin(setUpNeeded.name, setUpNeeded.version, args.overWrite)
+                    return 0
 
 if __name__ == '__main__':
-    runSetup()
+    SetupRunner.runSetup()
     
     
     

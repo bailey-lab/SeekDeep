@@ -28,7 +28,7 @@ class genHelper:
             f.write("CC = {CC}\n".format(CC = cc))
             f.write("CXX = {CXX}\n".format(CXX = cxx))
             f.write("CXXOUTNAME = {NAME_OF_PROGRAM}\n".format(NAME_OF_PROGRAM = outName))
-            f.write("CXXFLAGS = -std=c++14\n")
+            f.write("CXXFLAGS = -std=c++1z\n")
             f.write("CXXFLAGS += -Wall -ftemplate-depth=1024 -Werror=uninitialized -Werror=return-type -Wno-missing-braces\n")
             if "" != cxxFlags:
                 if cxxFlags.startswith("\\"):
@@ -93,9 +93,9 @@ class genHelper:
     @staticmethod
     def mkConfigCmd(name,libs, argv, ldflags="", cxxFlags=""):
         if libs == "":
-            cmd = "./scripts/setUpScripts/njhConfigure.py -name {name} ".format(name=name)
+            cmd = os.path.join(os.path.dirname(os.path.dirname(__file__)), "setUpScripts/njhConfigure.py") + " -name {name} ".format(name=name)
         else:
-            cmd = "./scripts/setUpScripts/njhConfigure.py -name {name} -libs {libs}".format(name=name, libs=libs)
+            cmd = os.path.join(os.path.dirname(os.path.dirname(__file__)), "setUpScripts/njhConfigure.py") + " -name {name} -libs {libs}".format(name=name, libs=libs)
         if "" != ldflags:
             if ldflags.startswith("-"):
                 ldflags = ldflags[1:]

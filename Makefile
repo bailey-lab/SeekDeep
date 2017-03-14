@@ -37,6 +37,13 @@ DYLIB = $(addprefix $(addsuffix $(LIBNAME), $(LIB_DIR)/), .dylib)
 SOLIB = $(addprefix $(addsuffix $(LIBNAME), $(LIB_DIR)/), .so)
 ## Etc Directory
 ETC_DIR = etc
+## Script dir
+ifneq (,$(wildcard cppSetupTools/scripts))
+SCRIPTS_DIR = cppSetupTools/scripts
+else
+SCRIPTS_DIR = scripts
+endif
+
 
 ##Phony Targets
 .PHONY: all
@@ -86,7 +93,7 @@ do_preReqs:
 ifndef COMPFILE
 	$(error compfile is not set, do either make COMPFILE=aCompfile.mk or create a file called compfile.mk)
 endif
-	scripts/setUpScripts/rmNeedToRecompile.py -obj $(OBJ_DIR) -src src/
+	$(SCRIPTS_DIR)/setUpScripts/rmNeedToRecompile.py -obj $(OBJ_DIR) -src src/
 
 	
 ############ shared library
@@ -141,16 +148,16 @@ $(INSTALL_DIR)/bin/$(CXXOUTNAME): $(OBJ)
 ### Run the move headers script and remove the previous includes directory to get rid 
 ### of any headers that were removed
 cpHeaders: $(INSTALL_DIR)
-	scripts/setUpScripts/installHeaders.py -src src/ -dest $(INSTALL_DIR)/include/ -rmDir
+	$(SCRIPTS_DIR)/setUpScripts/installHeaders.py -src src/ -dest $(INSTALL_DIR)/include/ -rmDir
 	
 ### Copy etc folder if it exists 
 cpEtc: $(INSTALL_DIR)
 ifneq ("$(wildcard $(ETC_DIR))","")
-	scripts/setUpScripts/installEtc.py -etcFolder etc/ -dest $(INSTALL_DIR)/ -rmDir
+	$(SCRIPTS_DIR)/setUpScripts/installEtc.py -etcFolder etc/ -dest $(INSTALL_DIR)/ -rmDir
 endif
 
 ### Run unit tests if available
 unitTest: 
-	scripts/setUpScripts/runUnitTest.sh
+	$(SCRIPTS_DIR)/setUpScripts/runUnitTest.sh
 	
 
