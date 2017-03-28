@@ -49,6 +49,7 @@ endif
 .PHONY: all
 .PHONY: docs
 .PHONY: do_preReqs 
+.SILENT: do_preReqs 
 .PHONY: sharedLibrary
 .PHONY: dyLibrary
 .PHONY: clean
@@ -56,6 +57,7 @@ endif
 .PHONY: cpHeaders
 .PHONY: cpEtc
 .PHONY: unitTest
+.PHONY: printInstallDir
 
 ## unit tert dir 
 TESTDIR=test
@@ -63,8 +65,10 @@ TESTDIR=test
 ###compiler options, add in environmental 
 CXXFLAGS += $(ENV_CXXFLAGS)
 LD_FLAGS += $(ENV_LDFLAGS)
-#CXXFLAGS += -Wno-missing-braces
+
 COMMON = $(CXXFLAGS) $(CXXOPT) $(COMLIBS)
+
+##remove any object files that need to be removed due to updates to headers
 -include do_preReqs
 
 ############ default for calling make with no arguments
@@ -93,7 +97,7 @@ do_preReqs:
 ifndef COMPFILE
 	$(error compfile is not set, do either make COMPFILE=aCompfile.mk or create a file called compfile.mk)
 endif
-	$(SCRIPTS_DIR)/setUpScripts/rmNeedToRecompile.py -obj $(OBJ_DIR) -src src/
+	$(SCRIPTS_DIR)/setUpScripts/rmNeedToRecompile.py -obj $(OBJ_DIR) -src src/ 
 
 	
 ############ shared library
@@ -161,3 +165,5 @@ unitTest:
 	$(SCRIPTS_DIR)/setUpScripts/runUnitTest.sh
 	
 
+printInstallDir:
+	@echo $(INSTALL_DIR)
