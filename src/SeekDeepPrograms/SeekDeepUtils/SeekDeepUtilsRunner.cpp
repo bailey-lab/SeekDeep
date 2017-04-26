@@ -598,7 +598,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 						zcatR1 = bib::replaceString(zcatR1, "{OUTPUT}", bib::files::make_path(analysisSetup.dir_, key).string());
 						auto zcatR2 = bib::replaceString(zcatTempCmdR2, "{FILES}", bib::conToStr(readsByPairs.at(key).second, " "));
 						zcatR2 = bib::replaceString(zcatR2, "{OUTPUT}", bib::files::make_path(analysisSetup.dir_, key).string());
-						auto curStitchCmd = bib::replaceString(stitchCmd, "{OUTPUT}", bib::files::make_path(analysisSetup.dir_, key).string());
+						auto curStitchCmd = bib::replaceString(stitchCmd, "{OUTPUT}", bib::files::make_path(analysisSetup.dir_.relative_path(), key).string());
 
 						auto zcatR1Out = bib::sys::run( {zcatR1});
 						auto zcatR2Out = bib::sys::run( {zcatR2});
