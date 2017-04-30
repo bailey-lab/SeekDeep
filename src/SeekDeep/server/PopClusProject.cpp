@@ -9,7 +9,7 @@
 
 
 #include "PopClusProject.hpp"
-
+#include <unordered_map>
 
 namespace bibseq {
 
@@ -35,6 +35,7 @@ PopClusProject::PopClusProject(const Json::Value & configJson) :
 
 	tabs_.popInfo_ = std::make_unique<TableCache>(TableIOOpts(InOptions(collection_->getPopInfoPath()), "\t", true));
 	tabs_.sampInfo_ = std::make_unique<TableCache>(TableIOOpts(InOptions(collection_->getSampInfoPath()), "\t", true));
+	tabs_.hapIdTab_ = std::make_unique<TableCache>(TableIOOpts(InOptions(collection_->getHapIdTabPath()), "\t", true));
 
 	//set up group meta data
 	if(nullptr != collection_->groupDataPaths_){
@@ -43,6 +44,7 @@ PopClusProject::PopClusProject(const Json::Value & configJson) :
 			for(const auto & subGroup : group.second.groupPaths_){
 				subGroupTabs_[group.first][subGroup.first].popInfo_ = std::make_unique<TableCache>(TableIOOpts(InOptions(subGroup.second.popFileFnp_), "\t", true));
 				subGroupTabs_[group.first][subGroup.first].sampInfo_ = std::make_unique<TableCache>(TableIOOpts(InOptions(subGroup.second.sampFileFnp_), "\t", true));
+				subGroupTabs_[group.first][subGroup.first].hapIdTab_ = std::make_unique<TableCache>(TableIOOpts(InOptions(subGroup.second.hapIdTabFnp_), "\t", true));
 			}
 		}
 	}

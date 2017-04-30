@@ -272,12 +272,15 @@ int SeekDeepRunner::processClusters(const bib::progutils::CmdArgs & inputCommand
 	}
 
 	sampColl.printSampleCollapseInfo(
-			bib::files::join(sampColl.masterOutputDir_.string(),
+			bib::files::make_path(sampColl.masterOutputDir_,
 					"selectedClustersInfo.tab.txt"));
 
 	sampColl.symlinkInSampleFinals();
 	sampColl.outputRepAgreementInfo();
 	if(!pars.noPopulation){
+		table hapIdTab = sampColl.genHapIdTable();
+		hapIdTab.outPutContents(TableIOOpts::genTabFileOut(bib::files::make_path(sampColl.masterOutputDir_,
+				"hapIdTable.tab.txt"), true));
 		sampColl.dumpPopulation();
 	}
 	if("" != pars.groupingsFile){
