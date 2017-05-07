@@ -53,6 +53,7 @@ endif
 .PHONY: sharedLibrary
 .PHONY: dyLibrary
 .PHONY: clean
+.PHONY: installDirs
 .PHONY: install
 .PHONY: cpHeaders
 .PHONY: cpEtc
@@ -125,14 +126,18 @@ INSTALL_DYLIBNAME=$(INSTALL_DIR)/lib/$(LIBNAME).dylib
 INSTALL_SHAREDLIBNAME=$(OBJ_DIR) $(INSTALL_DIR)/lib/$(LIBNAME).so 
 INSTALL_FILES=$(INSTALL_OUTNAME) $(INSTALL_DYLIBNAME) $(INSTALL_SHAREDLIBNAME)
 
-install: $(INSTALL_DIR) cpHeaders cpEtc do_preReqs $(INSTALL_FILES)
+install: installDirs cpHeaders cpEtc do_preReqs $(INSTALL_FILES)
 
+installDirs: $(INSTALL_DIR) $(INSTALL_DIR)/include $(INSTALL_DIR)/bin $(INSTALL_DIR)/lib
 
 #### install directories set up
 $(INSTALL_DIR): 
 	@mkdir -p $(INSTALL_DIR)
+$(INSTALL_DIR)/include: 
 	@mkdir -p $(INSTALL_DIR)/include
+$(INSTALL_DIR)/bin: 
 	@mkdir -p $(INSTALL_DIR)/bin
+$(INSTALL_DIR)/lib: 
 	@mkdir -p $(INSTALL_DIR)/lib
 	
 #### installing shared library
