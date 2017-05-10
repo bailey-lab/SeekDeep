@@ -25,6 +25,8 @@ public:
 		bfs::path targetsToIndexFnp = "";
 		bool byIndex = false;
 
+		bool debug = false;
+
 		uint32_t numThreads = 1;
 
 		std::string technology = "illumina";

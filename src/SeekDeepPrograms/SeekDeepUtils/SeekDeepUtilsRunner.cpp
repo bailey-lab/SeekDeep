@@ -359,6 +359,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	seqSetUp setUp(inputCommands);
 	setUp.processVerbose();
 	setUp.processDebug();
+	pars.debug = setUp.pars_.debug_;
 	setUp.setOption(pars.technology, "--technology",
 			"Sequencing Technology (should be 454,IonTorrent, or Illumina");
 	stringToLower(pars.technology);
@@ -600,10 +601,12 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 						zcatR1 = bib::replaceString(zcatR1, "{OUTPUT}", bib::files::make_path(analysisSetup.dir_, key).string());
 						auto zcatR2 = bib::replaceString(zcatTempCmdR2, "{FILES}", bib::conToStr(readsByPairs.at(key).second, " "));
 						zcatR2 = bib::replaceString(zcatR2, "{OUTPUT}", bib::files::make_path(analysisSetup.dir_, key).string());
-						std::cout << "analysisSetup.dir_.lexically_relative( bfs::current_path(): " << analysisSetup.dir_.lexically_relative( bfs::current_path()) << std::endl;
-						std::cout << "bfs::current_path() " << bfs::current_path() << std::endl;
-						std::cout << "analysisSetup.dir_: " << analysisSetup.dir_ << std::endl;
-						auto curStitchCmd = bib::replaceString(stitchCmd, "{OUTPUT}", bib::files::make_path(analysisSetup.dir_.lexically_relative( bfs::current_path()), key).string());
+						if(analysisSetup.pars_.debug){
+							std::cout << "bfs::absolute(analysisSetup.dir_).lexically_relative( bfs::current_path()): " << bfs::absolute(analysisSetup.dir_).lexically_relative( bfs::current_path()) << std::endl;
+							std::cout << "bfs::current_path() " << bfs::current_path() << std::endl;
+							std::cout << "analysisSetup.dir_: " << analysisSetup.dir_ << std::endl << std::endl;
+						}
+						auto curStitchCmd = bib::replaceString(stitchCmd, "{OUTPUT}", bib::files::make_path(bfs::absolute(analysisSetup.dir_).lexically_relative( bfs::current_path()), key).string());
 						auto zcatR1Out = bib::sys::run( {zcatR1});
 						auto zcatR2Out = bib::sys::run( {zcatR2});
 						if(std::numeric_limits<uint32_t>::max() != analysisSetup.pars_.r1Trim) {
