@@ -311,7 +311,7 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 	setOption(pars.skipInternalSnps, "--skipInternalSnps", "Skip Internal(within the clusters) Snps Calling ");
 
 	pars_.chiOpts_.checkChimeras_ = true;
-	pars_.chiOpts_.parentFreqs_ = 3;
+	pars_.chiOpts_.parentFreqs_ = 2;
 	bool dontMarkChimeras = false;
 	setOption(dontMarkChimeras, "--noMarkChimeras", "Don't do Chimera marking");
 	pars_.chiOpts_.checkChimeras_ = !dontMarkChimeras;
