@@ -274,6 +274,10 @@ class Packages():
             self.packages_["cmake"] = self.__cmake()
         if "curl" in libsNeeded:
             self.packages_["curl"] = self.__curl()
+        if "lapack" in libsNeeded:
+            self.packages_["lapack"] = self.__lapack()
+        if "atlas" in libsNeeded:
+            self.packages_["atlas"] = self.__atlas()
         
         #git repos 
         if "bamtools" in libsNeeded:
@@ -427,10 +431,16 @@ class Packages():
     def __mongoc(self):
         url = "https://github.com/mongodb/mongo-c-driver.git"
         name = "mongoc"
+#
+#        if Utils.isMac():
+#            buildCmd = "sed -i.bak s/git:/http:/g .gitmodules && CC={CC} CXX={CXX}  PKG_CONFIG_PATH=/usr/local/opt/openssl/lib/pkgconfig:$PKG_CONFIG_PATH ./autogen.sh --enable-ssl --enable-sasl --prefix={local_dir}&& make -j {num_cores}  && make install"
+#        else:
+#            buildCmd = "sed -i.bak s/git:/http:/g .gitmodules && CC={CC} CXX={CXX} ./autogen.sh --enable-ssl --enable-sasl --prefix={local_dir} && make -j {num_cores}  && make install"
+#
         if Utils.isMac():
-            buildCmd = "sed -i.bak s/git:/http:/g .gitmodules && CC={CC} CXX={CXX}  PKG_CONFIG_PATH=/usr/local/opt/openssl/lib/pkgconfig:$PKG_CONFIG_PATH ./autogen.sh --enable-ssl --enable-sasl --prefix={local_dir}&& make -j {num_cores}  && make install"
+            buildCmd = """sed -i.bak s/git:/http:/g .gitmodules && CC={CC} CXX={CXX} PKG_CONFIG_PATH=/usr/local/opt/openssl/lib/pkgconfig:$PKG_CONFIG_PATH LDFLAGS="$(echo $(pkg-config openssl --libs) | sed 's/-L/-Wl,-rpath,/g' | sed 's/lib\ .*/lib/g')" ./autogen.sh --enable-ssl --enable-sasl --prefix={local_dir}&& make -j {num_cores}  && make install"""
         else:
-            buildCmd = "sed -i.bak s/git:/http:/g .gitmodules && CC={CC} CXX={CXX} ./autogen.sh --enable-ssl --enable-sasl --prefix={local_dir} && make -j {num_cores}  && make install"
+            buildCmd = """sed -i.bak s/git:/http:/g .gitmodules && CC={CC} CXX={CXX} LDFLAGS="$(echo $(pkg-config openssl --libs) | sed 's/-L/-Wl,-rpath,/g' | sed 's/lib\ .*/lib/g')" ./autogen.sh --enable-ssl --enable-sasl --prefix={local_dir} && make -j {num_cores}  && make install"""
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "1.3.3")
         pack.addVersion(url, "1.3.3")
         pack.versions_["1.3.3"].additionalIncludePaths_.append(pack.versions_["1.3.3"].includePath_ + "/libmongoc-1.0")
@@ -539,7 +549,7 @@ class Packages():
         buildCmd = """./configure --prefix={local_dir} --enable-R-shlib --with-x=no CC={CC} CXX={CXX} OBJC={CC}
                 && make -j {num_cores}
                 && make install
-                && echo '.libPaths(.libPaths()[length(.libPaths()  )] ); install.packages(c(\"gridExtra\", \"ape\", \"ggplot2\", \"seqinr\",\"Rcpp\", \"RInside\"),
+                && echo '.libPaths(.libPaths()[length(.libPaths()  )] ); install.packages(c(\"tidyverse\", \"gridExtra\", \"ape\", \"ggplot2\", \"seqinr\",\"Rcpp\", \"RInside\"),
                 repos=\"http://cran.us.r-project.org\", Ncpus = {num_cores}, lib =.libPaths()[length(.libPaths()  )] )' | $({local_dir}/""" + rHomeLoc + """)/bin/R --slave --vanilla
                 """
         buildCmd = " ".join(buildCmd.split())
@@ -602,6 +612,15 @@ class Packages():
         pack.versions_["3.3.1"].includePath_ = os.path.join(joinNameVer(pack.versions_["3.3.1"].nameVer_), "include", "eigen3")
         return pack
 
+    def __lapack(self):
+        name = "lapack"
+        buildCmd = """mkdir build && cd build && CC={CC} CXX={CXX} cmake -DCMAKE_INSTALL_PREFIX={local_dir} .. && make install -j {num_cores}"""
+        buildCmd = " ".join(buildCmd.split())
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "3.7.0")
+        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/lapack/lapack-3.7.0.tar.gz", "3.7.0")
+        return pack
+    
+
     def __glpk(self):
         name = "glpk"
         buildCmd = """CC={CC} CXX={CXX}  ./configure 
@@ -635,6 +654,19 @@ class Packages():
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "7.53.1")
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/curl/curl-7.53.1.tar.gz", "7.53.1")
         return pack
+    
+    def __atlas(self):
+        name = "atlas"
+        buildCmd = """mkdir build && cd build && CC={CC} CXX={CXX}  ../configure 
+            --prefix={local_dir}
+            && make -j {num_cores} 
+            && make -j {num_cores} install"""
+        buildCmd = " ".join(buildCmd.split())
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "3.10.3")
+        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/atlas/atlas3.10.3.tar.gz", "3.10.3")
+        return pack
+    
+    
     
     
     def __muscle(self):
@@ -1523,7 +1555,9 @@ class Setup:
                        "glpk": self.glpk,
                        "cmake": self.cmake,
                        "curl": self.curl,
-                       "bhtsne": self.bhtsne
+                       "bhtsne": self.bhtsne,
+                       "lapack": self.lapack,
+                       "atlas": self.atlas
                        }
         ''' 
         "mlpack": self.mlpack,
@@ -2031,7 +2065,14 @@ class Setup:
     
     def jsoncpp(self, version):
         self.__defaultBuild("jsoncpp", version)
-        
+    
+    def lapack(self, version):
+        self.__defaultBuild("lapack", version)
+
+    def atlas(self, version):
+        self.__defaultBuild("atlas", version)
+
+
     def mongoc(self, version):
         self.__defaultBuild("mongoc", version)
         
