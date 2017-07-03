@@ -260,8 +260,8 @@ std::map<std::string, PrimersAndMids::Target::lenCutOffs> PrimersAndMids::readIn
 	}
 	for (const auto & row : lenCutTab.content_) {
 		ret.emplace(row[lenCutTab.getColPos("target")],
-				PrimersAndMids::Target::lenCutOffs { bib::lexical_cast<uint32_t>(
-						row[lenCutTab.getColPos("minlen")]), bib::lexical_cast<uint32_t>(
+				PrimersAndMids::Target::lenCutOffs { estd::stou(
+						row[lenCutTab.getColPos("minlen")]), estd::stou(
 						row[lenCutTab.getColPos("maxlen")]) });
 	}
 	return ret;

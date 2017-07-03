@@ -685,7 +685,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 
 		VecStr noReadsStitched;
 		for (const auto & row : flashOutTab.content_) {
-			auto stitchedNum = bib::lexical_cast<uint32_t>(
+			auto stitchedNum = estd::stou(
 					row[flashOutTab.getColPos("CombinedPairs")]);
 			if (0 == stitchedNum) {
 				noReadsStitched.emplace_back(row[flashOutTab.getColPos("SampleName")]);

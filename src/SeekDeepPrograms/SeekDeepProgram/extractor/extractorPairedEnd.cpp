@@ -432,8 +432,8 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 		}
 		for (const auto & row : lenCutTab.content_) {
 			multipleLenCutOffs.emplace(row[lenCutTab.getColPos("target")],
-					lenCutOffs { bib::lexical_cast<uint32_t>(
-							row[lenCutTab.getColPos("minlen")]), bib::lexical_cast<uint32_t>(
+					lenCutOffs { estd::stou(
+							row[lenCutTab.getColPos("minlen")]), estd::stou(
 							row[lenCutTab.getColPos("maxlen")]) });
 		}
 	}*/
