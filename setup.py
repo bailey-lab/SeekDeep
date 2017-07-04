@@ -569,7 +569,8 @@ class Packages():
     def __armadillo(self):
         name = "armadillo"
         buildCmd = "mkdir -p build && cd build && CC={CC} CXX={CXX} cmake -DCMAKE_INSTALL_PREFIX:PATH={local_dir} .. && make -j {num_cores} install"
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "7.800.2")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "7.900.1")
+        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/armadillo/armadillo-7.900.1.tar.gz", "7.900.1")
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/armadillo/armadillo-7.800.2.tar.gz", "7.800.2")
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/armadillo/armadillo-7.800.1.tar.gz", "7.800.1")
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/armadillo/armadillo-7.600.1.tar.gz", "7.600.1")
@@ -1711,13 +1712,15 @@ class Setup:
     def num_cores(self):
         retCores = Utils.num_cores()
         if self.args.numCores:
-            if not self.args.numCores > retCores:
+            if self.args.numCores < retCores:
                 retCores = self.args.numCores
         else:
             if retCores > 8:
                 retCores  = retCores/2
             if 1 != retCores:
                 retCores -= 1
+            if retCores < 1:
+                retCores = 1 
         return retCores
 
     def __buildFromFile(self, packVer, cmd):
@@ -2266,7 +2269,7 @@ class SetupRunner:
         parser.add_argument('--instRPackageName',type=str, nargs=1)
         parser.add_argument('--instRPackageSource',type=str, nargs=1) 
         parser.add_argument('--addBashCompletion', dest = 'addBashCompletion', action = 'store_true')
-        parser.add_argument('--numCores', type=str)
+        parser.add_argument('--numCores', type=int)
         parser.add_argument('--outMakefile', type=str)
         parser.add_argument('--overWrite', action = 'store_true')
         parser.add_argument('--append', action = 'store_true')
