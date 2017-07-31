@@ -190,16 +190,15 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 
 	processDefaultReader(true);
 
-	setOption(pars.noErrorsSet, "--noErrors", "Parameters with no errors");
+	setOption(pars.noErrorsSet, "--noErrors", "Collapse parameters with no errors");
 
 
-	setOption(pars.strictErrorsSetHq1, "--strictErrors-hq1", "Parameters with a several low quality mismatches and 1 high quality mismatch");
+	setOption(pars.strictErrorsSetHq1, "--strictErrors-hq1", "Collapse parameters with a several low quality mismatches and 1 high quality mismatch");
 	if(pars.strictErrorsSetHq1){
 		pars.strictErrorsSet = true;
 		pars.hqMismatches = 1;
 	}
-	setOption(pars.strictErrorsSet, "--strictErrors", "Parameters with a several low quality mismatches");
-
+	setOption(pars.strictErrorsSet, "--strictErrors", "Collapse parameters with a several low quality mismatches");
 	setOption(pars.hqMismatches, "--hq", "Number of high quality mismatches to allow");
 	setOption(pars.stopAfter, "--stopAfter", "Number of top haplotypes to check");
 
@@ -207,7 +206,7 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 
 	setOption(pars.binParameters, "--binPar", "bin Parameters Filename");
 
-	setOption(pars.runsRequired, "--runsRequired", "runsRequired");
+	setOption(pars.runsRequired, "--runsRequired", "Number of PCR runs Required for a haplotype to be kept");
 	setOption(pars.experimentName, "--experimentName", "ExperimentName");
 	if (bib::containsSubString(pars.experimentName, ".")) {
 		addWarning("Error in populationCollapse::populationCollapse, populationName can't contain '.', "
@@ -218,7 +217,7 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 	setOption(pars.noTrees, "--noTrees", "Don't generate html difference trees");
 	processDirectoryOutputName("clusters_" + getCurrentDate(), true);
 
-	setOption(pars.extra, "--extra", "ExtraOutput");
+	setOption(pars.extra, "--extra", "Extra Output");
 	processRefFilename();
 	setOption(pars.noPopulation, "--noPopulation",
 			"Don't do Population Clustering");
@@ -226,10 +225,22 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 	setOption(pars.fracCutoff, "--fracCutOff",
 			"PopulationClusteringFractionCutoff");
 	pars.differentPar = setOption(pars.parametersPopulation, "--popPar",
-			"ParametersForPopulationCollapse");
-	setOption(pars_.chiOpts_.checkChimeras_, "--markChimeras", "MarkChimeras");
+			"Parameters For Population Collapse");
+	struct ClusteringParametersPars {
+		bool noErrorsSet = false;
+		bool strictErrorsSet = false;
+		uint32_t stopAfter = 100;
+		uint32_t hqMismatches = 0;
+	};
+	ClusteringParametersPars popClusParsPars;
+	setOption(popClusParsPars.noErrorsSet, "--pop-noErrors", "Collapse parameters with no errors in population clustering");
+	setOption(popClusParsPars.strictErrorsSet, "--pop-strictErrors", "Collapse parameters with a several low quality mismatches in population clustering");
+	setOption(popClusParsPars.hqMismatches, "--pop-hq", "Number of high quality mismatches to allow in population clustering");
+	setOption(popClusParsPars.stopAfter, "--pop-stopAfter", "Number of top haplotypes to check in population clustering");
+
+	setOption(pars_.chiOpts_.checkChimeras_, "--markChimeras", "Mark Chimeras");
 	setOption(pars.keepChimeras, "--keepChimeras", "KeepChimeras");
-	setOption(pars_.chiOpts_.parentFreqs_, "--parFreqs", "ParentFrequence_multiplier_cutoff");
+	setOption(pars_.chiOpts_.parentFreqs_, "--parFreqs", "Chimeric Parent Frequency multiplier cutoff");
 
 	setOption(pars.numThreads, "--numThreads", "Number of threads to use");
 	setOption(pars_.colOpts_.clusOpts_.converge_, "--converge", "Keep clustering at each iteration until there is no more collapsing, could increase run time significantly");
@@ -270,12 +281,29 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 				pars.binIteratorMap = processIteratorMap(pars.binParameters);
 			}
 		}
-		if (pars.differentPar) {
-			if (pars.onPerId) {
-				pars.popIteratorMap = processIteratorMapOnPerId(pars.parametersPopulation);
+		if (pars.differentPar || popClusParsPars.noErrorsSet
+				|| popClusParsPars.strictErrorsSet) {
+			if (popClusParsPars.noErrorsSet) {
+				if (popClusParsPars.hqMismatches > 0) {
+					pars.popIteratorMap =
+							CollapseIterations::genStrictNoErrorsDefaultParsWithHqs(
+									popClusParsPars.stopAfter, popClusParsPars.hqMismatches);
+				} else {
+					pars.popIteratorMap = CollapseIterations::genStrictNoErrorsDefaultPars(
+							popClusParsPars.stopAfter);
+				}
+			} else if (popClusParsPars.strictErrorsSet) {
+				pars.popIteratorMap = CollapseIterations::genStrictDefaultParsWithHqs(
+						popClusParsPars.stopAfter, popClusParsPars.hqMismatches, pars.illumina);
 			} else {
-				pars.popIteratorMap = processIteratorMap(pars.parametersPopulation);
+				if (pars.onPerId) {
+					pars.popIteratorMap = processIteratorMapOnPerId(
+							pars.parametersPopulation);
+				} else {
+					pars.popIteratorMap = processIteratorMap(pars.parametersPopulation);
+				}
 			}
+
 		} else {
 			pars.popIteratorMap = pars.iteratorMap;
 		}
