@@ -36,7 +36,7 @@ void pcv::loadInCollections(){
 
 	auto files = bib::files::listAllFiles(configDir_.string(), false, {std::regex{".*.config$"}});
 	for(const auto & f : files){
-		if(bib::beginsWith(f.first.string(), ".")){
+		if(bib::beginsWith(f.first.filename().string(), ".")){
 			continue;
 		}
 		if(!f.second){
