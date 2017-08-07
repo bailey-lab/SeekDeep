@@ -119,7 +119,7 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 	pars.iteratorMap.writePars(setUp.rLog_.runLogFile_);
 	if (setUp.pars_.verbose_) {
 		std::cout << "Reading clusters from " << setUp.pars_.ioOptions_.firstName_ << " "
-				<< setUp.pars_.ioOptions_.secondName_ << std::endl;
+				<< ("" == setUp.pars_.ioOptions_.secondName_ ? "": setUp.pars_.ioOptions_.secondName_.string()) << std::endl;
 		std::cout << "Read in " << counter << " reads" << std::endl;
 	}
 	setUp.rLog_ << "Reading clusters from " << setUp.pars_.ioOptions_.firstName_ << " "
@@ -338,7 +338,7 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 			SeqIOOptions(
 					setUp.pars_.directoryName_ + setUp.pars_.ioOptions_.out_.outFilename_.string(),
 					setUp.pars_.ioOptions_.outFormat_,setUp.pars_.ioOptions_.out_));
-	if(!pars.skipInternalSnps){
+	if(pars.writeOutFinalInternalSnps){
 		setUp.rLog_.logCurrentTime("Calling internal snps");
 		std::string snpDir = bib::files::makeDir(setUp.pars_.directoryName_,
 				bib::files::MkdirPar("internalSnpInfo", false)).string();
@@ -416,10 +416,11 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 		outHtml << outHtmlStr;
 	}
 
-	std::string clusterDirectoryName = bib::files::makeDir(setUp.pars_.directoryName_,
-			bib::files::MkdirPar("clusters", false)).string();
+
 
 	if (pars.writeOutInitalSeqs) {
+		std::string clusterDirectoryName = bib::files::makeDir(setUp.pars_.directoryName_,
+				bib::files::MkdirPar("clusters", false)).string();
 		/*
 		 * 	clusterVec::allWriteClustersInDir(clusters, clusterDirectoryName,
 		 setUp.pars_.ioOptions_);
@@ -427,7 +428,17 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 		SeqIOOptions clustersIoOpts(
 				bib::files::make_path(clusterDirectoryName, "initialClusters"),
 				setUp.pars_.ioOptions_.outFormat_);
-
+		SeqOutput subClusterWriter(clustersIoOpts);
+		subClusterWriter.openOut();
+		for( const auto & clus : clusters){
+			MetaDataInName clusMeta;
+			clusMeta.addMeta("clusterName", clus.seqBase_.name_);
+			for( const auto & subClus : clus.reads_){
+				seqInfo subClusCopy = subClus->seqBase_;
+				clusMeta.resetMetaInName(subClusCopy.name_, subClusCopy.name_.find("_t"));
+				subClusterWriter.write(subClusCopy);
+			}
+		}
 	}
 
 
@@ -439,25 +450,36 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 					".txt", false, false);
 			compStats << "cluster\tcompAmount" << std::endl;
 		}
-		std::string allInputReadsDir = bib::files::makeDir(setUp.pars_.directoryName_,
-				bib::files::MkdirPar("allInputReadsForEachCluster", false)).string();
+		std::string allInputReadsDir;
+		if(pars.writeOutInitalSeqs){
+			allInputReadsDir = bib::files::makeDir(setUp.pars_.directoryName_,
+					bib::files::MkdirPar("allInputReadsForEachCluster", false)).string();
+		}
+		SeqIOOptions clustersIoOpts(
+				bib::files::make_path(allInputReadsDir, "allInitialReads"),
+				setUp.pars_.ioOptions_.outFormat_);
+		SeqOutput subClusterWriter(clustersIoOpts);
+		if(pars.writeOutInitalSeqs){
+			subClusterWriter.openOut();
+		}
 
 		for (const auto& clus : clusters) {
-			SeqOutput writer(
-					SeqIOOptions(allInputReadsDir + clus.seqBase_.name_,
-							setUp.pars_.ioOptions_.outFormat_,setUp.pars_.ioOptions_.out_));
-			writer.openOut();
+			MetaDataInName clusMeta;
+			clusMeta.addMeta("clusterName", clus.seqBase_.name_);
 			uint32_t currentCompAmount = 0;
-			for (const auto & read : clus.reads_) {
-				auto input = readVec::getReadByName(identicalClusters,read->seqBase_.name_);
-				for(const auto & inputRead : input.reads_){
-					writer.write(inputRead);
-				}
-				if (bib::containsSubString(read->seqBase_.name_, "_Comp")) {
-					currentCompAmount += read->seqBase_.cnt_;
+			for (const auto & seq : clus.reads_) {
+				auto input = readVec::getReadByName(identicalClusters, seq->seqBase_.name_);
+				for( auto & inputRead : input.reads_){
+					if (bib::containsSubString(inputRead->seqBase_.name_, "_Comp")) {
+						currentCompAmount += inputRead->seqBase_.cnt_;
+					}
+					if(pars.writeOutInitalSeqs){
+						seqInfo subClusCopy = inputRead->seqBase_;
+						clusMeta.resetMetaInName(subClusCopy.name_);
+						subClusterWriter.write(subClusCopy);
+					}
 				}
 			}
-
 			if (containsCompReads) {
 				compStats << clus.seqBase_.name_ << "\t"
 						<< getPercentageString(currentCompAmount, clus.seqBase_.cnt_)

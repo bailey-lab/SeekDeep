@@ -308,7 +308,7 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 	setOption(pars.qualRep, "--qualRep",
 			"QualityRepresentative_for_unique_clusters");
 	setOption(pars.extra, "--extra", "Extra");
-	setOption(pars.skipInternalSnps, "--skipInternalSnps", "Skip Internal(within the clusters) Snps Calling ");
+	setOption(pars.writeOutFinalInternalSnps, "--writeOutFinalInternalSnps", "Write out Internal(within the clusters) Snps Calling ");
 
 	pars_.chiOpts_.checkChimeras_ = true;
 	pars_.chiOpts_.parentFreqs_ = 2;
