@@ -329,6 +329,7 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 	processSkipOnNucComp();
 	setOption(pars_.colOpts_.clusOpts_.converge_, "--converge", "Keep clustering at each iteration until there is no more collapsing, could increase run time significantly");
 
+	setOption(pars.writeOutInitalSeqs, "--writeOutInitalSeqs", "Write out the sequences that make up each cluster");
 	pars_.colOpts_.verboseOpts_.verbose_ = pars_.verbose_;
 	pars_.colOpts_.verboseOpts_.debug_ = pars_.debug_;
 	processRefFilename();

@@ -122,6 +122,8 @@ struct clusterDownPars {
 	bool extra = false;
 	uint32_t smallReadSize = 20;
 
+	bool writeOutInitalSeqs = false;
+
 	SnapShotsOpts snapShotsOpts_;
 };
 

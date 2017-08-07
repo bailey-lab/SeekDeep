@@ -418,8 +418,19 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 
 	std::string clusterDirectoryName = bib::files::makeDir(setUp.pars_.directoryName_,
 			bib::files::MkdirPar("clusters", false)).string();
-	clusterVec::allWriteClustersInDir(clusters, clusterDirectoryName,
-			setUp.pars_.ioOptions_);
+
+	if (pars.writeOutInitalSeqs) {
+		/*
+		 * 	clusterVec::allWriteClustersInDir(clusters, clusterDirectoryName,
+		 setUp.pars_.ioOptions_);
+		 */
+		SeqIOOptions clustersIoOpts(
+				bib::files::make_path(clusterDirectoryName, "initialClusters"),
+				setUp.pars_.ioOptions_.outFormat_);
+
+	}
+
+
 
 	if (!setUp.pars_.ioOptions_.processed_) {
 		std::ofstream compStats;
@@ -430,6 +441,7 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 		}
 		std::string allInputReadsDir = bib::files::makeDir(setUp.pars_.directoryName_,
 				bib::files::MkdirPar("allInputReadsForEachCluster", false)).string();
+
 		for (const auto& clus : clusters) {
 			SeqOutput writer(
 					SeqIOOptions(allInputReadsDir + clus.seqBase_.name_,
@@ -445,6 +457,7 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 					currentCompAmount += read->seqBase_.cnt_;
 				}
 			}
+
 			if (containsCompReads) {
 				compStats << clus.seqBase_.name_ << "\t"
 						<< getPercentageString(currentCompAmount, clus.seqBase_.cnt_)
