@@ -260,6 +260,8 @@ class Packages():
             self.packages_["bowtie2"] = self.__bowtie2()
         if "flash" in libsNeeded:
             self.packages_["flash"] = self.__flash()
+        if "pigz" in libsNeeded:
+            self.packages_["pigz"] = self.__pigz()
         if "lastz" in libsNeeded:
             self.packages_["lastz"] = self.__lastz()
         if "samtools" in libsNeeded:
@@ -649,7 +651,19 @@ class Packages():
     
     def __curl(self):
         name = "curl"
-        buildCmd = """CC={CC} CXX={CXX}  ./configure 
+        extraFlags = ""
+        #curl library doesn't link to the openssl library at run time as it finds at configure so need to add the following to 
+        #make the openssl library directory found to be set as run time path
+        if Utils.hasProgram("pkg-config"):
+            pkgconfgOutput = Utils.runAndCapture("pkg-config --libs openssl")
+            if "-L" in pkgconfgOutput:
+                pkgconfgOutput_splits = pkgconfgOutput.split()
+                extraFlags = "LDFLAGS=" + "\""
+                for pkgconfgOutput_split in pkgconfgOutput_splits:
+                    if pkgconfgOutput_split.startswith("-L"):
+                        extraFlags = extraFlags + " -Wl,-rpath," + pkgconfgOutput_split[2:]
+                extraFlags = extraFlags + " $LDFLAGS\""
+        buildCmd = """CC={CC} CXX={CXX}  """ + extraFlags + """ ./configure 
             --prefix={local_dir}
             && make -j {num_cores} 
             && make -j {num_cores} install"""
@@ -691,6 +705,13 @@ class Packages():
         buildCmd = "CC={CC} CXX={CXX} make -j {num_cores} && mkdir -p {local_dir}/bin && cp flash {local_dir}/bin/"
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "1.2.11")
         pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/flash/FLASH-1.2.11.tar.gz", "1.2.11")
+        return pack
+    
+    def __pigz(self):
+        name = "pigz"
+        buildCmd = "CC={CC} CXX={CXX} make -j {num_cores} && mkdir -p {local_dir}/bin && cp pigz unpigz {local_dir}/bin/"
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "2.3.4")
+        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/pigz/pigz-2.3.4.tar.gz", "2.3.4")
         return pack
     
     def __lastz(self):
@@ -1549,6 +1570,7 @@ class Setup:
                        "zlib": self.zlib,
                        "zlib-ng": self.zlibng,
                        "flash": self.flash,
+                       "pigz": self.pigz,
                        "bowtie2": self.bowtie2,
                        "muscle": self.muscle,
                        "lastz": self.lastz,
@@ -2138,6 +2160,9 @@ class Setup:
         
     def flash(self, version):
         self.__defaultBuild("flash", version)
+        
+    def pigz(self, version):
+        self.__defaultBuild("pigz", version)
     
     def bowtie2(self, version):
         self.__defaultBuild("bowtie2", version)

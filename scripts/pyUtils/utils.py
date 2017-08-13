@@ -42,8 +42,12 @@ class Utils:
                 exe_file = os.path.join(path, program)
                 if is_exe(exe_file):
                     return exe_file
-    
         return None
+    
+    @staticmethod
+    def hasProgram(program):
+        whichOutput = Utils.which(program);
+        return None != whichOutput;
     
     @staticmethod
     def run_in_dir(cmd, d):
