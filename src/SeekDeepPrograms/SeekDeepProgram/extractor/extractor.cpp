@@ -863,11 +863,21 @@ int SeekDeepRunner::extractor(const bib::progutils::CmdArgs & inputCommands) {
 	std::ofstream profileLog;
 	openTextFile(profileLog, setUp.pars_.directoryName_ + "extractionProfile.tab.txt",
 			".txt", false, false);
+	if(pDetermine.primers_.size() == 1){
+		profileLog
+				<< "name\ttotalReadsExtracted\tgoodReadsExtracted\tforGood\trevGood\ttotalBadReads\t"
+						"badReverse\tcontainsNs\tlen<" << multipleLenCutOffs.begin()->second.minLenChecker_.minLen_ << "\tlen>"
+				<< multipleLenCutOffs.begin()->second.maxLenChecker_.maxLen_;
+	}else{
 
-	profileLog
-			<< "name\ttotalReadsExtracted\tgoodReadsExtracted\tforGood\trevGood\ttotalBadReads\t"
-					"badReverse\tcontainsNs\tlen<" << pars.minLen << "\tlen>"
-			<< pars.maxLength;
+		profileLog
+				<< "name\ttotalReadsExtracted\tgoodReadsExtracted\tforGood\trevGood\ttotalBadReads\t"
+						"badReverse\tcontainsNs\tlen<minLength" << "\tlen>maxLength"
+				;
+	}
+
+
+
 	if (pars.checkingQCheck) {
 		profileLog << "\tq" + estd::to_string(pars.qualCheck) + "<"
 				<< pars.qualCheckCutOff;
