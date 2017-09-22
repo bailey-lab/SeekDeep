@@ -254,7 +254,7 @@ void pcv::samplePageHandler(
 			std::stringstream ss;
 			ss << __PRETTY_FUNCTION__ << ": error, no such sample as "
 					<< sampleName << " " << "in project " << projectName << ", options are "
-					<< bib::conToStr(collections_[projectName]->collection_->popNames_.samples_, ", ") << "\n";
+					<< bib::conToStr(collections_[projectName]->collection_->passingSamples_, ", ") << "\n";
 			ss << "Redirecting..." << "\n";
 			redirect(session, ss.str());
 		}
@@ -387,7 +387,8 @@ void pcv::getSampleNamesHandler(
 	Json::Value ret;
 	ret["samples"] = "";
 	if (bib::in(projectName, collections_)) {
-		ret["samples"] = bib::json::toJson(collections_[projectName]->collection_->popNames_.samples_);
+
+		ret["samples"] = bib::json::toJson(collections_[projectName]->collection_->passingSamples_);
 	} else {
 		std::cerr << __PRETTY_FUNCTION__ << ": error, no such project as "
 				<< projectName << ", options are "
@@ -587,7 +588,7 @@ void pcv::getSampSeqsPostHandler(std::shared_ptr<restbed::Session> session,
 			} else {
 				std::cerr << __PRETTY_FUNCTION__ << ": error, no such sample as "
 						<< sampleName << " " << "in project " << projectName << ", options are "
-						<< bib::conToStr(collections_[projectName]->collection_->popNames_.samples_, ", ") << std::endl;
+						<< bib::conToStr(collections_[projectName]->collection_->passingSamples_, ", ") << std::endl;
 			}
 		} else {
 			std::cerr << __PRETTY_FUNCTION__ << ": error, no such project as "
