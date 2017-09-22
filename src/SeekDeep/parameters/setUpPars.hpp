@@ -128,7 +128,7 @@ struct clusterDownPars {
 };
 
 struct processClustersPars {
-	std::string masterDir = ".";
+	bfs::path masterDir = ".";
   bool noPopulation = false;
   std::string previousPopFilename = "";
   comparison previousPopErrors;
@@ -175,6 +175,9 @@ struct processClustersPars {
 	bool strictErrorsSetHq1 = false;
 	uint32_t hqMismatches = 0;
 	uint32_t stopAfter = 100;
+
+	uint32_t sampleMinTotalReadCutOff = 0;
+
 };
 
 

@@ -160,7 +160,7 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 	}
 
 	setOption(pars.masterDir, "--masterDir", "Master directory containing sample sequence files");
-	pars.masterDir = bfs::absolute(pars.masterDir).string();
+	pars.masterDir = bfs::absolute(pars.masterDir);
 	pars.removeLowQualBases = setOption(pars.lowQualityCutOff, "--qualTrim",
 			"LowQualityCutOff");
 	setOption(pars.writeExcludedOriginals, "--writeExcludedOriginals",
@@ -205,6 +205,7 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 	setOption(pars.parameters, "--par", "ParametersFileName", !pars.noErrorsSet && !pars.strictErrorsSet && !pars.strictErrorsSetHq1);
 
 	setOption(pars.binParameters, "--binPar", "bin Parameters Filename");
+	setOption(pars.sampleMinTotalReadCutOff, "--sampleMinTotalReadCutOff", "Sample Minimum Total Read Cut Off, if the total read count for the sample is below this it will be thrown out");
 
 	setOption(pars.runsRequired, "--runsRequired", "Number of PCR runs Required for a haplotype to be kept");
 	setOption(pars.experimentName, "--experimentName", "ExperimentName");
