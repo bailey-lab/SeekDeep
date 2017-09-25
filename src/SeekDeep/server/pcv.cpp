@@ -314,8 +314,7 @@ void pcv::getGroupsPopInfosHandler(
 	auto mess = messFac_->genLogMessage(__PRETTY_FUNCTION__);
 	const auto request = session->get_request();
 	auto heads = request->get_headers();
-	size_t content_length = 0;
-	request->get_header("Content-Length", content_length);
+	size_t content_length = request->get_header("Content-Length", 0);
 	session->fetch(content_length,
 			std::function<
 					void(std::shared_ptr<restbed::Session>, const restbed::Bytes & body)>(
@@ -457,9 +456,13 @@ void pcv::getSampleInfoTabPostHandler(std::shared_ptr<restbed::Session> session,
 				return bib::in(str, sampNames);
 			};
 			auto trimedTab = sampTable_.extractByComp("s_Name", containsSampName);
+			std::string coiColName = "s_FinalClusterCnt";
+			if(bib::in(std::string("s_COI"), sampTable_.columnNames_)){
+				coiColName = "s_COI";
+			}
 			VecStr visibleColumns = VecStr { "s_Sample",
 				"h_popUID", "h_SampCnt", "h_SampFrac", "s_ReadCntTotUsed",
-				"s_FinalClusterCnt", "c_clusterID", "c_AveragedFrac", "c_ReadCnt",
+				coiColName, "c_clusterID", "c_AveragedFrac", "c_ReadCnt",
 				"c_RepCnt" };
 			if(bib::in(std::string("bestExpected"), sampTable_.columnNames_)){
 				visibleColumns.emplace_back("bestExpected");
@@ -493,8 +496,7 @@ void pcv::getSampleInfoTabHandler(
 	auto mess = messFac_->genLogMessage(__PRETTY_FUNCTION__);
 	const auto request = session->get_request();
 	auto heads = request->get_headers();
-	size_t content_length = 0;
-	request->get_header("Content-Length", content_length);
+	size_t content_length = request->get_header("Content-Length", 0);
 	session->fetch(content_length,
 			std::function<
 					void(std::shared_ptr<restbed::Session>, const restbed::Bytes & body)>(
@@ -556,14 +558,13 @@ void pcv::getPopSeqsHandler(std::shared_ptr<restbed::Session> session) {
 	auto mess = messFac_->genLogMessage(__PRETTY_FUNCTION__);
 	const auto request = session->get_request();
 	auto heads = request->get_headers();
-	size_t content_length = 0;
-	request->get_header("Content-Length", content_length);
+	size_t content_length = request->get_header("Content-Length", 0);
 	session->fetch(content_length,
 			std::function<
 					void(std::shared_ptr<restbed::Session>, const restbed::Bytes & body)>(
 					[this](std::shared_ptr<restbed::Session> ses, const restbed::Bytes & body) {
 						getPopSeqsPostHandler(ses, body);
-					}));
+					})); //s_FinalClusterCnt
 }
 
 void pcv::getSampSeqsPostHandler(std::shared_ptr<restbed::Session> session,
@@ -612,8 +613,7 @@ void pcv::getSampSeqsHandler(std::shared_ptr<restbed::Session> session) {
 	auto mess = messFac_->genLogMessage(__PRETTY_FUNCTION__);
 	const auto request = session->get_request();
 	auto heads = request->get_headers();
-	size_t content_length = 0;
-	request->get_header("Content-Length", content_length);
+	size_t content_length = request->get_header("Content-Length", 0);
 	session->fetch(content_length,
 			std::function<
 					void(std::shared_ptr<restbed::Session>, const restbed::Bytes & body)>(
@@ -710,8 +710,7 @@ void pcv::getPopInfoHandler(std::shared_ptr<restbed::Session> session) {
 	auto mess = messFac_->genLogMessage(__PRETTY_FUNCTION__);
 	const auto request = session->get_request();
 	auto heads = request->get_headers();
-	size_t content_length = 0;
-	request->get_header("Content-Length", content_length);
+	size_t content_length = request->get_header("Content-Length", 0);
 	session->fetch(content_length,
 			std::function<
 					void(std::shared_ptr<restbed::Session>, const restbed::Bytes & body)>(
@@ -1036,9 +1035,13 @@ void pcv::groupGetSampleInfoTabPostHanlder(
 							return bib::in(str, sampNames);
 						};
 						auto trimedTab = sampTable_.extractByComp("s_Name", containsSampName);
+						std::string coiColName = "s_FinalClusterCnt";
+						if(bib::in(std::string("s_COI"), sampTable_.columnNames_)){
+							coiColName = "s_COI";
+						}
 						VecStr visibleColumns = VecStr { "s_Sample", "g_GroupName",
 							"h_popUID", "h_SampCnt", "h_SampFrac", "s_ReadCntTotUsed",
-							"s_FinalClusterCnt", "c_clusterID", "c_AveragedFrac", "c_ReadCnt",
+							coiColName, "c_clusterID", "c_AveragedFrac", "c_ReadCnt",
 							"c_RepCnt" };
 						if(bib::in(std::string("bestExpected"), sampTable_.columnNames_)){
 							visibleColumns.emplace_back("bestExpected");
@@ -1088,8 +1091,7 @@ void pcv::groupGetSampleInfoTabHanlder(
 	auto mess = messFac_->genLogMessage(__PRETTY_FUNCTION__);
 	const auto request = session->get_request();
 	auto heads = request->get_headers();
-	size_t content_length = 0;
-	request->get_header("Content-Length", content_length);
+	size_t content_length = request->get_header("Content-Length", 0);
 	session->fetch(content_length,
 			std::function<
 					void(std::shared_ptr<restbed::Session>, const restbed::Bytes & body)>(
@@ -1176,8 +1178,7 @@ void pcv::groupGetPopSeqsHanlder(
 	auto mess = messFac_->genLogMessage(__PRETTY_FUNCTION__);
 	const auto request = session->get_request();
 	auto heads = request->get_headers();
-	size_t content_length = 0;
-	request->get_header("Content-Length", content_length);
+	size_t content_length = request->get_header("Content-Length", 0);
 	session->fetch(content_length,
 			std::function<
 					void(std::shared_ptr<restbed::Session>, const restbed::Bytes & body)>(
@@ -1312,8 +1313,7 @@ void pcv::groupGetPopInfoHanlder(
 	auto mess = messFac_->genLogMessage(__PRETTY_FUNCTION__);
 	const auto request = session->get_request();
 	auto heads = request->get_headers();
-	size_t content_length = 0;
-	request->get_header("Content-Length", content_length);
+	size_t content_length = request->get_header("Content-Length", 0);
 	session->fetch(content_length,
 			std::function<
 					void(std::shared_ptr<restbed::Session>, const restbed::Bytes & body)>(
@@ -1329,8 +1329,7 @@ void pcv::groupGetHapIdTableHanlder(std::shared_ptr<restbed::Session> session){
 	auto mess = messFac_->genLogMessage(__PRETTY_FUNCTION__);
 	const auto request = session->get_request();
 	auto heads = request->get_headers();
-	size_t content_length = 0;
-	request->get_header("Content-Length", content_length);
+	size_t content_length = request->get_header("Content-Length", 0);
 	session->fetch(content_length,
 			std::function<
 					void(std::shared_ptr<restbed::Session>, const restbed::Bytes & body)>(
@@ -1343,8 +1342,7 @@ void pcv::getHapIdTableHandler(std::shared_ptr<restbed::Session> session){
 	auto mess = messFac_->genLogMessage(__PRETTY_FUNCTION__);
 	const auto request = session->get_request();
 	auto heads = request->get_headers();
-	size_t content_length = 0;
-	request->get_header("Content-Length", content_length);
+	size_t content_length = request->get_header("Content-Length", 0);
 	session->fetch(content_length,
 			std::function<
 					void(std::shared_ptr<restbed::Session>, const restbed::Bytes & body)>(
