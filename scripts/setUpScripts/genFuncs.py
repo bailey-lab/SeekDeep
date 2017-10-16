@@ -28,7 +28,7 @@ class genHelper:
             f.write("CC = {CC}\n".format(CC = cc))
             f.write("CXX = {CXX}\n".format(CXX = cxx))
             f.write("CXXOUTNAME = {NAME_OF_PROGRAM}\n".format(NAME_OF_PROGRAM = outName))
-            f.write("CXXFLAGS = -std=c++1z\n")
+            f.write("CXXFLAGS = -std=c++14\n")
             f.write("CXXFLAGS += -Wall -ftemplate-depth=1024 -Werror=uninitialized -Werror=return-type -Wno-missing-braces\n")
             if "" != cxxFlags:
                 if cxxFlags.startswith("\\"):
@@ -58,7 +58,7 @@ class genHelper:
 
 
     @staticmethod            
-    def determineCC(args, defaultCC = "clang-3.9"):
+    def determineCC(args, defaultCC = "gcc-5"):
         if Utils.isMac():
             defaultCC = "clang"
         if not args.CC:
@@ -70,7 +70,7 @@ class genHelper:
         return defaultCC
     
     @staticmethod
-    def determineCXX(args, defaultCXX = "clang++-3.9"):
+    def determineCXX(args, defaultCXX = "g++-5"):
         if Utils.isMac():
             defaultCXX = "clang++"
         if not args.CXX:
