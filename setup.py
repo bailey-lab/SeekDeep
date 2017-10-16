@@ -389,20 +389,26 @@ class Packages():
     def __bamtools(self):
         url = 'https://github.com/nickjhathaway/bamtools.git'
         name = "bamtools"
-        buildCmd = "mkdir -p build && cd build && CC={CC} CXX={CXX} cmake -DCMAKE_INSTALL_PREFIX:PATH={local_dir} .. && make -j {num_cores} install"
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v2.4.0")
+        buildCmd = "mkdir -p build && cd build && ZLIBADDFLAGS CC={CC} CXX={CXX} cmake -DCMAKE_INSTALL_PREFIX:PATH={local_dir} .. && make -j {num_cores} install"
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v2.5.0")
+        defaultZlibVersion = "1.2.11";
         if self.args.noInternet:
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
                 pack = pickle.load(inputPkl)
                 pack.defaultBuildCmd_ = buildCmd
         elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
-                    pack = pickle.load(inputPkl)
-                    pack.defaultBuildCmd_ = buildCmd
+                pack = pickle.load(inputPkl)
+                pack.defaultBuildCmd_ = buildCmd
         else:
             refs = pack.getGitRefs(url)
             for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
-                pack.addVersion(url, ref)
+                pack.addVersion(url, ref, [LibNameVer("zlib", defaultZlibVersion)])
+                zlibPack = self.__zlib()
+                zlibLdFlags = zlibPack.versions_[defaultZlibVersion].getLdFlags(self.dirMaster_.install_dir)
+                zlibIncFlags = zlibPack.versions_[defaultZlibVersion].getIncludeFlags(self.dirMaster_.install_dir)
+                zlibAddFlags = "LDFLAGS=\""+ zlibLdFlags + "\" CXXFLAGS=\""+ zlibIncFlags + "\""
+                pack.versions_[ref].cmd_ = buildCmd.replace("ZLIBADDFLAGS", zlibAddFlags)
                 pack.versions_[ref].libPath_ = os.path.join(pack.versions_[ref].libPath_,name)
                 pack.versions_[ref].includePath_ = os.path.join(pack.versions_[ref].includePath_,name)
             Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
@@ -414,7 +420,7 @@ class Packages():
         url = "https://github.com/open-source-parsers/jsoncpp.git"
         name = "jsoncpp"
         buildCmd = "mkdir -p build && cd build && CC={CC} CXX={CXX} cmake -DCMAKE_CXX_FLAGS=-fPIC -DCMAKE_EXE_LINKER_FLAGS=-fPIC -DCMAKE_INSTALL_PREFIX:PATH={local_dir} ..  && make -j {num_cores} install"
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "1.7.1")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "1.8.3")
         if self.args.noInternet:
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
                 pack = pickle.load(inputPkl)
@@ -2241,35 +2247,43 @@ class Setup:
         cxxWhich = Utils.which(self.CXX)
         cmakeWhich = Utils.which("cmake")
         gitWhich = Utils.which("git")
+        failure = False;
         if not ccWhich or not cxxWhich or not cmakeWhich or not gitWhich:
             if not ccWhich:
-                print CT.boldRed("Could not find c compiler " + CT.purple + self.CC[0])
+                print CT.boldRed("Could not find c compiler " + CT.purple + self.CC)
                 if self.args.compfile:
                     print "Change CC in " + self.args.compfile[0]
                 else:
                     print "Can supply another c compiler by using -CC [option] or by defining bash environmental CC "
                 print ""
+                failure = True
             if not cxxWhich:
-                print CT.boldRed("Could not find c++ compiler " + CT.purple + self.CXX[0])
+                print CT.boldRed("Could not find c++ compiler " + CT.purple + self.CXX)
                 if self.args.compfile:
                     print "Change CXX in " + self.args.compfile[0]
                 else:
                     print "Can supply another c++ compiler by using -CXX [option] or by defining bash environmental CXX "
                 print ""
-            if not cmakeWhich:
+                failure = True
+            if not cmakeWhich and "cmake" not in self.packages_.packages_:
+                failure = True
                 print CT.boldRed("Could not find " + CT.purple + "cmake")
                 if Utils.isMac():
                     print "If you have brew, you can install via, brew update && brew install cmake, otherwise you can follow instructions from http://www.cmake.org/install/"
+                    
                 else:
                     print "On ubuntu to install latest cmake do the following"
                     print "sudo add-apt-repository ppa:george-edison55/cmake-3.x"
                     print "sudo apt-get update"
                     print "sudo apt-get install cmake"
                     print "or if you have linuxbrew, brew install cmake"
-                    
             if not gitWhich:
-                print "Can't find git"
-            raise Exception("")
+                failure = True
+                print ("Can't find commandline tool git")
+            if failure:
+                raise Exception()
+            
+            
         
     def clearCache(self):
         Utils.rm_rf(self.dirMaster_.cache_dir)
@@ -2319,6 +2333,9 @@ class SetupRunner:
     def runSetup():
         args = SetupRunner.parse_args()
         s = Setup(args)
+        if args.printLibs:
+            s.printAvailableSetUps()
+            return 0
         s.externalChecks()
         if(args.instRPackageName):
             s.setupPackages("r")
@@ -2335,10 +2352,7 @@ class SetupRunner:
         if args.clean:
             s.clean()
             return 0
-        if args.printLibs:
-            s.printAvailableSetUps()
-            return 0
-        elif args.addBashCompletion:
+        if args.addBashCompletion:
             if(os.path.isdir("./bashCompletes")):
                 cmd = "echo >> ~/.bash_completion && cat bashCompletes/* >> ~/.bash_completion"
                 Utils.run(cmd)
