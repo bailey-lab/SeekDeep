@@ -35,7 +35,7 @@ namespace bibseq {
 
 void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 	// parse the command line options
-	if (needsHelp()) {
+	if (false) {
 		std::stringstream tempOut;
 		tempOut << "processClusters" << std::endl;
 		tempOut << "Ran from inside directory tree set up such that "
@@ -70,7 +70,7 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 				<< std::endl;
 		tempOut << bib::bashCT::bold << "Required commands" << bib::bashCT::reset
 				<< std::endl;
-		printInputUsage(tempOut);
+		//printInputUsage(tempOut);
 		tempOut
 				<< "in the previous example tree the flag would be --fastq output.fastq and all seq "
 						"files should be named output.fastq, others will be ignored"
@@ -118,11 +118,11 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 				" defaults to excluded any cluster made of at least half of "
 				"reads with CHI_ flag in"
 				" in their name " << std::endl;
-		printReferenceComparisonUsage(tempOut);
-		printAdditionalClusteringUsage(tempOut);
-		printAlignmentUsage(tempOut);
-		printQualThresUsage(tempOut);
-		printAlnInfoDirUsage(tempOut);
+//		printReferenceComparisonUsage(tempOut);
+//		printAdditionalClusteringUsage(tempOut);
+//		printAlignmentUsage(tempOut);
+//		printQualThresUsage(tempOut);
+//		printAlnInfoDirUsage(tempOut);
 		tempOut << "examples" << std::endl;
 		tempOut << "SeekDeep processClusters --fasta output.fasta "
 				"--par pars.txt" << std::endl;

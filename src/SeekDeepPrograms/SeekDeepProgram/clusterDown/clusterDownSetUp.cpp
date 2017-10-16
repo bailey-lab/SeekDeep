@@ -36,7 +36,7 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 	// input file info
 	pars_.ioOptions_.out_.outFilename_ = "output";
 	pars_.ioOptions_.lowerCaseBases_ = "remove";
-	if (needsHelp()) {
+	if (false) {
 		std::stringstream tempOut;
 		tempOut << commands_.subProgram_ << std::endl;
 		tempOut << "Iteratively clusters reads by using the allowable errors given "
@@ -47,7 +47,7 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 				<< std::endl;
 		// std::cout << cleanOut(tempOut.str(), width_, indent_);
 		// tempOut.str(std::string());
-		printInputUsage(tempOut);
+		//printInputUsage(tempOut);
 		tempOut << "--par [option]: parameter file" << std::endl << std::endl;
 		//" | "
 		tempOut
@@ -83,7 +83,7 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 						"into them though they can still collapse into larger clusters"
 				<< std::endl;
 		tempOut
-				<< "Alternatively if the --onPerId is used, this parameter flag can contain percent idendities instead"
+				<< "Alternatively if the --onPerId is used, this parameter flag can contain percent identities instead"
 				<< std::endl;
 		tempOut << "example: " << std::endl;
 		std::cout << cleanOut(tempOut.str(), width_, indent_);
@@ -103,14 +103,6 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 				"two columns, column one is the name of the ID and column two "
 				"is the file path location of additional output directory"
 				", such a file can be made by makeSampleDirectories" << std::endl;
-		printAdditionalClusteringUsage(tempOut);
-		tempOut << bib::bashCT::bold << "Alignment comparison options"
-				<< bib::bashCT::reset << std::endl;
-		printQualThresUsage(tempOut);
-		printAlignmentUsage(tempOut);
-		printKmerProfilingUsage(tempOut);
-		printAlnInfoDirUsage(tempOut);
-		printAdditionaInputUsage(tempOut, pars_.ioOptions_.lowerCaseBases_);
 		tempOut
 				<< "--qualRep [option] : Sets the quality for the identical clusters, "
 						"Options are median (default), average, bestQual, or worst"
@@ -143,8 +135,6 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 		tempOut
 				<< "--onPerId: cluster on percent identity rather than specific errors"
 				<< std::endl;
-
-		printReferenceComparisonUsage(tempOut);
 		std::cout << cleanOut(tempOut.str(), width_, indent_);
 		tempOut.str(std::string());
 		std::cout << "examples" << std::endl;
@@ -161,38 +151,37 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 		tempOut << bib::bashCT::bold << "Output Files:" << bib::bashCT::reset
 				<< std::endl;
 		tempOut
-				<< "output.fastq: This is the final clusters with their consensus sequence, the sequences are named so that the suffif _t[NUM] where NUM is the number of reads that fell into that cluster"
+				<< "outputDirectory/output.fastq: This is the final clusters with their consensus sequence, the sequences are named so that the suffix _t[NUM] where NUM is the number of reads that fell into that cluster"
 				<< std::endl;
 		tempOut
-				<< "outputInfo.tab.txt: This contains cluster number info for each cluster"
-				<< std::endl;
-		tempOut
-				<< "clusters: A seq file is available for each final cluster that contains all the sequences that clustered into this cluster"
-				<< std::endl;
-		tempOut
-				<< "internalSnpInfo: A table of internal snps frequencies is available for each cluster in case overcollapsing is suspected"
+				<< "outputDirectory/outputInfo.tab.txt: This contains cluster number info for each cluster"
 				<< std::endl;
 		std::cout << cleanOut(tempOut.str(), width_, indent_);
 		tempOut.str(std::string());
 		exit(0);
 	}
+	description_ = "Cluster input sequences by collapsing on set differences between the sequences";
+	examples_.emplace_back("MASTERPROGRAM SUBPROGRAM --fastq inputSeqs.fastq --par parFile.txt");
+	examples_.emplace_back("MASTERPROGRAM SUBPROGRAM --fastq inputSeqs.fastq --illumina   #use default Illumina parameters for collapsing instead of supplying a parameters file");
+	examples_.emplace_back("MASTERPROGRAM SUBPROGRAM --fastq inputSeqs.fastq --ionTorrent #use default IonTorrent parameters for collapsing instead of supplying a parameters file");
+	examples_.emplace_back("MASTERPROGRAM SUBPROGRAM --fastq inputSeqs.fastq --454        #use default 454 parameters for collapsing instead of supplying a parameters file");
+	examples_.emplace_back("MASTERPROGRAM SUBPROGRAM --fastq inputSeqs.fastq --otu .99    #use default parameters to OTU clustering at an OTU threshold of .99 instead of supplying a parameters file");
 	processVerbose();
 	processDebug();
-	processDefaultReader(true);
+	//processReadInNames(VecStr{"--fasta", "--fastagz", "--fastq", "--fastqgz", "--fastq1", "--fastq2", "--fastq1gz", "fastq2gz"}, true);
+	processReadInNames(VecStr{"--fasta", "--fastagz", "--fastq", "--fastqgz"}, true);
 
 	setOption(pars.binParameters, "--binPar",
 			"Parameters Filename for when reads are binned");
 	setOption(pars.binParameters, "--initialPar",
 				"Parameters Filename for when doing non singlet analysis first, otherwise defaults to regular parameters");
-	setOption(pars.ionTorrent, "--ionTorrent",
-			"Flag to indicate reads are ion torrent and therefore turns on --useCompPerCutOff,--adjustHomopolyerRuns, and --qualTrim");
-	setOption(pars.tech454, "--454", "Flag to indicate reads are 454");
-	setOption(pars.illumina, "--illumina",
-				"Flag to indicate reads are illumina");
+	setOption(pars.ionTorrent, "--ionTorrent", "Flag to indicate reads are IonTorrent and therefore turns on --adjustHomopolyerRuns and --qualTrim", false, "Technology");
+	setOption(pars.tech454, "--454", "Flag to indicate reads are 454", false, "Technology");
+	setOption(pars.illumina, "--illumina","Flag to indicate reads are Illumina", false, "Technology");
 	bool needsParFlag = true;
 
 	setOption(pars.hq, "--hq",
-			"When the --illumina,--454,or --ionTorrent flag is on also allow this many high quality mismatch to the defaults for those techs");
+			"When the --illumina,--454,or --ionTorrent flag is on also allow this many high quality mismatch to the defaults for those technology", false, "Technology");
 	if (pars.ionTorrent) {
 		pars_.colOpts_.iTOpts_.removeLowQualityBases_ = true;
 		pars_.colOpts_.iTOpts_.adjustHomopolyerRuns_ = true;
@@ -238,10 +227,11 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 		needsParFlag = false;
 	}
 	bool otuSet = setOption(pars.otuPerc, "--otu",
-			"Collapse on this OTU percentage, should be between (0,1) ");
+			"Collapse on this OTU percentage, should be between (0,1)", false, "OTU Clustering");
 	bool regOtu = false;
 	setOption(regOtu, "--regOtu",
-				"Collapse on percent identity calculated using regular otu percent identity rather than using only high quality differences");
+				"Collapse on percent identity calculated using regular otu percent identity rather than using only high quality differences",
+				false, "OTU Clustering");
 	pars.onHqPerId = !regOtu;
 	if (otuSet) {
 		if ((pars.otuPerc <= 0) || (pars.otuPerc >= 1)) {
@@ -262,7 +252,7 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 	}
 
 
-	setOption(pars.parameters, "--par", "ParametersFilename", needsParFlag);
+	setOption(pars.parameters, "--par", "Parameters filename to supply differences to allow to cluster, required unless technology flag used", needsParFlag, "Clustering");
 	setOption(pars_.colOpts_.iTOpts_.adjustHomopolyerRuns_, "--adjustHomopolyerRuns",
 				"Adjust homopolymer runs to be same quality scores");
 
@@ -274,62 +264,58 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 					+ "% of reads in only one direction, used with Ion Torrent Reads");
 
 	setOption(pars.diffCutOffStr, "--diffCutOffs",
-			"Difference Cutoff to form Nuc Comp Clusters");
+			"Difference Cutoff to form Nuc Comp Clusters when --useNucComp is used", false, "Clustering");
 
 	pars_.colOpts_.nucCompBinOpts_.diffCutOffVec_ = vecStrToVecNum<double>(
 			tokenizeString(pars.diffCutOffStr, ","));
 
-	setOption(pars_.colOpts_.nucCompBinOpts_.findBestNuc_, "--findBestNuc", "Find Best Nucleotide Cluster");
+	setOption(pars_.colOpts_.nucCompBinOpts_.findBestNuc_, "--findBestNuc", "Find Best Nucleotide Cluster when --useNucComp is used", false, "Clustering");
 	setOption(pars_.colOpts_.nucCompBinOpts_.useNucComp_, "--useNucComp",
-			"Cluster on Nucleotide Composition First");
+			"Cluster on Nucleotide Composition First", false, "Clustering");
 
 	setOption(pars_.colOpts_.nucCompBinOpts_.useMinLenNucComp_, "--useMinLenNucComp",
 			"Use Nucleotide Composition of Only Front of seqs");
 
 	setOption(pars.startWithSingles, "--startWithSingles",
-			"Start The Clustering With Singletons, rather then adding them afterwards");
-	setOption(pars.mapBackSinglets, "--mapBackSinglets",
-				"If Singlets are left out, map them back in for frequency estimates");
+			"Start The Clustering With Singletons, rather then adding them afterwards", false, "Clustering");
+//	setOption(pars.mapBackSinglets, "--mapBackSinglets",
+//				"If Singlets are left out, map them back in for frequency estimates");
 	setOption(pars.singletCutOff, "--singletCutOff",
-				"Naturally the cut off for being a singlet is by default 1 but can use --singletCutOff to raise the number");
-
+				"Naturally the cut off for being a singlet is by default 1 but can use --singletCutOff to raise the number", false, "Clustering");
 	setOption(pars.createMinTree, "--createMinTree",
-			"Create Psudo minimum Spanning Trees For Mismatches for Final Clusters");
-	setOption(pars_.colOpts_.kmerBinOpts_.useKmerBinning_, "--useKmerBinning", "useKmerBinning");
-	setOption(pars_.colOpts_.kmerBinOpts_.kmerCutOff_, "--kmerCutOff", "kmerCutOff");
-	setOption(pars_.colOpts_.kmerBinOpts_.kCompareLen_, "--kCompareLen", "kCompareLen");
-
+			"Create Pseudo minimum Spanning Trees For Mismatches for Final Clusters", false, "Additional Output");
+	setOption(pars_.colOpts_.kmerBinOpts_.useKmerBinning_, "--useKmerBinning", "Use Kmer Binning for initial clustering to speed up clustering", false, "Clustering");
+	setOption(pars_.colOpts_.kmerBinOpts_.kmerCutOff_, "--kmerCutOff", "kmer Cut Off for when --useKmerBinning is used", false, "Clustering");
+	setOption(pars_.colOpts_.kmerBinOpts_.kCompareLen_, "--kCompareLen", "kmer Compare Length for when bining by kmers first for when --useKmerBinning is used", false, "Clustering");
 	setOption(pars.leaveOutSinglets, "--leaveOutSinglets",
-			"Leave out singlet clusters out of all analysis");
-	setOption(pars.onPerId, "--onPerId", "Cluster on Percent Identity Instead");
-
+			"Leave out singlet clusters out of all analysis", false, "Clustering");
+	setOption(pars.onPerId, "--onPerId", "Cluster on Percent Identity Instead", false, "OTU Clustering");
 	pars_.colOpts_.iTOpts_.removeLowQualityBases_= setOption(pars_.colOpts_.iTOpts_.lowQualityBaseTrim_, "--qualTrim",
-			"LowQualityCutOff");
+			"Low Quality Cut Off", false, "Preprocessing");
 	setOption(pars.qualRep, "--qualRep",
-			"QualityRepresentative_for_unique_clusters");
-	setOption(pars.extra, "--extra", "Extra");
-	setOption(pars.writeOutFinalInternalSnps, "--writeOutFinalInternalSnps", "Write out Internal(within the clusters) Snps Calling ");
+			"Per base quality score calculation for initial unique clusters collapse", false, "Preprocessing");
+	//setOption(pars.extra, "--extra", "Extra");
+	setOption(pars.writeOutFinalInternalSnps, "--writeOutFinalInternalSnps", "Write out Internal (within the clusters) SNP class, useful for debugging if over collapsing is happening", false, "Additional Output");
 
 	pars_.chiOpts_.checkChimeras_ = true;
 	pars_.chiOpts_.parentFreqs_ = 2;
 	bool dontMarkChimeras = false;
-	setOption(dontMarkChimeras, "--noMarkChimeras", "Don't do Chimera marking");
+	setOption(dontMarkChimeras, "--noMarkChimeras", "Don't do chimera marking", false, "Chimeras");
 	pars_.chiOpts_.checkChimeras_ = !dontMarkChimeras;
 	setOption(pars_.chiOpts_.parentFreqs_, "--parFreqs",
-			"Parent_freq_multiplier_cutoff");
+			"Parent freq multiplier cutoff", false, "Chimeras");
 
-	setOption(pars.snapShotsOpts_.snapShots_, "--snapShots", "Output Snap Shots of clustering results after each iteration");
-	setOption(pars.sortBy, "--sortBy", "SortClustersBy");
+	setOption(pars.snapShotsOpts_.snapShots_, "--snapShots", "Output Snap Shots of clustering results after each iteration", false, "Additional Output");
+	setOption(pars.sortBy, "--sortBy", "Sort Clusters By");
 	pars.additionalOut = setOption(pars.additionalOutLocationFile,
-			"--additionalOut", "AdditionalOutFilename");
-	setOption(pars.collapsingTandems, "--collapseTandems", "CollapsingTandems");
+			"--additionalOut", "Additional out filename for sorting final results", false, "Additional Output");
+	//setOption(pars.collapsingTandems, "--collapseTandems", "Collapsing Tandems");
 
 	setOption(pars_.colOpts_.alignOpts_.noAlign_, "--noAlignCompare",
-			"Do comparisons without aligning");
+			"Do comparisons without globally aligning", false, "Alignment");
 	processSkipOnNucComp();
-	setOption(pars_.colOpts_.clusOpts_.converge_, "--converge", "Keep clustering at each iteration until there is no more collapsing, could increase run time significantly");
-
-	setOption(pars.writeOutInitalSeqs, "--writeOutInitalSeqs", "Write out the sequences that make up each cluster");
+	setOption(pars_.colOpts_.clusOpts_.converge_, "--converge", "Keep clustering at each iteration until there is no more collapsing, could increase run time significantly", false, "Clustering");
+	setOption(pars.writeOutInitalSeqs, "--writeOutInitalSeqs", "Write out the sequences that make up each cluster", false, "Additional Output");
 	pars_.colOpts_.verboseOpts_.verbose_ = pars_.verbose_;
 	pars_.colOpts_.verboseOpts_.debug_ = pars_.debug_;
 	processRefFilename();
@@ -341,8 +327,10 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 	processAlignerDefualts();
 	pars.smallReadSize = pars_.colOpts_.kmerOpts_.kLength_ * 2;
 	setOption(pars.smallReadSize, "--smallReadSize",
-			"A cut off to remove small reads");
-
+			"A cut off to remove small reads", false, "Preprocessing");
+	if(pars.smallReadSize <= pars_.colOpts_.kmerOpts_.kLength_){
+		pars.smallReadSize = 	pars_.colOpts_.kmerOpts_.kLength_ + 1;
+	}
 	if (!failed_) {
 		if ("" != pars.parameters) {
 			if (pars.onPerId) {
