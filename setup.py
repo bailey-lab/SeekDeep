@@ -248,7 +248,6 @@ class Packages():
             self.packages_["mathgl"] = self.__mathgl()
         if "magic" in libsNeeded:
             self.packages_["magic"] = self.__magic()
-        
         if "bowtie2" in libsNeeded:
             self.packages_["bowtie2"] = self.__bowtie2()
         if "flash" in libsNeeded:
