@@ -32,7 +32,7 @@
 namespace bibseq {
 
 SeekDeepUtilsRunner::SeekDeepUtilsRunner() :
-		bib::progutils::programRunner(
+		bib::progutils::ProgramRunner(
 				{ addFunc("dryRunQaulityFiltering", dryRunQaulityFiltering, false),
 					addFunc("runMultipleCommands",    runMultipleCommands, false),
 					addFunc("setupTarAmpAnalysis", setupTarAmpAnalysis, false),

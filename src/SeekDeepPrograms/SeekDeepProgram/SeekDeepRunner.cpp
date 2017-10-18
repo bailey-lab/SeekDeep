@@ -33,7 +33,7 @@
 namespace bibseq {
 
 SeekDeepRunner::SeekDeepRunner() :
-		bib::progutils::oneRing(
+		bib::progutils::OneRing(
 				{ addRing<SeekDeepUtilsRunner>(),
 					addRing<SeekDeepServerRunner>()
 				},

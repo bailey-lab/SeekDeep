@@ -33,7 +33,7 @@
 namespace bibseq {
 
 SeekDeepServerRunner::SeekDeepServerRunner()
-    : bib::progutils::programRunner(
+    : bib::progutils::ProgramRunner(
     		{
 				addFunc("genProjectConfig", genProjectConfig, false),
 				addFunc("popClusteringViewer", popClusteringViewer, false)

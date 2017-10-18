@@ -33,7 +33,7 @@
 
 namespace bibseq {
 
-class SeekDeepServerRunner : public bib::progutils::programRunner {
+class SeekDeepServerRunner : public bib::progutils::ProgramRunner {
  public:
   SeekDeepServerRunner();
   
