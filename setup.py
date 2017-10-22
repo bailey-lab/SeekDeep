@@ -240,18 +240,12 @@ class Packages():
             self.packages_["dlib"] = self.__dlib()
         if "libsvm" in libsNeeded:
             self.packages_["libsvm"] = self.__libsvm()
-        if "mongoc" in libsNeeded:
-            self.packages_["mongoc"] = self.__mongoc()
-        if "mongocxx" in libsNeeded:
-            self.packages_["mongocxx"] = self.__mongocxx()
         if "mathgl" in libsNeeded:
             self.packages_["mathgl"] = self.__mathgl()
         if "magic" in libsNeeded:
             self.packages_["magic"] = self.__magic()
         if "bowtie2" in libsNeeded:
             self.packages_["bowtie2"] = self.__bowtie2()
-        if "flash" in libsNeeded:
-            self.packages_["flash"] = self.__flash()
         if "pigz" in libsNeeded:
             self.packages_["pigz"] = self.__pigz()
         if "lastz" in libsNeeded:
@@ -260,8 +254,6 @@ class Packages():
             self.packages_["samtools"] = self.__samtools()
         if "bcftools" in libsNeeded:
             self.packages_["bcftools"] = self.__bcftools()
-        if "libpca" in libsNeeded:
-            self.packages_["libpca"] = self.__libpca()
         if "eigen" in libsNeeded:
             self.packages_["eigen"] = self.__eigen()
         if "glpk" in libsNeeded:
@@ -274,6 +266,14 @@ class Packages():
             self.packages_["atlas"] = self.__atlas()
         
         #git repos 
+        if "mongoc" in libsNeeded:
+            self.packages_["mongoc"] = self.__mongoc()
+        if "mongocxx" in libsNeeded:
+            self.packages_["mongocxx"] = self.__mongocxx()
+        if "flash" in libsNeeded:
+            self.packages_["flash"] = self.__flash()
+        if "libpca" in libsNeeded:
+            self.packages_["libpca"] = self.__libpca()
         if "muscle" in libsNeeded:
             self.packages_["muscle"] = self.__muscle()
         if "armadillo" in libsNeeded:
@@ -578,7 +578,7 @@ class Packages():
 
     def __armadillo(self):
         name = "armadillo"
-        buildCmd = "mkdir -p build && cd build && CC={CC} CXX={CXX} cmake -DCMAKE_INSTALL_PREFIX:PATH={local_dir} .. && make -j {num_cores} install"
+        buildCmd = "mkdir -p build && cd build && CC={CC} CXX={CXX} cmake -DDETECT_HDF5=false -DCMAKE_CXX_FLAGS=\"-std=c++11\" -DCMAKE_INSTALL_PREFIX:PATH={local_dir} .. && make -j {num_cores} install"
         url = "https://github.com/nickjhathaway/armadillo.git"
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "8.200.0")
         if self.args.noInternet:
@@ -601,20 +601,31 @@ class Packages():
     def __libpca(self):
         name = "libpca"
         #the version will get overridden by setting pack.defaultBuildCmd_ latter, but the dependency check needs to install it first
-        buildCmd = """CC={CC} CXX={CXX}
-        LDFLAGS="-Wl,-rpath,{external}/local/armadillo/7.800.1/armadillo/lib -L{external}/local/armadillo/7.800.1/armadillo/lib" CXXFLAGS="-isystem{external}/local/armadillo/7.800.1/armadillo/include -larmadillo"
-          ./configure --prefix {local_dir} && make -j {num_cores} install"""
-        buildCmd = " ".join(buildCmd.split())
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "7.800.1")
-        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/libpca/libpca-1.3.3.tar.gz", "1.3.3", [LibNameVer("armadillo", "7.800.1")])
         armPack = self.__armadillo()
-        armLdFlags = armPack.versions_["7.800.1"].getLdFlags(self.dirMaster_.install_dir)
-        armIncFlags = armPack.versions_["7.800.1"].getIncludeFlags(self.dirMaster_.install_dir)
-        pack.defaultBuildCmd_ = """CC={CC} CXX={CXX}
-        LDFLAGS=" """ + armLdFlags + """ " CXXFLAGS=" """ + armIncFlags + """ "
-          ./configure --prefix {local_dir}  && make -j {num_cores} install"""
-        pack.defaultBuildCmd_ = " ".join(pack.defaultBuildCmd_.split())
-        pack.versions_["1.3.3"] .altLibName_ = "pca" 
+        buildCmd = """CC={CC} CXX={CXX} ./configure --prefix {local_dir} && make -j {num_cores} install"""
+        defaultArmVer = "8.200.0"
+        url = "https://github.com/nickjhathaway/libpca.git"
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "1.3.3")
+        if self.args.noInternet:
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                pack = pickle.load(inputPkl)
+                pack.defaultBuildCmd_ = buildCmd
+        elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                pack = pickle.load(inputPkl)
+                pack.defaultBuildCmd_ = buildCmd
+        else:
+            refs = pack.getGitRefs(url)
+            for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
+                pack.addVersion(url, ref, [LibNameVer("armadillo", defaultArmVer)] )
+                armLdFlags = armPack.versions_[defaultArmVer].getLdFlags(self.dirMaster_.install_dir)
+                armIncFlags = armPack.versions_[defaultArmVer].getIncludeFlags(self.dirMaster_.install_dir)
+                pack.versions_[ref].cmd_ = "CC={CC} CXX={CXX} LDFLAGS=\"" + armLdFlags + "\" CXXFLAGS=\"" + armIncFlags + "\" ./configure --prefix {local_dir}  && make -j {num_cores} install"
+                pack.versions_[ref].cmd_ = " ".join(pack.versions_[ref].cmd_.split())
+                pack.versions_[ref] .altLibName_ = "pca" 
+            Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
+                pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
         return pack
     
     def __eigen(self):
@@ -739,9 +750,25 @@ class Packages():
     def __flash(self):
         name = "flash"
         buildCmd = "CC={CC} CXX={CXX} make -j {num_cores} && mkdir -p {local_dir}/bin && cp flash {local_dir}/bin/"
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "1.2.11")
-        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/flash/FLASH-1.2.11.tar.gz", "1.2.11")
+        url = "https://github.com/nickjhathaway/muscle.git"
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "1.2.11")
+        if self.args.noInternet:
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                pack = pickle.load(inputPkl)
+                pack.defaultBuildCmd_ = buildCmd
+        elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                pack = pickle.load(inputPkl)
+                pack.defaultBuildCmd_ = buildCmd
+        else:
+            refs = pack.getGitRefs(url)
+            for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
+                pack.addVersion(url, ref)
+            Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
+                pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
         return pack
+
     
     def __pigz(self):
         name = "pigz"
@@ -2394,6 +2421,17 @@ class SetupRunner:
         if args.printLibs:
             s.printAvailableSetUps()
             return 0
+        if args.addBashCompletion:
+            if(os.path.isdir("./bashCompletes")):
+                cmd = "echo >> ~/.bash_completion && cat bashCompletes/* >> ~/.bash_completion"
+                Utils.run(cmd)
+            if(os.path.isdir("./bash_completion.d")):
+                cmd = "echo >> ~/.bash_completion && cat bash_completion.d/* >> ~/.bash_completion"
+                Utils.run(cmd)
+            if(os.path.isdir("./etc/bash_completion.d")):
+                cmd = "echo >> ~/.bash_completion && cat ./etc/bash_completion.d/* >> ~/.bash_completion"
+                Utils.run(cmd)
+            return 0
         s.externalChecks()
         if(args.instRPackageName):
             s.setupPackages("r")
@@ -2410,38 +2448,27 @@ class SetupRunner:
         if args.clean:
             s.clean()
             return 0
-        if args.addBashCompletion:
-            if(os.path.isdir("./bashCompletes")):
-                cmd = "echo >> ~/.bash_completion && cat bashCompletes/* >> ~/.bash_completion"
-                Utils.run(cmd)
-            if(os.path.isdir("./bash_completion.d")):
-                cmd = "echo >> ~/.bash_completion && cat bash_completion.d/* >> ~/.bash_completion"
-                Utils.run(cmd)
-            if(os.path.isdir("./etc/bash_completion.d")):
-                cmd = "echo >> ~/.bash_completion && cat ./etc/bash_completion.d/* >> ~/.bash_completion"
-                Utils.run(cmd)
+        if len(s.setUpsNeeded) == 0 and not args.compfile:
+            print ("To see available setup use " + str(__file__).replace(".pyc", ".py") + " --printLibs")
+            #s.printAvailableSetUps()
+            return 0
+        elif args.printGitRefs:
+            s.printGitRefs()
+            return 0
         else:
-            if len(s.setUpsNeeded) == 0 and not args.compfile:
-                print ("To see available setup use " + str(__file__).replace(".pyc", ".py") + " --printLibs")
-                #s.printAvailableSetUps()
-                return 0
-            elif args.printGitRefs:
-                s.printGitRefs()
-                return 0
+            if args.justDownload:
+                s.downloadFiles()
             else:
-                if args.justDownload:
-                    s.downloadFiles()
-                else:
-                    s.setup()
-                    if args.outMakefile:
-                        packVers = []
-                        for setUpNeeded in s.setUpsNeeded:
-                            s.packages_.addPackage(packVers,setUpNeeded)
-                        s.packages_.writeMakefile(packVers, args.outMakefile, args.overWrite, args.append)
-                    if args.symlinkBin:
-                        for setUpNeeded in s.setUpsNeeded:
-                            s.linkInBin(setUpNeeded.name, setUpNeeded.version, args.overWrite)
-                    return 0
+                s.setup()
+                if args.outMakefile:
+                    packVers = []
+                    for setUpNeeded in s.setUpsNeeded:
+                        s.packages_.addPackage(packVers,setUpNeeded)
+                    s.packages_.writeMakefile(packVers, args.outMakefile, args.overWrite, args.append)
+                if args.symlinkBin:
+                    for setUpNeeded in s.setUpsNeeded:
+                        s.linkInBin(setUpNeeded.name, setUpNeeded.version, args.overWrite)
+                return 0
 
 if __name__ == '__main__':
     SetupRunner.runSetup()

@@ -58,7 +58,7 @@ class genHelper:
 
 
     @staticmethod            
-    def determineCC(args, defaultCC = "gcc-5"):
+    def determineCC(args, defaultCC = "gcc-7"):
         if Utils.isMac():
             defaultCC = "clang"
         if not args.CC:
@@ -70,7 +70,7 @@ class genHelper:
         return defaultCC
     
     @staticmethod
-    def determineCXX(args, defaultCXX = "g++-5"):
+    def determineCXX(args, defaultCXX = "g++-7"):
         if Utils.isMac():
             defaultCXX = "clang++"
         if not args.CXX:
