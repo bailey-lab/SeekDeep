@@ -85,7 +85,7 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 	pars_.ioOptions_.lowerCaseBases_ = "upper";
 	pars_.ioOptions_.processed_ = true;
 
-	processReadInNames(true);
+	processReadInNames(VecStr{"--fasta", "--fastagz", "--fastq", "--fastqgz"}, true);
 
 	setOption(pars.noErrorsSet, "--noErrors", "Collapse parameters with no errors", false, "Clustering");
 

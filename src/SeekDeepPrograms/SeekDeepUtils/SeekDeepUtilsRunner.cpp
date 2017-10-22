@@ -361,7 +361,8 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	setUp.processDebug();
 	pars.debug = setUp.pars_.debug_;
 	setUp.setOption(pars.technology, "--technology",
-			"Sequencing Technology (should be 454,IonTorrent, or Illumina");
+			"Sequencing Technology (should be 454,IonTorrent, or Illumina",
+			false, "Technology");
 	stringToLower(pars.technology);
 	if (pars.technology != "454" && pars.technology != "iontorrent"
 			&& pars.technology != "illumina") {
@@ -373,47 +374,47 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 		setUp.addWarning(ss.str());
 	}
 	setUp.setOption(pars.samplesNamesFnp, "--samples",
-			"A file containing the samples names, columns should go target,sample,pcr1,(optional)pcr2 etc",
-			true);
+			"A file containing the samples names, columns should go target,sample,pcr1,pcr2 (optional) etc",
+			true, "ID Files");
 	setUp.setOption(pars.outDir, "--outDir", "Directory to setup for analysis",
-			true);
+			true, "Output");
 	setUp.setOption(pars.inputDir, "--inputDir",
-			"Input Directory of raw data files", true);
+			"Input Directory of raw data files", true, "Input");
 	setUp.setOption(pars.idFile, "--idFile",
-			"ID file containing primer and possible additional MIDs", true);
+			"ID file containing primer and possible additional MIDs", true, "ID Files");
 	setUp.setOption(pars.byIndex, "--byIndex",
-			"If the input sample names are by index and not targets");
+			"If the input sample names are by index and not targets", false, "ID Files");
 	setUp.setOption(pars.targetsToIndexFnp, "--targetsToIndex",
 			"A tsv file with two columns named targets and index where targets in a comma separated value with the targets for the index in index",
-			pars.byIndex);
+			pars.byIndex, "ID Files");
 
 	setUp.setOption(pars.maxOverlap, "--maxOverlap",
-			"Max overlap allowed in stitcher");
+			"Max overlap allowed in stitcher", false, "Illumina Stitching");
 	setUp.setOption(pars.numThreads, "--numThreads", "Number of CPUs to use");
 
 	setUp.setOption(pars.extraExtractorCmds, "--extraExtractorCmds",
-			"Extra extractor cmds to add to the defaults");
+			"Extra extractor cmds to add to the defaults", false, "Extra Commands");
 	setUp.setOption(pars.extraQlusterCmds, "--extraQlusterCmds",
-			"Extra qluster cmds to add to the defaults");
+			"Extra qluster cmds to add to the defaults", false, "Extra Commands");
 	setUp.setOption(pars.extraProcessClusterCmds, "--extraProcessClusterCmds",
-			"Extra process clusters cmds to add to the defaults");
+			"Extra process clusters cmds to add to the defaults", false, "Extra Commands");
 
-	setUp.setOption(pars.noQualTrim, "--noQualTrim", "No Quality Trim");
+	setUp.setOption(pars.noQualTrim, "--noQualTrim", "No Quality Trim", false, "Pre Processing");
 
-	setUp.setOption(pars.r1Trim, "--r1Trim", "Trim R1 Reads to this length");
-	setUp.setOption(pars.r2Trim, "--r2Trim", "Trim R2 Reads to this length");
+	setUp.setOption(pars.r1Trim, "--r1Trim", "Trim R1 Reads to this length", false, "Pre Processing");
+	setUp.setOption(pars.r2Trim, "--r2Trim", "Trim R2 Reads to this length", false, "Pre Processing");
 
-	setUp.setOption(pars.groupMeta, "--groupMeta", "Group Metadata");
+	setUp.setOption(pars.groupMeta, "--groupMeta", "Group Metadata", false, "Meta");
 
 	setUp.setOption(pars.lenCutOffsFnp, "--lenCutOffs",
-			"A file with 3 columns, target,minlen,maxlen to supply length cut off specifically for each target");
+			"A file with 3 columns, target,minlen,maxlen to supply length cut off specifically for each target", false, "Extractor");
 	setUp.setOption(pars.refSeqsDir, "--refSeqsDir",
-			"A directory of fasta files where each file is named with the input target names");
+			"A directory of fasta files where each file is named with the input target names", false, "Extractor");
 	if (pars.techIs454() || pars.techIsIonTorrent()) {
 		pars.inputFilePat = ".*.fastq";
 	}
 	setUp.setOption(pars.inputFilePat, "--inputFilePat",
-			"The input file pattern in the input directory to work on");
+			"The input file pattern in the input directory to work on", false, "Input");
 
 	setUp.finishSetUp(std::cout);
 
@@ -691,7 +692,6 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 				noReadsStitched.emplace_back(row[flashOutTab.getColPos("SampleName")]);
 			}
 		}
-
 		if (!noReadsStitched.empty()) {
 			foundErrors = true;
 			errorOutput << "The following samples had no reads stitched "

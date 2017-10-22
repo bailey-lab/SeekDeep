@@ -5,12 +5,12 @@ Version 2.5.1-dev
 Bioinformatic Tools for analyzing targeted amplicon sequencing developed by the UMASS Med Bailey Lab
 
 Checkout the website bellow for more details  
-http://baileylab.umassmed.edu/SeekDeep/
+[http://baileylab.umassmed.edu/SeekDeep/](http://baileylab.umassmed.edu/SeekDeep/)
 
 
 # Installing  
  
- See http://baileylab.umassmed.edu/SeekDeep/installingSeekDeep for full details for install
+ See [http://baileylab.umassmed.edu/SeekDeep/installingSeekDeep](http://baileylab.umassmed.edu/SeekDeep/installingSeekDeep) for full details for installing for each operating system. 
  
 ## Dependecnies
 Need to have g++-5, or clang++-3.8 compiler, the default assumption is g++-5, can change what compilier is used by giving -CC and -CXX to ./congifure.py  
@@ -56,5 +56,5 @@ Which will actually do exactly described above, afterwards while typing flags us
 
 # Tutorials
 
-Tutorials and detailed usages located at http://baileylab.umassmed.edu/SeekDeep or email nicholas.hathaway@umassmed.edu for more information  
+Tutorials and detailed usages located at [http://baileylab.umassmed.edu/SeekDeep](http://baileylab.umassmed.edu/SeekDeep) or email nicholas.hathaway@umassmed.edu for more information  
 
