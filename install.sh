@@ -7,4 +7,4 @@ fi
 
 ./configure.py
 ./setup.py --compfile compfile.mk --outMakefile makefile-common.mk 
-make -j 7
+make -j $1
