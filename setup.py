@@ -386,12 +386,15 @@ class Packages():
                 pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
         return pack
 
+
+
     def __bamtools(self):
         url = 'https://github.com/nickjhathaway/bamtools.git'
         name = "bamtools"
         buildCmd = "mkdir -p build && cd build && ZLIBADDFLAGS CC={CC} CXX={CXX} cmake -DCMAKE_INSTALL_PREFIX:PATH={local_dir} .. && make -j {num_cores} install"
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v2.5.0")
         defaultZlibVersion = "1.2.11";
+        zlibPack = self.__zlib()
         if self.args.noInternet:
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
                 pack = pickle.load(inputPkl)
@@ -404,7 +407,6 @@ class Packages():
             refs = pack.getGitRefs(url)
             for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
                 pack.addVersion(url, ref, [LibNameVer("zlib", defaultZlibVersion)])
-                zlibPack = self.__zlib()
                 zlibLdFlags = zlibPack.versions_[defaultZlibVersion].getLdFlags(self.dirMaster_.install_dir)
                 zlibIncFlags = zlibPack.versions_[defaultZlibVersion].getIncludeFlags(self.dirMaster_.install_dir)
                 zlibAddFlags = "LDFLAGS=\""+ zlibLdFlags + "\" CXXFLAGS=\""+ zlibIncFlags + "\""
@@ -749,9 +751,11 @@ class Packages():
         
     def __flash(self):
         name = "flash"
-        buildCmd = "CC={CC} CXX={CXX} make -j {num_cores} && mkdir -p {local_dir}/bin && cp flash {local_dir}/bin/"
+        buildCmd = "CC={CC} CXX={CXX} ZLIBADDFLAGS make -j {num_cores} && mkdir -p {local_dir}/bin && cp flash {local_dir}/bin/"
         url = "https://github.com/nickjhathaway/flash.git"
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "1.2.11")
+        defaultZlibVersion = "1.2.11";
+        zlibPack = self.__zlib()
         if self.args.noInternet:
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
                 pack = pickle.load(inputPkl)
@@ -764,6 +768,10 @@ class Packages():
             refs = pack.getGitRefs(url)
             for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
                 pack.addVersion(url, ref)
+                zlibLdFlags = zlibPack.versions_[defaultZlibVersion].getLdFlags(self.dirMaster_.install_dir)
+                zlibIncFlags = zlibPack.versions_[defaultZlibVersion].getIncludeFlags(self.dirMaster_.install_dir)
+                zlibAddFlags = "LDFLAGS=\""+ zlibLdFlags + "\" CXXFLAGS=\""+ zlibIncFlags + "\""
+                pack.versions_[ref].cmd_ = buildCmd.replace("ZLIBADDFLAGS", zlibAddFlags)
             Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
                 pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
