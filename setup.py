@@ -750,7 +750,7 @@ class Packages():
     def __flash(self):
         name = "flash"
         buildCmd = "CC={CC} CXX={CXX} make -j {num_cores} && mkdir -p {local_dir}/bin && cp flash {local_dir}/bin/"
-        url = "https://github.com/nickjhathaway/muscle.git"
+        url = "https://github.com/nickjhathaway/flash.git"
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "1.2.11")
         if self.args.noInternet:
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
