@@ -77,6 +77,12 @@ int SeekDeepRunner::extractor(const bib::progutils::CmdArgs & inputCommands) {
 	if(setUp.pars_.debug_){
 		primerTable.outPutContentOrganized(std::cout);
 	}
+	//check to see if primers were read in, throw if none were found
+	if(0 == primerTable.nRow()){
+		std::stringstream ss;
+		ss << __PRETTY_FUNCTION__ << ", error: didn't find any primers in the id file: " << pars.idFilename << "\n";
+		throw std::runtime_error{ss.str()};
+	}
 	PrimerDeterminator pDetermine(primerTable);
 
 	std::string tcagLower = "tcag";
@@ -640,7 +646,9 @@ int SeekDeepRunner::extractor(const bib::progutils::CmdArgs & inputCommands) {
 
 				} else {
 					uint32_t start = pars.mDetPars.variableStop_;
-					//std::cout << "Determining primer" << std::endl;
+//					if(setUp.pars_.verbose_){
+//						std::cout << "Determining primer" << std::endl;
+//					}
 
 					primerName = pDetermine.determineForwardPrimer(seq, start, alignObj,
 							pars.fPrimerErrors, !pars.forwardPrimerToUpperCase);
