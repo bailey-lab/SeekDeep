@@ -258,14 +258,14 @@ class Packages():
             self.packages_["eigen"] = self.__eigen()
         if "glpk" in libsNeeded:
             self.packages_["glpk"] = self.__glpk()
-        if "curl" in libsNeeded:
-            self.packages_["curl"] = self.__curl()
         if "lapack" in libsNeeded:
             self.packages_["lapack"] = self.__lapack()
         if "atlas" in libsNeeded:
             self.packages_["atlas"] = self.__atlas()
         
         #git repos 
+        if "curl" in libsNeeded:
+            self.packages_["curl"] = self.__curl()
         if "mongoc" in libsNeeded:
             self.packages_["mongoc"] = self.__mongoc()
         if "mongocxx" in libsNeeded:
@@ -688,6 +688,7 @@ class Packages():
     
     def __curl(self):
         name = "curl"
+        url = "https://github.com/curl/curl.git"
         extraFlags = ""
         #curl library doesn't link to the openssl library at run time as it finds at configure so need to add the following to 
         #make the openssl library directory found to be set as run time path
@@ -700,13 +701,27 @@ class Packages():
                     if pkgconfgOutput_split.startswith("-L"):
                         extraFlags = extraFlags + " -Wl,-rpath," + pkgconfgOutput_split[2:]
                 extraFlags = extraFlags + " $LDFLAGS\""
-        buildCmd = """CC={CC} CXX={CXX}  """ + extraFlags + """ ./configure 
+        buildCmd = """./buildconf && CC={CC} CXX={CXX}  """ + extraFlags + """ ./configure 
             --prefix={local_dir}
             && make -j {num_cores} 
             && make -j {num_cores} install"""
         buildCmd = " ".join(buildCmd.split())
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "7.53.1")
-        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/curl/curl-7.53.1.tar.gz", "7.53.1")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "curl-7_56_1")
+        if self.args.noInternet:
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                pack = pickle.load(inputPkl)
+                pack.defaultBuildCmd_ = buildCmd
+        elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                pack = pickle.load(inputPkl)
+                pack.defaultBuildCmd_ = buildCmd
+        else:
+            refs = pack.getGitRefs(url)
+            for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
+                pack.addVersion(url, ref)
+            Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
+                pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
         return pack
     
     def __atlas(self):
