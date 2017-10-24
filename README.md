@@ -1,6 +1,6 @@
 SeekDeep
 ========
-Version 2.5.1
+Version 2.5.1-dev
 
 Bioinformatic Tools for analyzing targeted amplicon sequencing developed by the UMASS Med Bailey Lab
 
@@ -13,7 +13,7 @@ Checkout the website bellow for more details
  See [http://baileylab.umassmed.edu/SeekDeep/installingSeekDeep](http://baileylab.umassmed.edu/SeekDeep/installingSeekDeep) for full details for installing for each operating system. 
  
 ## Dependecnies
-Need to have g++-5, or clang++-3.8 compiler, the default assumption is g++-7, can change what compilier is used by giving -CC and -CXX to ./congifure.py  
+Need to have g++-5, or clang++-3.8 compiler, the default assumption is g++-5, can change what compilier is used by giving -CC and -CXX to ./congifure.py  
 Examples  
 
 For g++-5 
@@ -30,7 +30,7 @@ For Mac OsX make sure clang version is 7.0 or greater
 
 Also though SeekDeep does not use cmake, several of the libraries it uses do depend on cmake so it needs to be present.  
 
-## To Install Version 2.5.1 (latest) using g++-7 (defaults to clang on Mac)    
+## To Install Version 2.5.1 (latest)  
 ```bash
 git clone https://github.com/bailey-lab/SeekDeep.git   
 cd SeekDeep  
