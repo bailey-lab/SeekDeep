@@ -58,3 +58,4 @@ Which will actually do exactly described above, afterwards while typing flags us
 
 Tutorials and detailed usages located at [http://baileylab.umassmed.edu/SeekDeep](http://baileylab.umassmed.edu/SeekDeep) or email nicholas.hathaway@umassmed.edu for more information  
 
+
