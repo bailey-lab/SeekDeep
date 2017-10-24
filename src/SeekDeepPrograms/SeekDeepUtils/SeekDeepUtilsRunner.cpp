@@ -27,10 +27,12 @@
 
 #include "SeekDeepUtilsRunner.hpp"
 
+#include <unordered_map>
+
 namespace bibseq {
 
 SeekDeepUtilsRunner::SeekDeepUtilsRunner() :
-		bib::progutils::programRunner(
+		bib::progutils::ProgramRunner(
 				{ addFunc("dryRunQaulityFiltering", dryRunQaulityFiltering, false),
 					addFunc("runMultipleCommands",    runMultipleCommands, false),
 					addFunc("setupTarAmpAnalysis", setupTarAmpAnalysis, false),
@@ -357,8 +359,10 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	seqSetUp setUp(inputCommands);
 	setUp.processVerbose();
 	setUp.processDebug();
+	pars.debug = setUp.pars_.debug_;
 	setUp.setOption(pars.technology, "--technology",
-			"Sequencing Technology (should be 454,IonTorrent, or Illumina");
+			"Sequencing Technology (should be 454,IonTorrent, or Illumina",
+			false, "Technology");
 	stringToLower(pars.technology);
 	if (pars.technology != "454" && pars.technology != "iontorrent"
 			&& pars.technology != "illumina") {
@@ -370,47 +374,47 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 		setUp.addWarning(ss.str());
 	}
 	setUp.setOption(pars.samplesNamesFnp, "--samples",
-			"A file containing the samples names, columns should go target,sample,pcr1,(optional)pcr2 etc",
-			true);
+			"A file containing the samples names, columns should go target,sample,pcr1,pcr2 (optional) etc",
+			true, "ID Files");
 	setUp.setOption(pars.outDir, "--outDir", "Directory to setup for analysis",
-			true);
+			true, "Output");
 	setUp.setOption(pars.inputDir, "--inputDir",
-			"Input Directory of raw data files", true);
+			"Input Directory of raw data files", true, "Input");
 	setUp.setOption(pars.idFile, "--idFile",
-			"ID file containing primer and possible additional MIDs", true);
+			"ID file containing primer and possible additional MIDs", true, "ID Files");
 	setUp.setOption(pars.byIndex, "--byIndex",
-			"If the input sample names are by index and not targets");
+			"If the input sample names are by index and not targets", false, "ID Files");
 	setUp.setOption(pars.targetsToIndexFnp, "--targetsToIndex",
 			"A tsv file with two columns named targets and index where targets in a comma separated value with the targets for the index in index",
-			pars.byIndex);
+			pars.byIndex, "ID Files");
 
 	setUp.setOption(pars.maxOverlap, "--maxOverlap",
-			"Max overlap allowed in stitcher");
+			"Max overlap allowed in stitcher", false, "Illumina Stitching");
 	setUp.setOption(pars.numThreads, "--numThreads", "Number of CPUs to use");
 
 	setUp.setOption(pars.extraExtractorCmds, "--extraExtractorCmds",
-			"Extra extractor cmds to add to the defaults");
+			"Extra extractor cmds to add to the defaults", false, "Extra Commands");
 	setUp.setOption(pars.extraQlusterCmds, "--extraQlusterCmds",
-			"Extra qluster cmds to add to the defaults");
+			"Extra qluster cmds to add to the defaults", false, "Extra Commands");
 	setUp.setOption(pars.extraProcessClusterCmds, "--extraProcessClusterCmds",
-			"Extra process clusters cmds to add to the defaults");
+			"Extra process clusters cmds to add to the defaults", false, "Extra Commands");
 
-	setUp.setOption(pars.noQualTrim, "--noQualTrim", "No Quality Trim");
+	setUp.setOption(pars.noQualTrim, "--noQualTrim", "No Quality Trim", false, "Pre Processing");
 
-	setUp.setOption(pars.r1Trim, "--r1Trim", "Trim R1 Reads to this length");
-	setUp.setOption(pars.r2Trim, "--r2Trim", "Trim R2 Reads to this length");
+	setUp.setOption(pars.r1Trim, "--r1Trim", "Trim R1 Reads to this length", false, "Pre Processing");
+	setUp.setOption(pars.r2Trim, "--r2Trim", "Trim R2 Reads to this length", false, "Pre Processing");
 
-	setUp.setOption(pars.groupMeta, "--groupMeta", "Group Metadata");
+	setUp.setOption(pars.groupMeta, "--groupMeta", "Group Metadata", false, "Meta");
 
 	setUp.setOption(pars.lenCutOffsFnp, "--lenCutOffs",
-			"A file with 3 columns, target,minlen,maxlen to supply length cut off specifically for each target");
+			"A file with 3 columns, target,minlen,maxlen to supply length cut off specifically for each target", false, "Extractor");
 	setUp.setOption(pars.refSeqsDir, "--refSeqsDir",
-			"A directory of fasta files where each file is named with the input target names");
+			"A directory of fasta files where each file is named with the input target names", false, "Extractor");
 	if (pars.techIs454() || pars.techIsIonTorrent()) {
 		pars.inputFilePat = ".*.fastq";
 	}
 	setUp.setOption(pars.inputFilePat, "--inputFilePat",
-			"The input file pattern in the input directory to work on");
+			"The input file pattern in the input directory to work on", false, "Input");
 
 	setUp.finishSetUp(std::cout);
 
@@ -598,8 +602,12 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 						zcatR1 = bib::replaceString(zcatR1, "{OUTPUT}", bib::files::make_path(analysisSetup.dir_, key).string());
 						auto zcatR2 = bib::replaceString(zcatTempCmdR2, "{FILES}", bib::conToStr(readsByPairs.at(key).second, " "));
 						zcatR2 = bib::replaceString(zcatR2, "{OUTPUT}", bib::files::make_path(analysisSetup.dir_, key).string());
-						auto curStitchCmd = bib::replaceString(stitchCmd, "{OUTPUT}", bib::files::make_path(analysisSetup.dir_, key).string());
-
+						if(analysisSetup.pars_.debug){
+							std::cout << "bfs::absolute(analysisSetup.dir_).lexically_relative( bfs::current_path()): " << bfs::absolute(analysisSetup.dir_).lexically_relative( bfs::current_path()) << std::endl;
+							std::cout << "bfs::current_path() " << bfs::current_path() << std::endl;
+							std::cout << "analysisSetup.dir_: " << analysisSetup.dir_ << std::endl << std::endl;
+						}
+						auto curStitchCmd = bib::replaceString(stitchCmd, "{OUTPUT}", bib::files::make_path(bfs::absolute(analysisSetup.dir_).lexically_relative( bfs::current_path()), key).string());
 						auto zcatR1Out = bib::sys::run( {zcatR1});
 						auto zcatR2Out = bib::sys::run( {zcatR2});
 						if(std::numeric_limits<uint32_t>::max() != analysisSetup.pars_.r1Trim) {
@@ -619,6 +627,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 							bfs::remove(finalFnp);
 							bfs::rename(tempFnp, finalFnp);
 						}
+
 
 						if(std::numeric_limits<uint32_t>::max() != analysisSetup.pars_.r2Trim) {
 							auto finalFnp = bib::files::make_path(analysisSetup.dir_, key).string() + "_R2.fastq";
@@ -677,13 +686,12 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 
 		VecStr noReadsStitched;
 		for (const auto & row : flashOutTab.content_) {
-			auto stitchedNum = bib::lexical_cast<uint32_t>(
+			auto stitchedNum = estd::stou(
 					row[flashOutTab.getColPos("CombinedPairs")]);
 			if (0 == stitchedNum) {
 				noReadsStitched.emplace_back(row[flashOutTab.getColPos("SampleName")]);
 			}
 		}
-
 		if (!noReadsStitched.empty()) {
 			foundErrors = true;
 			errorOutput << "The following samples had no reads stitched "
@@ -850,7 +858,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	}
 
 	OutOptions wrningsOpts(
-			bib::files::make_path(analysisSetup.dir_, "WARNINGS_PLEASE_READ.txt").string());
+			bib::files::make_path(analysisSetup.dir_, "WARNINGS_PLEASE_READ.txt"));
 	if (foundErrors) {
 		std::ofstream outWarnings;
 		openTextFile(outWarnings, wrningsOpts);
@@ -1039,13 +1047,13 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	}
 
 	OutOptions extractorCmdsOpts(
-			bib::files::make_path(analysisSetup.dir_, "extractorCmds.txt").string());
+			bib::files::make_path(analysisSetup.dir_, "extractorCmds.txt"));
 	std::ofstream extractorCmdsFile;
 	openTextFile(extractorCmdsFile, extractorCmdsOpts);
 	printVector(extractorCmds, "\n", extractorCmdsFile);
 
 	OutOptions qlusterCmdsOpts(
-			bib::files::make_path(analysisSetup.dir_, "qlusterCmds.txt").string());
+			bib::files::make_path(analysisSetup.dir_, "qlusterCmds.txt"));
 	std::ofstream qlusterCmdsFile;
 	openTextFile(qlusterCmdsFile, qlusterCmdsOpts);
 	printVector(qlusterCmds, "\n", qlusterCmdsFile);
@@ -1073,7 +1081,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 						+ processClusterTemplate);
 	}
 	OutOptions processClusterCmdsOpts(
-			bib::files::make_path(analysisSetup.dir_, "processClusterCmds.txt").string());
+			bib::files::make_path(analysisSetup.dir_, "processClusterCmds.txt"));
 	std::ofstream processClusterCmdsFile;
 	openTextFile(processClusterCmdsFile, processClusterCmdsOpts);
 	printVector(processClusterCmds, "\n", processClusterCmdsFile);
@@ -1091,14 +1099,14 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 						"{TARGET}", tar));
 	}
 	OutOptions genConfigCmdsOpts(
-			bib::files::make_path(analysisSetup.dir_, "genConfigCmds.txt").string());
+			bib::files::make_path(analysisSetup.dir_, "genConfigCmds.txt"));
 	std::ofstream genConfigCmdsFile;
 	openTextFile(genConfigCmdsFile, genConfigCmdsOpts);
 	printVector(genConfigCmds, "\n", genConfigCmdsFile);
 
 	//start server config
 	OutOptions startServerCmdOpts(
-			bib::files::make_path(analysisSetup.dir_, "startServerCmd.sh").string());
+			bib::files::make_path(analysisSetup.dir_, "startServerCmd.sh"));
 	std::ofstream startServerCmdFile;
 	openTextFile(startServerCmdFile, startServerCmdOpts);
 	startServerCmdFile << "#!/usr/bin/env bash" << std::endl;
@@ -1112,8 +1120,8 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 			<< "	echo \"Illegal number of parameters, needs either 0 or 2 arguments, if 2 args 1) port number to server on 2) the name to serve on\""
 			<< std::endl;
 	startServerCmdFile << "	echo \"Examples\"" << std::endl;
-	startServerCmdFile << "	echo \"./startServerCmd.txt\"" << std::endl;
-	startServerCmdFile << "	echo \"./startServerCmd.txt 9882 pcv2\"	"
+	startServerCmdFile << "	echo \"./startServerCmd.sh\"" << std::endl;
+	startServerCmdFile << "	echo \"./startServerCmd.sh 9882 pcv2\"	"
 			<< std::endl;
 	startServerCmdFile << "	exit	" << std::endl;
 	startServerCmdFile << "fi" << std::endl;
@@ -1133,7 +1141,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 
 	//start server config
 	OutOptions runAnalysisOpts(
-			bib::files::make_path(analysisSetup.dir_, "runAnalysis.sh").string());
+			bib::files::make_path(analysisSetup.dir_, "runAnalysis.sh"));
 	std::ofstream runAnalysisFile;
 	openTextFile(runAnalysisFile, runAnalysisOpts);
 	runAnalysisFile << "#!/usr/bin/env bash" << std::endl;
@@ -1170,7 +1178,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 		std::cerr << bib::bashCT::flashing << bib::bashCT::red << bib::bashCT::bold
 				<< "ERRORS FOUND!!" << bib::bashCT::reset << std::endl;
 		std::cerr << "Read Warnings in "
-				<< bib::bashCT::boldRed(wrningsOpts.outFilename_) << std::endl;
+				<< bib::bashCT::boldRed(wrningsOpts.outFilename_.string()) << std::endl;
 	}
 
 	return 0;

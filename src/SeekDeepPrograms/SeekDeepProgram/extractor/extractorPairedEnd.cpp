@@ -86,22 +86,22 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 		std::equal(tcagUpper.begin(), tcagUpper.end(), seq.begin());
 	};
 	// make some directories for outputs
-	std::string unfilteredReadsDir = bib::files::makeDir(
+	bfs::path unfilteredReadsDir = bib::files::makeDir(
 			setUp.pars_.directoryName_,
 			bib::files::MkdirPar("unfilteredReads", false));
-	std::string unfilteredByBarcodesDir = bib::files::makeDir(unfilteredReadsDir,
+	bfs::path unfilteredByBarcodesDir = bib::files::makeDir(unfilteredReadsDir,
 			bib::files::MkdirPar("byBarcodes", false));
-	std::string unfilteredByBarcodesFlowDir = bib::files::makeDir(
+	bfs::path unfilteredByBarcodesFlowDir = bib::files::makeDir(
 			unfilteredReadsDir, bib::files::MkdirPar("flowsByBarcodes", false));
-	std::string unfilteredByPrimersDir = bib::files::makeDir(unfilteredReadsDir,
+	bfs::path unfilteredByPrimersDir = bib::files::makeDir(unfilteredReadsDir,
 			bib::files::MkdirPar("byPrimers", false));
-	std::string filteredOffDir = bib::files::makeDir(setUp.pars_.directoryName_,
+	bfs::path filteredOffDir = bib::files::makeDir(setUp.pars_.directoryName_,
 			bib::files::MkdirPar("filteredOff", false));
-	std::string badDir = bib::files::makeDir(filteredOffDir,
+	bfs::path badDir = bib::files::makeDir(filteredOffDir,
 			bib::files::MkdirPar("bad", false));
-	std::string unrecognizedPrimerDir = bib::files::makeDir(filteredOffDir,
+	bfs::path unrecognizedPrimerDir = bib::files::makeDir(filteredOffDir,
 			bib::files::MkdirPar("unrecognizedPrimer", false));
-	std::string contaminationDir = "";
+	bfs::path contaminationDir = "";
 	if (pars.screenForPossibleContamination) {
 		contaminationDir = bib::files::makeDir(filteredOffDir,
 				bib::files::MkdirPar("contamination", false));
@@ -117,11 +117,11 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 	SeqIO reader(setUp.pars_.ioOptions_);
 	reader.openIn();
 	auto smallOpts = setUp.pars_.ioOptions_;
-	smallOpts.out_.outFilename_ = badDir + "smallFragments";
+	smallOpts.out_.outFilename_ = bib::files::make_path(badDir, "smallFragments").string();
 	SeqIO smallFragMentOut(smallOpts);
 	smallFragMentOut.openOut();
 	auto startsWtihBadQualOpts = setUp.pars_.ioOptions_;
-	startsWtihBadQualOpts.out_.outFilename_ = badDir + "startsWtihBadQual";
+	startsWtihBadQualOpts.out_.outFilename_ = bib::files::make_path(badDir , "startsWtihBadQual").string();
 	SeqOutput startsWtihBadQualOut(startsWtihBadQualOpts);
 
 	uint32_t smallFragmentCount = 0;
@@ -142,14 +142,14 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 	if (pars.multiplex) {
 		for (const auto & mid : determinator->mids_) {
 			auto midOpts = setUp.pars_.ioOptions_;
-			midOpts.out_.outFilename_ = unfilteredByBarcodesDir + mid.first;
+			midOpts.out_.outFilename_ = bib::files::make_path(unfilteredByBarcodesDir, mid.first).string();
 			if (setUp.pars_.debug_) {
 				std::cout << "Inserting: " << mid.first << std::endl;
 			}
 			readerOuts.addReader(mid.first, midOpts);
 			if (pars.mothurExtract || pars.pyroExtract) {
 				auto flowExtractOutOpts = midOpts;
-				flowExtractOutOpts.out_.outFilename_ = unfilteredByBarcodesFlowDir + mid.first + "_temp";
+				flowExtractOutOpts.out_.outFilename_ = bib::files::make_path(unfilteredByBarcodesFlowDir , mid.first + "_temp").string();
 				flowExtractOutOpts.outFormat_ = SeqIOOptions::outFormats::FLOW;
 				flowExtractOutOpts.out_.outExtention_ = ".dat";
 				readerOuts.addReader(mid.first + "flow", flowExtractOutOpts);
@@ -157,14 +157,14 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 		}
 	} else {
 		auto midOpts = setUp.pars_.ioOptions_;
-		midOpts.out_.outFilename_ = unfilteredByBarcodesDir + "all";
+		midOpts.out_.outFilename_ = bib::files::make_path(unfilteredByBarcodesDir, "all").string();
 		if (setUp.pars_.debug_) {
 			std::cout << "Inserting: " << "all" << std::endl;
 		}
 		readerOuts.addReader("all", midOpts);
 		if (pars.mothurExtract || pars.pyroExtract) {
 			auto flowExtractOutOpts = midOpts;
-			flowExtractOutOpts.out_.outFilename_ = unfilteredByBarcodesFlowDir + "all" + "_temp";
+			flowExtractOutOpts.out_.outFilename_ = bib::files::make_path(unfilteredByBarcodesFlowDir, "all_temp").string();
 			flowExtractOutOpts.outFormat_ = SeqIOOptions::outFormats::FLOW;
 			flowExtractOutOpts.out_.outExtention_ = ".dat";
 			readerOuts.addReader(std::string("all") + "flow", flowExtractOutOpts);
@@ -176,7 +176,7 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 		for(const auto & failureCase : failureCases){
 			std::string unRecName = "unrecognizedBarcode_" + failureCase;
 			auto midOpts = setUp.pars_.ioOptions_;
-			midOpts.out_.outFilename_ = badDir + unRecName;
+			midOpts.out_.outFilename_ = bib::files::make_path(badDir, unRecName).string();
 			if (setUp.pars_.debug_){
 				std::cout << "Inserting: " << unRecName << std::endl;
 			}
@@ -184,7 +184,7 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 			if(pars.screenForPossibleContamination){
 				std::string unRecNamePosCon = "possible_contamination_unrecognizedBarcode_" + failureCase;
 				auto midOpts = setUp.pars_.ioOptions_;
-				midOpts.out_.outFilename_ = contaminationDir + unRecNamePosCon;
+				midOpts.out_.outFilename_ = bib::files::make_path(contaminationDir, unRecNamePosCon).string();
 				if (setUp.pars_.debug_){
 					std::cout << "Inserting: " << unRecNamePosCon << std::endl;
 				}
@@ -432,8 +432,8 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 		}
 		for (const auto & row : lenCutTab.content_) {
 			multipleLenCutOffs.emplace(row[lenCutTab.getColPos("target")],
-					lenCutOffs { bib::lexical_cast<uint32_t>(
-							row[lenCutTab.getColPos("minlen")]), bib::lexical_cast<uint32_t>(
+					lenCutOffs { estd::stou(
+							row[lenCutTab.getColPos("minlen")]), estd::stou(
 							row[lenCutTab.getColPos("maxlen")]) });
 		}
 	}*/
@@ -530,7 +530,7 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 		std::cout << bib::bashCT::boldRed("Reading In Previous Alignments: Stop") << std::endl;
 		std::cout << bib::bashCT::boldGreen("Creating Extractor Stats: Start") << std::endl;
 	}
-	std::string smallDir = "";
+	bfs::path smallDir = "";
 	if (pars.filterOffSmallReadCounts) {
 		smallDir = bib::files::makeDir(setUp.pars_.directoryName_, bib::files::MkdirPar("smallReadCounts", false));
 	}
@@ -543,7 +543,7 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 	std::map<std::string, uint32_t> goodCounts;
 
 	for (const auto & f : barcodeFiles) {
-		auto barcodeName = bib::files::getFileName(f.first.string());
+		auto barcodeName = bfs::basename(f.first.string());
 		if ((counts[barcodeName].first + counts[barcodeName].second) == 0
 				&& pars.multiplex) {
 			//no reads extracted for barcode so skip filtering step
@@ -556,7 +556,7 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 			auto barcodeOpts = setUp.pars_.ioOptions_;
 			barcodeOpts.firstName_ = f.first.string();
 			barcodeOpts.inFormat_ = SeqIOOptions::getInFormat(bib::files::getExtension(f.first.string()));
-			barcodeOpts.out_.outFilename_ = smallDir + barcodeName;
+			barcodeOpts.out_.outFilename_ = bib::files::make_path(smallDir, barcodeName).string();
 			SeqIO barcodeIn(barcodeOpts);
 			barcodeIn.openIn();
 			readObject read;
@@ -585,8 +585,8 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 		//create outputs
 		MultiSeqIO midReaderOuts;
 		auto unrecogPrimerOutOpts = setUp.pars_.ioOptions_;
-		unrecogPrimerOutOpts.out_.outFilename_ = unrecognizedPrimerDir
-				+ barcodeName;
+		unrecogPrimerOutOpts.out_.outFilename_ = bib::files::make_path(unrecognizedPrimerDir
+				,barcodeName).string();
 		midReaderOuts.addReader("unrecognized", unrecogPrimerOutOpts);
 
 		for (const auto & primerName : getVectorOfMapKeys(pDetermine.primers_)) {
@@ -598,7 +598,7 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 			}
 			//bad out
 			auto badDirOutOpts = setUp.pars_.ioOptions_;
-			badDirOutOpts.out_.outFilename_ = badDir + fullname;
+			badDirOutOpts.out_.outFilename_ = bib::files::make_path(badDir, fullname).string();
 			midReaderOuts.addReader(fullname + "bad", badDirOutOpts);
 			//good out
 			auto goodDirOutOpts = setUp.pars_.ioOptions_;
@@ -607,7 +607,7 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 			//contamination out
 			if (pars.screenForPossibleContamination) {
 				auto contamOutOpts = setUp.pars_.ioOptions_;
-				contamOutOpts.out_.outFilename_ = contaminationDir + fullname;
+				contamOutOpts.out_.outFilename_ = bib::files::make_path(contaminationDir, fullname).string();
 				midReaderOuts.addReader(fullname + "contamination", contamOutOpts);
 			}
 			if (pars.mothurExtract || pars.pyroExtract) {
@@ -626,7 +626,7 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 		std::string readFlows = "";
 		std::ifstream inFlowFile;
 		if(pars.mothurExtract || pars.pyroExtract){
-			inFlowFile.open(unfilteredByBarcodesFlowDir + barcodeName + "_temp.dat");
+			inFlowFile.open(bib::files::make_path(unfilteredByBarcodesFlowDir,barcodeName + "_temp.dat").string());
 		}
 
 

@@ -35,206 +35,155 @@ namespace bibseq {
 
 void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 	// parse the command line options
+	description_ = "Ran from inside directory tree set up such that currentDir/SampleDir/RunDir/seqFiles";
+	examples_.emplace_back("MASTERPROGRAM SUBPROGRAM --fasta output.fasta --par pars.txt");
+	examples_.emplace_back("MASTERPROGRAM SUBPROGRAM --fastq output.fastq --strictErrors #just collapse on a few low quality errors ");
+	examples_.emplace_back("MASTERPROGRAM SUBPROGRAM --fasta output.fasta --strictErrors --pop-noErrors #collapse across replicates within sample on low quality errors but allow no errors in population compare");
+	examples_.emplace_back("MASTERPROGRAM SUBPROGRAM --fasta output.fasta --strictErrors -hq 1 --pop-noErrors #collapse across replicates within sample on 1 high quality error but allow no errors in population compare");
 	if (needsHelp()) {
-		std::stringstream tempOut;
-		tempOut << "processClusters" << std::endl;
-		tempOut << "Ran from inside directory tree set up such that "
-				"currentDir/SampleDir/RunDir/seqFiles" << std::endl;
-		tempOut << "Example dir tree: " << std::endl;
-		tempOut << "Samp01/Run1/output.fastq" << std::endl;
-		tempOut << "Samp01/Run2/output.fastq" << std::endl;
-		tempOut << "Samp02/Run1/output.fastq" << std::endl;
-		tempOut << "Samp02/Run2/output.fastq" << std::endl;
-		tempOut << "currentDir/" << std::endl;
-		tempOut << "----Samp01/" << std::endl;
-		tempOut << "--------Run1/" << std::endl;
-		tempOut << "------------output.fastq" << std::endl;
-		tempOut << "--------Run2/" << std::endl;
-		tempOut << "------------output.fastq" << std::endl;
-		tempOut << "----Samp02/" << std::endl;
-		tempOut << "--------Run1/" << std::endl;
-		tempOut << "------------output.fastq" << std::endl;
-		tempOut << "--------Run2/" << std::endl;
-		tempOut << "------------output.fastq" << std::endl;
-
-		tempOut << "program would be run from the directory that"
-				" contains Samp01 and Samp02 directories (here currentDir)"
-				<< std::endl;
-		tempOut
-				<< "sequences in the seq files should have a suffix of _[NUM] or _t[NUM] "
-						"where [NUM] is the number of reads associated with that sequence"
-				<< std::endl;
-		tempOut << "Final results are named with the name of the Sample Directories"
-				<< std::endl;
-		tempOut << "Commands, order not necessary and case insensitive"
-				<< std::endl;
-		tempOut << bib::bashCT::bold << "Required commands" << bib::bashCT::reset
-				<< std::endl;
-		printInputUsage(tempOut);
-		tempOut
-				<< "in the previous example tree the flag would be --fastq output.fastq and all seq "
-						"files should be named output.fastq, others will be ignored"
-				<< std::endl;
-		tempOut
-				<< "--par : parameters file, see SeekDeep qluster --help for details on the format of the file"
-				<< std::endl;
-		tempOut << bib::bashCT::bold << "Optional commands" << bib::bashCT::reset
-				<< std::endl;
-		tempOut << "--dout [option]: Name of an output directory, will default "
-				"to cluster_CURRENT_DATE" << std::endl;
-		tempOut << "--onPerId : Cluster reads on percent identity rather"
-				" than specific errors, format of parameters file would have to change,"
-				" see SeekDeep qluster --help for details" << std::endl;
-		tempOut
-				<< "--experimentName [option] : Name prefix to give to the final population haplotypes, defaults to PopUID"
-				<< std::endl;
-
-		tempOut << bib::bashCT::boldBlack("Final analysis inclusion criteria")
-				<< std::endl;
-		tempOut << "--fracCutOff [option] : The fraction threshold to be "
-				"included in final analysis, threshold is compared to the averaged "
-				"fraction across runs, defaults to 0.005 " << std::endl;
-		tempOut << "--runsRequired [option] : Number of runs a cluster has to "
-				"appear in to be"
-				" included in final analysis, defaults to all the runs included "
-				"in the sample" << std::endl;
-		tempOut << bib::bashCT::bold << "Population clustering options"
-				<< bib::bashCT::reset << std::endl;
-		tempOut << "--popPar [option] : Separate population paramters for "
-				"clustering will default to the parameters given for the "
-				"between sample clustering" << std::endl;
-
-		tempOut << bib::bashCT::bold << "Additional Pre-processing options"
-				<< bib::bashCT::reset << std::endl;
-		tempOut << "--cutoff [option]: Size of cluster not to include in "
-				"clustering, defaults to 1" << std::endl;
-		tempOut << "--markChimeras : Have the program mark possible chimeras "
-				"before starting clustering" << std::endl;
-		tempOut << "--parFreqs [option] : The minimum frequency multiplier "
-				"reads must have in order to be considered to be a possible "
-				"parrent of a chimera, defaults to 2" << std::endl;
-		tempOut << "--keepChimeras : Whether to include chimeras in the final "
-				"analysis,"
-				" defaults to excluded any cluster made of at least half of "
-				"reads with CHI_ flag in"
-				" in their name " << std::endl;
-		printReferenceComparisonUsage(tempOut);
-		printAdditionalClusteringUsage(tempOut);
-		printAlignmentUsage(tempOut);
-		printQualThresUsage(tempOut);
-		printAlnInfoDirUsage(tempOut);
-		tempOut << "examples" << std::endl;
-		tempOut << "SeekDeep processClusters --fasta output.fasta "
-				"--par pars.txt" << std::endl;
-		tempOut << "SeekDeep processClusters --fasta output.fasta "
-				"--par pars.txt" << std::endl;
-		tempOut << "SeekDeep processClusters --fasta output.fasta --par "
-				"pars.txt --popPar otherPars.txt" << std::endl;
-		std::cout << cleanOut(tempOut.str(), width_, indent_);
-		tempOut.str(std::string());
-		tempOut << bib::bashCT::bold << "Output Files:" << bib::bashCT::reset
-				<< std::endl;
-		tempOut
-				<< "selectedClustersInfo.tab.txt: This contains the final haplotype information and replicate comparison results, it is a very large table, consult the SeekDeep (http://bib2.umassmed.edu/~hathawan/SeekDeep.html) website for details on what each column means"
-				<< std::endl;
-		tempOut << "allClustersInfo.tab.txt: " << std::endl;
-		tempOut << "dotFiles: " << std::endl;
-		tempOut << "final: " << std::endl;
-		tempOut << "population/populationCluster.tab.txt: " << std::endl;
-		tempOut << "population/PopUID.fastq: " << std::endl;
-		tempOut << "" << std::endl;
-		std::cout << cleanOut(tempOut.str(), width_, indent_);
-		tempOut.str(std::string());
-		exit(0);
+		commands_.arguments_["-h"] = "";
 	}
 
 	setOption(pars.illumina, "--illumina",
-			"Flag to indicate reads are Illumina");
+			"Flag to indicate reads are Illumina", false, "Technology");
 
 	setOption(pars.ionTorrent, "--ionTorrent",
-			"Flag to indicate reads are ion torrent and therefore turns on --useCompPerCutOff,--adjustHomopolyerRuns, and --qualTrim");
+			"Flag to indicate reads are ion torrent and therefore turns on --adjustHomopolyerRuns and --qualTrim",
+			false, "Technology");
 
 	if (pars.ionTorrent) {
 		pars.removeLowQualBases = true;
 		pars_.colOpts_.iTOpts_.adjustHomopolyerRuns_ = true;
 	}
 
-	setOption(pars.masterDir, "--masterDir", "Master directory containing sample sequence files");
-	pars.masterDir = bfs::absolute(pars.masterDir).string();
+	setOption(pars.masterDir, "--masterDir", "Master directory containing sample sequence files", false, "Input");
+	pars.masterDir = bfs::absolute(pars.masterDir);
 	pars.removeLowQualBases = setOption(pars.lowQualityCutOff, "--qualTrim",
-			"LowQualityCutOff");
+			"Low Quality Cut Off", false, "Pre Processing");
 	setOption(pars.writeExcludedOriginals, "--writeExcludedOriginals",
-			"Write out the excluded Originals");
+			"Write out the excluded Originals", false, "Additional Output");
 	setOption(pars.chiCutOff, "--chiCutOff",
-			"The Fraction of a cluster to determine if it chimeric");
+			"The Fraction of a cluster to determine if it chimeric", false, "Chimeras");
 	setOption(pars.recheckChimeras, "--recheckChimeras",
-			"Re Check chimeras after replicate comparison");
+			"Re Check chimeras after replicate comparison", false, "Chimeras");
 	setOption(pars.eventBasedRef, "--eventBasedRef", "Do Event Based Ref Count");
 	setOption(pars.customCutOffs, "--custumCutOffs",
-			"Two Column Table, first column is sample name, second is a custom frac cut off, if sample not found will default to --fracCutOff");
-	setOption(pars.previousPopFilename, "--previousPop", "previousPopFilename");
+			"Two Column Table, first column is sample name, second is a custom frac cut off, if sample not found will default to --fracCutOff", false, "Filtering");
+	setOption(pars.previousPopFilename, "--previousPop", "previousPopFilename", false, "Population");
 	processComparison(pars.previousPopErrors, "previousPop");
 	setOption(pars.groupingsFile, "--groupingsFile",
-			"A file to sort samples into different groups");
+			"A file to sort samples into different groups", false, "Meta");
 	setOption(pars.investigateChimeras, "--investigateChimeras",
-			"Check to see if a chimera appears as a high variant in another sample");
+			"Check to see if a chimera appears as a high variant in another sample", false, "Chimeras");
 	processDebug();
 	processVerbose();
 	pars_.colOpts_.verboseOpts_.verbose_ = pars_.verbose_;
 	pars_.colOpts_.verboseOpts_.debug_ = pars_.debug_;
-	setOption(pars.onPerId, "--onPerId", "Cluster on Percent Identity Instead");
+	setOption(pars.onPerId, "--onPerId", "Cluster on Percent Identity Instead", false, "Clustering");
 	processSkipOnNucComp();
 	// input file info
 	pars_.ioOptions_.lowerCaseBases_ = "upper";
 	pars_.ioOptions_.processed_ = true;
 
-	processDefaultReader(true);
+	processReadInNames(VecStr{"--fasta", "--fastagz", "--fastq", "--fastqgz"}, true);
 
-	setOption(pars.noErrorsSet, "--noErrors", "Parameters with no errors");
+	setOption(pars.noErrorsSet, "--noErrors", "Collapse parameters with no errors", false, "Clustering");
 
 
-	setOption(pars.strictErrorsSetHq1, "--strictErrors-hq1", "Parameters with a several low quality mismatches and 1 high quality mismatch");
+	setOption(pars.strictErrorsSetHq1, "--strictErrors-hq1", "Collapse parameters with a several low quality mismatches and 1 high quality mismatch", false, "Clustering");
 	if(pars.strictErrorsSetHq1){
 		pars.strictErrorsSet = true;
 		pars.hqMismatches = 1;
 	}
-	setOption(pars.strictErrorsSet, "--strictErrors", "Parameters with a several low quality mismatches");
+	setOption(pars.strictErrorsSet, "--strictErrors", "Collapse parameters with a several low quality mismatches", false, "Clustering");
+	setOption(pars.hqMismatches, "--hq", "Number of high quality mismatches to allow", false, "Clustering");
+	setOption(pars.stopAfter, "--stopAfter", "Number of top haplotypes to check", false, "Clustering");
 
-	setOption(pars.hqMismatches, "--hq", "Number of high quality mismatches to allow");
-	setOption(pars.stopAfter, "--stopAfter", "Number of top haplotypes to check");
+	setOption(pars.parameters, "--par", "ParametersFileName", !pars.noErrorsSet && !pars.strictErrorsSet && !pars.strictErrorsSetHq1, "Clustering");
 
-	setOption(pars.parameters, "--par", "ParametersFileName", !pars.noErrorsSet && !pars.strictErrorsSet && !pars.strictErrorsSetHq1);
+	setOption(pars.binParameters, "--binPar", "bin Parameters Filename", false, "Clustering");
+	setOption(pars.sampleMinTotalReadCutOff, "--sampleMinTotalReadCutOff",
+			"Sample Minimum Total Read Cut Off, if the total read count for the sample is below this it will be thrown out", false, "Filtering");
 
-	setOption(pars.binParameters, "--binPar", "bin Parameters Filename");
-
-	setOption(pars.runsRequired, "--runsRequired", "runsRequired");
-	setOption(pars.experimentName, "--experimentName", "ExperimentName");
+	setOption(pars.runsRequired, "--runsRequired", "Number of PCR runs Required for a haplotype to be kept", false, "Filtering");
+	setOption(pars.experimentName, "--experimentName", "Name given to the final population haplotypes", false, "Population");
 	if (bib::containsSubString(pars.experimentName, ".")) {
 		addWarning("Error in populationCollapse::populationCollapse, populationName can't contain '.', "
 						+ pars.experimentName);
 		failed_ = true;
 	}
-	setOption(pars.clusterCutOff, "--clusterCutOff", "Cluster Size Cut Off");
+	setOption(pars.clusterCutOff, "--clusterCutOff", "Input Cluster Size Cut Off", false, "Filtering");
 	setOption(pars.noTrees, "--noTrees", "Don't generate html difference trees");
 	processDirectoryOutputName("clusters_" + getCurrentDate(), true);
 
-	setOption(pars.extra, "--extra", "ExtraOutput");
+	setOption(pars.extra, "--extra", "Extra Output", false, "Additional Output");
 	processRefFilename();
 	setOption(pars.noPopulation, "--noPopulation",
-			"Don't do Population Clustering");
+			"Don't do Population Clustering", false, "Population");
 
 	setOption(pars.fracCutoff, "--fracCutOff",
-			"PopulationClusteringFractionCutoff");
+			"Final cluster Fraction Cut off", false, "Filtering");
 	pars.differentPar = setOption(pars.parametersPopulation, "--popPar",
-			"ParametersForPopulationCollapse");
-	setOption(pars_.chiOpts_.checkChimeras_, "--markChimeras", "MarkChimeras");
-	setOption(pars.keepChimeras, "--keepChimeras", "KeepChimeras");
-	setOption(pars_.chiOpts_.parentFreqs_, "--parFreqs", "ParentFrequence_multiplier_cutoff");
+			"Parameters For Population Collapse", false, "Population");
+	struct ClusteringParametersPars {
+		bool noErrorsSet = false;
+		bool strictErrorsSet = false;
+		uint32_t stopAfter = 100;
+		uint32_t hqMismatches = 0;
+	};
+	ClusteringParametersPars popClusParsPars;
+	setOption(popClusParsPars.noErrorsSet, "--pop-noErrors", "Collapse parameters with no errors in population clustering", false, "Population");
+	setOption(popClusParsPars.strictErrorsSet, "--pop-strictErrors", "Collapse parameters with a several low quality mismatches in population clustering", false, "Population");
+	setOption(popClusParsPars.hqMismatches, "--pop-hq", "Number of high quality mismatches to allow in population clustering", false, "Population");
+	setOption(popClusParsPars.stopAfter, "--pop-stopAfter", "Number of top haplotypes to check in population clustering", false, "Population");
+
+	setOption(pars_.chiOpts_.checkChimeras_, "--markChimeras", "Check Input sequences for possible Chimeras", false, "Chimeras");
+	setOption(pars.keepChimeras, "--keepChimeras", "KeepChimeras", false, "Chimeras");
+	setOption(pars_.chiOpts_.parentFreqs_, "--parFreqs", "Chimeric Parent Frequency multiplier cutoff", false, "Chimeras");
 
 	setOption(pars.numThreads, "--numThreads", "Number of threads to use");
-	setOption(pars_.colOpts_.clusOpts_.converge_, "--converge", "Keep clustering at each iteration until there is no more collapsing, could increase run time significantly");
+	setOption(pars_.colOpts_.clusOpts_.converge_, "--converge", "Keep clustering at each iteration until there is no more collapsing, could increase run time significantly", false, "Clustering");
 	//setOption(pars.plotRepAgreement, "--plotRepAgreement", "Plot Rep Agreement");
 	processAlignerDefualts();
+	if (needsHelp()) {
+		printFlags(std::cout);
+		std::cout << "Example input directory tree set up: " << std::endl;
+		std::cout << "Samp01/Run1/output.fastq" << std::endl;
+		std::cout << "Samp01/Run2/output.fastq" << std::endl;
+		std::cout << "Samp02/Run1/output.fastq" << std::endl;
+		std::cout << "Samp02/Run2/output.fastq" << std::endl;
+		std::cout << "currentDir/" << std::endl;
+		std::cout << "----Samp01/" << std::endl;
+		std::cout << "--------Run1/" << std::endl;
+		std::cout << "------------output.fastq" << std::endl;
+		std::cout << "--------Run2/" << std::endl;
+		std::cout << "------------output.fastq" << std::endl;
+		std::cout << "----Samp02/" << std::endl;
+		std::cout << "--------Run1/" << std::endl;
+		std::cout << "------------output.fastq" << std::endl;
+		std::cout << "--------Run2/" << std::endl;
+		std::cout << "------------output.fastq" << std::endl;
+		std::cout << "program would be run from the directory that"
+				" contains Samp01 and Samp02 directories (here currentDir)"
+				<< std::endl;
+		std::cout
+				<< "sequences in the seq files should have a suffix of _[NUM] or _t[NUM] "
+						"where [NUM] is the number of reads associated with that sequence"
+				<< std::endl;
+		std::cout << "Final results are named with the name of the Sample Directories"
+				<< std::endl;
+		std::cout << bib::bashCT::bold << "Output Files:" << bib::bashCT::reset
+				<< std::endl;
+		std::cout
+				<< "selectedClustersInfo.tab.txt: This contains the final haplotype information and replicate comparison results, it is a very large table, consult the SeekDeep (http://bib2.umassmed.edu/~hathawan/SeekDeep.html) website for details on what each column means"
+				<< std::endl;
+		std::cout << "allClustersInfo.tab.txt: " << std::endl;
+		std::cout << "dotFiles: " << std::endl;
+		std::cout << "final: " << std::endl;
+		std::cout << "population/populationCluster.tab.txt: " << std::endl;
+		std::cout << "population/PopUID.fastq: " << std::endl;
+		exit(0);
+	}
 	if (pars_.debug_ && !failed_) {
 		std::cout << "p: " << pars_.qScorePars_.primaryQual_ << std::endl;
 		std::cout << "s: " << pars_.qScorePars_.secondaryQual_ << std::endl;
@@ -270,12 +219,29 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 				pars.binIteratorMap = processIteratorMap(pars.binParameters);
 			}
 		}
-		if (pars.differentPar) {
-			if (pars.onPerId) {
-				pars.popIteratorMap = processIteratorMapOnPerId(pars.parametersPopulation);
+		if (pars.differentPar || popClusParsPars.noErrorsSet
+				|| popClusParsPars.strictErrorsSet) {
+			if (popClusParsPars.noErrorsSet) {
+				if (popClusParsPars.hqMismatches > 0) {
+					pars.popIteratorMap =
+							CollapseIterations::genStrictNoErrorsDefaultParsWithHqs(
+									popClusParsPars.stopAfter, popClusParsPars.hqMismatches);
+				} else {
+					pars.popIteratorMap = CollapseIterations::genStrictNoErrorsDefaultPars(
+							popClusParsPars.stopAfter);
+				}
+			} else if (popClusParsPars.strictErrorsSet) {
+				pars.popIteratorMap = CollapseIterations::genStrictDefaultParsWithHqs(
+						popClusParsPars.stopAfter, popClusParsPars.hqMismatches, pars.illumina);
 			} else {
-				pars.popIteratorMap = processIteratorMap(pars.parametersPopulation);
+				if (pars.onPerId) {
+					pars.popIteratorMap = processIteratorMapOnPerId(
+							pars.parametersPopulation);
+				} else {
+					pars.popIteratorMap = processIteratorMap(pars.parametersPopulation);
+				}
 			}
+
 		} else {
 			pars.popIteratorMap = pars.iteratorMap;
 		}

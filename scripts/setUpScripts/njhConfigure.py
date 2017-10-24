@@ -26,7 +26,7 @@ def main():
     CXX = genHelper.determineCXX(args)
     if(args.externalLibDir):
         external = args.externalLibDir;
-    cmd = """scripts/setUpScripts/generateCompFile.py -installName {name}
+    cmd = os.path.join(os.path.dirname(os.path.dirname(__file__)), "setUpScripts/generateCompFile.py") + """ -installName {name}
      -outFilename compfile.mk -externalLoc {external} -CC {CC} -CXX {CXX}
       -neededLibs {libs} -outname {name}"""
     if args.prefix and args.prefix != "":

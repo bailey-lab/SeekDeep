@@ -37,18 +37,28 @@ DYLIB = $(addprefix $(addsuffix $(LIBNAME), $(LIB_DIR)/), .dylib)
 SOLIB = $(addprefix $(addsuffix $(LIBNAME), $(LIB_DIR)/), .so)
 ## Etc Directory
 ETC_DIR = etc
+## Script dir
+ifneq (,$(wildcard cppSetupTools/scripts))
+SCRIPTS_DIR = cppSetupTools/scripts
+else
+SCRIPTS_DIR = scripts
+endif
+
 
 ##Phony Targets
 .PHONY: all
 .PHONY: docs
 .PHONY: do_preReqs 
+.SILENT: do_preReqs 
 .PHONY: sharedLibrary
 .PHONY: dyLibrary
 .PHONY: clean
+.PHONY: installDirs
 .PHONY: install
 .PHONY: cpHeaders
 .PHONY: cpEtc
 .PHONY: unitTest
+.PHONY: printInstallDir
 
 ## unit tert dir 
 TESTDIR=test
@@ -56,8 +66,10 @@ TESTDIR=test
 ###compiler options, add in environmental 
 CXXFLAGS += $(ENV_CXXFLAGS)
 LD_FLAGS += $(ENV_LDFLAGS)
-#CXXFLAGS += -Wno-missing-braces
+
 COMMON = $(CXXFLAGS) $(CXXOPT) $(COMLIBS)
+
+##remove any object files that need to be removed due to updates to headers
 -include do_preReqs
 
 ############ default for calling make with no arguments
@@ -86,7 +98,7 @@ do_preReqs:
 ifndef COMPFILE
 	$(error compfile is not set, do either make COMPFILE=aCompfile.mk or create a file called compfile.mk)
 endif
-	scripts/setUpScripts/rmNeedToRecompile.py -obj $(OBJ_DIR) -src src/
+	$(SCRIPTS_DIR)/setUpScripts/rmNeedToRecompile.py -obj $(OBJ_DIR) -src src/ 
 
 	
 ############ shared library
@@ -114,14 +126,18 @@ INSTALL_DYLIBNAME=$(INSTALL_DIR)/lib/$(LIBNAME).dylib
 INSTALL_SHAREDLIBNAME=$(OBJ_DIR) $(INSTALL_DIR)/lib/$(LIBNAME).so 
 INSTALL_FILES=$(INSTALL_OUTNAME) $(INSTALL_DYLIBNAME) $(INSTALL_SHAREDLIBNAME)
 
-install: $(INSTALL_DIR) cpHeaders cpEtc do_preReqs $(INSTALL_FILES)
+install: installDirs cpHeaders cpEtc do_preReqs $(INSTALL_FILES)
 
+installDirs: $(INSTALL_DIR) $(INSTALL_DIR)/include $(INSTALL_DIR)/bin $(INSTALL_DIR)/lib
 
 #### install directories set up
 $(INSTALL_DIR): 
 	@mkdir -p $(INSTALL_DIR)
+$(INSTALL_DIR)/include: 
 	@mkdir -p $(INSTALL_DIR)/include
+$(INSTALL_DIR)/bin: 
 	@mkdir -p $(INSTALL_DIR)/bin
+$(INSTALL_DIR)/lib: 
 	@mkdir -p $(INSTALL_DIR)/lib
 	
 #### installing shared library
@@ -141,16 +157,18 @@ $(INSTALL_DIR)/bin/$(CXXOUTNAME): $(OBJ)
 ### Run the move headers script and remove the previous includes directory to get rid 
 ### of any headers that were removed
 cpHeaders: $(INSTALL_DIR)
-	scripts/setUpScripts/installHeaders.py -src src/ -dest $(INSTALL_DIR)/include/ -rmDir
+	$(SCRIPTS_DIR)/setUpScripts/installHeaders.py -src src/ -dest $(INSTALL_DIR)/include/ -rmDir
 	
 ### Copy etc folder if it exists 
 cpEtc: $(INSTALL_DIR)
 ifneq ("$(wildcard $(ETC_DIR))","")
-	scripts/setUpScripts/installEtc.py -etcFolder etc/ -dest $(INSTALL_DIR)/ -rmDir
+	$(SCRIPTS_DIR)/setUpScripts/installEtc.py -etcFolder etc/ -dest $(INSTALL_DIR)/ -rmDir
 endif
 
 ### Run unit tests if available
 unitTest: 
-	scripts/setUpScripts/runUnitTest.sh
+	$(SCRIPTS_DIR)/setUpScripts/runUnitTest.sh
 	
 
+printInstallDir:
+	@echo $(INSTALL_DIR)

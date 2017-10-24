@@ -31,6 +31,8 @@ $(document).ready(function(){
 		addDiv("#mainContent", "dnaViewer");
 		addPanelOnlyHead("#mainContent", "Haplotype Information Table");
 		addDiv("#mainContent", "popTable");
+		addPanelOnlyHead("#mainContent", "Haplotype ID Table");
+		addDiv("#mainContent", "hapIdTab");
 		//get sample names and the table with the sample names
 		//ajaxPost('/' + rName + '/sampInfo' + "/" + projectName, {"sampNames":sampNames}, function(tab){ mainPopInfoTab = tab; });
 		var cols = 10;
@@ -48,17 +50,21 @@ $(document).ready(function(){
 			var sampleChart = new njhSampleChart("#sampleChartMaster", sampInfo, names["projectName"] +  "_sampChart","s_Sample", "c_AveragedFrac","h_popUID", ["s_Sample", "h_popUID", "c_clusterID", "c_AveragedFrac"]);
 			var popUrls = ["/" + rName + "/popInfo/" + projectName]
 			popUrls.push("/" + rName + "/popSeqData/" + projectName);
+			popUrls.push("/" + rName + "/hapIdTable/" + projectName);
 			Promise.all(popUrls.map(function(popUrl){
-				return postJSON(popUrl, {popUIDs:sampInfo["popUIDs"]});
+				return postJSON(popUrl, {popUIDs:sampInfo["popUIDs"], samples:names["samples"]});
 			})).then(function(popData){
 				//0 is popIno, 1 is popSeqs
 				var popInfoTab = popData[0];
 				var popSeqData = popData[1];
+				var hapIdTabInfo = popData[2];
 				//set up seqs
 				var sesUid = popSeqData["sessionUID"];
 				var SeqViewer = new njhSeqView("#dnaViewer", popSeqData);
 				setUpCloseSession(sesUid);
 				var popTable = new njhTable("#popTable", popInfoTab, names["projectName"] + "_popInfo", true);
+				var hapIdTab = new njhTable("#hapIdTab", hapIdTabInfo, names["projectName"] + "_hapIdTable", false);
+				hapIdTab.enactPoorMansHeatMap();
 				function updateChartOnClick() { 
 					//get all currently checked sample boxes and then update the current samples  
 				    var allVals = [];
@@ -72,13 +78,17 @@ $(document).ready(function(){
 				    postJSON("/" + rName + "/sampInfo/" + projectName,
 				    		{"sampNames":currentSampNames, sessionUID:sesUid}).then(function(sampInfo){
 				    	Promise.all(popUrls.map(function(popUrl){
-							return postJSON(popUrl, {popUIDs:sampInfo["popUIDs"], sessionUID:sesUid});
+							return postJSON(popUrl, {popUIDs:sampInfo["popUIDs"], sessionUID:sesUid, samples:currentSampNames});
 						})).then(function(popData){
 							//for popData 0 is popIno, 1 is popSeqs
 							sampleTable.updateWithData(sampInfo);
 						 	sampleChart.updateWithData(sampInfo);
 						 	popTable.updateWithData(popData[0]);
 						 	SeqViewer.updateData(popData[1]);
+						 	d34.select("#hapIdTab").selectAll("*").remove();
+						 	hapIdTab = new njhTable("#hapIdTab", popData[2], names["projectName"] + "_hapIdTable", false);
+						 	hapIdTab.enactPoorMansHeatMap();
+						 	
 						 	$("#sampleHeader").scrollView(60, 0);
 						}).catch(logRequestError).then(function(){
 							//stop loading population info

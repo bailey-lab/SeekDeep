@@ -72,10 +72,10 @@ int SeekDeepRunner::processClusters(const bib::progutils::CmdArgs & inputCommand
 	//write clustering parameters
 	auto parsDir = bib::files::makeDir(setUp.pars_.directoryName_, bib::files::MkdirPar("pars"));
 	std::ofstream parsOutFile;
-	openTextFile(parsOutFile, OutOptions(bib::files::make_path(parsDir, "pars.tab.txt").string()));
+	openTextFile(parsOutFile, OutOptions(bib::files::make_path(parsDir, "pars.tab.txt")));
 	pars.iteratorMap.writePars(parsOutFile);
 	std::ofstream popParsOutFile;
-	openTextFile(popParsOutFile, OutOptions(bib::files::make_path(parsDir, "popPars.tab.txt").string()));
+	openTextFile(popParsOutFile, OutOptions(bib::files::make_path(parsDir, "popPars.tab.txt")));
 	pars.popIteratorMap.writePars(popParsOutFile);
 
 
@@ -83,7 +83,7 @@ int SeekDeepRunner::processClusters(const bib::progutils::CmdArgs & inputCommand
 	std::map<std::string, double> customCutOffsMap = processCustomCutOffs(pars.customCutOffs);
 	//read in the files in the corresponding sample directories
 	auto analysisFiles = bib::files::listAllFiles(pars.masterDir, true,
-			{ std::regex { "^" + setUp.pars_.ioOptions_.firstName_ + "$" } }, 3);
+			{ std::regex { "^" + setUp.pars_.ioOptions_.firstName_.string() + "$" } }, 3);
 
 	std::set<std::string> samplesDirsSet;
 	for (const auto & af : analysisFiles) {
@@ -143,7 +143,8 @@ int SeekDeepRunner::processClusters(const bib::progutils::CmdArgs & inputCommand
 	collapse::SampleCollapseCollection sampColl(setUp.pars_.ioOptions_, pars.masterDir,
 			setUp.pars_.directoryName_,
 			PopNamesInfo(pars.experimentName, samplesDirs),
-			pars.clusterCutOff);
+			pars.clusterCutOff,
+			pars.sampleMinTotalReadCutOff);
 
 	if("" != pars.groupingsFile){
 		sampColl.addGroupMetaData(pars.groupingsFile);
@@ -272,12 +273,15 @@ int SeekDeepRunner::processClusters(const bib::progutils::CmdArgs & inputCommand
 	}
 
 	sampColl.printSampleCollapseInfo(
-			bib::files::join(sampColl.masterOutputDir_.string(),
+			bib::files::make_path(sampColl.masterOutputDir_,
 					"selectedClustersInfo.tab.txt"));
 
 	sampColl.symlinkInSampleFinals();
 	sampColl.outputRepAgreementInfo();
 	if(!pars.noPopulation){
+		table hapIdTab = sampColl.genHapIdTable();
+		hapIdTab.outPutContents(TableIOOpts::genTabFileOut(bib::files::make_path(sampColl.masterOutputDir_,
+				"hapIdTable.tab.txt"), true));
 		sampColl.dumpPopulation();
 	}
 	if("" != pars.groupingsFile){
@@ -314,7 +318,7 @@ int SeekDeepRunner::processClusters(const bib::progutils::CmdArgs & inputCommand
 			currentProfileTab.columnNames_[maxLenPos.front()] = "maxlen";
 			auto oldColumnNames = currentProfileTab.columnNames_;
 			currentProfileTab.addColumn(VecStr{extractDir.filename().string()}, "extractionDir");
-			currentProfileTab = currentProfileTab.getColumns(catenateVectors(VecStr{"extractionDir"}, oldColumnNames));
+			currentProfileTab = currentProfileTab.getColumns(concatVecs(VecStr{"extractionDir"}, oldColumnNames));
 
 			if(profileTab.empty()){
 				profileTab = currentProfileTab;
@@ -326,7 +330,7 @@ int SeekDeepRunner::processClusters(const bib::progutils::CmdArgs & inputCommand
 			table curentStatsTab(statsFnp.string(), "\t", true);
 			auto oldColumnNames = curentStatsTab.columnNames_;
 			curentStatsTab.addColumn(VecStr{extractDir.filename().string()}, "extractionDir");
-			curentStatsTab = curentStatsTab.getColumns(catenateVectors(VecStr{"extractionDir"}, oldColumnNames));
+			curentStatsTab = curentStatsTab.getColumns(concatVecs(VecStr{"extractionDir"}, oldColumnNames));
 			if(statsTab.empty()){
 				statsTab = curentStatsTab;
 			}else{

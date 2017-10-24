@@ -33,7 +33,7 @@
 namespace bibseq {
 
 SeekDeepServerRunner::SeekDeepServerRunner()
-    : bib::progutils::programRunner(
+    : bib::progutils::ProgramRunner(
     		{
 				addFunc("genProjectConfig", genProjectConfig, false),
 				addFunc("popClusteringViewer", popClusteringViewer, false)
@@ -49,7 +49,7 @@ void errorHandler(const int statusCode, const std::exception& exception,
 		const std::shared_ptr<restbed::Session>& session) {
 	std::cerr << "statusCode: " << statusCode << std::endl;
 	std::cerr << exception.what() << std::endl;
-	if(session->is_open()){
+	if(nullptr != session && session->is_open()){
 		session->close(statusCode, exception.what(), { { "Server", "Restbed" } });
 	}
 }
@@ -63,7 +63,7 @@ int SeekDeepServerRunner::popClusteringViewer(const bib::progutils::CmdArgs & in
 	bfs::path configDir = "";
 	bfs::path resourceDirName = bib::files::make_path(SeekDeep_INSTALLDIR, "etc/serverResources").string();
 	setUp.setOption(resourceDirName, "-resourceDirName",
-			"Name of the resource Directory where the js and hmtl is located",
+			"Name of the resource Directory where the js and html is located",
 			!bfs::exists(resourceDirName));
 
 	setUp.setOption(configDir, "-configDir", "Name of the Master Result Directory", true);

@@ -48,6 +48,10 @@ private:
 			const restbed::Bytes & body);
 	void getPopInfoHandler(std::shared_ptr<restbed::Session> session);
 
+	void getHapIdTablePostHandler(std::shared_ptr<restbed::Session> session,
+			const restbed::Bytes & body);
+	void getHapIdTableHandler(std::shared_ptr<restbed::Session> session);
+
 
 	////
 	/// sample
@@ -83,6 +87,13 @@ private:
 	void groupGetPopInfoPostHanlder(std::shared_ptr<restbed::Session> session,
 			const restbed::Bytes & body);
 	void groupGetPopInfoHanlder(std::shared_ptr<restbed::Session> session);
+
+	void groupGetHapIdTablePostHanlder(std::shared_ptr<restbed::Session> session,
+			const restbed::Bytes & body);
+	void groupGetHapIdTableHanlder(std::shared_ptr<restbed::Session> session);
+
+
+
 
 	///
 	/// extraction
@@ -125,6 +136,8 @@ public:
 	std::shared_ptr<restbed::Resource> getPopSeqs();
 	std::shared_ptr<restbed::Resource> getPopInfo();
 
+	std::shared_ptr<restbed::Resource> getHapIdTable();
+
 	///
 	/// sample
 	///
@@ -146,6 +159,8 @@ public:
 	std::shared_ptr<restbed::Resource> groupGetSampleInfoTab();
 	std::shared_ptr<restbed::Resource> groupGetPopSeqs();
 	std::shared_ptr<restbed::Resource> groupGetPopInfo();
+
+	std::shared_ptr<restbed::Resource> groupGetHapIdTable();
 
 	///
 	/// extraction

@@ -35,7 +35,7 @@
 
 namespace bibseq {
 
-class SeekDeepRunner : public bib::progutils::oneRing {
+class SeekDeepRunner : public bib::progutils::OneRing {
 
  public:
   SeekDeepRunner();

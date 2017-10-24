@@ -541,7 +541,7 @@ void TarAmpAnalysisSetup::writeOutIdFiles() const{
 		}
 		idsMids_->writeIdFile(
 				OutOptions(
-						bib::files::make_path(idsDir_, collapse + ".id.txt").string()),
+						bib::files::make_path(idsDir_, collapse + ".id.txt")),
 				tarCombo);
 	}
 }
@@ -568,18 +568,9 @@ void TarAmpAnalysisSetup::setUpPopClusteringDirs(bool verbose) const {
 					bib::files::make_path(topPopDir, tar).string(), false, verbose);
 		}
 	} else {
-		if (tars.size() > 1) {
-			setUpSampleDirs(
-					bib::files::make_path(infoDir_, "sampNames.tab.txt").string(),
-					bib::files::make_path(dir_, "popClustering").string(), true, verbose);
-		} else {
-			auto topPopDir = bib::files::makeDir(dir_.string(),
-					bib::files::MkdirPar("popClustering"));
-			setUpSampleDirs(
-					bib::files::make_path(infoDir_, "sampNames.tab.txt").string(),
-					bib::files::make_path(topPopDir, tars.front()).string(), false,
-					verbose);
-		}
+		setUpSampleDirs(
+							bib::files::make_path(infoDir_, "sampNames.tab.txt").string(),
+							bib::files::make_path(dir_, "popClustering").string(), true, verbose);
 	}
 }
 

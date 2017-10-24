@@ -36,7 +36,7 @@ void pcv::loadInCollections(){
 
 	auto files = bib::files::listAllFiles(configDir_.string(), false, {std::regex{".*.config$"}});
 	for(const auto & f : files){
-		if(bib::beginsWith(f.first.string(), ".")){
+		if(bib::beginsWith(f.first.filename().string(), ".")){
 			continue;
 		}
 		if(!f.second){
@@ -254,7 +254,7 @@ void pcv::samplePageHandler(
 			std::stringstream ss;
 			ss << __PRETTY_FUNCTION__ << ": error, no such sample as "
 					<< sampleName << " " << "in project " << projectName << ", options are "
-					<< bib::conToStr(collections_[projectName]->collection_->popNames_.samples_, ", ") << "\n";
+					<< bib::conToStr(collections_[projectName]->collection_->passingSamples_, ", ") << "\n";
 			ss << "Redirecting..." << "\n";
 			redirect(session, ss.str());
 		}
@@ -314,8 +314,7 @@ void pcv::getGroupsPopInfosHandler(
 	auto mess = messFac_->genLogMessage(__PRETTY_FUNCTION__);
 	const auto request = session->get_request();
 	auto heads = request->get_headers();
-	size_t content_length = 0;
-	request->get_header("Content-Length", content_length);
+	size_t content_length = request->get_header("Content-Length", 0);
 	session->fetch(content_length,
 			std::function<
 					void(std::shared_ptr<restbed::Session>, const restbed::Bytes & body)>(
@@ -387,7 +386,8 @@ void pcv::getSampleNamesHandler(
 	Json::Value ret;
 	ret["samples"] = "";
 	if (bib::in(projectName, collections_)) {
-		ret["samples"] = bib::json::toJson(collections_[projectName]->collection_->popNames_.samples_);
+
+		ret["samples"] = bib::json::toJson(collections_[projectName]->collection_->passingSamples_);
 	} else {
 		std::cerr << __PRETTY_FUNCTION__ << ": error, no such project as "
 				<< projectName << ", options are "
@@ -456,9 +456,13 @@ void pcv::getSampleInfoTabPostHandler(std::shared_ptr<restbed::Session> session,
 				return bib::in(str, sampNames);
 			};
 			auto trimedTab = sampTable_.extractByComp("s_Name", containsSampName);
+			std::string coiColName = "s_FinalClusterCnt";
+			if(bib::in(std::string("s_COI"), sampTable_.columnNames_)){
+				coiColName = "s_COI";
+			}
 			VecStr visibleColumns = VecStr { "s_Sample",
 				"h_popUID", "h_SampCnt", "h_SampFrac", "s_ReadCntTotUsed",
-				"s_FinalClusterCnt", "c_clusterID", "c_AveragedFrac", "c_ReadCnt",
+				coiColName, "c_clusterID", "c_AveragedFrac", "c_ReadCnt",
 				"c_RepCnt" };
 			if(bib::in(std::string("bestExpected"), sampTable_.columnNames_)){
 				visibleColumns.emplace_back("bestExpected");
@@ -492,8 +496,7 @@ void pcv::getSampleInfoTabHandler(
 	auto mess = messFac_->genLogMessage(__PRETTY_FUNCTION__);
 	const auto request = session->get_request();
 	auto heads = request->get_headers();
-	size_t content_length = 0;
-	request->get_header("Content-Length", content_length);
+	size_t content_length = request->get_header("Content-Length", 0);
 	session->fetch(content_length,
 			std::function<
 					void(std::shared_ptr<restbed::Session>, const restbed::Bytes & body)>(
@@ -555,14 +558,13 @@ void pcv::getPopSeqsHandler(std::shared_ptr<restbed::Session> session) {
 	auto mess = messFac_->genLogMessage(__PRETTY_FUNCTION__);
 	const auto request = session->get_request();
 	auto heads = request->get_headers();
-	size_t content_length = 0;
-	request->get_header("Content-Length", content_length);
+	size_t content_length = request->get_header("Content-Length", 0);
 	session->fetch(content_length,
 			std::function<
 					void(std::shared_ptr<restbed::Session>, const restbed::Bytes & body)>(
 					[this](std::shared_ptr<restbed::Session> ses, const restbed::Bytes & body) {
 						getPopSeqsPostHandler(ses, body);
-					}));
+					})); //s_FinalClusterCnt
 }
 
 void pcv::getSampSeqsPostHandler(std::shared_ptr<restbed::Session> session,
@@ -587,7 +589,7 @@ void pcv::getSampSeqsPostHandler(std::shared_ptr<restbed::Session> session,
 			} else {
 				std::cerr << __PRETTY_FUNCTION__ << ": error, no such sample as "
 						<< sampleName << " " << "in project " << projectName << ", options are "
-						<< bib::conToStr(collections_[projectName]->collection_->popNames_.samples_, ", ") << std::endl;
+						<< bib::conToStr(collections_[projectName]->collection_->passingSamples_, ", ") << std::endl;
 			}
 		} else {
 			std::cerr << __PRETTY_FUNCTION__ << ": error, no such project as "
@@ -611,8 +613,7 @@ void pcv::getSampSeqsHandler(std::shared_ptr<restbed::Session> session) {
 	auto mess = messFac_->genLogMessage(__PRETTY_FUNCTION__);
 	const auto request = session->get_request();
 	auto heads = request->get_headers();
-	size_t content_length = 0;
-	request->get_header("Content-Length", content_length);
+	size_t content_length = request->get_header("Content-Length", 0);
 	session->fetch(content_length,
 			std::function<
 					void(std::shared_ptr<restbed::Session>, const restbed::Bytes & body)>(
@@ -661,12 +662,55 @@ void pcv::getPopInfoPostHandler(std::shared_ptr<restbed::Session> session,
 	session->close(restbed::OK, retBody, headers);
 }
 
+void pcv::getHapIdTablePostHandler(std::shared_ptr<restbed::Session> session,
+		const restbed::Bytes & body){
+	auto mess = messFac_->genLogMessage(__PRETTY_FUNCTION__);
+
+	const auto postData = bib::json::parse(std::string(body.begin(), body.end()));
+	bib::json::MemberChecker checker(postData);
+	Json::Value ret;
+	if (checker.failMemberCheck( { "popUIDs", "samples" }, __PRETTY_FUNCTION__)) {
+		std::cerr << checker.message_.str() << std::endl;
+	} else {
+		auto request = session->get_request();
+		std::string projectName = request->get_path_parameter("projectName");
+		if (bib::in(projectName, collections_)) {
+			auto popUIDs = bib::json::jsonArrayToVec<std::string>(postData["popUIDs"],
+					[](const Json::Value & val) {return val.asString();});
+			auto samples = bib::json::jsonArrayToVec<std::string>(postData["samples"],
+					[](const Json::Value & val) {return val.asString();});
+			auto hapIdTab = collections_[projectName]->tabs_.hapIdTab_->get().getColumns(concatVecs(VecStr{"#PopUID"}, samples)).extractByComp(
+					"#PopUID",
+					[&popUIDs](const std::string & str) {return bib::in(str, popUIDs);});
+			auto trimedHapIdTab =
+					hapIdTab.extractByComp(
+							"#PopUID",
+							[&popUIDs](const std::string & str) {return bib::in(str, popUIDs);});
+			ret = tableToJsonByRow(trimedHapIdTab, "#PopUID");
+
+		} else {
+			std::cerr << __PRETTY_FUNCTION__ << ": error, no such project as "
+					<< projectName << ", options are "
+					<< bib::conToStr(bib::getVecOfMapKeys(collections_)) << "\n";
+		}
+	}
+	/**@todo check other headers for connection close
+	 *
+	 */
+	auto retBody = bib::json::writeAsOneLine(ret);
+	std::multimap<std::string, std::string> headers =
+			HeaderFactory::initiateAppJsonHeader(retBody);
+	headers.emplace("Connection", "close");
+	session->close(restbed::OK, retBody, headers);
+}
+
+
+
 void pcv::getPopInfoHandler(std::shared_ptr<restbed::Session> session) {
 	auto mess = messFac_->genLogMessage(__PRETTY_FUNCTION__);
 	const auto request = session->get_request();
 	auto heads = request->get_headers();
-	size_t content_length = 0;
-	request->get_header("Content-Length", content_length);
+	size_t content_length = request->get_header("Content-Length", 0);
 	session->fetch(content_length,
 			std::function<
 					void(std::shared_ptr<restbed::Session>, const restbed::Bytes & body)>(
@@ -991,9 +1035,13 @@ void pcv::groupGetSampleInfoTabPostHanlder(
 							return bib::in(str, sampNames);
 						};
 						auto trimedTab = sampTable_.extractByComp("s_Name", containsSampName);
+						std::string coiColName = "s_FinalClusterCnt";
+						if(bib::in(std::string("s_COI"), sampTable_.columnNames_)){
+							coiColName = "s_COI";
+						}
 						VecStr visibleColumns = VecStr { "s_Sample", "g_GroupName",
 							"h_popUID", "h_SampCnt", "h_SampFrac", "s_ReadCntTotUsed",
-							"s_FinalClusterCnt", "c_clusterID", "c_AveragedFrac", "c_ReadCnt",
+							coiColName, "c_clusterID", "c_AveragedFrac", "c_ReadCnt",
 							"c_RepCnt" };
 						if(bib::in(std::string("bestExpected"), sampTable_.columnNames_)){
 							visibleColumns.emplace_back("bestExpected");
@@ -1043,8 +1091,7 @@ void pcv::groupGetSampleInfoTabHanlder(
 	auto mess = messFac_->genLogMessage(__PRETTY_FUNCTION__);
 	const auto request = session->get_request();
 	auto heads = request->get_headers();
-	size_t content_length = 0;
-	request->get_header("Content-Length", content_length);
+	size_t content_length = request->get_header("Content-Length", 0);
 	session->fetch(content_length,
 			std::function<
 					void(std::shared_ptr<restbed::Session>, const restbed::Bytes & body)>(
@@ -1131,8 +1178,7 @@ void pcv::groupGetPopSeqsHanlder(
 	auto mess = messFac_->genLogMessage(__PRETTY_FUNCTION__);
 	const auto request = session->get_request();
 	auto heads = request->get_headers();
-	size_t content_length = 0;
-	request->get_header("Content-Length", content_length);
+	size_t content_length = request->get_header("Content-Length", 0);
 	session->fetch(content_length,
 			std::function<
 					void(std::shared_ptr<restbed::Session>, const restbed::Bytes & body)>(
@@ -1201,18 +1247,107 @@ void pcv::groupGetPopInfoPostHanlder(
 	session->close(restbed::OK, retBody, headers);
 }
 
+void pcv::groupGetHapIdTablePostHanlder(
+		std::shared_ptr<restbed::Session> session, const restbed::Bytes & body) {
+	auto mess = messFac_->genLogMessage(__PRETTY_FUNCTION__);
+	auto request = session->get_request();
+	std::string projectName = request->get_path_parameter("projectName");
+	std::string groupName = request->get_path_parameter("groupName");
+	std::string subGroupName = request->get_path_parameter("subGroupName");
+
+	const auto postData = bib::json::parse(std::string(body.begin(), body.end()));
+	bib::json::MemberChecker checker(postData);
+	Json::Value ret;
+	if (checker.failMemberCheck( { "popUIDs", "samples" }, __PRETTY_FUNCTION__)) {
+		std::cerr << checker.message_.str() << std::endl;
+	} else {
+		if (bib::in(projectName, collections_)) {
+			if(nullptr != collections_[projectName]->collection_->groupDataPaths_){
+				if (bib::in(groupName, collections_[projectName]->collection_->groupDataPaths_->allGroupPaths_)) {
+					if(bib::in(subGroupName, collections_[projectName]->collection_->groupDataPaths_->allGroupPaths_.at(groupName).groupPaths_)){
+						auto popUIDs = bib::json::jsonArrayToVec<std::string>(postData["popUIDs"],
+								[](const Json::Value & val) {return val.asString();});
+						auto samples = bib::json::jsonArrayToVec<std::string>(postData["samples"],
+								[](const Json::Value & val) {return val.asString();});
+						auto hapIdTab = collections_[projectName]->subGroupTabs_.at(groupName).at(subGroupName).hapIdTab_->get().getColumns(concatVecs(VecStr{"#PopUID"}, samples)).extractByComp(
+								"#PopUID",
+								[&popUIDs](const std::string & str) {return bib::in(str, popUIDs);});
+
+						auto trimedHapIdTab = hapIdTab.extractByComp(
+										"#PopUID",
+										[&popUIDs](const std::string & str) {return bib::in(str, popUIDs);});
+						ret = tableToJsonByRow(trimedHapIdTab, "#PopUID");
+					}else{
+						std::cerr << __PRETTY_FUNCTION__ << ": error, no such sub group as " << subGroupName
+								<< " in group " << groupName << " in project " << projectName << ", options are "
+								<< bib::conToStr(
+										getVectorOfMapKeys(collections_[projectName]->collection_->groupDataPaths_->allGroupPaths_.at(groupName).groupPaths_),
+										", ") << "\n";
+					}
+				} else {
+					std::cerr << __PRETTY_FUNCTION__ << ": error, no such group as " << groupName
+							<< " " << "in project " << projectName << ", options are "
+							<< bib::conToStr(
+									getVectorOfMapKeys(collections_[projectName]->collection_->groupDataPaths_->allGroupPaths_),
+									", ") << "\n";
+				}
+			}else{
+				std::cerr << __PRETTY_FUNCTION__ << ": error, no group data for "  << projectName << "\n";
+			}
+		} else {
+			std::cerr << __PRETTY_FUNCTION__ << ": error, no such project as "
+					<< projectName << ", options are "
+					<< bib::conToStr(bib::getVecOfMapKeys(collections_), ", ") << "\n";
+		}
+	}
+
+	auto retBody = bib::json::writeAsOneLine(ret);
+	std::multimap<std::string, std::string> headers =
+			HeaderFactory::initiateAppJsonHeader(retBody);
+	headers.emplace("Connection", "close");
+	session->close(restbed::OK, retBody, headers);
+}
+
 void pcv::groupGetPopInfoHanlder(
 		std::shared_ptr<restbed::Session> session) {
 	auto mess = messFac_->genLogMessage(__PRETTY_FUNCTION__);
 	const auto request = session->get_request();
 	auto heads = request->get_headers();
-	size_t content_length = 0;
-	request->get_header("Content-Length", content_length);
+	size_t content_length = request->get_header("Content-Length", 0);
 	session->fetch(content_length,
 			std::function<
 					void(std::shared_ptr<restbed::Session>, const restbed::Bytes & body)>(
 					[this](std::shared_ptr<restbed::Session> ses, const restbed::Bytes & body) {
 						groupGetPopInfoPostHanlder(ses, body);
+					}));
+}
+
+
+
+
+void pcv::groupGetHapIdTableHanlder(std::shared_ptr<restbed::Session> session){
+	auto mess = messFac_->genLogMessage(__PRETTY_FUNCTION__);
+	const auto request = session->get_request();
+	auto heads = request->get_headers();
+	size_t content_length = request->get_header("Content-Length", 0);
+	session->fetch(content_length,
+			std::function<
+					void(std::shared_ptr<restbed::Session>, const restbed::Bytes & body)>(
+					[this](std::shared_ptr<restbed::Session> ses, const restbed::Bytes & body) {
+		groupGetHapIdTablePostHanlder(ses, body);
+					}));
+}
+
+void pcv::getHapIdTableHandler(std::shared_ptr<restbed::Session> session){
+	auto mess = messFac_->genLogMessage(__PRETTY_FUNCTION__);
+	const auto request = session->get_request();
+	auto heads = request->get_headers();
+	size_t content_length = request->get_header("Content-Length", 0);
+	session->fetch(content_length,
+			std::function<
+					void(std::shared_ptr<restbed::Session>, const restbed::Bytes & body)>(
+					[this](std::shared_ptr<restbed::Session> ses, const restbed::Bytes & body) {
+		getHapIdTablePostHandler(ses, body);
 					}));
 }
 
@@ -1297,6 +1432,36 @@ std::shared_ptr<restbed::Resource> pcv::groupGetPopInfo(){
 	return resource;
 }
 
+std::shared_ptr<restbed::Resource> pcv::getHapIdTable(){
+	auto mess = messFac_->genLogMessage(__PRETTY_FUNCTION__);
+	auto resource = std::make_shared<restbed::Resource>();
+	resource->set_path(
+			UrlPathFactory::createUrl( { { rootName_ }, { "hapIdTable" }, {
+					"projectName", UrlPathFactory::pat_wordNumsDash_ } }));
+	resource->set_method_handler("POST",
+			std::function<void(std::shared_ptr<restbed::Session>)>(
+					[this](std::shared_ptr<restbed::Session> session) {
+		getHapIdTableHandler(session);
+					}));
+	return resource;
+}
+
+std::shared_ptr<restbed::Resource> pcv::groupGetHapIdTable(){
+	auto mess = messFac_->genLogMessage(__PRETTY_FUNCTION__);
+	auto resource = std::make_shared<restbed::Resource>();
+	resource->set_path(
+			UrlPathFactory::createUrl( { { rootName_ }, { "groupHapIdTable" },
+		{"projectName", UrlPathFactory::pat_wordNumsDash_ },
+		{"groupName", UrlPathFactory::pat_wordNumsDash_ },
+		{"subGroupName", UrlPathFactory::pat_wordNumsDash_ }}));
+	resource->set_method_handler("POST",
+			std::function<void(std::shared_ptr<restbed::Session>)>(
+					[this](std::shared_ptr<restbed::Session> session) {
+						groupGetHapIdTableHanlder(session);
+					}));
+	return resource;
+}
+
 
 
 
@@ -1314,6 +1479,7 @@ std::vector<std::shared_ptr<restbed::Resource>> pcv::getAllResources() {
 	ret.emplace_back(getSampleInfoTab());
 	ret.emplace_back(getPopSeqs());
 	ret.emplace_back(getPopInfo());
+	ret.emplace_back(getHapIdTable());
 
 	//sample
 	ret.emplace_back(samplePage());
@@ -1329,6 +1495,7 @@ std::vector<std::shared_ptr<restbed::Resource>> pcv::getAllResources() {
 	ret.emplace_back(groupGetSampleInfoTab());
 	ret.emplace_back(groupGetPopSeqs());
 	ret.emplace_back(groupGetPopInfo());
+	ret.emplace_back(groupGetHapIdTable());
 
 	//extraction
 	ret.emplace_back(extractionPage());
@@ -1340,7 +1507,7 @@ std::vector<std::shared_ptr<restbed::Resource>> pcv::getAllResources() {
 
 
 VecStr pcv::requiredOptions() const {
-	return catenateVectors(super::requiredOptions(), VecStr { "configDir",
+	return concatVecs(super::requiredOptions(), VecStr { "configDir",
 			"resources" });
 }
 

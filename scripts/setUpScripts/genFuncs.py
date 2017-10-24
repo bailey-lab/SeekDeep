@@ -15,7 +15,7 @@ class genHelper:
                           "TWOBIT", "SEQSERVER","NJHRINSIDE", "PSTREAMS",
                            "MONGOC", "MONGOCXX", "SHAREDMUTEX",
                            "MAGIC", "HTS", "RESTBED", "LIBPCA", "BOOST_FILESYSTEM", 
-                           "ELUCIDATOR", "EIGEN"]
+                           "ELUCIDATOR", "EIGEN", "ZLIB", "ZLIB-NG"]
         neededLibraries = {}
         for lib in neededLibs:
             if ":" in lib:
@@ -58,7 +58,7 @@ class genHelper:
 
 
     @staticmethod            
-    def determineCC(args, defaultCC = "clang-3.8"):
+    def determineCC(args, defaultCC = "gcc-7"):
         if Utils.isMac():
             defaultCC = "clang"
         if not args.CC:
@@ -70,7 +70,7 @@ class genHelper:
         return defaultCC
     
     @staticmethod
-    def determineCXX(args, defaultCXX = "clang++-3.8"):
+    def determineCXX(args, defaultCXX = "g++-7"):
         if Utils.isMac():
             defaultCXX = "clang++"
         if not args.CXX:
@@ -93,9 +93,9 @@ class genHelper:
     @staticmethod
     def mkConfigCmd(name,libs, argv, ldflags="", cxxFlags=""):
         if libs == "":
-            cmd = "./scripts/setUpScripts/njhConfigure.py -name {name} ".format(name=name)
+            cmd = os.path.join(os.path.dirname(os.path.dirname(__file__)), "setUpScripts/njhConfigure.py") + " -name {name} ".format(name=name)
         else:
-            cmd = "./scripts/setUpScripts/njhConfigure.py -name {name} -libs {libs}".format(name=name, libs=libs)
+            cmd = os.path.join(os.path.dirname(os.path.dirname(__file__)), "setUpScripts/njhConfigure.py") + " -name {name} -libs {libs}".format(name=name, libs=libs)
         if "" != ldflags:
             if ldflags.startswith("-"):
                 ldflags = ldflags[1:]

@@ -20,6 +20,7 @@ namespace bibseq {
 struct ClusInfoTabs{
 	std::unique_ptr<TableCache> sampInfo_;
 	std::unique_ptr<TableCache> popInfo_;
+	std::unique_ptr<TableCache> hapIdTab_;
 };
 
 /**@brief class to hold information on a clustering project to help in serving it's infomration

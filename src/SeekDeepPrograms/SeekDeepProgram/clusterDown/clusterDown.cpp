@@ -61,7 +61,7 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 
 	//write out clustering parameters
 
-	std::string parDir = bib::files::makeDir(setUp.pars_.directoryName_, bib::files::MkdirPar("pars"));
+	std::string parDir = bib::files::makeDir(setUp.pars_.directoryName_, bib::files::MkdirPar("pars")).string();
 	std::ofstream parsOutFile;
 	openTextFile(parsOutFile, OutOptions(bib::files::join(parDir, "pars.txt")));
 	pars.iteratorMap.writePars(parsOutFile);
@@ -119,7 +119,7 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 	pars.iteratorMap.writePars(setUp.rLog_.runLogFile_);
 	if (setUp.pars_.verbose_) {
 		std::cout << "Reading clusters from " << setUp.pars_.ioOptions_.firstName_ << " "
-				<< setUp.pars_.ioOptions_.secondName_ << std::endl;
+				<< ("" == setUp.pars_.ioOptions_.secondName_ ? "": setUp.pars_.ioOptions_.secondName_.string()) << std::endl;
 		std::cout << "Read in " << counter << " reads" << std::endl;
 	}
 	setUp.rLog_ << "Reading clusters from " << setUp.pars_.ioOptions_.firstName_ << " "
@@ -244,7 +244,7 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 	}
 
 	readVecSorter::sortReadVector(clusters, "totalCount");
-	std::string seqName = bib::files::getFileName(setUp.pars_.ioOptions_.firstName_);
+	std::string seqName = bfs::basename(setUp.pars_.ioOptions_.firstName_);
 	readVecSorter::sort(clusters);
 	renameReadNames(clusters, seqName, true, false, false);
 
@@ -284,7 +284,7 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 		SeqOutput::write(clusters,
 				SeqIOOptions(
 						setUp.pars_.directoryName_
-								+ setUp.pars_.ioOptions_.out_.outFilename_ + "_befroeTanCol",
+								+ setUp.pars_.ioOptions_.out_.outFilename_.string() + "_befroeTanCol",
 						setUp.pars_.ioOptions_.outFormat_, setUp.pars_.ioOptions_.out_));
 		std::cout << "Collapsing on tandem repeat gaps" << std::endl;
 		std::cout << "Starting with " << clusters.size() << " clusters"
@@ -304,7 +304,7 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 				"outputInfo");
 	} else {
 		profiler::getFractionInfoCluster(clusters, setUp.pars_.directoryName_,
-				"outputInfo", setUp.pars_.refIoOptions_.firstName_, alignerObj,
+				"outputInfo", setUp.pars_.refIoOptions_.firstName_.string(), alignerObj,
 				setUp.pars_.local_);
 	}
 	std::ofstream startingInfo;
@@ -318,14 +318,14 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 	}
 	if (pars.additionalOut) {
 		std::string additionalOutDir = findAdditonalOutLocation(
-				pars.additionalOutLocationFile, setUp.pars_.ioOptions_.firstName_);
+				pars.additionalOutLocationFile, setUp.pars_.ioOptions_.firstName_.string());
 		if (additionalOutDir == "") {
 			std::cerr << bib::bashCT::red << bib::bashCT::bold;
 			std::cerr << "No additional out directory found for: "
 					<< setUp.pars_.ioOptions_.firstName_ << std::endl;
 			std::cerr << bib::bashCT::reset;
 		} else {
-			SeqOutput::write(clusters, SeqIOOptions(additionalOutDir + setUp.pars_.ioOptions_.out_.outFilename_,
+			SeqOutput::write(clusters, SeqIOOptions(additionalOutDir + setUp.pars_.ioOptions_.out_.outFilename_.string(),
 					setUp.pars_.ioOptions_.outFormat_,setUp.pars_.ioOptions_.out_));
 			std::ofstream metaDataFile;
 			openTextFile(metaDataFile, additionalOutDir + "/" + "metaData", ".json",
@@ -336,12 +336,12 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 
 	SeqOutput::write(clusters,
 			SeqIOOptions(
-					setUp.pars_.directoryName_ + setUp.pars_.ioOptions_.out_.outFilename_,
+					setUp.pars_.directoryName_ + setUp.pars_.ioOptions_.out_.outFilename_.string(),
 					setUp.pars_.ioOptions_.outFormat_,setUp.pars_.ioOptions_.out_));
-	if(!pars.skipInternalSnps){
+	if(pars.writeOutFinalInternalSnps){
 		setUp.rLog_.logCurrentTime("Calling internal snps");
 		std::string snpDir = bib::files::makeDir(setUp.pars_.directoryName_,
-				bib::files::MkdirPar("internalSnpInfo", false));
+				bib::files::MkdirPar("internalSnpInfo", false)).string();
 		for (const auto & readPos : iter::range(clusters.size())) {
 			std::unordered_map<uint32_t,
 					std::unordered_map<char, std::vector<baseReadObject>>>mismatches;
@@ -384,7 +384,7 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 	if (pars.createMinTree) {
 		setUp.rLog_.logCurrentTime("Creating minimum spanning trees");
 		std::string minTreeDirname = bib::files::makeDir(setUp.pars_.directoryName_,
-				bib::files::MkdirPar("minTree", false));
+				bib::files::MkdirPar("minTree", false)).string();
 		auto clusSplit = readVecSplitter::splitVectorOnReadFraction(clusters,
 				0.005);
 		std::vector<readObject> tempReads;
@@ -416,10 +416,32 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 		outHtml << outHtmlStr;
 	}
 
-	std::string clusterDirectoryName = bib::files::makeDir(setUp.pars_.directoryName_,
-			bib::files::MkdirPar("clusters", false));
-	clusterVec::allWriteClustersInDir(clusters, clusterDirectoryName,
-			setUp.pars_.ioOptions_);
+
+
+	if (pars.writeOutInitalSeqs) {
+		std::string clusterDirectoryName = bib::files::makeDir(setUp.pars_.directoryName_,
+				bib::files::MkdirPar("clusters", false)).string();
+		/*
+		 * 	clusterVec::allWriteClustersInDir(clusters, clusterDirectoryName,
+		 setUp.pars_.ioOptions_);
+		 */
+		SeqIOOptions clustersIoOpts(
+				bib::files::make_path(clusterDirectoryName, "initialClusters"),
+				setUp.pars_.ioOptions_.outFormat_);
+		SeqOutput subClusterWriter(clustersIoOpts);
+		subClusterWriter.openOut();
+		for( const auto & clus : clusters){
+			MetaDataInName clusMeta;
+			clusMeta.addMeta("clusterName", clus.seqBase_.name_);
+			for( const auto & subClus : clus.reads_){
+				seqInfo subClusCopy = subClus->seqBase_;
+				clusMeta.resetMetaInName(subClusCopy.name_, subClusCopy.name_.find("_t"));
+				subClusterWriter.write(subClusCopy);
+			}
+		}
+	}
+
+
 
 	if (!setUp.pars_.ioOptions_.processed_) {
 		std::ofstream compStats;
@@ -428,21 +450,34 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 					".txt", false, false);
 			compStats << "cluster\tcompAmount" << std::endl;
 		}
-		std::string allInputReadsDir = bib::files::makeDir(setUp.pars_.directoryName_,
-				bib::files::MkdirPar("allInputReadsForEachCluster", false));
+		std::string allInputReadsDir;
+		if(pars.writeOutInitalSeqs){
+			allInputReadsDir = bib::files::makeDir(setUp.pars_.directoryName_,
+					bib::files::MkdirPar("allInputReadsForEachCluster", false)).string();
+		}
+		SeqIOOptions clustersIoOpts(
+				bib::files::make_path(allInputReadsDir, "allInitialReads"),
+				setUp.pars_.ioOptions_.outFormat_);
+		SeqOutput subClusterWriter(clustersIoOpts);
+		if(pars.writeOutInitalSeqs){
+			subClusterWriter.openOut();
+		}
+
 		for (const auto& clus : clusters) {
-			SeqOutput writer(
-					SeqIOOptions(allInputReadsDir + clus.seqBase_.name_,
-							setUp.pars_.ioOptions_.outFormat_,setUp.pars_.ioOptions_.out_));
-			writer.openOut();
+			MetaDataInName clusMeta;
+			clusMeta.addMeta("clusterName", clus.seqBase_.name_);
 			uint32_t currentCompAmount = 0;
-			for (const auto & read : clus.reads_) {
-				auto input = readVec::getReadByName(identicalClusters,read->seqBase_.name_);
-				for(const auto & inputRead : input.reads_){
-					writer.write(inputRead);
-				}
-				if (bib::containsSubString(read->seqBase_.name_, "_Comp")) {
-					currentCompAmount += read->seqBase_.cnt_;
+			for (const auto & seq : clus.reads_) {
+				auto input = readVec::getReadByName(identicalClusters, seq->seqBase_.name_);
+				for( auto & inputRead : input.reads_){
+					if (bib::containsSubString(inputRead->seqBase_.name_, "_Comp")) {
+						currentCompAmount += inputRead->seqBase_.cnt_;
+					}
+					if(pars.writeOutInitalSeqs){
+						seqInfo subClusCopy = inputRead->seqBase_;
+						clusMeta.resetMetaInName(subClusCopy.name_);
+						subClusterWriter.write(subClusCopy);
+					}
 				}
 			}
 			if (containsCompReads) {
