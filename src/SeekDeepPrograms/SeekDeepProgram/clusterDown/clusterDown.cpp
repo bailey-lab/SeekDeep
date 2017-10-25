@@ -30,6 +30,7 @@
 namespace bibseq {
 
 
+
 int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 	SeekDeepSetUp setUp(inputCommands);
 	// parameters
@@ -256,8 +257,12 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 				setUp.pars_.directoryName_ + "chimeraNumberInfo.txt", ".txt", false, false);
 		chimerasInfoFile << "#chimericClusters\t#chimericReads" << std::endl;
 		setUp.pars_.chiOpts_.chiOverlap_.largeBaseIndel_ = .99;
+
+//		collapserObj.opts_.verboseOpts_.verbose_ = true;
+//		collapserObj.opts_.verboseOpts_.debug_ = true;
 		auto chiInfoTab = collapserObj.markChimeras(clusters, alignerObj,
 				setUp.pars_.chiOpts_);
+
 		chiInfoTab.outPutContents(
 				TableIOOpts(
 						OutOptions(setUp.pars_.directoryName_ + "chiParentsInfo.txt",

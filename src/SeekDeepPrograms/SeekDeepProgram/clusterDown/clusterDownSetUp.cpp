@@ -305,6 +305,7 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 	pars_.chiOpts_.checkChimeras_ = !dontMarkChimeras;
 	setOption(pars_.chiOpts_.parentFreqs_, "--parFreqs",
 			"Parent freq multiplier cutoff", false, "Chimeras");
+	setOption(pars_.chiOpts_.keepLowQaulityMismatches_, "--chiKeepLowQaulityMismatches", "When marking chimeras also consider low quality mismatches, these are removed by default to prevent errors from incorrectly mising chimeras but could also hurt chimera marking", false, "Chimeras");
 
 	setOption(pars.snapShotsOpts_.snapShots_, "--snapShots", "Output Snap Shots of clustering results after each iteration", false, "Additional Output");
 	setOption(pars.sortBy, "--sortBy", "Sort Clusters By");
