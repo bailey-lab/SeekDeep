@@ -36,6 +36,7 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 	// input file info
 	pars_.ioOptions_.out_.outFilename_ = "output";
 	pars_.ioOptions_.lowerCaseBases_ = "remove";
+
 	if (false) {
 		std::stringstream tempOut;
 		tempOut << commands_.subProgram_ << std::endl;
@@ -321,6 +322,7 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 	processRefFilename();
 	bool mustMakeDirectory = true;
 	processDirectoryOutputName(mustMakeDirectory);
+	processWritingOptions();
 	pars_.gap_ = "5,1";
 	pars_.gapRight_ = "0,0";
 	pars_.gapLeft_ = "5,1";

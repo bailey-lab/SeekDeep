@@ -1078,7 +1078,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	for (const auto & tar : targets) {
 		processClusterCmds.emplace_back(
 				"cd " + bib::files::make_path(popDir, tar).string() + " && "
-						+ processClusterTemplate);
+						+ processClusterTemplate + " --experimentName " + tar);
 	}
 	OutOptions processClusterCmdsOpts(
 			bib::files::make_path(analysisSetup.dir_, "processClusterCmds.txt"));
