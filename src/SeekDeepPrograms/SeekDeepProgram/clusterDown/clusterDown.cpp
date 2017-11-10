@@ -329,6 +329,14 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 			std::cerr << "No additional out directory found for: "
 					<< setUp.pars_.ioOptions_.firstName_ << std::endl;
 			std::cerr << bib::bashCT::reset;
+			std::cerr << processFileNameForID(setUp.pars_.ioOptions_.firstName_.string())<< std::endl;
+			std::cerr << "Options:" << std::endl;
+			table inTab(pars.additionalOutLocationFile, "\t");
+		  MapStrStr additionalOutNames;
+		  for (const auto& fIter : inTab.content_) {
+		    additionalOutNames[makeIDNameComparable(fIter[0])] = fIter[1];
+		  }
+		  std::cerr << bib::conToStr(bib::getVecOfMapKeys(additionalOutNames)) << std::endl;
 		} else {
 			SeqOutput::write(clusters, SeqIOOptions(additionalOutDir + setUp.pars_.ioOptions_.out_.outFilename_.string(),
 					setUp.pars_.ioOptions_.outFormat_,setUp.pars_.ioOptions_.out_));
