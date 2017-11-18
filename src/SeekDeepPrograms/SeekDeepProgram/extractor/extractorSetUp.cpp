@@ -200,11 +200,15 @@ void SeekDeepSetUp::setUpExtractor(extractorPars & pars) {
 	pars_.gapInfo_.gapOpen_ = 5;
 	pars_.gapInfo_.gapExtend_ = 1;
 	pars_.gap_ = "5,1";
-	pars_.gapInfo_.gapRightOpen_ = 0;
-	pars_.gapInfo_.gapRightExtend_ = 0;
+	pars_.gapInfo_.gapRightQueryOpen_ = 0;
+	pars_.gapInfo_.gapRightQueryExtend_ = 0;
+	pars_.gapInfo_.gapRightRefOpen_ = 0;
+	pars_.gapInfo_.gapRightRefExtend_ = 0;
 	pars_.gapRight_ = "0,0";
-	pars_.gapInfo_.gapLeftOpen_ = 0;
-	pars_.gapInfo_.gapLeftExtend_ = 0;
+	pars_.gapInfo_.gapLeftQueryOpen_ = 0;
+	pars_.gapInfo_.gapLeftQueryExtend_ = 0;
+	pars_.gapInfo_.gapLeftRefOpen_ = 0;
+	pars_.gapInfo_.gapLeftRefExtend_ = 0;
 	pars_.gapLeft_ = "0,0";
 	processGap();
 	if (needsHelp()) {
