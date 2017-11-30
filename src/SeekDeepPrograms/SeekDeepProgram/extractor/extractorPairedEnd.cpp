@@ -30,44 +30,23 @@
 namespace bibseq {
 
 
-
-
-
 int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputCommands) {
 	SeekDeepSetUp setUp(inputCommands);
-	extractorPars pars;
-	setUp.setUpExtractor(pars);
+	ExtractorPairedEndPars pars;
+
+	setUp.setUpExtractorPairedEnd(pars);
 
 	uint32_t readsNotMatchedToBarcode = 0;
-	uint32_t readsNotMatchedToBarcodePossContam = 0;
-	if (setUp.pars_.verbose_) {
-		if (pars.checkingQCheck) {
-			std::cout << "Quality Check: " << pars.qualCheck << std::endl;
-			std::cout << "Quality Check Cut Off: " << pars.qualCheckCutOff
-					<< std::endl;
-			std::cout << "Q" << pars.qualCheck << ">" << pars.qualCheckCutOff
-					<< std::endl;
-		} else {
-			std::cout << "Quality Window Length: " << pars.qualityWindowLength
-					<< std::endl;
-			std::cout << "Quality Window Step: " << pars.qualityWindowStep
-					<< std::endl;
-			std::cout << "Quality Window Threshold: " << pars.qualityWindowThres
-					<< std::endl;
-		}
-	}
 
 	// run log
 	setUp.startARunLog(setUp.pars_.directoryName_);
 	// parameter file
 	setUp.writeParametersFile(setUp.pars_.directoryName_ + "parametersUsed.txt", false,
 			false);
-	readObject compareObject = readObject(seqInfo("Compare", pars.compareSeq));
 	table primerTable = seqUtil::readPrimers(pars.idFilename, pars.idFileDelim,
 			false);
 	int midSize = 10;
-	table mids = seqUtil::readBarcodes(pars.idFilename, pars.idFileDelim,
-			midSize);
+	table mids = seqUtil::readBarcodes(pars.idFilename, pars.idFileDelim, midSize);
 	std::unique_ptr<MidDeterminator> determinator;
 	if (pars.multiplex) {
 		determinator = std::make_unique<MidDeterminator>(mids);
@@ -79,12 +58,6 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 	}
 	PrimerDeterminator pDetermine(primerTable);
 
-	std::string tcagLower = "tcag";
-	std::string tcagUpper = "TCAG";
-	auto checkForTcag = [&tcagLower, &tcagUpper](const std::string & seq)->bool {
-		return std::equal(tcagLower.begin(), tcagLower.end(), seq.begin()) ||
-		std::equal(tcagUpper.begin(), tcagUpper.end(), seq.begin());
-	};
 	// make some directories for outputs
 	bfs::path unfilteredReadsDir = bib::files::makeDir(
 			setUp.pars_.directoryName_,
@@ -102,10 +75,7 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 	bfs::path unrecognizedPrimerDir = bib::files::makeDir(filteredOffDir,
 			bib::files::MkdirPar("unrecognizedPrimer", false));
 	bfs::path contaminationDir = "";
-	if (pars.screenForPossibleContamination) {
-		contaminationDir = bib::files::makeDir(filteredOffDir,
-				bib::files::MkdirPar("contamination", false));
-	}
+
 
 	std::shared_ptr<PairedRead> seq = std::make_shared<PairedRead>();
 
@@ -125,7 +95,6 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 	SeqOutput startsWtihBadQualOut(startsWtihBadQualOpts);
 
 	uint32_t smallFragmentCount = 0;
-	uint32_t startsWithBadQualCount = 0;
 	uint64_t maxReadSize = 0;
 	uint32_t count = 0;
 	MultiSeqIO readerOuts;
@@ -147,13 +116,6 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 				std::cout << "Inserting: " << mid.first << std::endl;
 			}
 			readerOuts.addReader(mid.first, midOpts);
-			if (pars.mothurExtract || pars.pyroExtract) {
-				auto flowExtractOutOpts = midOpts;
-				flowExtractOutOpts.out_.outFilename_ = bib::files::make_path(unfilteredByBarcodesFlowDir , mid.first + "_temp").string();
-				flowExtractOutOpts.outFormat_ = SeqIOOptions::outFormats::FLOW;
-				flowExtractOutOpts.out_.outExtention_ = ".dat";
-				readerOuts.addReader(mid.first + "flow", flowExtractOutOpts);
-			}
 		}
 	} else {
 		auto midOpts = setUp.pars_.ioOptions_;
@@ -162,13 +124,6 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 			std::cout << "Inserting: " << "all" << std::endl;
 		}
 		readerOuts.addReader("all", midOpts);
-		if (pars.mothurExtract || pars.pyroExtract) {
-			auto flowExtractOutOpts = midOpts;
-			flowExtractOutOpts.out_.outFilename_ = bib::files::make_path(unfilteredByBarcodesFlowDir, "all_temp").string();
-			flowExtractOutOpts.outFormat_ = SeqIOOptions::outFormats::FLOW;
-			flowExtractOutOpts.out_.outExtention_ = ".dat";
-			readerOuts.addReader(std::string("all") + "flow", flowExtractOutOpts);
-		}
 	}
 
 	if (pars.multiplex) {
@@ -181,88 +136,10 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 				std::cout << "Inserting: " << unRecName << std::endl;
 			}
 			readerOuts.addReader(unRecName, midOpts);
-			if(pars.screenForPossibleContamination){
-				std::string unRecNamePosCon = "possible_contamination_unrecognizedBarcode_" + failureCase;
-				auto midOpts = setUp.pars_.ioOptions_;
-				midOpts.out_.outFilename_ = bib::files::make_path(contaminationDir, unRecNamePosCon).string();
-				if (setUp.pars_.debug_){
-					std::cout << "Inserting: " << unRecNamePosCon << std::endl;
-				}
-				readerOuts.addReader(unRecNamePosCon, midOpts);
-			}
-		}
-	}
-	ReadCheckerOnSeqContaining nChecker("N", pars.numberOfNs, true);
-
-	std::unique_ptr<ReadCheckerOnKmerComp> compareInfo;
-	std::unique_ptr<ReadCheckerOnKmerComp> compareInfoRev;
-	std::map<std::string, ReadCheckerOnKmerComp> compareInfos;
-	std::map<std::string, ReadCheckerOnKmerComp> compareInfosRev;
-
-
-
-	if (pars.screenForPossibleContamination) {
-		readVec::getMaxLength(compareObject, maxReadSize);
-
-		compareInfo = std::make_unique<ReadCheckerOnKmerComp>(kmerInfo(compareObject.seqBase_.seq_,
-				pars.contaminationKLen, false),pars.contaminationKLen, pars.kmerCutOff, true);
-		auto rev = compareObject;
-		rev.seqBase_.reverseComplementRead(true, true);
-		compareInfoRev = std::make_unique<ReadCheckerOnKmerComp>(kmerInfo(rev.seqBase_.seq_,
-				pars.contaminationKLen, false),pars.contaminationKLen, pars.kmerCutOff, true);
-		if(pars.contaminationMutlipleCompare){
-			if(bfs::is_regular_file(pars.compareSeqFilename)){
-				if(setUp.pars_.verbose_){
-					std::cout << pars.compareSeqFilename << std::endl;
-				}
-				SeqIOOptions conTamOpts;
-				conTamOpts.inFormat_ = SeqIOOptions::getInFormat(bib::files::getExtension(pars.compareSeqFilename));
-				conTamOpts.firstName_ = pars.compareSeqFilename;
-				SeqInput readerCon(conTamOpts);
-				readerCon.openIn();
-				auto reads = readerCon.readAllReads<readObject>();
-				if (setUp.pars_.verbose_) {
-					std::cout << "reads" << std::endl;
-					std::cout << vectorToString(readVec::getNames(reads), ",")
-							<< std::endl;
-				}
-
-				for (const auto & read : reads) {
-					readVec::getMaxLength(read, maxReadSize);
-					compareInfos.emplace(read.seqBase_.name_, ReadCheckerOnKmerComp(kmerInfo(read.seqBase_.seq_,
-							pars.contaminationKLen, false),pars.contaminationKLen, pars.kmerCutOff, false));
-					auto rev = read;
-					rev.seqBase_.reverseComplementRead(true, true);
-					compareInfosRev.emplace(read.seqBase_.name_, ReadCheckerOnKmerComp(kmerInfo(rev.seqBase_.seq_,
-										pars.contaminationKLen, false),pars.contaminationKLen, pars.kmerCutOff, false));
-				}
-			}else{
-				compareInfos.emplace(compareObject.seqBase_.name_, ReadCheckerOnKmerComp(kmerInfo(compareObject.seqBase_.seq_,
-						pars.contaminationKLen, false),pars.contaminationKLen, pars.kmerCutOff, true));
-				compareInfosRev.emplace(compareObject.seqBase_.name_, ReadCheckerOnKmerComp(kmerInfo(rev.seqBase_.seq_,
-						pars.contaminationKLen, false),pars.contaminationKLen, pars.kmerCutOff, true));
-			}
 		}
 	}
 
-	if (pars.multipleTargets && pars.screenForPossibleContamination) {
-		std::cout << pars.compareSeqFilename << std::endl;
-		SeqIOOptions conTamOpts;
-		conTamOpts.inFormat_ = SeqIOOptions::getInFormat(bib::files::getExtension(pars.compareSeqFilename));
-		conTamOpts.firstName_ = pars.compareSeqFilename;
-		SeqInput readerCon(conTamOpts);
-		readerCon.openIn();
-		auto reads = readerCon.readAllReads<readObject>();
-		for (const auto & refSeq : reads) {
-			readVec::getMaxLength(refSeq, maxReadSize);
-			compareInfos.emplace(refSeq.seqBase_.name_, ReadCheckerOnKmerComp(kmerInfo(refSeq.seqBase_.seq_,
-					pars.contaminationKLen, false),pars.contaminationKLen, pars.kmerCutOff, true));
-			auto rev = refSeq;
-			rev.seqBase_.reverseComplementRead(true, true);
-			compareInfosRev.emplace(refSeq.seqBase_.name_, ReadCheckerOnKmerComp(kmerInfo(rev.seqBase_.seq_,
-								pars.contaminationKLen, false),pars.contaminationKLen, pars.kmerCutOff, true));
-		}
-	}
+
 	if(setUp.pars_.verbose_){
 		std::cout << bib::bashCT::boldGreen("Extracting on MIDs") << std::endl;
 	}
@@ -278,26 +155,7 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 			std::cout.flush();
 		}
 
-		if (pars.HMP) {
-			subStrToUpper(seq->seqBase_.seq_, 4, pars.primerLen);
-		}
-		if (pars.trimTcag) {
-			if (checkForTcag(seq->seqBase_.seq_)) {
-				seq->trimFront(4);
-			}
-		}
 		readVec::handelLowerCaseBases(seq, setUp.pars_.ioOptions_.lowerCaseBases_);
-
-		//possibly trim reads at low quality
-		if(pars.trimAtQual){
-			readVecTrimmer::trimAtFirstQualScore(seq->seqBase_, pars.trimAtQualCutOff);
-			readVecTrimmer::trimAtFirstQualScore(seq->mateSeqBase_, pars.trimAtQualCutOff);
-			if(0 == len(*seq)){
-				startsWtihBadQualOut.openWrite(seq);
-				++startsWithBadQualCount;
-				continue;
-			}
-		}
 
 		if (len(*seq) < pars.smallFragmentCutoff) {
 			smallFragMentOut.write(seq);
@@ -308,7 +166,7 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 
 		std::pair<MidDeterminator::midPos, MidDeterminator::midPos> currentMid;
 		if (pars.multiplex) {
-			currentMid = determinator->fullDetermine(seq, pars.mDetPars);
+			currentMid = determinator->fullDeterminePairedEnd(*seq, pars.mDetPars);
 		} else {
 			currentMid = {MidDeterminator::midPos("all", 0, 0, 0),MidDeterminator::midPos("all", 0, 0, 0)};
 		}
@@ -319,51 +177,16 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 		}
 		if (!currentMid.first) {
 			std::string unRecName = "unrecognizedBarcode_" + MidDeterminator::midPos::getFailureCaseName(currentMid.first.fCase_);
-			bool possibleContaimination = false;
-			if(pars.screenForPossibleContamination){
-				//this will check the read against all targets and their reverse complement so it will be a conservative estimate
-				//of whether or not this is contamination, if the read is still on by the end then that it means it's not
-				//considered possible contamination
-				if (pars.multipleTargets || pars.contaminationMutlipleCompare) {
-					for(const auto & compare : compareInfosRev){
-						if(compare.second.checkRead(seq->seqBase_)){
-							break;
-						}
-					}
-					if(!seq->seqBase_.on_){
-						for(const auto & compare : compareInfos){
-							if(compare.second.checkRead(seq->seqBase_)){
-								break;
-							}
-						}
-					}
-				}else{
-					compareInfo->checkRead(seq->seqBase_);
-					if(!seq->seqBase_.on_){
-						compareInfoRev->checkRead(seq->seqBase_);
-					}
-				}
-				if(!seq->seqBase_.on_){
-					possibleContaimination = true;
-				}
-			}
-			if(possibleContaimination){
-				unRecName = "possible_contamination_" + unRecName;
-				++readsNotMatchedToBarcodePossContam;
-				MidDeterminator::increaseFailedBarcodeCounts(currentMid.first, failBarCodeCountsPossibleContamination);
-			}else{
-				++readsNotMatchedToBarcode;
-				MidDeterminator::increaseFailedBarcodeCounts(currentMid.first, failBarCodeCounts);
-			}
+
+			++readsNotMatchedToBarcode;
+			MidDeterminator::increaseFailedBarcodeCounts(currentMid.first, failBarCodeCounts);
 			readerOuts.openWrite(unRecName, seq);
 		}else{
 			readLensR1.emplace_back(len(seq->seqBase_));
 			readLensR2.emplace_back(len(seq->mateSeqBase_));
 			/**@todo need to reorient the reads here before outputing if that's needed*/
 			readerOuts.openWrite(currentMid.first.midName_, seq);
-			if (pars.mothurExtract || pars.pyroExtract){
-				readerOuts.openWriteFlow(currentMid.first.midName_ + "flow", *reader.in_.lastSffRead_);
-			}
+
 		}
 	}
 	if (setUp.pars_.verbose_) {
@@ -413,30 +236,7 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 
 	std::map<std::string, lenCutOffs> multipleLenCutOffsR1;
 	std::map<std::string, lenCutOffs> multipleLenCutOffsR2;
-	/*
-	if (pars.multipleLenCutOffFilename != "") {
-		table lenCutTab = table(pars.multipleLenCutOffFilename, "whitespace", true);
-		bib::for_each(lenCutTab.columnNames_,
-				[](std::string & str) {stringToLower(str);});
-		lenCutTab.setColNamePositions();
-		if (!bib::in(std::string("target"), lenCutTab.columnNames_)
-				|| !bib::in(std::string("minlen"), lenCutTab.columnNames_)
-				|| !bib::in(std::string("maxlen"), lenCutTab.columnNames_)) {
-			std::stringstream ss;
-			ss << "need to have columns " << "target,minlen, and maxlen"
-					<< " when reading in a table for multiple cut off lengths"
-					<< std::endl;
-			ss << "only have " << vectorToString(lenCutTab.columnNames_, ",")
-					<< std::endl;
-			throw std::runtime_error { bib::bashCT::boldRed(ss.str()) };
-		}
-		for (const auto & row : lenCutTab.content_) {
-			multipleLenCutOffs.emplace(row[lenCutTab.getColPos("target")],
-					lenCutOffs { estd::stou(
-							row[lenCutTab.getColPos("minlen")]), estd::stou(
-							row[lenCutTab.getColPos("maxlen")]) });
-		}
-	}*/
+
 	for(const auto & tar : pDetermine.primers_){
 		if(!bib::in(tar.first, multipleLenCutOffsR1)){
 			multipleLenCutOffsR1.emplace(tar.first,
@@ -448,28 +248,9 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 		}
 	}
 
-	std::unique_ptr<ReadChecker> qualChecker;
-	if (pars.checkingQCheck) {
-		qualChecker = std::make_unique<ReadCheckerQualCheck>(pars.qualCheck,
-				pars.qualCheckCutOff, true);
-	} else {
-		if (pars.qualWindowTrim) {
-			qualChecker = std::make_unique<ReadCheckerOnQualityWindowTrim>(pars.qualityWindowLength, pars.qualityWindowStep,
-					pars.qualityWindowThres, pars.minLen, true);
-		} else {
-			qualChecker = std::make_unique<ReadCheckerOnQualityWindow>(pars.qualityWindowLength, pars.qualityWindowStep,
-					pars.qualityWindowThres, true);
-		}
-	}
 
-	if (setUp.pars_.debug_) {
-		table midCounts { VecStr { "MidName", "For", "Rev" } };
-		for (const auto & mCount : counts) {
-			midCounts.content_.emplace_back(
-					toVecStr(mCount.first, mCount.second.first, mCount.second.second));
-		}
-		midCounts.outPutContentOrganized(std::cout);
-	}
+
+
 
 	std::ofstream renameKeyFile;
 	if (pars.rename) {
@@ -530,39 +311,31 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 		std::cout << bib::bashCT::boldRed("Reading In Previous Alignments: Stop") << std::endl;
 		std::cout << bib::bashCT::boldGreen("Creating Extractor Stats: Start") << std::endl;
 	}
-	bfs::path smallDir = "";
-	if (pars.filterOffSmallReadCounts) {
-		smallDir = bib::files::makeDir(setUp.pars_.directoryName_, bib::files::MkdirPar("smallReadCounts", false));
-	}
-
 	ExtractionStator stats(count, readsNotMatchedToBarcode,
-			readsNotMatchedToBarcodePossContam, smallFragmentCount);
+			0, smallFragmentCount);
 	if(setUp.pars_.debug_){
 		std::cout << bib::bashCT::boldRed("Creating Extractor Stats: Stop") << std::endl;
 	}
 	std::map<std::string, uint32_t> goodCounts;
+	std::vector<std::string> expectedSamples;
+	if(pars.multiplex){
+		expectedSamples = getVectorOfMapKeys(determinator->mids_);
+	}else{
+		expectedSamples = {"all"};
+	}
+	ReadPairsOrganizer prOrg(expectedSamples);
+	prOrg.processFiles(barcodeFiles);
+	auto readsByPairs = prOrg.processReadPairs();
+	auto keys = getVectorOfMapKeys(readsByPairs);
+	bib::sort(keys);
+	printVector(keys);
+	return 0;
 
 	for (const auto & f : barcodeFiles) {
 		auto barcodeName = bfs::basename(f.first.string());
 		if ((counts[barcodeName].first + counts[barcodeName].second) == 0
 				&& pars.multiplex) {
 			//no reads extracted for barcode so skip filtering step
-			continue;
-		}
-
-		if (pars.filterOffSmallReadCounts
-				&& (counts[barcodeName].first + counts[barcodeName].second)
-						<= pars.smallExtractReadCount) {
-			auto barcodeOpts = setUp.pars_.ioOptions_;
-			barcodeOpts.firstName_ = f.first.string();
-			barcodeOpts.inFormat_ = SeqIOOptions::getInFormat(bib::files::getExtension(f.first.string()));
-			barcodeOpts.out_.outFilename_ = bib::files::make_path(smallDir, barcodeName).string();
-			SeqIO barcodeIn(barcodeOpts);
-			barcodeIn.openIn();
-			readObject read;
-			while (barcodeIn.readNextRead(read)) {
-				barcodeIn.openWrite(read);
-			}
 			continue;
 		}
 		if (setUp.pars_.verbose_) {
@@ -585,8 +358,7 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 		//create outputs
 		MultiSeqIO midReaderOuts;
 		auto unrecogPrimerOutOpts = setUp.pars_.ioOptions_;
-		unrecogPrimerOutOpts.out_.outFilename_ = bib::files::make_path(unrecognizedPrimerDir
-				,barcodeName).string();
+		unrecogPrimerOutOpts.out_.outFilename_ = bib::files::make_path(unrecognizedPrimerDir, barcodeName).string();
 		midReaderOuts.addReader("unrecognized", unrecogPrimerOutOpts);
 
 		for (const auto & primerName : getVectorOfMapKeys(pDetermine.primers_)) {
@@ -604,19 +376,6 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 			auto goodDirOutOpts = setUp.pars_.ioOptions_;
 			goodDirOutOpts.out_.outFilename_ = setUp.pars_.directoryName_ + fullname;
 			midReaderOuts.addReader(fullname + "good", goodDirOutOpts);
-			//contamination out
-			if (pars.screenForPossibleContamination) {
-				auto contamOutOpts = setUp.pars_.ioOptions_;
-				contamOutOpts.out_.outFilename_ = bib::files::make_path(contaminationDir, fullname).string();
-				midReaderOuts.addReader(fullname + "contamination", contamOutOpts);
-			}
-			if (pars.mothurExtract || pars.pyroExtract) {
-				auto flowExtractOutOpts = setUp.pars_.ioOptions_;
-				flowExtractOutOpts.out_.outFilename_ = setUp.pars_.directoryName_ + fullname + "_temp";
-				flowExtractOutOpts.outFormat_ = SeqIOOptions::outFormats::FLOW;
-				flowExtractOutOpts.out_.outExtention_ = ".dat";
-				midReaderOuts.addReader(fullname + "flow", flowExtractOutOpts);
-			}
 		}
 
 		uint32_t barcodeCount = 1;
@@ -625,9 +384,6 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 		pbar.progColors_ = pbar.RdYlGn_;
 		std::string readFlows = "";
 		std::ifstream inFlowFile;
-		if(pars.mothurExtract || pars.pyroExtract){
-			inFlowFile.open(bib::files::make_path(unfilteredByBarcodesFlowDir,barcodeName + "_temp.dat").string());
-		}
 
 
 
@@ -688,66 +444,6 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 			}
 
 
-
-			//look for possible contamination
-			if (pars.screenForPossibleContamination) {
-				if (pars.multipleTargets) {
-					if (compareInfos.find(primerName) != compareInfos.end()) {
-						if (foundInReverse) {
-							compareInfosRev.at(primerName).checkRead(seq->seqBase_);
-						} else {
-							compareInfos.at(primerName).checkRead(seq->seqBase_);
-						}
-
-						if (!seq->seqBase_.on_) {
-							stats.increaseCounts(fullname, seq->seqBase_.name_,
-									ExtractionStator::extractCase::CONTAMINATION);
-							midReaderOuts.openWrite(fullname + "contamination", seq);
-							continue;
-						}
-					} else {
-						std::stringstream ss;
-						ss
-								<< "Error in screening for contamination, multiple targets turned on but no contamination found for "
-								<< primerName << std::endl;
-						ss << "Options are: "
-								<< vectorToString(getVectorOfMapKeys(compareInfos), ",")
-								<< std::endl;
-						throw std::runtime_error{ss.str()};
-					}
-				} else {
-
-					if(pars.contaminationMutlipleCompare){
-						//if it passes at least one of the multiple compares given in compareSeq filename
-						if (foundInReverse) {
-							for(const auto & compares : compareInfosRev){
-								if(compares.second.checkRead(seq->seqBase_)){
-									break;
-								}
-							}
-						}else{
-							for(const auto & compares : compareInfos){
-								if(compares.second.checkRead(seq->seqBase_)){
-									break;
-								}
-							}
-						}
-					}else{
-						if (foundInReverse) {
-							compareInfoRev->checkRead(seq->seqBase_);
-						} else {
-							compareInfo->checkRead(seq->seqBase_);
-						}
-					}
-					if (!seq->seqBase_.on_) {
-						stats.increaseCounts(fullname, seq->seqBase_.name_,
-								ExtractionStator::extractCase::CONTAMINATION);
-						midReaderOuts.openWrite(fullname + "contamination", seq);
-						continue;
-					}
-				}
-			}
-
 			//min len
 			multipleLenCutOffsR1.at(primerName).minLenChecker_.checkRead(seq->seqBase_);
 			multipleLenCutOffsR2.at(primerName).minLenChecker_.checkRead(seq->mateSeqBase_);
@@ -779,6 +475,7 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 					continue;
 				}
 			}
+
 			//min len again becuase the reverse primer search trims to the reverse primer so it could be short again
 			multipleLenCutOffsR1.at(primerName).minLenChecker_.checkRead(seq->seqBase_);
 			multipleLenCutOffsR2.at(primerName).minLenChecker_.checkRead(seq->mateSeqBase_);
@@ -792,40 +489,13 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 			}
 
 			//if found in the reverse direction need to re-orient now
-			if (foundInReverse) {
-				seq->seqBase_.reverseComplementRead(true, true);
-			}
-
-			//contains n
-			nChecker.checkRead(*seq);
-			if (!seq->seqBase_.on_) {
-				stats.increaseCounts(fullname, seq->seqBase_.name_,
-						ExtractionStator::extractCase::CONTAINSNS);
-				midReaderOuts.openWrite(fullname + "bad", seq);
-				continue;
-			}
-			/*
-			//max len
-			multipleLenCutOffsR1.at(primerName).maxLenChecker_.checkRead(seq->seqBase_);
-			multipleLenCutOffsR2.at(primerName).maxLenChecker_.checkRead(seq->mateSeqBase_);
-
-			if (!seq->seqBase_.on_) {
-				stats.increaseCounts(fullname, seq->seqBase_.name_,
-						ExtractionStator::extractCase::MAXLENBAD);
-				midReaderOuts.openWrite(fullname + "bad", seq);
-				continue;
-			}*/
+			/**@todo handle finding in rev comp */
+//			if (foundInReverse) {
+//				seq->seqBase_.reverseComplementRead(true, true);
+//			}
 
 
-			//quality
-			qualChecker->checkRead(*seq);
 
-			if (!seq->seqBase_.on_) {
-				stats.increaseCounts(fullname, seq->seqBase_.name_,
-						ExtractionStator::extractCase::QUALITYFAILED);
-				midReaderOuts.openWrite(fullname + "bad", seq);
-				continue;
-			}
 
 			if (seq->seqBase_.on_) {
 				stats.increaseCounts(fullname, seq->seqBase_.name_,
@@ -841,9 +511,6 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 					renameKeyFile << oldName << "\t" << seq->seqBase_.name_ << "\n";
 				}
 				midReaderOuts.openWrite(fullname + "good", seq);
-				if(pars.mothurExtract || pars.pyroExtract){
-					midReaderOuts.openWrite(fullname + "flow", readFlows);
-				}
 				++goodCounts[fullname];
 			}
 		}
@@ -851,54 +518,12 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 			std::cout << std::endl;
 		}
 	}
-	if(pars.mothurExtract || pars.pyroExtract){
-		if(pars.mothurExtract){
-			for(const auto & name : goodCounts){
-				std::ofstream mothurOut;
-				openTextFile(mothurOut,setUp.pars_.directoryName_ + name.first,".flow",false, true);
-				uint32_t mothurExtractFlowNum = 800;
-				if (pars.maxFlowCutoff == 720) {
-					mothurExtractFlowNum = 800;
-				} else if (pars.maxFlowCutoff <= 400) {
-					mothurExtractFlowNum = 400;
-				}
-				mothurOut << mothurExtractFlowNum << std::endl;
-				std::ifstream flowFile(setUp.pars_.directoryName_ + name.first + "_temp.dat");
-				for(std::string line; std::getline(flowFile,line);){
-					mothurOut << line << std::endl;
-				}
-			}
-		}
-		if(pars.pyroExtract){
-			for(const auto & name : goodCounts){
-				std::ofstream ampNoiseOut;
-				openTextFile(ampNoiseOut,setUp.pars_.directoryName_ + name.first,".dat",false, true);
-				ampNoiseOut << name.second << " " << pars.maxFlowCutoff << std::endl;
-				std::ifstream flowFile(setUp.pars_.directoryName_ + name.first + "_temp.dat");
-				for(std::string line; std::getline(flowFile,line);){
-					ampNoiseOut << line << std::endl;
-				}
-			}
-		}
-		for(const auto & name : goodCounts){
-			bib::files::bfs::remove(setUp.pars_.directoryName_ + name.first + "_temp.dat");
-		}
-	}
+
 	std::ofstream profileLog;
 	openTextFile(profileLog, setUp.pars_.directoryName_ + "extractionProfile.tab.txt",
 			".txt", false, false);
-
 	profileLog
-			<< "name\ttotalReadsExtracted\tgoodReadsExtracted\tforGood\trevGood\ttotalBadReads\t"
-					"badReverse\tcontainsNs\tlen<" << pars.minLen << "\tlen>"
-			<< pars.maxLength;
-	if (pars.checkingQCheck) {
-		profileLog << "\tq" + estd::to_string(pars.qualCheck) + "<"
-				<< pars.qualCheckCutOff;
-	} else {
-		profileLog << "\tbadQualityWindow";
-	}
-	profileLog << "\tcontamination\n";
+			<< "name\ttotalReadsExtracted\t\n";
 	stats.outStatsPerName(profileLog, "\t");
 	std::ofstream extractionStatsFile;
 	openTextFile(extractionStatsFile,
@@ -928,23 +553,12 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 		for(const auto & countKey : countKeys){
 			failedBarcodeFile << countKey << "\t" << getPercentageString(failBarCodeCounts.at(countKey), readsNotMatchedToBarcode)<< std::endl;
 		}
-		if(pars.screenForPossibleContamination && ! failBarCodeCountsPossibleContamination.empty()){
-			std::ofstream failedBarcodePosContFile;
-			openTextFile(failedBarcodePosContFile, setUp.pars_.directoryName_ + "failedBarcodePossibleContamination.tab.txt",
-					".txt", false, false);
-			failedBarcodePosContFile << "Reason\tcount"
-					<< std::endl;
-			auto countKeys = getVectorOfMapKeys(failBarCodeCountsPossibleContamination);
-			bib::sort(countKeys);
-			for(const auto & countKey : countKeys){
-				failedBarcodePosContFile << countKey << "\t" << getPercentageString(failBarCodeCountsPossibleContamination.at(countKey), readsNotMatchedToBarcodePossContam)<< std::endl;
-			}
-		}
 	}
 
 	if (!setUp.pars_.debug_) {
 		bib::files::rmDirForce(unfilteredReadsDir);
 	}
+
 	if (setUp.pars_.writingOutAlnInfo_) {
 		setUp.rLog_ << "Number of alignments done" << "\n";
 		alignObj.alnHolder_.write(setUp.pars_.outAlnInfoDirName_, setUp.pars_.verbose_);

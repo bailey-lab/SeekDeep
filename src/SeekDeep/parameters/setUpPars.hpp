@@ -82,6 +82,43 @@ struct extractorPars{
 
 };
 
+struct ExtractorPairedEndPars{
+
+	ExtractorPairedEndPars();
+
+	std::string idFilename = "";
+	std::string idFileDelim = "whitespace";
+
+
+  bool multiplex = false;
+
+  uint32_t r1MinLen = std::numeric_limits<uint32_t>::max();
+  uint32_t r2MinLen = std::numeric_limits<uint32_t>::max();
+  uint32_t r1MaxLen = std::numeric_limits<uint32_t>::max();
+  uint32_t r2MaxLen = std::numeric_limits<uint32_t>::max();
+
+  uint32_t smallFragmentCutoff = 50;
+
+
+  uint32_t barcodeErrors = 0;
+  bool midEndsRevComp = false;
+  bool rename = false;
+
+  bool noReversePrimer = false;
+  bool reversePrimerToUpperCase = false;
+  comparison rPrimerErrors;
+
+  bool noForwardPrimer = false;
+  bool forwardPrimerToUpperCase = false;
+  comparison fPrimerErrors;
+
+
+  MidDeterminator::MidDeterminePars mDetPars;
+
+  std::string sampleName = "";
+
+};
+
 struct clusterDownPars {
 
 	std::string qualRep = "median";
