@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 
 import shutil, os, argparse, sys, stat, time
 sys.path.append(os.path.join(os.path.dirname(os.path.dirname(__file__)), "setUpScripts"))

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 
 import shutil, os, argparse, sys, stat
 sys.path.append(os.path.join(os.path.dirname(os.path.dirname(__file__)), "pyUtils"))
@@ -112,7 +112,7 @@ class genHelper:
 
     @staticmethod
     def mkConfigFileStr(name, libs):
-        ret = """#!/usr/bin/env python
+        ret = """#!/usr/bin/env python2
 import shutil, os, argparse, sys, stat
 sys.path.append("scripts/pyUtils")
 sys.path.append("scripts/setUpScripts")

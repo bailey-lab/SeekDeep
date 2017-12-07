@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 
 import subprocess, sys, os, argparse,shutil
 from collections import namedtuple, defaultdict
@@ -1474,7 +1474,7 @@ class Packages():
                             raise Exception("Package " + packVer.name + " already in " + filename + " but with a different version, present: " + packsInFile[packVer.name] + ", adding: " + packVer.version)
                     #if bib project, add the flags of it's dependencies
                     if pack.bibProject_:
-                        cmd = "python ./setup.py --compfile compfile.mk --numCores 1 --append --outMakefile {makefileCommon}".format(makefileCommon = os.path.abspath(filename))
+                        cmd = "./setup.py --compfile compfile.mk --numCores 1 --append --outMakefile {makefileCommon}".format(makefileCommon = os.path.abspath(filename))
                         buildSubDir = pack.getBuildSubDir(packVer.version)
                         Utils.run_in_dir(cmd, buildSubDir)
                     pvIncFlags = self.getIncludeFlags(packVer)
@@ -1505,7 +1505,7 @@ class Packages():
                     pack = self.package(packVer.name)
                     #if bib project, add the flags of it's dependencies
                     if pack.bibProject_:
-                            cmd = "python ./setup.py --compfile compfile.mk --numCores 1 --append --outMakefile {makefileCommon}".format(makefileCommon = os.path.abspath(filename))
+                            cmd = "./setup.py --compfile compfile.mk --numCores 1 --append --outMakefile {makefileCommon}".format(makefileCommon = os.path.abspath(filename))
                             buildSubDir = pack.getBuildSubDir(packVer.version)
                             Utils.run_in_dir(cmd, buildSubDir)
                     pvIncFlags = self.getIncludeFlags(packVer)
@@ -1565,20 +1565,20 @@ class Packages():
 
     def __bibProjectBuildCmdOld(self):
         cmd = """
-        python ./configure.py -CC {CC} -CXX {CXX} -externalLibDir {external} -prefix {localTop} 
-        && python ./setup.py --compfile compfile.mk --numCores {num_cores}
+        ./configure.py -CC {CC} -CXX {CXX} -externalLibDir {external} -prefix {localTop} 
+        && ./setup.py --compfile compfile.mk --numCores {num_cores}
         && make -j {num_cores} && make install"""
         cmd = " ".join(cmd.split())
         return cmd
     
     def __bibProjectBuildCmd(self):
         cmd = """
-        python ./configure.py -CC {CC} -CXX {CXX} -externalLibDir {external} -prefix $(dirname {local_dir}) """
+         ./configure.py -CC {CC} -CXX {CXX} -externalLibDir {external} -prefix $(dirname {local_dir}) """
         if self.args.noInternet:
-            cmd = cmd + """&& python ./setup.py --compfile compfile.mk --numCores {num_cores}
+            cmd = cmd + """&& ./setup.py --compfile compfile.mk --numCores {num_cores}
              --outMakefile makefile-common.mk --overWrite --noInternet """
         else:
-            cmd = cmd + """&& python ./setup.py --compfile compfile.mk --numCores {num_cores}
+            cmd = cmd + """&& ./setup.py --compfile compfile.mk --numCores {num_cores}
              --outMakefile makefile-common.mk --overWrite """
         cmd = cmd + """&& make clean
         && make -j {num_cores} && make install"""
@@ -2322,7 +2322,7 @@ class Setup:
             downloadDir = os.path.join(self.dirMaster_.ext_tars, pack.name_)
             Utils.mkdir(downloadDir)
             if pack.bibProject_:
-                downloadCmd = "python ./configure.py -CC {CC} -CXX {CXX} -externalLibDir {external} && ./setup.py --compfile compfile.mk --justDownload".format(external = Utils.shellquote(self.dirMaster_.base_dir), num_cores=self.num_cores(), CC=self.CC, CXX=self.CXX)
+                downloadCmd = "./configure.py -CC {CC} -CXX {CXX} -externalLibDir {external} && ./setup.py --compfile compfile.mk --justDownload".format(external = Utils.shellquote(self.dirMaster_.base_dir), num_cores=self.num_cores(), CC=self.CC, CXX=self.CXX)
                 Utils.mkdir(topTempDir)
                 packVer = pack.versions_[setUpNeeded.version]
                 tempDir = os.path.join(topTempDir, pack.name_)

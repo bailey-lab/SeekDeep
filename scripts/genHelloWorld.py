@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 
 import shutil, os, argparse, sys
 sys.path.append(os.path.join(os.path.dirname(__file__), "pyUtils"))
@@ -8,7 +8,7 @@ from color_text import ColorText as CT
 
 def genPyHello(outFileName):
     with open(outFileName, "w") as f:
-        f.write("""#!/usr/bin/env python
+        f.write("""#!/usr/bin/env python2
 import shutil, os, argparse, sys, stat
 
 def parse_args_hello():
