@@ -38,10 +38,16 @@ public:
 
 	PrimersAndMids(const bfs::path & idFileFnp);
 
-	bfs::path idFile_;
+	const bfs::path idFile_;
 
 	std::unordered_map<std::string, Target> targets_;
 	std::unordered_map<std::string, MidDeterminator::MidInfo> mids_;
+
+	std::unique_ptr<MidDeterminator> mDeterminator_;
+	std::unique_ptr<PrimerDeterminator> pDeterminator_;
+
+	void initMidDeterminator();
+	void initPrimerDeterminator();
 
 	bool hasTarget(const std::string & target) const;
 
@@ -58,6 +64,7 @@ public:
 	bool hasMultipleTargets() const;
 
 	bool containsMids() const;
+	bool containsTargets() const;
 
 	void writeIdFile(const OutOptions & outOpts) const;
 

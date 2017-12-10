@@ -89,9 +89,6 @@ struct ExtractorPairedEndPars{
 	std::string idFilename = "";
 	std::string idFileDelim = "whitespace";
 
-
-  bool multiplex = false;
-
   uint32_t r1MinLen = std::numeric_limits<uint32_t>::max();
   uint32_t r2MinLen = std::numeric_limits<uint32_t>::max();
   uint32_t r1MaxLen = std::numeric_limits<uint32_t>::max();

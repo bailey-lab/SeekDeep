@@ -103,12 +103,8 @@ void SeekDeepSetUp::setUpExtractorPairedEnd(ExtractorPairedEndPars & pars) {
 	}
 
 	setOption(pars.idFileDelim, "--idFileDelim", "Id File Delim", false, "ID File");
-	// unknown primers and ids
-	setOption(pars.multiplex, "--multiplex",
-			"Indicates that the Reads are multiplex barcoded", false, "Barcodes");
 	setOption(pars.mDetPars.checkComplement_, "--checkComplement",
 			"Check the Complement of the Seqs As Well", false, "Complement");
-
 	setOption(pars.smallFragmentCutoff, "--smallFragmentCutOff",
 			"Remove sequences smaller than this length", false, "Pre Processing");
 

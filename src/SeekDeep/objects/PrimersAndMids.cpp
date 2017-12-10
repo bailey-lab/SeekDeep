@@ -146,6 +146,12 @@ bool PrimersAndMids::containsMids() const {
 	return !mids_.empty();
 }
 
+bool PrimersAndMids::containsTargets() const {
+	return !targets_.empty();
+}
+
+
+
 void PrimersAndMids::writeIdFile(const OutOptions & outOpts) const {
 	std::ofstream idFileOut;
 	openTextFile(idFileOut, outOpts);
@@ -265,6 +271,28 @@ std::map<std::string, PrimersAndMids::Target::lenCutOffs> PrimersAndMids::readIn
 						row[lenCutTab.getColPos("maxlen")]) });
 	}
 	return ret;
+}
+
+void PrimersAndMids::initMidDeterminator(){
+	if(mids_.empty()){
+		std::stringstream ss;
+		ss << __PRETTY_FUNCTION__ << ", error mids_ are empty, can't init mid determinator" << "\n";
+		throw std::runtime_error{ss.str()};
+	}
+	mDeterminator_ = std::make_unique<MidDeterminator>(mids_);
+}
+
+void PrimersAndMids::initPrimerDeterminator(){
+	if(targets_.empty()){
+		std::stringstream ss;
+		ss << __PRETTY_FUNCTION__ << ", error targets_ are empty, can't init primer determinator" << "\n";
+		throw std::runtime_error{ss.str()};
+	}
+	std::unordered_map<std::string, PrimerDeterminator::primerInfo> pInfos;
+	for(const auto & tar : targets_){
+		pInfos.emplace(tar.second.info_.primerPairName_, tar.second.info_);
+	}
+	pDeterminator_ = std::make_unique<PrimerDeterminator>(pInfos);
 }
 
 }  // namespace bibseq
