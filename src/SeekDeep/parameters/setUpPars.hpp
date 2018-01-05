@@ -101,13 +101,8 @@ struct ExtractorPairedEndPars{
   bool midEndsRevComp = false;
   bool rename = false;
 
-  bool noReversePrimer = false;
-  bool reversePrimerToUpperCase = false;
-  comparison rPrimerErrors;
-
-  bool noForwardPrimer = false;
-  bool forwardPrimerToUpperCase = false;
-  comparison fPrimerErrors;
+  bool primerToUpperCase = false;
+  comparison primerErrors;
 
 
   MidDeterminator::MidDeterminePars mDetPars;

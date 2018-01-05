@@ -151,10 +151,6 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 	if(setUp.pars_.verbose_){
 		std::cout << bib::bashCT::boldGreen("Extracting on MIDs") << std::endl;
 	}
-
-	std::vector<size_t> readLensR1;
-	std::vector<size_t> readLensR2;
-
 	if(setUp.pars_.verbose_){
 		std::cout << "Reading in reads:" << std::endl;
 	}
@@ -178,7 +174,7 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 		if (ids.containsMids()) {
 			currentMid = ids.mDeterminator_->fullDetermine(seq, pars.mDetPars);
 		} else {
-			currentMid = {MidDeterminator::midPos("all", 0, 0, 0),MidDeterminator::midPos("all", 0, 0, 0)};
+			currentMid = {MidDeterminator::midPos("all", 0, 0, 0), MidDeterminator::midPos("all", 0, 0, 0)};
 		}
 		if (seq.seqBase_.name_.find("_Comp") != std::string::npos) {
 			++counts[currentMid.first.midName_].second;
@@ -191,16 +187,13 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 			MidDeterminator::increaseFailedBarcodeCounts(currentMid.first, failBarCodeCounts);
 			readerOuts.openWrite(unRecName, seq);
 		}else{
-			readLensR1.emplace_back(len(seq.seqBase_));
-			readLensR2.emplace_back(len(seq.mateSeqBase_));
 			readerOuts.openWrite(currentMid.first.midName_, seq);
 		}
 	}
+
 	OutOptions barcodeCountOpts(bib::files::make_path(setUp.pars_.directoryName_, "midCounts.tab.txt"));
 	OutputStream barcodeCountOut(barcodeCountOpts);
 	barcodeCountOut << "MID\tforwardCount\tforwardCountPerc\treverseCount\treverseCountPerc\ttotal" << std::endl;
-
-
 	std::set<std::string> barKeysSet{"all"};
 	if(ids.containsMids()){
 		auto inputMNames = ids.getMids();
@@ -232,115 +225,32 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 	}
 	//close mid outs;
 	readerOuts.closeOutAll();
-	//if no length was supplied, calculate a min and max length off of the median read length
-	auto readLenMedianR1 = vectorMedianRef(readLensR1);
-	auto lenStepR1 = readLenMedianR1 * .05;
-	auto readLenMedianR2 = vectorMedianRef(readLensR2);
-	auto lenStepR2 = readLenMedianR2 * .05;
-
-	if(std::numeric_limits<uint32_t>::max() == pars.r1MinLen){
-		if(lenStepR1 > readLenMedianR1){
-			pars.r1MinLen = 0;
-		}else{
-			pars.r1MinLen = ::round(readLenMedianR1 - lenStepR1);
-		}
-	}
-
-	if(std::numeric_limits<uint32_t>::max() == pars.r1MaxLen){
-		pars.r1MaxLen = ::round(readLenMedianR1 + lenStepR1);
-	}
-
-	if(std::numeric_limits<uint32_t>::max() == pars.r2MinLen){
-		if(lenStepR2 > readLenMedianR2){
-			pars.r2MinLen = 0;
-		}else{
-			pars.r2MinLen = ::round(readLenMedianR2 - lenStepR2);
-		}
-	}
-
-	if(std::numeric_limits<uint32_t>::max() == pars.r2MaxLen){
-		pars.r2MaxLen = ::round(readLenMedianR2 + lenStepR2);
-	}
-
-	struct lenCutOffs {
-		lenCutOffs(uint32_t minLen, uint32_t maxLen, bool mark = true):
-			minLenChecker_(ReadCheckerLenAbove(minLen, mark)),
-			maxLenChecker_(ReadCheckerLenBelow(maxLen, mark)){
-		}
-		ReadCheckerLenAbove minLenChecker_;
-		ReadCheckerLenBelow maxLenChecker_;
-	};
-
-
-	std::map<std::string, lenCutOffs> multipleLenCutOffsR1;
-	std::map<std::string, lenCutOffs> multipleLenCutOffsR2;
-
-	for(const auto & tar : ids.pDeterminator_->primers_){
-		if(!bib::in(tar.first, multipleLenCutOffsR1)){
-			multipleLenCutOffsR1.emplace(tar.first,
-					lenCutOffs {pars.r1MinLen, pars.r1MaxLen });
-		}
-		if(!bib::in(tar.first, multipleLenCutOffsR2)){
-			multipleLenCutOffsR2.emplace(tar.first,
-					lenCutOffs {pars.r2MinLen, pars.r2MaxLen });
-		}
-	}
-
-
-
 
 
 	std::ofstream renameKeyFile;
 	if (pars.rename) {
-		openTextFile(renameKeyFile, setUp.pars_.directoryName_ + "renameKey.tab.txt",
-				".tab.txt", false, false);
+		openTextFile(renameKeyFile, setUp.pars_.directoryName_ + "renameKey.tab.txt", ".tab.txt", false, false);
 		renameKeyFile << "originalName\tnewName\n";
 	}
 
 	// create aligner for primer identification
-	if(setUp.pars_.debug_){
-		std::cout << bib::bashCT::boldGreen("Creating Scoring Matrix: Start") << std::endl;
-	}
 	auto scoreMatrix = substituteMatrix::createDegenScoreMatrixNoNInRef(
 			setUp.pars_.generalMatch_, setUp.pars_.generalMismatch_);
 	gapScoringParameters gapPars(setUp.pars_.gapInfo_);
 	KmerMaps emptyMaps;
-	bool countEndGaps = true;
-	if(setUp.pars_.debug_){
-		std::cout << bib::bashCT::boldRed("Creating Scoring Matrix: Stop") << std::endl;
-		std::cout << bib::bashCT::boldGreen("Determining Max Read Size: Start") << std::endl;
-	}
+	bool countEndGaps = false;
 	//to avoid allocating an extremely large aligner matrix;
 	if(maxReadSize > 1000){
 		auto maxPrimerSize = ids.pDeterminator_->getMaxPrimerSize();
-		if(setUp.pars_.debug_){
-			std::cout << bib::bashCT::boldBlack("maxPrimerSize: ") << maxPrimerSize << std::endl;
-		}
 		maxReadSize =  maxPrimerSize * 4 + pars.mDetPars.variableStop_;
 	}
-	if(setUp.pars_.debug_){
-		std::cout << bib::bashCT::boldRed("Determining Max Read Size: Stop") << std::endl;
-		std::cout << bib::bashCT::boldGreen("Creating Aligner: Start") << std::endl;
-		std::cout << bib::bashCT::boldBlack("max read size: " ) << maxReadSize << std::endl;
-	}
+
 
 	aligner alignObj = aligner(maxReadSize, gapPars, scoreMatrix, emptyMaps,
 			setUp.pars_.qScorePars_, countEndGaps, false);
-	if(setUp.pars_.debug_){
-		std::cout << bib::bashCT::boldRed("Creating Aligner: Stop") << std::endl;
-		std::cout << bib::bashCT::boldGreen("Reading In Previous Alignments: Start") << std::endl;
-	}
 	alignObj.processAlnInfoInput(setUp.pars_.alnInfoDirName_);
-	if(setUp.pars_.debug_){
-		std::cout << bib::bashCT::boldRed("Reading In Previous Alignments: Stop") << std::endl;
-		std::cout << bib::bashCT::boldGreen("Creating Extractor Stats: Start") << std::endl;
-	}
-	ExtractionStator stats(count, readsNotMatchedToBarcode,
-			0, smallFragmentCount);
-	if(setUp.pars_.debug_){
-		std::cout << bib::bashCT::boldRed("Creating Extractor Stats: Stop") << std::endl;
-	}
-	std::map<std::string, uint32_t> goodCounts;
+	ExtractionStator stats(count, readsNotMatchedToBarcode, 0, smallFragmentCount);
+	std::map<std::string, uint32_t> primerCounts;
 	std::vector<std::string> expectedSamples;
 	if(ids.containsMids()){
 		expectedSamples = getVectorOfMapKeys(ids.mDeterminator_->mids_);
@@ -352,12 +262,161 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 	ReadPairsOrganizer prOrg(expectedSamples);
 	prOrg.processFiles(barcodeFiles);
 	auto readsByPairs = prOrg.processReadPairs();
-	auto keys = getVectorOfMapKeys(readsByPairs);
-	bib::sort(keys);
-	printVector(keys);
-	return 0;
+	auto barcodeReadsKeys = getVectorOfMapKeys(readsByPairs);
+	bib::sort(barcodeReadsKeys);
+	if(setUp.pars_.verbose_){
+		std::cout << "The following mids were found with reads" << std::endl;
+		printVector(barcodeReadsKeys);
+	}
 
-//	for (const auto & f : barcodeFiles) {
+
+	for (const auto & barcodeReadsKey : barcodeReadsKeys) {
+		const auto & barcodeReadPairs = readsByPairs[barcodeReadsKey];
+		std::string barcodeName = barcodeReadsKey;
+		if (setUp.pars_.verbose_) {
+			if (ids.containsMids()) {
+				std::cout
+						<< bib::bashCT::boldGreen("Filtering on barcode: " + barcodeName)
+						<< std::endl;
+			} else {
+				std::cout << bib::bashCT::boldGreen("Filtering") << std::endl;
+			}
+		}
+
+		//create outputs
+		MultiSeqIO midReaderOuts;
+		auto unrecogPrimerOutOpts = setUp.pars_.ioOptions_;
+		unrecogPrimerOutOpts.out_.outFilename_ = bib::files::make_path(
+				unrecognizedPrimerDir, barcodeName).string();
+		midReaderOuts.addReader("unrecognized", unrecogPrimerOutOpts);
+		for (const auto & primerName : getVectorOfMapKeys(
+				ids.pDeterminator_->primers_)) {
+			//determine full name
+			std::string fullname = primerName;
+			if (ids.containsMids()) {
+				fullname += barcodeName;
+			} else if (pars.sampleName != "") {
+				fullname += pars.sampleName;
+			}
+			//bad out
+			auto badDirOutOpts = setUp.pars_.ioOptions_;
+			badDirOutOpts.out_.outFilename_ =
+					bib::files::make_path(badDir, fullname).string();
+			midReaderOuts.addReader(fullname + "bad", badDirOutOpts);
+			//good out
+			auto goodDirOutOpts = setUp.pars_.ioOptions_;
+			goodDirOutOpts.out_.outFilename_ = setUp.pars_.directoryName_ + fullname;
+			midReaderOuts.addReader(fullname + "good", goodDirOutOpts);
+		}
+
+		uint32_t barcodeCount = 1;
+		bib::ProgressBar pbar(counts[barcodeName].first + counts[barcodeName].second);
+		pbar.progColors_ = pbar.RdYlGn_;
+
+		SeqIOOptions barcodePairsReaderOpts = SeqIOOptions::genPairedIn(
+				barcodeReadPairs.first.front(), barcodeReadPairs.second.front());
+		SeqInput barcodePairsReader(barcodePairsReaderOpts);
+		barcodePairsReader.openIn();
+		while(barcodePairsReader.readNextRead(seq)){
+			//std::cout << barcodeCount << std::endl;
+			if (setUp.pars_.verbose_) {
+				pbar.outputProgAdd(std::cout, 1, true);
+			}
+			++barcodeCount;
+			//find primers
+			//forward
+			std::string forwardPrimerName = "";
+			bool foundInReverse = false;
+			if (ids.containsMids()) {
+				forwardPrimerName = ids.pDeterminator_->determineForwardPrimer(seq.seqBase_, 0, alignObj,
+						pars.primerErrors, !pars.primerToUpperCase);
+				if ("unrecognized" ==  forwardPrimerName && pars.mDetPars.checkComplement_) {
+					forwardPrimerName = ids.pDeterminator_->determineWithReversePrimer(seq.seqBase_, 0, alignObj,
+							pars.primerErrors, !pars.primerToUpperCase);
+					if (seq.seqBase_.on_) {
+						foundInReverse = true;
+					}
+				}
+			} else {
+				forwardPrimerName = ids.pDeterminator_->determineForwardPrimer(seq.seqBase_, pars.mDetPars.variableStop_, alignObj,
+						pars.primerErrors, !pars.primerToUpperCase);
+				if ("unrecognized" ==  forwardPrimerName && pars.mDetPars.checkComplement_) {
+					forwardPrimerName = ids.pDeterminator_->determineForwardPrimer(seq.mateSeqBase_, pars.mDetPars.variableStop_,
+							alignObj, pars.primerErrors, !pars.primerToUpperCase);
+					if (seq.seqBase_.on_) {
+						foundInReverse = true;
+					}
+				}
+			}
+
+			//reverse primer
+			std::string reversePrimerName = "";
+			if (!foundInReverse) {
+				reversePrimerName = ids.pDeterminator_->determineWithReversePrimer(seq.mateSeqBase_,
+						pars.mDetPars.variableStop_,
+						alignObj,
+						pars.primerErrors,
+						!pars.primerToUpperCase);
+			} else {
+				reversePrimerName = ids.pDeterminator_->determineWithReversePrimer(seq.seqBase_,
+						pars.mDetPars.variableStop_,
+						alignObj,
+						pars.primerErrors,
+						!pars.primerToUpperCase);
+			}
+
+			std::string fullname = "";
+			if(forwardPrimerName != reversePrimerName){
+				fullname = forwardPrimerName + "-" + reversePrimerName;
+			}else{
+				fullname = forwardPrimerName;
+			}
+			if (ids.containsMids()) {
+				fullname += barcodeName;
+			} else if (pars.sampleName != "") {
+				fullname += pars.sampleName;
+			}
+
+			if("unrecognized" == forwardPrimerName ||
+				 "unrecognized" == reversePrimerName){
+				//check for unrecognized primers
+				stats.increaseFailedForward(barcodeName, seq.seqBase_.name_);
+				midReaderOuts.openWrite("unrecognized", seq);
+				++primerCounts[fullname];
+
+			}else if(forwardPrimerName != reversePrimerName){
+				//check for primer mismatch
+				//stats.increasePrimerMismatch(barcodeName, seq.seqBase_.name_);
+				stats.increaseCounts(barcodeName, seq.seqBase_.name_, ExtractionStator::extractCase::MISMATCHPRIMERS);
+				auto badDirOutOpts = setUp.pars_.ioOptions_;
+				badDirOutOpts.out_.outFilename_ =
+						bib::files::make_path(badDir, fullname).string();
+				if(!midReaderOuts.containsReader(fullname + "bad")){
+					midReaderOuts.addReader(fullname + "bad", badDirOutOpts);
+				}
+				midReaderOuts.openWrite(fullname + "bad", seq);
+				++primerCounts[fullname];
+			}else{
+				//primer match
+				stats.increaseCounts(fullname, seq.seqBase_.name_,
+						ExtractionStator::extractCase::GOOD);
+				midReaderOuts.openWrite(fullname + "good", seq);
+				++primerCounts[fullname];
+			}
+		}
+	}
+
+	auto primerCountsKeys = getVectorOfMapKeys(primerCounts);
+	bib::sort(primerCountsKeys);
+	OutOptions goodCountsOpts(bib::files::make_path(setUp.pars_.directoryName_, "primerCounts.tab.txt"));
+	OutputStream goodCountsOut(goodCountsOpts);
+	goodCountsOut << "name\tcount" << std::endl;
+	for(const auto & good : primerCounts){
+		goodCountsOut << good.first
+				<< "\t" << good.second
+				<< std::endl;
+	}
+
 //		auto barcodeName = bfs::basename(f.first.string());
 //		if ((counts[barcodeName].first + counts[barcodeName].second) == 0
 //				&& ids.containsMids()) {
@@ -431,11 +490,11 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 //				if (pars.multiplex) {
 //
 //					primerName = pDetermine.determineForwardPrimer(seq, 0, alignObj,
-//							pars.fPrimerErrors, !pars.forwardPrimerToUpperCase);
+//							pars.primerErrors, !pars.primerToUpperCase);
 //
 //					if (primerName == "unrecognized" && pars.mDetPars.checkComplement_) {
 //						primerName = pDetermine.determineWithReversePrimer(seq, 0,
-//								alignObj, pars.fPrimerErrors, !pars.forwardPrimerToUpperCase);
+//								alignObj, pars.primerErrors, !pars.primerToUpperCase);
 //						if (seq.seqBase_.on_) {
 //							foundInReverse = true;
 //						}
@@ -446,10 +505,10 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 //					//std::cout << "Determining primer" << std::endl;
 //
 //					primerName = pDetermine.determineForwardPrimer(seq, start, alignObj,
-//							pars.fPrimerErrors, !pars.forwardPrimerToUpperCase);
+//							pars.primerErrors, !pars.primerToUpperCase);
 //					if (primerName == "unrecognized" && pars.mDetPars.checkComplement_) {
 //						primerName = pDetermine.determineWithReversePrimer(seq, start,
-//								alignObj, pars.fPrimerErrors, !pars.forwardPrimerToUpperCase);
+//								alignObj, pars.primerErrors, !pars.primerToUpperCase);
 //						if (seq.seqBase_.on_) {
 //							foundInReverse = true;
 //						}
@@ -492,7 +551,6 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 //							pars.rPrimerErrors, !pars.reversePrimerToUpperCase,
 //							pars.mDetPars.variableStop_, false);
 //				}
-//
 //				if (!seq.seqBase_.on_) {
 //					stats.increaseCounts(fullname, seq.seqBase_.name_,
 //							ExtractionStator::extractCase::BADREVERSE);

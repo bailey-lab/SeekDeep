@@ -44,31 +44,18 @@ void SeekDeepSetUp::setUpExtractorPairedEnd(ExtractorPairedEndPars & pars) {
 
 	processVerbose();
 	processDebug();
-	setOption(pars.noForwardPrimer, "--noForwardPrimer",
-			"No Forward Primer Required", false, "Primer");
-	setOption(pars.forwardPrimerToUpperCase, "--fUpper",
-			"Leave forward primer upper case", false, "Primer");
-	setOption(pars.fPrimerErrors.distances_.query_.coverage_, "--fCoverage",
-			"Amount of Forward Primer to find", false, "Primer");
-	setOption(pars.fPrimerErrors.hqMismatches_, "--fNumOfMismatches",
-			"Number of Mismatches to allow in Forward Primer", false, "Primer");
-	setOption(pars.fPrimerErrors.oneBaseIndel_, "--fOneBaseIndels",
-			"Number Of One base indels to allow in forward primer", false, "Primer");
-	setOption(pars.fPrimerErrors.twoBaseIndel_, "--fTwoBaseIndels",
-			"Number Of Two base indels to allow in forward primer", false, "Primer");
-	//fPrimerErrors.largeBaseIndel_ = .99;
-	setOption(pars.noReversePrimer, "--noReverse",
-			"Don't look for reverse Primer", false, "Primer");
-	setOption(pars.reversePrimerToUpperCase, "--rUpper",
-			"Leave reverse primer upper case", false, "Primer");
-	setOption(pars.rPrimerErrors.distances_.query_.coverage_, "--rPrimerCoverage",
-			"Amount Of Reverse Primer Required", false, "Primer");
-	setOption(pars.rPrimerErrors.hqMismatches_, "--rNumOfMismatches",
-			"Number of Mismatches to allow in Reverse Primer", false, "Primer");
-	setOption(pars.rPrimerErrors.oneBaseIndel_, "--rOneBaseIndels",
-			"Number Of One base indels to allow in reverse primer", false, "Primer");
-	setOption(pars.rPrimerErrors.twoBaseIndel_, "--rTwoBaseIndels",
-			"Number Of Two base indels to allow in reverse primer", false, "Primer");
+
+	setOption(pars.primerToUpperCase, "--primerUpper",
+			"Leave primers in upper case", false, "Primer");
+	setOption(pars.primerErrors.distances_.query_.coverage_, "--primerCoverage",
+			"Amount of primers found", false, "Primer");
+	setOption(pars.primerErrors.hqMismatches_, "--primerNumOfMismatches",
+			"Number of Mismatches to allow in primers", false, "Primer");
+	setOption(pars.primerErrors.oneBaseIndel_, "--primerOneBaseIndels",
+			"Number Of One base indels to allow in primers", false, "Primer");
+	setOption(pars.primerErrors.twoBaseIndel_, "--primerTwoBaseIndels",
+			"Number Of Two base indels to allow in primers", false, "Primer");
+
 
 
 	setOption(pars.sampleName, "--sampleName",
