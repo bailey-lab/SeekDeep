@@ -264,6 +264,8 @@ class Packages():
             self.packages_["atlas"] = self.__atlas()
         
         #git repos 
+        if "adapterremoval" in libsNeeded:
+            self.packages_["adapterremoval"] = self.__adapterremoval()
         if "curl" in libsNeeded:
             self.packages_["curl"] = self.__curl()
         if "mongoc" in libsNeeded:
@@ -756,7 +758,30 @@ class Packages():
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
                 pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
         return pack
-        
+      
+    def __adapterremoval(self):
+        name = "adapterremoval"
+        buildCmd = "CC={CC} CXX={CXX} make -j {num_cores} && make -j {num_cores} install PREFIX={local_dir}"
+        url = "https://github.com/MikkelSchubert/adapterremoval.git"
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v2.2.2")
+        if self.args.noInternet:
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                pack = pickle.load(inputPkl)
+                pack.defaultBuildCmd_ = buildCmd
+        elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                pack = pickle.load(inputPkl)
+                pack.defaultBuildCmd_ = buildCmd
+        else:
+            refs = pack.getGitRefs(url)
+            for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
+                pack.addVersion(url, ref)
+            Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
+                pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
+        return pack
+    
+    
     def __bowtie2(self):
         name = "bowtie2"
         buildCmd = "CC={CC} CXX={CXX} make -j {num_cores} && mkdir -p {local_dir}/bin && cp -r bowtie2* {local_dir}/bin/"
@@ -1687,6 +1712,7 @@ class Setup:
                        "pigz": self.pigz,
                        "bowtie2": self.bowtie2,
                        "muscle": self.muscle,
+                       "adapterremoval": self.adapterremoval,
                        "lastz": self.lastz,
                        "samtools": self.samtools,
                        "bcftools": self.bcftools,
@@ -2283,6 +2309,9 @@ class Setup:
     
     def muscle(self, version):
         self.__defaultBuild("muscle", version) 
+        
+    def adapterremoval(self, version):
+        self.__defaultBuild("adapterremoval", version) 
     
     def lastz(self, version):
         self.__defaultBuild("lastz", version) 
