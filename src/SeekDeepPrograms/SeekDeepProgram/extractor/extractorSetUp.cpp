@@ -44,6 +44,19 @@ void SeekDeepSetUp::setUpExtractorPairedEnd(ExtractorPairedEndPars & pars) {
 
 	processVerbose();
 	processDebug();
+	pars.pairProcessorParams_.verbose_ = pars_.verbose_;
+
+	setOption(pars.noOverlapProcessForNoOverlapStatusTargets_, "--noOverlapProcessForNoOverlapStatusTargets_", "noOverlapProcessForNoOverlapStatusTargets",
+			false, "Post-Processing-PairProcessing");
+
+	setOption(pars.pairProcessorParams_.errorAllowed_, "--overLapErrorAllowed",
+			"The amount of error to allow in the overlap processing", false, "Post-Processing-PairProcessing");
+	setOption(pars.pairProcessorParams_.hardMismatchCutOff_, "--hardMismatchCutOff",
+			 "A hard cut off for number of mismatches between overlapping sequences in pair processing", false, "Post-Processing-PairProcessing");
+	setOption(pars.pairProcessorParams_.minOverlap_, "--minOverlap",
+			"The minimal amount of over lap in pair processing", false, "Post-Processing-PairProcessing");
+	setOption(pars.pairProcessorParams_.writeOverHangs_, "--writeOverHangs",
+			"Write out the overhang for sequences that have read through", false, "Post-Processing-PairProcessing");
 
 	setOption(pars.primerToUpperCase, "--primerUpper",
 			"Leave primers in upper case", false, "Primer");
@@ -75,9 +88,15 @@ void SeekDeepSetUp::setUpExtractorPairedEnd(ExtractorPairedEndPars & pars) {
 	setOption(pars.mDetPars.checkForShorten_, "--checkShortenBars",
 			"Check for shorten Barcodes if the first base may have been trimmed off", false, "Barcodes");
 
-	setOption(pars.mDetPars.variableStop_, "--variableStart",
+	setOption(pars.mDetPars.variableStop_, "--midWithinStart",
 			"By default the primer or barcodes are searched at the very beginning of seq, use this flag to extended the search, should be kept low to cut down on false positives",
 			false, "Barcodes");
+
+	setOption(pars.primerWithinStart_, "--primerWithinStart",
+			"By default the primer or barcodes are searched at the very beginning of seq, use this flag to extended the search, should be kept low to cut down on false positives",
+			false, "Primers");
+
+
 
 	processReadInNames(VecStr{"--fastq1", "--fastq1gz", "--fastq2", "--fastq2gz"},true);
 	bool mustMakeDirectory = true;
@@ -85,7 +104,7 @@ void SeekDeepSetUp::setUpExtractorPairedEnd(ExtractorPairedEndPars & pars) {
 	if (setOption(pars.idFilename, "--id", "The name of the ID file", true, "ID File")) {
 		if (!bfs::exists(pars.idFilename)) {
 			failed_ = true;
-			warnings_.emplace_back("Error the id file doesn't exist: " + pars.idFilename);
+			warnings_.emplace_back("Error the id file doesn't exist: " + pars.idFilename.string());
 		}
 	}
 
@@ -94,6 +113,24 @@ void SeekDeepSetUp::setUpExtractorPairedEnd(ExtractorPairedEndPars & pars) {
 			"Check the Complement of the Seqs As Well", false, "Complement");
 	setOption(pars.smallFragmentCutoff, "--smallFragmentCutOff",
 			"Remove sequences smaller than this length", false, "Pre Processing");
+
+	setOption(pars.r1Trim_, "--r1Trim",
+			"Remove this many sequences off of the end of r1 reads", false, "Post Processing");
+	setOption(pars.r2Trim_, "--r2Trim",
+			"Remove this many sequences off of the end of r2 reads", false, "Post Processing");
+	setOption(pars.lenCutOffFilename_, "--lenCutOffFilename",
+			"A file with at least three columns, target,minlen,maxlen the target column should match up with the first column in the id file", false, "Post Processing");
+	setOption(pars.comparisonSeqFnp_, "--comparisonSeqFnp",
+			"A fasta file or a directory to fasta files, with references to check against, if file record name need to match target name, if directory file name should be TARGET.fasta", false, "Post Processing");
+
+	setOption(pars.qPars_.qualCheck_, "--qualCheckLevel",
+			"Bin qualities at this quality to do filtering on fraction above this", false, "Post Processing");
+	setOption(pars.qPars_.qualCheckCutOff_, "--qualCheckCutOff",
+			"The fractions of bases that have to be above the qualCheckLevel to be kept", false, "Post Processing");
+
+	setOption(pars.overlapStatusFnp_, "--overlapStatusFnp",
+			"A file with two columns, target,status; status column should contain 1 of 3 values (capitalization doesn't matter): r1BegOverR2End,r1EndOverR2Beg,NoOverlap. r1BegOverR2End=target size < read length (causes read through),r1EndOverR2Beg= target size > read length less than 2 x read length, NoOverlap=target size > 2 x read length", true, "Post Processing");
+
 
 
 	pars_.gapInfo_.gapOpen_ = 5;

@@ -8,7 +8,7 @@
  */
 
 #include <bibseq.h>
-
+#include "SeekDeep/objects/PairedReadProcessor.hpp"
 
 
 namespace bibseq {
@@ -86,13 +86,9 @@ struct ExtractorPairedEndPars{
 
 	ExtractorPairedEndPars();
 
-	std::string idFilename = "";
+	bfs::path idFilename = "";
 	std::string idFileDelim = "whitespace";
 
-  uint32_t r1MinLen = std::numeric_limits<uint32_t>::max();
-  uint32_t r2MinLen = std::numeric_limits<uint32_t>::max();
-  uint32_t r1MaxLen = std::numeric_limits<uint32_t>::max();
-  uint32_t r2MaxLen = std::numeric_limits<uint32_t>::max();
 
   uint32_t smallFragmentCutoff = 50;
 
@@ -107,7 +103,21 @@ struct ExtractorPairedEndPars{
 
   MidDeterminator::MidDeterminePars mDetPars;
 
+  uint32_t primerWithinStart_ = 0;
+
   std::string sampleName = "";
+
+  uint32_t r1Trim_ = 1;
+  uint32_t r2Trim_ = 1;
+  QualFilteringPars qPars_;
+  bfs::path lenCutOffFilename_ = "";
+  bfs::path comparisonSeqFnp_ = "";
+
+  bfs::path overlapStatusFnp_ = "";
+  bool noOverlapProcessForNoOverlapStatusTargets_ = false;
+  uint32_t numberOfNs = 0;
+
+  PairedReadProcessor::ProcessParams pairProcessorParams_;
 
 };
 

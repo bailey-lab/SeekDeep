@@ -18,12 +18,20 @@ PrimersAndMids::Target::lenCutOffs::lenCutOffs(uint32_t minLen, uint32_t maxLen,
 
 PrimersAndMids::Target::Target(const std::string & name,
 		const std::string & forPrimer, const std::string & revPrimer) :
-		info_(name, forPrimer, revPrimer) {
+		info_(name, forPrimer, revPrimer),
+		overlapStatus_(PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP) {
 }
 
 void PrimersAndMids::Target::addLenCutOff(uint32_t minLen, uint32_t maxLen,
 		bool mark) {
 	lenCuts_ = std::make_unique<lenCutOffs>(minLen, maxLen, mark);
+}
+
+void PrimersAndMids::Target::setRefKInfos(uint32_t klen, bool setRevComp) {
+	refKInfos_.clear();
+	for (const auto & ref : refs_) {
+		refKInfos_.emplace_back(ref.seq_, klen, setRevComp);
+	}
 }
 
 void PrimersAndMids::Target::addSingleRef(const seqInfo & ref) {
@@ -253,17 +261,7 @@ std::map<std::string, PrimersAndMids::Target::lenCutOffs> PrimersAndMids::readIn
 	bib::for_each(lenCutTab.columnNames_,
 			[](std::string & str) {stringToLower(str);});
 	lenCutTab.setColNamePositions();
-	if (!bib::in(std::string("target"), lenCutTab.columnNames_)
-			|| !bib::in(std::string("minlen"), lenCutTab.columnNames_)
-			|| !bib::in(std::string("maxlen"), lenCutTab.columnNames_)) {
-		std::stringstream ss;
-		ss << "need to have columns " << "target, minlen, and maxlen"
-				<< " when reading in a table for multiple cut off lengths"
-				<< std::endl;
-		ss << "only have " << vectorToString(lenCutTab.columnNames_, ",")
-				<< std::endl;
-		throw std::runtime_error { bib::bashCT::boldRed(ss.str()) };
-	}
+	lenCutTab.checkForColumnsThrow(VecStr{"target", "minlen", "maxlen"}, __PRETTY_FUNCTION__);
 	for (const auto & row : lenCutTab.content_) {
 		ret.emplace(row[lenCutTab.getColPos("target")],
 				PrimersAndMids::Target::lenCutOffs { estd::stou(
@@ -293,6 +291,162 @@ void PrimersAndMids::initPrimerDeterminator(){
 		pInfos.emplace(tar.second.info_.primerPairName_, tar.second.info_);
 	}
 	pDeterminator_ = std::make_unique<PrimerDeterminator>(pInfos);
+}
+
+void PrimersAndMids::addLenCutOffs(const bfs::path & lenCutOffsFnp){
+	bool failedOverlapStatusProcessing = false;
+	std::stringstream errorStream;
+
+	std::map<std::string, PrimersAndMids::Target::lenCutOffs> ret;
+	table lenCutTab = table(lenCutOffsFnp, "whitespace", true);
+	bib::for_each(lenCutTab.columnNames_,
+			[](std::string & str) {stringToLower(str);});
+	lenCutTab.setColNamePositions();
+	lenCutTab.checkForColumnsThrow(VecStr{"target", "minlen", "maxlen"}, __PRETTY_FUNCTION__);
+	for (const auto & row : lenCutTab.content_) {
+		if (!bib::in(row[lenCutTab.getColPos("target")], targets_)) {
+			failedOverlapStatusProcessing = true;
+			errorStream << __PRETTY_FUNCTION__ << ", error found "
+					<< row[lenCutTab.getColPos("target")]
+					<< " but it isn't a listed target in " << idFile_ << "\n";
+			errorStream << "options are: "
+					<< bib::conToStr(getVectorOfMapKeys(targets_), ", ") << "\n";
+		}
+		if (bib::in(row[lenCutTab.getColPos("target")], ret)) {
+			failedOverlapStatusProcessing = true;
+			errorStream << __PRETTY_FUNCTION__ << ", error already have "
+					<< row[lenCutTab.getColPos("target")] << " in table" << "\n";
+		}
+		ret.emplace(row[lenCutTab.getColPos("target")],
+				PrimersAndMids::Target::lenCutOffs { estd::stou(
+						row[lenCutTab.getColPos("minlen")]), estd::stou(
+						row[lenCutTab.getColPos("maxlen")]) });
+	}
+
+	for (const auto & tar : getTargets()) {
+		if (!bib::in(tar, ret)) {
+			std::cerr << __PRETTY_FUNCTION__
+					<< ", warning, didn't indicate len cuts for " << tar
+					<< " cut offs will be automatically determined based on median read length for reads found for target"
+					<< "\n";
+		}
+	}
+
+	if (failedOverlapStatusProcessing) {
+		throw std::runtime_error { errorStream.str() };
+	}
+	for(const auto & tlenCut : ret){
+		targets_.at(tlenCut.first).addLenCutOff(
+				tlenCut.second.minLenChecker_.minLen_,
+				tlenCut.second.maxLenChecker_.maxLen_);
+	}
+}
+
+void PrimersAndMids::addOverLapStatuses(const bfs::path & overlapStatuses){
+	table overlapStatusTab(overlapStatuses, "whitespace", true);
+	std::unordered_map<std::string, PairedReadProcessor::ReadPairOverLapStatus> targetStatus;
+	bib::for_each(overlapStatusTab.columnNames_,
+			[](std::string & str) {stringToLower(str);});
+	overlapStatusTab.setColNamePositions();
+	overlapStatusTab.checkForColumnsThrow(VecStr{"target", "status"}, __PRETTY_FUNCTION__);
+	bool failedOverlapStatusProcessing = false;
+	std::stringstream errorStream;
+	for (const auto & row : overlapStatusTab.content_) {
+		if (!bib::in(row[overlapStatusTab.getColPos("target")], targets_)) {
+			failedOverlapStatusProcessing = true;
+			errorStream << __PRETTY_FUNCTION__ << ", error found "
+					<< row[overlapStatusTab.getColPos("target")]
+					<< " but it isn't a listed target in " << idFile_ << "\n";
+			errorStream << "options are: "
+					<< bib::conToStr(getVectorOfMapKeys(targets_), ", ") << "\n";
+		}else 	if (bib::in(row[overlapStatusTab.getColPos("target")], targetStatus)) {
+			failedOverlapStatusProcessing = true;
+			errorStream << __PRETTY_FUNCTION__ << ", error already have "
+					<< row[overlapStatusTab.getColPos("target")] << " in table" << "\n";
+		} else {
+			if ("NOOVERLAP"
+					== bib::strToUpperRet(row[overlapStatusTab.getColPos("status")])) {
+				targetStatus[row[overlapStatusTab.getColPos("target")]] =
+						PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP;
+			} else if ("R1BEGOVERR2END"
+					== bib::strToUpperRet(row[overlapStatusTab.getColPos("status")])) {
+				targetStatus[row[overlapStatusTab.getColPos("target")]] =
+						PairedReadProcessor::ReadPairOverLapStatus::R1BEGOVERR2END;
+			} else if ("R1ENDOVERR2BEG"
+					== bib::strToUpperRet(row[overlapStatusTab.getColPos("status")])) {
+				targetStatus[row[overlapStatusTab.getColPos("target")]] =
+						PairedReadProcessor::ReadPairOverLapStatus::R1ENDOVERR2BEG;
+			} else {
+				failedOverlapStatusProcessing = true;
+				errorStream << __PRETTY_FUNCTION__
+						<< ", error status should be NOOVERHANG, R1BEGOVERR2END, or R1ENDOVERR2BEG, not "
+						<< bib::strToUpperRet(row[overlapStatusTab.getColPos("status")])
+						<< "\n";
+			}
+		}
+	}
+	for(const auto & tar : getTargets()){
+		if(!bib::in(tar, targetStatus)){
+			failedOverlapStatusProcessing = true;
+			errorStream << __PRETTY_FUNCTION__  << ", error, didn't indicate overlap status for " << tar << "\n";
+		}
+	}
+
+	if (failedOverlapStatusProcessing) {
+		throw std::runtime_error { errorStream.str() };
+	}
+
+	for(const auto & ts : targetStatus){
+		targets_.at(ts.first).overlapStatus_ = ts.second;
+	}
+}
+void PrimersAndMids::setRefSeqsKInfos(uint32_t klen, bool setRevComp){
+
+}
+
+void PrimersAndMids::addRefSeqs(const bfs::path & refSeqsDir){
+	auto fastaFiles = bib::files::listAllFiles(refSeqsDir.string(), false, {
+			std::regex { R"(.*\.fasta$)" } });
+	VecStr found;
+	auto tars = getTargets();
+	bool failedOverlapStatusProcessing = false;
+	std::stringstream errorStream;
+	std::set<std::string> alreadyAdded;
+	for (const auto & ff : fastaFiles) {
+		auto tarName = bfs::basename(ff.first);
+		found.emplace_back(tarName);
+		if (!bib::in(tarName, targets_)) {
+			failedOverlapStatusProcessing = true;
+			errorStream << __PRETTY_FUNCTION__ << ", error found " << tarName
+					<< " but it isn't a listed target in " << idFile_ << "\n";
+			errorStream << "options are: "
+					<< bib::conToStr(getVectorOfMapKeys(targets_), ", ") << "\n";
+		} else if (bib::in(tarName, alreadyAdded)) {
+			failedOverlapStatusProcessing = true;
+			errorStream << __PRETTY_FUNCTION__ << ", error already have " << tarName
+					<< " in table" << "\n";
+		} else {
+			auto inOpts = SeqIOOptions::genFastaIn(ff.first.string(), false);
+			SeqInput reader(inOpts);
+			auto seqs = reader.readAllReads<seqInfo>();
+			if (seqs.size() == 1) {
+				targets_.at(tarName).addSingleRef(seqs.front());
+			} else {
+				targets_.at(tarName).addMultileRef(seqs);
+			}
+		}
+	}
+	for (const auto & tar : tars) {
+		if (!bib::in(tar, found)) {
+			std::cerr << __PRETTY_FUNCTION__
+					<< ", warning, didn't find any ref sequences for " << tar
+					<< " when loading sequences for others though" << "\n";
+		}
+	}
+
+	if (failedOverlapStatusProcessing) {
+		throw std::runtime_error { errorStream.str() };
+	}
 }
 
 }  // namespace bibseq

@@ -66,19 +66,39 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 	if(ids.containsTargets()){
 		ids.initPrimerDeterminator();
 	}
+	//add in any length cuts if any
+	if("" != pars.lenCutOffFilename_){
+		ids.addLenCutOffs(pars.lenCutOffFilename_);
+	}
+	//add in ref sequences if any
+	if("" != pars.comparisonSeqFnp_){
+		ids.addRefSeqs(pars.comparisonSeqFnp_);
+
+	}
+	//add in overlap status
+	ids.addOverLapStatuses(pars.overlapStatusFnp_);
+
+	//default checks for Ns and quality
+	ReadCheckerOnSeqContaining nChecker("N", pars.numberOfNs, true);
+	ReadCheckerQualCheck(pars.qPars_.qualCheck_, pars.qPars_.qualCheckCutOff_, true);
+
 
 	// make some directories for outputs
-	bfs::path unfilteredReadsDir = bib::files::makeDir(
-			setUp.pars_.directoryName_,
+	bfs::path unfilteredReadsDir = bib::files::makeDir(setUp.pars_.directoryName_,
 			bib::files::MkdirPar("unfilteredReads", false));
 	bfs::path unfilteredByBarcodesDir = bib::files::makeDir(unfilteredReadsDir,
 			bib::files::MkdirPar("byBarcodes", false));
-	bfs::path unfilteredByBarcodesFlowDir = bib::files::makeDir(
-			unfilteredReadsDir, bib::files::MkdirPar("flowsByBarcodes", false));
 	bfs::path unfilteredByPrimersDir = bib::files::makeDir(unfilteredReadsDir,
 			bib::files::MkdirPar("byPrimers", false));
+	bfs::path unfilteredByPairsProcessedDir = bib::files::makeDir(unfilteredReadsDir,
+			bib::files::MkdirPar("pairsProcessed", false));
 	bfs::path filteredOffDir = bib::files::makeDir(setUp.pars_.directoryName_,
 			bib::files::MkdirPar("filteredOff", false));
+	bfs::path overHansDir;
+	if (pars.pairProcessorParams_.writeOverHangs_) {
+		overHansDir = bib::files::makeDir(setUp.pars_.directoryName_,
+				bib::files::MkdirPar("overhangs", false));
+	}
 	bfs::path badDir = bib::files::makeDir(filteredOffDir,
 			bib::files::MkdirPar("bad", false));
 	bfs::path unrecognizedPrimerDir = bib::files::makeDir(filteredOffDir,
@@ -168,7 +188,8 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 			++smallFragmentCount;
 			continue;
 		}
-		readVec::getMaxLength(seq, maxReadSize);
+		readVec::getMaxLength(seq.seqBase_, maxReadSize);
+		readVec::getMaxLength(seq.mateSeqBase_, maxReadSize);
 
 		std::pair<MidDeterminator::midPos, MidDeterminator::midPos> currentMid;
 		if (ids.containsMids()) {
@@ -240,17 +261,18 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 	KmerMaps emptyMaps;
 	bool countEndGaps = false;
 	//to avoid allocating an extremely large aligner matrix;
-	if(maxReadSize > 1000){
-		auto maxPrimerSize = ids.pDeterminator_->getMaxPrimerSize();
-		maxReadSize =  maxPrimerSize * 4 + pars.mDetPars.variableStop_;
-	}
+//	if(maxReadSize > 1000){
+//		auto maxPrimerSize = ids.pDeterminator_->getMaxPrimerSize();
+//		maxReadSize =  maxPrimerSize * 4 + pars.primerWithinStart_;
+//	}
 
 
 	aligner alignObj = aligner(maxReadSize, gapPars, scoreMatrix, emptyMaps,
 			setUp.pars_.qScorePars_, countEndGaps, false);
 	alignObj.processAlnInfoInput(setUp.pars_.alnInfoDirName_);
 	ExtractionStator stats(count, readsNotMatchedToBarcode, 0, smallFragmentCount);
-	std::map<std::string, uint32_t> primerCounts;
+	std::map<std::string, uint32_t> allPrimerCounts;
+	std::map<std::string, uint32_t> matchingPrimerCounts;
 	std::vector<std::string> expectedSamples;
 	if(ids.containsMids()){
 		expectedSamples = getVectorOfMapKeys(ids.mDeterminator_->mids_);
@@ -269,6 +291,7 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 		printVector(barcodeReadsKeys);
 	}
 
+	std::unordered_map<std::string, std::set<std::string>> primersInMids;
 
 	for (const auto & barcodeReadsKey : barcodeReadsKeys) {
 		const auto & barcodeReadPairs = readsByPairs[barcodeReadsKey];
@@ -305,7 +328,8 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 			midReaderOuts.addReader(fullname + "bad", badDirOutOpts);
 			//good out
 			auto goodDirOutOpts = setUp.pars_.ioOptions_;
-			goodDirOutOpts.out_.outFilename_ = setUp.pars_.directoryName_ + fullname;
+
+			goodDirOutOpts.out_.outFilename_ = bib::files::make_path(unfilteredByPrimersDir,  fullname);
 			midReaderOuts.addReader(fullname + "good", goodDirOutOpts);
 		}
 
@@ -328,20 +352,20 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 			std::string forwardPrimerName = "";
 			bool foundInReverse = false;
 			if (ids.containsMids()) {
-				forwardPrimerName = ids.pDeterminator_->determineForwardPrimer(seq.seqBase_, 0, alignObj,
+				forwardPrimerName = ids.pDeterminator_->determineForwardPrimer(seq.seqBase_, pars.primerWithinStart_, alignObj,
 						pars.primerErrors, !pars.primerToUpperCase);
 				if ("unrecognized" ==  forwardPrimerName && pars.mDetPars.checkComplement_) {
-					forwardPrimerName = ids.pDeterminator_->determineWithReversePrimer(seq.seqBase_, 0, alignObj,
+					forwardPrimerName = ids.pDeterminator_->determineWithReversePrimer(seq.seqBase_, pars.primerWithinStart_, alignObj,
 							pars.primerErrors, !pars.primerToUpperCase);
 					if (seq.seqBase_.on_) {
 						foundInReverse = true;
 					}
 				}
 			} else {
-				forwardPrimerName = ids.pDeterminator_->determineForwardPrimer(seq.seqBase_, pars.mDetPars.variableStop_, alignObj,
+				forwardPrimerName = ids.pDeterminator_->determineForwardPrimer(seq.seqBase_, pars.primerWithinStart_, alignObj,
 						pars.primerErrors, !pars.primerToUpperCase);
 				if ("unrecognized" ==  forwardPrimerName && pars.mDetPars.checkComplement_) {
-					forwardPrimerName = ids.pDeterminator_->determineForwardPrimer(seq.mateSeqBase_, pars.mDetPars.variableStop_,
+					forwardPrimerName = ids.pDeterminator_->determineForwardPrimer(seq.mateSeqBase_, pars.primerWithinStart_,
 							alignObj, pars.primerErrors, !pars.primerToUpperCase);
 					if (seq.seqBase_.on_) {
 						foundInReverse = true;
@@ -353,13 +377,13 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 			std::string reversePrimerName = "";
 			if (!foundInReverse) {
 				reversePrimerName = ids.pDeterminator_->determineWithReversePrimer(seq.mateSeqBase_,
-						pars.mDetPars.variableStop_,
+						pars.primerWithinStart_,
 						alignObj,
 						pars.primerErrors,
 						!pars.primerToUpperCase);
 			} else {
 				reversePrimerName = ids.pDeterminator_->determineWithReversePrimer(seq.seqBase_,
-						pars.mDetPars.variableStop_,
+						pars.primerWithinStart_,
 						alignObj,
 						pars.primerErrors,
 						!pars.primerToUpperCase);
@@ -373,16 +397,16 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 			}
 			if (ids.containsMids()) {
 				fullname += barcodeName;
-			} else if (pars.sampleName != "") {
-				fullname += pars.sampleName;
-			}
+			}// else if (pars.sampleName != "") {
+//				fullname += pars.sampleName;
+//			}
 
 			if("unrecognized" == forwardPrimerName ||
 				 "unrecognized" == reversePrimerName){
 				//check for unrecognized primers
 				stats.increaseFailedForward(barcodeName, seq.seqBase_.name_);
 				midReaderOuts.openWrite("unrecognized", seq);
-				++primerCounts[fullname];
+				++allPrimerCounts[fullname];
 
 			}else if(forwardPrimerName != reversePrimerName){
 				//check for primer mismatch
@@ -395,27 +419,109 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 					midReaderOuts.addReader(fullname + "bad", badDirOutOpts);
 				}
 				midReaderOuts.openWrite(fullname + "bad", seq);
-				++primerCounts[fullname];
+				++allPrimerCounts[fullname];
 			}else{
+				primersInMids[barcodeName].emplace(forwardPrimerName);
 				//primer match
 				stats.increaseCounts(fullname, seq.seqBase_.name_,
 						ExtractionStator::extractCase::GOOD);
 				midReaderOuts.openWrite(fullname + "good", seq);
-				++primerCounts[fullname];
+				++allPrimerCounts[fullname];
+				++matchingPrimerCounts[fullname];
 			}
 		}
 	}
 
-	auto primerCountsKeys = getVectorOfMapKeys(primerCounts);
+	auto primerCountsKeys = getVectorOfMapKeys(allPrimerCounts);
 	bib::sort(primerCountsKeys);
-	OutOptions goodCountsOpts(bib::files::make_path(setUp.pars_.directoryName_, "primerCounts.tab.txt"));
+	OutOptions allPrimerCountsOpts(bib::files::make_path(setUp.pars_.directoryName_, "allPrimerCounts.tab.txt"));
+	OutputStream allPrimerCountsOut(allPrimerCountsOpts);
+
+	OutOptions goodCountsOpts(
+			bib::files::make_path(setUp.pars_.directoryName_,
+					"matchingPrimerCounts.tab.txt"));
 	OutputStream goodCountsOut(goodCountsOpts);
 	goodCountsOut << "name\tcount" << std::endl;
-	for(const auto & good : primerCounts){
-		goodCountsOut << good.first
-				<< "\t" << good.second
-				<< std::endl;
+	for (const auto & good : allPrimerCounts) {
+		allPrimerCountsOut << good.first << "\t" << good.second << std::endl;
+		if (bib::in(good.first, matchingPrimerCounts)) {
+			goodCountsOut << good.first << "\t" << good.second << std::endl;
+		}
 	}
+	//now post processing
+	PairedReadProcessor pairProcessor(pars.pairProcessorParams_);
+	auto alnGapPars = gapScoringParameters(
+			setUp.pars_.gapInfo_.gapOpen_,
+			setUp.pars_.gapInfo_.gapExtend_,
+			0,0,
+			0,0);
+	auto pairedProcessingScoring = substituteMatrix::createScoreMatrix(2, -2, true, true, true);
+	aligner processingPairsAligner(maxReadSize, alnGapPars, pairedProcessingScoring, false);
+	processingPairsAligner.qScorePars_.qualThresWindow_ = 0;
+	std::unordered_map<std::string, std::vector<uint32_t>> lengthsPerStitchedTarget;
+	for(const auto & extractedMid : primersInMids){
+		for(const auto & extractedPrimer : extractedMid.second){
+			if(pars.noOverlapProcessForNoOverlapStatusTargets_ && PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP == bib::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
+				continue;
+			}
+			std::string name = extractedPrimer + extractedMid.first;
+			OutOptions currentOutOpts(bib::files::make_path(unfilteredByPairsProcessedDir, name));
+			PairedReadProcessor::ProcessorOutWriters processWriter;
+			processWriter.overhangsWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(bib::files::make_path(overHansDir, name + "_overhangs")));
+			processWriter.perfectOverlapCombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(bib::files::make_path(unfilteredByPairsProcessedDir, name + "_perfectOverlap")));
+			if(PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP == bib::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
+				processWriter.notCombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genPairedOut(bib::files::make_path(unfilteredByPairsProcessedDir, name)));
+				processWriter.r1BegOverR2EndCombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(bib::files::make_path(badDir, name + "_r1BegOverR2End.fastq")));
+				processWriter.r1EndOverR2BegCombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(bib::files::make_path(badDir, name + "_r1EndOverR2Beg.fastq")));
+			}else if(PairedReadProcessor::ReadPairOverLapStatus::R1BEGOVERR2END == bib::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
+				processWriter.r1BegOverR2EndCombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(bib::files::make_path(unfilteredByPairsProcessedDir, name + "")));
+				processWriter.notCombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genPairedOut(bib::files::make_path(badDir, name + "_notCombined")));
+				processWriter.r1EndOverR2BegCombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(bib::files::make_path(badDir, name + "_r1EndOverR2Beg.fastq")));
+			}else if(PairedReadProcessor::ReadPairOverLapStatus::R1ENDOVERR2BEG == bib::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
+				processWriter.r1EndOverR2BegCombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(bib::files::make_path(unfilteredByPairsProcessedDir, name + "")));
+				processWriter.notCombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genPairedOut(bib::files::make_path(badDir, name + "_notCombined")));
+				processWriter.r1BegOverR2EndCombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(bib::files::make_path(badDir, name + "_r1BegOverR2End.fastq")));
+			}
+			SeqIOOptions currentPairOpts;
+			if(setUp.pars_.ioOptions_.inFormat_ == SeqIOOptions::inFormats::FASTQPAIREDGZ){
+				currentPairOpts = SeqIOOptions::genPairedInGz(
+						bib::files::make_path(unfilteredByPrimersDir, name + "_R1.fastq.gz"),
+						bib::files::make_path(unfilteredByPrimersDir, name + "_R2.fastq.gz"));
+			}else{
+				currentPairOpts = SeqIOOptions::genPairedIn(
+						bib::files::make_path(unfilteredByPrimersDir, name + "_R1.fastq"),
+						bib::files::make_path(unfilteredByPrimersDir, name + "_R2.fastq"));
+			}
+			currentPairOpts.revComplMate_ = true;
+			SeqInput currentReader(currentPairOpts);
+			currentReader.openIn();
+			auto currentProcessResults = pairProcessor.processPairedEnd(currentReader, processWriter, processingPairsAligner);
+		}
+	}
+
+	for(const auto & extractedMid : primersInMids){
+		for(const auto & extractedPrimer : extractedMid.second){
+			if(pars.noOverlapProcessForNoOverlapStatusTargets_ && PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP == bib::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
+
+			}else{
+				if(PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP == bib::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
+					std::cout << extractedPrimer << " " << "NOOVERLAP" << std::endl;
+
+				}else if(PairedReadProcessor::ReadPairOverLapStatus::R1BEGOVERR2END == bib::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
+					std::cout << extractedPrimer << " " << "R1BEGOVERR2END" << std::endl;
+
+
+				}else if(PairedReadProcessor::ReadPairOverLapStatus::R1ENDOVERR2BEG == bib::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
+					std::cout << extractedPrimer << " " << "R1ENDOVERR2BEG" << std::endl;
+
+				}
+			}
+		}
+	}
+
+
+
+
 
 //		auto barcodeName = bfs::basename(f.first.string());
 //		if ((counts[barcodeName].first + counts[barcodeName].second) == 0

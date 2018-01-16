@@ -7,6 +7,7 @@ Bioinformatic Tools for analyzing targeted amplicon sequencing developed by the 
 Checkout the website bellow for more details  
 [http://baileylab.umassmed.edu/SeekDeep/](http://baileylab.umassmed.edu/SeekDeep/)
 
+Please cite the folowing citation:  Hathaway, Nicholas J., Christian M. Parobek, Jonathan J. Juliano, and Jeffrey A. Bailey. 2017. “SeekDeep: Single-Base Resolution de Novo Clustering for Amplicon Deep Sequencing.” Nucleic Acids Research, November. https://doi.org/10.1093/nar/gkx1201.
 
 # Installing  
  

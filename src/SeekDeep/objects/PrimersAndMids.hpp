@@ -9,6 +9,8 @@
 
 #include <bibseq.h>
 
+#include "SeekDeep/objects/PairedReadProcessor.hpp"
+
 namespace bibseq {
 
 class PrimersAndMids {
@@ -27,6 +29,7 @@ public:
 
 		PrimerDeterminator::primerInfo info_;
 		std::vector<seqInfo> refs_;
+		std::vector<kmerInfo> refKInfos_;
 
 		std::unique_ptr<lenCutOffs> lenCuts_;
 
@@ -34,6 +37,11 @@ public:
 
 		void addSingleRef(const seqInfo & ref);
 		void addMultileRef(const std::vector<seqInfo> & refs);
+
+		void setRefKInfos(uint32_t klen, bool setRevComp);
+
+		PairedReadProcessor::ReadPairOverLapStatus overlapStatus_;
+
 	};
 
 	PrimersAndMids(const bfs::path & idFileFnp);
@@ -72,6 +80,7 @@ public:
 
 	table genLenCutOffs(const VecStr & targets) const;
 
+
 	std::vector<seqInfo> getRefSeqs(const VecStr & targets) const;
 
 	void checkMidNamesThrow() const;
@@ -79,6 +88,11 @@ public:
 
 	static std::map<std::string, PrimersAndMids::Target::lenCutOffs> readInLenCutOffs(
 			const bfs::path & lenCutOffsFnp);
+
+	void addLenCutOffs(const bfs::path & lenCutOffsFnp);
+	void addOverLapStatuses(const bfs::path & overlapStatuses);
+	void addRefSeqs(const bfs::path & refDirectory);
+	void setRefSeqsKInfos(uint32_t klen, bool setRevComp);
 
 };
 
