@@ -34,6 +34,9 @@ public:
 		bool verbose_ = false;
 		bool writeOverHangs_ = false;
 
+		uint32_t r1Trim_ = 0;
+		uint32_t r2Trim_ = 0;
+
 	};
 
 	PairedReadProcessor(ProcessParams params);

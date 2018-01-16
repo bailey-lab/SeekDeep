@@ -222,11 +222,16 @@ bool PairedReadProcessor::processPairedEnd(
 	if(reader.readNextRead(seq)){
 		double percentId = 1 - params_.errorAllowed_ ;
 		++res.total;
+//		std::cout << '\r' << res.total;
+//		std::cout.flush();
 		if(res.total % 25000 == 0 && params_.verbose_){
 			std::cout << res.total << std::endl;
 		}
+		//std::cout << __PRETTY_FUNCTION__ << " " << __LINE__ <<  std::endl;
 		alignerObj.alignRegGlobalNoInternalGaps(seq.seqBase_, seq.mateSeqBase_);
+		//std::cout << __PRETTY_FUNCTION__ << " " << __LINE__ <<  std::endl;
 		alignerObj.profileAlignment(seq.seqBase_, seq.mateSeqBase_, false, true, true);
+		//std::cout << __PRETTY_FUNCTION__ << " " << __LINE__ <<  std::endl;
 
 		if( alignerObj.comp_.distances_.eventBasedIdentityHq_ >= percentId &&
 				alignerObj.comp_.distances_.basesInAln_ >= params_.minOverlap_ &&

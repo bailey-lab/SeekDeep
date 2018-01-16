@@ -113,11 +113,15 @@ bool PrimersAndMids::hasTarget(const std::string & target) const {
 }
 
 VecStr PrimersAndMids::getTargets() const {
-	return bib::getVecOfMapKeys(targets_);
+	auto ret = bib::getVecOfMapKeys(targets_);
+	bib::sort(ret);
+	return ret;
 }
 
 VecStr PrimersAndMids::getMids() const {
-	return bib::getVecOfMapKeys(mids_);
+	auto ret = bib::getVecOfMapKeys(mids_);
+	bib::sort(ret);
+	return ret;
 }
 
 bool PrimersAndMids::hasMid(const std::string & mid) const {
@@ -401,7 +405,9 @@ void PrimersAndMids::addOverLapStatuses(const bfs::path & overlapStatuses){
 	}
 }
 void PrimersAndMids::setRefSeqsKInfos(uint32_t klen, bool setRevComp){
-
+	for(auto & tar : targets_){
+		tar.second.setRefKInfos(klen, setRevComp);
+	}
 }
 
 void PrimersAndMids::addRefSeqs(const bfs::path & refSeqsDir){

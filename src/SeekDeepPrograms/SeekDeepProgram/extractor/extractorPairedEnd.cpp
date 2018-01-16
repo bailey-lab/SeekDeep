@@ -73,14 +73,15 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 	//add in ref sequences if any
 	if("" != pars.comparisonSeqFnp_){
 		ids.addRefSeqs(pars.comparisonSeqFnp_);
-
+		ids.setRefSeqsKInfos(pars.compKmerLen, pars.compKmerSimCutOff);
 	}
+
 	//add in overlap status
 	ids.addOverLapStatuses(pars.overlapStatusFnp_);
 
 	//default checks for Ns and quality
 	ReadCheckerOnSeqContaining nChecker("N", pars.numberOfNs, true);
-	ReadCheckerQualCheck(pars.qPars_.qualCheck_, pars.qPars_.qualCheckCutOff_, true);
+	ReadCheckerQualCheck qualChecker(pars.qPars_.qualCheck_, pars.qPars_.qualCheckCutOff_, true);
 
 
 	// make some directories for outputs
@@ -261,10 +262,7 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 	KmerMaps emptyMaps;
 	bool countEndGaps = false;
 	//to avoid allocating an extremely large aligner matrix;
-//	if(maxReadSize > 1000){
-//		auto maxPrimerSize = ids.pDeterminator_->getMaxPrimerSize();
-//		maxReadSize =  maxPrimerSize * 4 + pars.primerWithinStart_;
-//	}
+
 
 
 	aligner alignObj = aligner(maxReadSize, gapPars, scoreMatrix, emptyMaps,
@@ -459,12 +457,26 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 	aligner processingPairsAligner(maxReadSize, alnGapPars, pairedProcessingScoring, false);
 	processingPairsAligner.qScorePars_.qualThresWindow_ = 0;
 	std::unordered_map<std::string, std::vector<uint32_t>> lengthsPerStitchedTarget;
+	std::unordered_map<std::string, PairedReadProcessor::ProcessedResults> resultsPerMidTarPair;
 	for(const auto & extractedMid : primersInMids){
 		for(const auto & extractedPrimer : extractedMid.second){
+			std::string name = extractedPrimer + extractedMid.first;
+			SeqIOOptions currentPairOpts;
+			if(setUp.pars_.ioOptions_.inFormat_ == SeqIOOptions::inFormats::FASTQPAIREDGZ){
+				currentPairOpts = SeqIOOptions::genPairedInGz(
+						bib::files::make_path(unfilteredByPrimersDir, name + "_R1.fastq.gz"),
+						bib::files::make_path(unfilteredByPrimersDir, name + "_R2.fastq.gz"));
+			}else{
+				currentPairOpts = SeqIOOptions::genPairedIn(
+						bib::files::make_path(unfilteredByPrimersDir, name + "_R1.fastq"),
+						bib::files::make_path(unfilteredByPrimersDir, name + "_R2.fastq"));
+			}
 			if(pars.noOverlapProcessForNoOverlapStatusTargets_ && PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP == bib::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
+				PairedReadProcessor::ProcessedResults currentProcessResults;
+				currentProcessResults.notCombinedOpts = std::make_shared<SeqIOOptions>(currentPairOpts);
+				resultsPerMidTarPair[name] = currentProcessResults;
 				continue;
 			}
-			std::string name = extractedPrimer + extractedMid.first;
 			OutOptions currentOutOpts(bib::files::make_path(unfilteredByPairsProcessedDir, name));
 			PairedReadProcessor::ProcessorOutWriters processWriter;
 			processWriter.overhangsWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(bib::files::make_path(overHansDir, name + "_overhangs")));
@@ -482,38 +494,200 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 				processWriter.notCombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genPairedOut(bib::files::make_path(badDir, name + "_notCombined")));
 				processWriter.r1BegOverR2EndCombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(bib::files::make_path(badDir, name + "_r1BegOverR2End.fastq")));
 			}
-			SeqIOOptions currentPairOpts;
-			if(setUp.pars_.ioOptions_.inFormat_ == SeqIOOptions::inFormats::FASTQPAIREDGZ){
-				currentPairOpts = SeqIOOptions::genPairedInGz(
-						bib::files::make_path(unfilteredByPrimersDir, name + "_R1.fastq.gz"),
-						bib::files::make_path(unfilteredByPrimersDir, name + "_R2.fastq.gz"));
-			}else{
-				currentPairOpts = SeqIOOptions::genPairedIn(
-						bib::files::make_path(unfilteredByPrimersDir, name + "_R1.fastq"),
-						bib::files::make_path(unfilteredByPrimersDir, name + "_R2.fastq"));
-			}
+
 			currentPairOpts.revComplMate_ = true;
 			SeqInput currentReader(currentPairOpts);
 			currentReader.openIn();
+			if(setUp.pars_.verbose_){
+				std::cout << "Pair Processing " << name << std::endl;
+			}
 			auto currentProcessResults = pairProcessor.processPairedEnd(currentReader, processWriter, processingPairsAligner);
+			if(setUp.pars_.verbose_){
+				std::cout << "Done Pair Processing for " << name << std::endl;
+			}
+			resultsPerMidTarPair[name] = currentProcessResults;
 		}
+	}
+
+
+	bool checkingContamination = pars.comparisonSeqFnp_ != "";
+	VecStr lengthNeeded;
+	for(const auto & t : ids.targets_){
+		if(nullptr == t.second.lenCuts_){
+			lengthNeeded.emplace_back(t.first);
+		}
+	}
+	std::unordered_map<std::string, SeqIOOptions> tempOuts;
+	std::unordered_map<std::string, std::vector<uint32_t>> readLengthsPerTarget;
+	std::unordered_map<std::string, uint32_t> possibleContaminationCounts;
+	for(const auto & extractedMid : primersInMids){
+		for(const auto & extractedPrimer : extractedMid.second){
+			std::string name = extractedPrimer + extractedMid.first;
+			if(PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP == bib::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
+				std::cout << extractedPrimer << " " << "NOOVERLAP" << std::endl;
+				PairedRead filteringSeq;
+				if(nullptr == resultsPerMidTarPair[name].notCombinedOpts){
+					if(setUp.pars_.verbose_){
+						std::cout << "No reads for " << name << std::endl;
+					}
+					continue;
+				}
+				SeqIOOptions filterSeqOpts = *resultsPerMidTarPair[name].notCombinedOpts;
+				SeqInput processedReader(filterSeqOpts);
+				auto contaminationOutOpts = SeqIOOptions::genPairedOut(bib::files::make_path(unfilteredByPairsProcessedDir, "possibleContamination_" + name));
+				SeqOutput contaminationWriter(contaminationOutOpts);
+				auto tempOutOpts = SeqIOOptions::genPairedOut(bib::files::make_path(unfilteredByPairsProcessedDir, "temp_" + name));
+
+				SeqOutput tempWriter(tempOutOpts);
+				processedReader.openIn();
+				tempWriter.openOut();
+				tempOuts[name] = SeqIOOptions::genPairedIn(tempWriter.getPrimaryOutFnp(),
+						tempWriter.getSecondaryOutFnp());
+				while(processedReader.readNextRead(filteringSeq)){
+					if(checkingContamination){
+						bool pass = false;
+						auto firstMateCopy = filteringSeq.seqBase_;
+						auto secodnMateCopy = filteringSeq.mateSeqBase_;
+						seqUtil::removeLowerCase(firstMateCopy.seq_,firstMateCopy.qual_);
+						seqUtil::removeLowerCase(secodnMateCopy.seq_,secodnMateCopy.qual_);
+						kmerInfo seqKInfo(firstMateCopy.seq_, pars.compKmerLen, false);
+						kmerInfo mateSeqInfo(secodnMateCopy.seq_, pars.compKmerLen, true);
+
+						for(const auto & refKinfo : ids.targets_.at(extractedPrimer).refKInfos_){
+							if(refKinfo.compareKmers(seqKInfo).second >= pars.compKmerSimCutOff &&
+							   refKinfo.compareKmersRevComp(mateSeqInfo).second >= pars.compKmerSimCutOff){
+								pass = true;
+								break;
+							}
+						}
+						if(pass){
+							tempWriter.write(filteringSeq);
+						}else{
+							contaminationWriter.openWrite(filteringSeq);
+							++possibleContaminationCounts[name];
+						}
+					}
+				}
+			}else if(PairedReadProcessor::ReadPairOverLapStatus::R1BEGOVERR2END == bib::mapAt(ids.targets_, extractedPrimer).overlapStatus_ ||
+					PairedReadProcessor::ReadPairOverLapStatus::R1ENDOVERR2BEG == bib::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
+				std::cout << extractedPrimer << " " << "R1BEGOVERR2END" << std::endl;
+				seqInfo filteringSeq;
+				SeqIOOptions filterSeqOpts;
+
+				if(PairedReadProcessor::ReadPairOverLapStatus::R1BEGOVERR2END == bib::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
+					if(nullptr == resultsPerMidTarPair[name].r1BegOverR2EndCombinedOpts){
+						if(setUp.pars_.verbose_){
+							std::cout << "No reads stitched for " << name << std::endl;
+						}
+						continue;
+					}
+					filterSeqOpts = *resultsPerMidTarPair[name].r1BegOverR2EndCombinedOpts;
+				}else{
+					if(nullptr == resultsPerMidTarPair[name].r1EndOverR2BegCombinedOpts){
+						if(setUp.pars_.verbose_){
+							std::cout << "No reads stitched for " << name << std::endl;
+						}
+						continue;
+					}
+					filterSeqOpts = *resultsPerMidTarPair[name].r1EndOverR2BegCombinedOpts;
+				}
+				SeqInput processedReader(filterSeqOpts);
+				auto contaminationOutOpts = SeqIOOptions::genFastqOut(bib::files::make_path(unfilteredByPairsProcessedDir, "possibleContamination_" + name + ".fastq"));
+				SeqOutput contaminationWriter(contaminationOutOpts);
+				auto tempOutOpts = SeqIOOptions::genFastqOut(bib::files::make_path(unfilteredByPairsProcessedDir, "temp_" + name + ".fastq"));
+
+				SeqOutput tempWriter(tempOutOpts);
+				processedReader.openIn();
+				tempWriter.openOut();
+				tempOuts[name] = SeqIOOptions::genFastqIn(tempWriter.getPrimaryOutFnp());
+				while(processedReader.readNextRead(filteringSeq)){
+					if(checkingContamination){
+						bool pass = false;
+						kmerInfo seqKInfo(filteringSeq.seq_, pars.compKmerLen, false);
+						for(const auto & refKinfo : ids.targets_.at(extractedPrimer).refKInfos_){
+							if(refKinfo.compareKmers(seqKInfo).second >= pars.compKmerSimCutOff){
+								pass = true;
+								break;
+							}
+						}
+						if(pass){
+							if(bib::in(extractedPrimer, lengthNeeded)){
+								readLengthsPerTarget[extractedPrimer].emplace_back(len(filteringSeq));
+							}
+							tempWriter.write(filteringSeq);
+						}else{
+							contaminationWriter.openWrite(filteringSeq);
+							++possibleContaminationCounts[name];
+						}
+					}
+				}
+			}
+		}
+	}
+
+	for(const auto & tar : lengthNeeded){
+		auto medianlength = vectorMedianRef(readLengthsPerTarget.at(tar));
+		ids.targets_.at(tar).addLenCutOff(medianlength - (medianlength * .10), medianlength + (medianlength * .10));
 	}
 
 	for(const auto & extractedMid : primersInMids){
 		for(const auto & extractedPrimer : extractedMid.second){
-			if(pars.noOverlapProcessForNoOverlapStatusTargets_ && PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP == bib::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
+			std::string name = extractedPrimer + extractedMid.first;
 
-			}else{
-				if(PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP == bib::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
-					std::cout << extractedPrimer << " " << "NOOVERLAP" << std::endl;
-
-				}else if(PairedReadProcessor::ReadPairOverLapStatus::R1BEGOVERR2END == bib::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
-					std::cout << extractedPrimer << " " << "R1BEGOVERR2END" << std::endl;
-
-
-				}else if(PairedReadProcessor::ReadPairOverLapStatus::R1ENDOVERR2BEG == bib::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
-					std::cout << extractedPrimer << " " << "R1ENDOVERR2BEG" << std::endl;
-
+			if(PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP == bib::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
+				std::cout << extractedPrimer << " " << "NOOVERLAP" << std::endl;
+				if(!bib::in(name, tempOuts)){
+					continue;
+				}
+				PairedRead filteringSeq;
+				SeqInput tempReader(tempOuts[name]);
+				tempReader.openIn();
+				auto finalSeqOut = SeqIOOptions::genPairedOut(bib::files::make_path(setUp.pars_.directoryName_, name));
+				auto backSeqOut =  SeqIOOptions::genPairedOut(bib::files::make_path(badDir, name));
+				SeqOutput finalWriter(finalSeqOut);
+				SeqOutput badWriter(finalSeqOut);
+				while(tempReader.readNextRead(filteringSeq)){
+					bool bad = false;
+					if(!nChecker.checkRead(filteringSeq)){
+						bad = true;
+					}else if(!qualChecker.checkRead(filteringSeq)){
+						bad = true;
+					}else{
+						finalWriter.openWrite(filteringSeq);
+					}
+					if(bad){
+						badWriter.openWrite(filteringSeq);
+					}
+				}
+			}else if(PairedReadProcessor::ReadPairOverLapStatus::R1BEGOVERR2END == bib::mapAt(ids.targets_, extractedPrimer).overlapStatus_ ||
+					PairedReadProcessor::ReadPairOverLapStatus::R1ENDOVERR2BEG == bib::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
+				if(!bib::in(name, tempOuts)){
+					continue;
+				}
+				std::cout << extractedPrimer << " " << "R1BEGOVERR2END" << std::endl;
+				seqInfo filteringSeq;
+				SeqInput tempReader(tempOuts[name]);
+				tempReader.openIn();
+				auto finalSeqOut = SeqIOOptions::genFastqOut(bib::files::make_path(setUp.pars_.directoryName_, name));
+				auto backSeqOut =  SeqIOOptions::genFastqOut(bib::files::make_path(badDir, name));
+				SeqOutput finalWriter(finalSeqOut);
+				SeqOutput badWriter(finalSeqOut);
+				while(tempReader.readNextRead(filteringSeq)){
+					bool bad = false;
+					if(!nChecker.checkRead(filteringSeq)){
+						bad = true;
+					}else if(!qualChecker.checkRead(filteringSeq)){
+						bad = true;
+					}else if(!ids.targets_.at(extractedPrimer).lenCuts_->minLenChecker_.checkRead(filteringSeq)){
+						bad = true;
+					}else if(!ids.targets_.at(extractedPrimer).lenCuts_->maxLenChecker_.checkRead(filteringSeq)){
+						bad = true;
+					}else{
+						finalWriter.openWrite(filteringSeq);
+					}
+					if(bad){
+						badWriter.openWrite(filteringSeq);
+					}
 				}
 			}
 		}

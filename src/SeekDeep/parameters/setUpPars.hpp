@@ -111,7 +111,10 @@ struct ExtractorPairedEndPars{
   uint32_t r2Trim_ = 1;
   QualFilteringPars qPars_;
   bfs::path lenCutOffFilename_ = "";
+
   bfs::path comparisonSeqFnp_ = "";
+  uint32_t compKmerLen = 5;
+  double compKmerSimCutOff = 0.50;
 
   bfs::path overlapStatusFnp_ = "";
   bool noOverlapProcessForNoOverlapStatusTargets_ = false;
