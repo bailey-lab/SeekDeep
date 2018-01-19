@@ -483,16 +483,16 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 			processWriter.perfectOverlapCombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(bib::files::make_path(unfilteredByPairsProcessedDir, name + "_perfectOverlap")));
 			if(PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP == bib::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
 				processWriter.notCombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genPairedOut(bib::files::make_path(unfilteredByPairsProcessedDir, name)));
-				processWriter.r1BegOverR2EndCombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(bib::files::make_path(badDir, name + "_r1BegOverR2End.fastq")));
-				processWriter.r1EndOverR2BegCombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(bib::files::make_path(badDir, name + "_r1EndOverR2Beg.fastq")));
-			}else if(PairedReadProcessor::ReadPairOverLapStatus::R1BEGOVERR2END == bib::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
-				processWriter.r1BegOverR2EndCombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(bib::files::make_path(unfilteredByPairsProcessedDir, name + "")));
+				processWriter.r1BeginsInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(bib::files::make_path(badDir, name + "_r1BeginsInR2.fastq")));
+				processWriter.r1EndsInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(bib::files::make_path(badDir, name + "_r1EndsInR2.fastq")));
+			}else if(PairedReadProcessor::ReadPairOverLapStatus::R1BEGINSINR2 == bib::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
+				processWriter.r1BeginsInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(bib::files::make_path(unfilteredByPairsProcessedDir, name + "")));
 				processWriter.notCombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genPairedOut(bib::files::make_path(badDir, name + "_notCombined")));
-				processWriter.r1EndOverR2BegCombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(bib::files::make_path(badDir, name + "_r1EndOverR2Beg.fastq")));
-			}else if(PairedReadProcessor::ReadPairOverLapStatus::R1ENDOVERR2BEG == bib::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
-				processWriter.r1EndOverR2BegCombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(bib::files::make_path(unfilteredByPairsProcessedDir, name + "")));
+				processWriter.r1EndsInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(bib::files::make_path(badDir, name + "_r1EndsInR2.fastq")));
+			}else if(PairedReadProcessor::ReadPairOverLapStatus::R1ENDSINR2 == bib::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
+				processWriter.r1EndsInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(bib::files::make_path(unfilteredByPairsProcessedDir, name + "")));
 				processWriter.notCombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genPairedOut(bib::files::make_path(badDir, name + "_notCombined")));
-				processWriter.r1BegOverR2EndCombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(bib::files::make_path(badDir, name + "_r1BegOverR2End.fastq")));
+				processWriter.r1BeginsInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(bib::files::make_path(badDir, name + "_r1BeginsInR2.fastq")));
 			}
 
 			currentPairOpts.revComplMate_ = true;
@@ -568,28 +568,28 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 						}
 					}
 				}
-			}else if(PairedReadProcessor::ReadPairOverLapStatus::R1BEGOVERR2END == bib::mapAt(ids.targets_, extractedPrimer).overlapStatus_ ||
-					PairedReadProcessor::ReadPairOverLapStatus::R1ENDOVERR2BEG == bib::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
-				std::cout << extractedPrimer << " " << "R1BEGOVERR2END" << std::endl;
+			}else if(PairedReadProcessor::ReadPairOverLapStatus::R1BEGINSINR2 == bib::mapAt(ids.targets_, extractedPrimer).overlapStatus_ ||
+					PairedReadProcessor::ReadPairOverLapStatus::R1ENDSINR2 == bib::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
+				std::cout << extractedPrimer << " " << "r1BeginsInR2" << std::endl;
 				seqInfo filteringSeq;
 				SeqIOOptions filterSeqOpts;
 
-				if(PairedReadProcessor::ReadPairOverLapStatus::R1BEGOVERR2END == bib::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
-					if(nullptr == resultsPerMidTarPair[name].r1BegOverR2EndCombinedOpts){
+				if(PairedReadProcessor::ReadPairOverLapStatus::R1BEGINSINR2 == bib::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
+					if(nullptr == resultsPerMidTarPair[name].r1BeginsInR2CombinedOpts){
 						if(setUp.pars_.verbose_){
 							std::cout << "No reads stitched for " << name << std::endl;
 						}
 						continue;
 					}
-					filterSeqOpts = *resultsPerMidTarPair[name].r1BegOverR2EndCombinedOpts;
+					filterSeqOpts = *resultsPerMidTarPair[name].r1BeginsInR2CombinedOpts;
 				}else{
-					if(nullptr == resultsPerMidTarPair[name].r1EndOverR2BegCombinedOpts){
+					if(nullptr == resultsPerMidTarPair[name].r1EndsInR2CombinedOpts){
 						if(setUp.pars_.verbose_){
 							std::cout << "No reads stitched for " << name << std::endl;
 						}
 						continue;
 					}
-					filterSeqOpts = *resultsPerMidTarPair[name].r1EndOverR2BegCombinedOpts;
+					filterSeqOpts = *resultsPerMidTarPair[name].r1EndsInR2CombinedOpts;
 				}
 				SeqInput processedReader(filterSeqOpts);
 				auto contaminationOutOpts = SeqIOOptions::genFastqOut(bib::files::make_path(unfilteredByPairsProcessedDir, "possibleContamination_" + name + ".fastq"));
@@ -659,12 +659,12 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 						badWriter.openWrite(filteringSeq);
 					}
 				}
-			}else if(PairedReadProcessor::ReadPairOverLapStatus::R1BEGOVERR2END == bib::mapAt(ids.targets_, extractedPrimer).overlapStatus_ ||
-					PairedReadProcessor::ReadPairOverLapStatus::R1ENDOVERR2BEG == bib::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
+			}else if(PairedReadProcessor::ReadPairOverLapStatus::R1BEGINSINR2 == bib::mapAt(ids.targets_, extractedPrimer).overlapStatus_ ||
+					PairedReadProcessor::ReadPairOverLapStatus::R1ENDSINR2 == bib::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
 				if(!bib::in(name, tempOuts)){
 					continue;
 				}
-				std::cout << extractedPrimer << " " << "R1BEGOVERR2END" << std::endl;
+				std::cout << extractedPrimer << " " << "r1BeginsInR2" << std::endl;
 				seqInfo filteringSeq;
 				SeqInput tempReader(tempOuts[name]);
 				tempReader.openIn();

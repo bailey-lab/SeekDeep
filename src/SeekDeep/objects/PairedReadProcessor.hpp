@@ -21,8 +21,8 @@ public:
 
 	enum class ReadPairOverLapStatus{
 		NOOVERLAP,
-		R1BEGOVERR2END,
-		R1ENDOVERR2BEG
+		R1BEGINSINR2,
+		R1ENDSINR2
 	};
 
 	struct ProcessParams{
@@ -51,8 +51,8 @@ public:
 		ProcessorOutWriters(const OutOptions & outOpts);
 
 		std::unique_ptr<SeqOutput> perfectOverlapCombinedWriter;//(perfectOverlapCombinedOpts);
-		std::unique_ptr<SeqOutput> r1EndOverR2BegCombinedWriter;//(r1EndOverR2BegCombinedOpts);
-		std::unique_ptr<SeqOutput> r1BegOverR2EndCombinedWriter;//(r1BegOverR2EndCombinedOpts);
+		std::unique_ptr<SeqOutput> r1EndsInR2CombinedWriter;//(r1EndsInR2CombinedOpts);
+		std::unique_ptr<SeqOutput> r1BeginsInR2CombinedWriter;//(r1BeginsInR2CombinedOpts);
 		std::unique_ptr<SeqOutput> notCombinedWriter;//(notCombinedOpts);
 		std::unique_ptr<SeqOutput> overhangsWriter;//(overhangsOpts);
 
@@ -65,13 +65,13 @@ public:
 		uint32_t overlapFail = 0;
 		uint32_t overhangFail = 0;
 		uint32_t perfectOverlapCombined = 0;
-		uint32_t r1EndOverR2BegCombined = 0;
-		uint32_t r1BegOverR2EndCombined = 0;
+		uint32_t r1EndsInR2Combined = 0;
+		uint32_t r1BeginsInR2Combined = 0;
 		uint32_t total = 0;
 
 		std::shared_ptr<SeqIOOptions> perfectOverlapCombinedOpts;
-		std::shared_ptr<SeqIOOptions> r1EndOverR2BegCombinedOpts;
-		std::shared_ptr<SeqIOOptions> r1BegOverR2EndCombinedOpts;
+		std::shared_ptr<SeqIOOptions> r1EndsInR2CombinedOpts;
+		std::shared_ptr<SeqIOOptions> r1BeginsInR2CombinedOpts;
 		std::shared_ptr<SeqIOOptions> notCombinedOpts;
 		std::shared_ptr<SeqIOOptions> overhangsOpts;
 

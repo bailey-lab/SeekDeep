@@ -77,18 +77,18 @@ PairedReadProcessor::ProcessorOutWriters::ProcessorOutWriters(){
 };
 PairedReadProcessor::ProcessorOutWriters::ProcessorOutWriters(const OutOptions & outOpts){
 	auto perfectOverlapCombinedOpts    = SeqIOOptions::genFastqOut (outOpts.outFilename_.string() + "_perfectOverlap.fastq");
-	auto r1EndOverR2BegCombinedOpts    = SeqIOOptions::genFastqOut (outOpts.outFilename_.string() + "_r1EndOverR2Beg.fastq");
-	auto r1BegOverR2EndCombinedOpts    = SeqIOOptions::genFastqOut (outOpts.outFilename_.string() + "_r1BegOverR2End.fastq");
+	auto r1EndsInR2CombinedOpts    = SeqIOOptions::genFastqOut (outOpts.outFilename_.string() + "_r1EndsInR2.fastq");
+	auto r1BeginsInR2CombinedOpts    = SeqIOOptions::genFastqOut (outOpts.outFilename_.string() + "_r1BegingsInR2.fastq");
 	auto notCombinedOpts = SeqIOOptions::genPairedOut(outOpts.outFilename_.string() + "_notCombined");
 	auto overhangsOpts =   SeqIOOptions::genPairedOut(outOpts.outFilename_.string() + "_overhangs");
 	perfectOverlapCombinedOpts.out_.transferOverwriteOpts(outOpts);
-	r1EndOverR2BegCombinedOpts.out_.transferOverwriteOpts(outOpts);
-	r1BegOverR2EndCombinedOpts.out_.transferOverwriteOpts(outOpts);
+	r1EndsInR2CombinedOpts.out_.transferOverwriteOpts(outOpts);
+	r1BeginsInR2CombinedOpts.out_.transferOverwriteOpts(outOpts);
 	notCombinedOpts.out_.transferOverwriteOpts(outOpts);
 	overhangsOpts.out_.transferOverwriteOpts(outOpts);
 	perfectOverlapCombinedWriter = std::make_unique<SeqOutput>(perfectOverlapCombinedOpts);
-	r1EndOverR2BegCombinedWriter= std::make_unique<SeqOutput>(r1EndOverR2BegCombinedOpts);
-	r1BegOverR2EndCombinedWriter= std::make_unique<SeqOutput>(r1BegOverR2EndCombinedOpts);
+	r1EndsInR2CombinedWriter= std::make_unique<SeqOutput>(r1EndsInR2CombinedOpts);
+	r1BeginsInR2CombinedWriter= std::make_unique<SeqOutput>(r1BeginsInR2CombinedOpts);
 	notCombinedWriter= std::make_unique<SeqOutput>(notCombinedOpts);
 	overhangsWriter= std::make_unique<SeqOutput>(overhangsOpts);
 }
@@ -106,8 +106,8 @@ void PairedReadProcessor::ProcessorOutWriters::checkWritersSet(const std::string
 		}
 	};
 	checkWriter(perfectOverlapCombinedWriter, "perfectOverlapCombinedWriter");
-	checkWriter(r1EndOverR2BegCombinedWriter, "r1EndOverR2BegCombinedWriter");
-	checkWriter(r1BegOverR2EndCombinedWriter, "r1BegOverR2EndCombinedWriter");
+	checkWriter(r1EndsInR2CombinedWriter, "r1EndsInR2CombinedWriter");
+	checkWriter(r1BeginsInR2CombinedWriter, "r1BegingsInR2CombinedWriter");
 	checkWriter(notCombinedWriter, "notCombinedWriter");
 	checkWriter(overhangsWriter, "overhangsWriter");
 
@@ -118,8 +118,8 @@ void PairedReadProcessor::ProcessorOutWriters::checkWritersSet(const std::string
 
 void PairedReadProcessor::ProcessorOutWriters::unsetWriters(){
 	perfectOverlapCombinedWriter = nullptr;//(perfectOverlapCombinedOpts);
-	r1EndOverR2BegCombinedWriter = nullptr;//(r1EndOverR2BegCombinedOpts);
-	r1BegOverR2EndCombinedWriter = nullptr;//(r1BegOverR2EndCombinedOpts);
+	r1EndsInR2CombinedWriter = nullptr;//(r1EndsInR2CombinedOpts);
+	r1BeginsInR2CombinedWriter = nullptr;//(r1BeginsInR2CombinedOpts);
 	notCombinedWriter = nullptr;//(notCombinedOpts);
 	overhangsWriter = nullptr;//(overhangsOpts);
 }
@@ -133,19 +133,19 @@ Json::Value PairedReadProcessor::ProcessedResults::toJson() const{
 	outVal["overhangFailPerc"] = (overhangFail/static_cast<double>(total)) * 100;
 	outVal["perfectOverlapCombined"] = perfectOverlapCombined;
 	outVal["perfectOverlapCombinedPerc"] = (perfectOverlapCombined/static_cast<double>(total)) * 100;
-	outVal["r1EndOverR2BegCombined"] = r1EndOverR2BegCombined;
-	outVal["r1EndOverR2BegCombinedPerc"] = (r1EndOverR2BegCombined/static_cast<double>(total)) *100;
-	outVal["r1BegOverR2EndCombined"] = r1BegOverR2EndCombined;
-	outVal["r1BegOverR2EndCombinedPerc"] = (r1BegOverR2EndCombined/static_cast<double>(total)) *100;
+	outVal["r1EndsInR2Combined"] = r1EndsInR2Combined;
+	outVal["r1EndsInR2CombinedPerc"] = (r1EndsInR2Combined/static_cast<double>(total)) *100;
+	outVal["r1BeginsInR2Combined"] = r1BeginsInR2Combined;
+	outVal["r1BeginsInR2CombinedPerc"] = (r1BeginsInR2Combined/static_cast<double>(total)) *100;
 	outVal["total"] = total;
 	if(nullptr != perfectOverlapCombinedOpts){
 		outVal["perfectOverlapCombinedOpts"] = bib::json::toJson(perfectOverlapCombinedOpts);
 	}
-	if(nullptr != r1EndOverR2BegCombinedOpts){
-		outVal["r1EndOverR2BegCombinedOpts"] = bib::json::toJson(r1EndOverR2BegCombinedOpts);
+	if(nullptr != r1EndsInR2CombinedOpts){
+		outVal["r1EndsInR2CombinedOpts"] = bib::json::toJson(r1EndsInR2CombinedOpts);
 	}
-	if(nullptr != r1BegOverR2EndCombinedOpts){
-		outVal["r1BegOverR2EndCombinedOpts"] = bib::json::toJson(r1BegOverR2EndCombinedOpts);
+	if(nullptr != r1BeginsInR2CombinedOpts){
+		outVal["r1BeginsInR2CombinedOpts"] = bib::json::toJson(r1BeginsInR2CombinedOpts);
 	}
 	if(nullptr != notCombinedOpts){
 		outVal["notCombinedOpts"] = bib::json::toJson(notCombinedOpts);
@@ -164,10 +164,10 @@ Json::Value PairedReadProcessor::ProcessedResults::toJsonCounts() const{
 	outVal["overhangFailPerc"] = (overhangFail/static_cast<double>(total)) * 100;
 	outVal["perfectOverlapCombined"] = perfectOverlapCombined;
 	outVal["perfectOverlapCombinedPerc"] = (perfectOverlapCombined/static_cast<double>(total)) * 100;
-	outVal["r1EndOverR2BegCombined"] = r1EndOverR2BegCombined;
-	outVal["r1EndOverR2BegCombinedPerc"] = (r1EndOverR2BegCombined/static_cast<double>(total)) *100;
-	outVal["r1BegOverR2EndCombined"] = r1BegOverR2EndCombined;
-	outVal["r1BegOverR2EndCombinedPerc"] = (r1BegOverR2EndCombined/static_cast<double>(total)) *100;
+	outVal["r1EndsInR2Combined"] = r1EndsInR2Combined;
+	outVal["r1EndsInR2CombinedPerc"] = (r1EndsInR2Combined/static_cast<double>(total)) *100;
+	outVal["r1BeginsInR2Combined"] = r1BeginsInR2Combined;
+	outVal["r1BeginsInR2CombinedPerc"] = (r1BeginsInR2Combined/static_cast<double>(total)) *100;
 	outVal["total"] = total;
 	return outVal;
 }
@@ -193,11 +193,11 @@ PairedReadProcessor::ProcessedResults PairedReadProcessor::processPairedEnd(
 	if(writers.perfectOverlapCombinedWriter->outOpen()){
 		res.perfectOverlapCombinedOpts = std::make_shared<SeqIOOptions>(SeqIOOptions::genFastqIn(writers.perfectOverlapCombinedWriter->getPrimaryOutFnp()));
 	}
-	if(writers.r1EndOverR2BegCombinedWriter->outOpen()){
-		res.r1EndOverR2BegCombinedOpts = std::make_shared<SeqIOOptions>(SeqIOOptions::genFastqIn(writers.r1EndOverR2BegCombinedWriter->getPrimaryOutFnp()));
+	if(writers.r1EndsInR2CombinedWriter->outOpen()){
+		res.r1EndsInR2CombinedOpts = std::make_shared<SeqIOOptions>(SeqIOOptions::genFastqIn(writers.r1EndsInR2CombinedWriter->getPrimaryOutFnp()));
 	}
-	if(writers.r1BegOverR2EndCombinedWriter->outOpen()){
-		res.r1BegOverR2EndCombinedOpts = std::make_shared<SeqIOOptions>(SeqIOOptions::genFastqIn(writers.r1BegOverR2EndCombinedWriter->getPrimaryOutFnp()));
+	if(writers.r1BeginsInR2CombinedWriter->outOpen()){
+		res.r1BeginsInR2CombinedOpts = std::make_shared<SeqIOOptions>(SeqIOOptions::genFastqIn(writers.r1BeginsInR2CombinedWriter->getPrimaryOutFnp()));
 	}
 	if(writers.notCombinedWriter->outOpen()){
 		res.notCombinedOpts = std::make_shared<SeqIOOptions>(SeqIOOptions::genPairedIn(
@@ -316,8 +316,8 @@ bool PairedReadProcessor::processPairedEnd(
 					addOtherVec(quals, getSubVector(alignerObj.alignObjectB_.seqBase_.qual_, r1End));
 				}
 				seqInfo combinedSeq(seq.seqBase_.name_, cseq, quals);
-				writers.r1EndOverR2BegCombinedWriter->openWrite(combinedSeq);
-				++res.r1EndOverR2BegCombined;
+				writers.r1EndsInR2CombinedWriter->openWrite(combinedSeq);
+				++res.r1EndsInR2Combined;
 
 			}else if((AlignOverlapEnd::NOOVERHANG == frontCase || AlignOverlapEnd::R2OVERHANG == frontCase) &&
 							 (AlignOverlapEnd::NOOVERHANG == backCase  || AlignOverlapEnd::R1OVERHANG == backCase)){
@@ -353,8 +353,8 @@ bool PairedReadProcessor::processPairedEnd(
 							alignerObj);
 				}
 				seqInfo combinedSeq(seq.seqBase_.name_, cseq, quals);
-				writers.r1BegOverR2EndCombinedWriter->openWrite(combinedSeq);
-				++res.r1BegOverR2EndCombined;
+				writers.r1BeginsInR2CombinedWriter->openWrite(combinedSeq);
+				++res.r1BeginsInR2Combined;
 			}else{
 				//failure
 				writers.notCombinedWriter->openWrite(seq);

@@ -372,18 +372,18 @@ void PrimersAndMids::addOverLapStatuses(const bfs::path & overlapStatuses){
 					== bib::strToUpperRet(row[overlapStatusTab.getColPos("status")])) {
 				targetStatus[row[overlapStatusTab.getColPos("target")]] =
 						PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP;
-			} else if ("R1BEGOVERR2END"
+			} else if ("R1BEGINSINR2"
 					== bib::strToUpperRet(row[overlapStatusTab.getColPos("status")])) {
 				targetStatus[row[overlapStatusTab.getColPos("target")]] =
-						PairedReadProcessor::ReadPairOverLapStatus::R1BEGOVERR2END;
-			} else if ("R1ENDOVERR2BEG"
+						PairedReadProcessor::ReadPairOverLapStatus::R1BEGINSINR2;
+			} else if ("R1ENDSINR2"
 					== bib::strToUpperRet(row[overlapStatusTab.getColPos("status")])) {
 				targetStatus[row[overlapStatusTab.getColPos("target")]] =
-						PairedReadProcessor::ReadPairOverLapStatus::R1ENDOVERR2BEG;
+						PairedReadProcessor::ReadPairOverLapStatus::R1ENDSINR2;
 			} else {
 				failedOverlapStatusProcessing = true;
 				errorStream << __PRETTY_FUNCTION__
-						<< ", error status should be NOOVERHANG, R1BEGOVERR2END, or R1ENDOVERR2BEG, not "
+						<< ", error status should be NOOVERLAP, R1StartsInR2, or R1EndsInR2, not "
 						<< bib::strToUpperRet(row[overlapStatusTab.getColPos("status")])
 						<< "\n";
 			}
