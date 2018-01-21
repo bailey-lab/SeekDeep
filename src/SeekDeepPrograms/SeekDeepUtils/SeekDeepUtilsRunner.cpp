@@ -700,8 +700,10 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 			qlusterCmdTemplate += "--ionTorrent";
 		}
 		auto indexes = analysisSetup.getIndexes();
-		std::cout << "indexes" << std::endl;
-		printVector(indexes);
+		if(setUp.pars_.verbose_){
+			std::cout << "indexes" << std::endl;
+			printVector(indexes);
+		}
 		for (const auto & index : indexes) {
 			//if (bib::in(index, inputPassed)) {
 			if (true) {
@@ -999,7 +1001,22 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	chmod(startServerCmdOpts.outFilename_.c_str(),
 			S_IWUSR | S_IRUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IEXEC | S_IXGRP);
 
-	//start server config
+	//combining extraction counts
+	OutOptions combineExtractionCmdOpts(
+			bib::files::make_path(analysisSetup.dir_, "combineExtractionCountsCmd.sh"));
+	OutputStream combineExtractionCmdOut(combineExtractionCmdOpts);
+	combineExtractionCmdOut << "#!/usr/bin/env bash" << std::endl;
+	combineExtractionCmdOut << "SeekDeep rBind --recursive --depth 1 --contains allPrimerCounts.tab.txt --delim tab --header --out reports/allAllPrimerCounts.tab.txt  --overWrite" << std::endl;
+	combineExtractionCmdOut << "SeekDeep rBind --recursive --depth 1 --contains extractionProfile.tab.txt --delim tab --header --out reports/allExtractionProfile.tab.txt  --overWrite" << std::endl;
+	combineExtractionCmdOut << "SeekDeep rBind --recursive --depth 1 --contains extractionStats.tab.txt --delim tab --header --out reports/allExtractionStats.tab.txt  --overWrite" << std::endl;
+	combineExtractionCmdOut << "SeekDeep rBind --recursive --depth 1 --contains midCounts.tab.txt --delim tab --header --out reports/allMidCounts.tab.txt  --overWrite" << std::endl;
+	combineExtractionCmdOut << "SeekDeep rBind --recursive --depth 1 --contains processPairsCounts.tab.txt --delim tab --header --out reports/allProcessPairsCounts.tab.txt  --overWrite" << std::endl;
+	combineExtractionCmdOut << "SeekDeep rBind --recursive --depth 1 --contains top_mostCommonR1Starts_for_unrecognizedBarcodes.tab.txt --delim tab --header --out reports/allTop_mostCommonR1Starts_for_unrecognizedBarcodes.tab.txt  --overWrite" << std::endl;
+	combineExtractionCmdOut << "SeekDeep rBind --recursive --depth 1 --contains top_mostCommonR2Starts_for_unrecognizedBarcodes.tab.txt --delim tab --header --out reports/allTop_mostCommonR2Starts_for_unrecognizedBarcodes  --overWrite" << std::endl;
+	chmod(combineExtractionCmdOpts.outFilename_.c_str(),
+			S_IWUSR | S_IRUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IEXEC | S_IXGRP);
+
+	//run file analysis file
 	OutOptions runAnalysisOpts(
 			bib::files::make_path(analysisSetup.dir_, "runAnalysis.sh"));
 	std::ofstream runAnalysisFile;
@@ -1020,6 +1037,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	runAnalysisFile << "" << setUp.commands_.masterProgram_
 			<< " runMultipleCommands --cmdFile extractorCmds.txt      --numThreads $numThreads --raw"
 			<< std::endl;
+	runAnalysisFile << "./combineExtractionCountsCmd.sh"<< std::endl;
 	runAnalysisFile << "" << setUp.commands_.masterProgram_
 			<< " runMultipleCommands --cmdFile qlusterCmds.txt        --numThreads $numThreads --raw"
 			<< std::endl;
