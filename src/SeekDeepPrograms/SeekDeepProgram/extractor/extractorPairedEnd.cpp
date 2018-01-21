@@ -35,7 +35,7 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 	ExtractorPairedEndPars pars;
 
 	setUp.setUpExtractorPairedEnd(pars);
-	uint32_t readsNotMatchedToBarcode = 0;
+
 	// run log
 	setUp.startARunLog(setUp.pars_.directoryName_);
 	// parameter file
@@ -124,7 +124,7 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 
 	uint32_t smallFragmentCount = 0;
 	uint64_t maxReadSize = 0;
-	uint32_t count = 0;
+
 	MultiSeqIO readerOuts;
 
 	std::map<std::string, std::pair<uint32_t, uint32_t>> counts;
@@ -175,6 +175,14 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 	if(setUp.pars_.verbose_){
 		std::cout << "Reading in reads:" << std::endl;
 	}
+	uint32_t count = 0;
+	uint32_t readsNotMatchedToBarcode = 0;
+	uint32_t unrecognizedPrimers = 0;
+	uint32_t contamination = 0;
+	uint32_t qualityFilters = 0;
+	uint32_t used = 0;
+
+
 	while (reader.readNextRead(seq)) {
 		++count;
 		if (setUp.pars_.verbose_ && count % 50 == 0) {
@@ -405,7 +413,7 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 				stats.increaseFailedForward(barcodeName, seq.seqBase_.name_);
 				midReaderOuts.openWrite("unrecognized", seq);
 				++allPrimerCounts[fullname];
-
+				++unrecognizedPrimers;
 			}else if(forwardPrimerName != reversePrimerName){
 				//check for primer mismatch
 				//stats.increasePrimerMismatch(barcodeName, seq.seqBase_.name_);
@@ -418,6 +426,7 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 				}
 				midReaderOuts.openWrite(fullname + "bad", seq);
 				++allPrimerCounts[fullname];
+				++unrecognizedPrimers;
 			}else{
 				primersInMids[barcodeName].emplace(forwardPrimerName);
 				//primer match
@@ -509,6 +518,17 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 		}
 	}
 
+	OutputStream outPairProcessOut(bib::files::make_path(setUp.pars_.directoryName_, "processPairsCounts.tab.txt"));
+	outPairProcessOut << "Name\ttotal\tnotCombined\tperfectOverlapCombined\tr1BeginsInR2Combined\tr1EndsInR2Combined" << std::endl;;
+	for(const auto & n : resultsPerMidTarPair){
+		outPairProcessOut << n.first
+				<< "\t" << n.second.total
+				<< "\t" << getPercentageString(n.second.overlapFail, n.second.total)
+				<< "\t" << getPercentageString(n.second.perfectOverlapCombined, n.second.total)
+				<< "\t" << getPercentageString(n.second.r1BeginsInR2Combined, n.second.total)
+				<< "\t" << getPercentageString(n.second.r1EndsInR2Combined, n.second.total)
+				<< std::endl;
+	}
 
 	bool checkingContamination = pars.comparisonSeqFnp_ != "";
 	VecStr lengthNeeded;
@@ -524,7 +544,9 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 		for(const auto & extractedPrimer : extractedMid.second){
 			std::string name = extractedPrimer + extractedMid.first;
 			if(PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP == bib::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
-				std::cout << extractedPrimer << " " << "NOOVERLAP" << std::endl;
+				if(setUp.pars_.verbose_){
+					std::cout << extractedPrimer << " " << "NOOVERLAP" << std::endl;
+				}
 				PairedRead filteringSeq;
 				if(nullptr == resultsPerMidTarPair[name].notCombinedOpts){
 					if(setUp.pars_.verbose_){
@@ -546,6 +568,9 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 				while(processedReader.readNextRead(filteringSeq)){
 					if(checkingContamination){
 						bool pass = false;
+						if(ids.targets_.at(extractedPrimer).refs_.empty()){
+							pass = true;
+						}
 						auto firstMateCopy = filteringSeq.seqBase_;
 						auto secodnMateCopy = filteringSeq.mateSeqBase_;
 						seqUtil::removeLowerCase(firstMateCopy.seq_,firstMateCopy.qual_);
@@ -563,6 +588,7 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 						if(pass){
 							tempWriter.write(filteringSeq);
 						}else{
+							++contamination;
 							contaminationWriter.openWrite(filteringSeq);
 							++possibleContaminationCounts[name];
 						}
@@ -570,7 +596,9 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 				}
 			}else if(PairedReadProcessor::ReadPairOverLapStatus::R1BEGINSINR2 == bib::mapAt(ids.targets_, extractedPrimer).overlapStatus_ ||
 					PairedReadProcessor::ReadPairOverLapStatus::R1ENDSINR2 == bib::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
-				std::cout << extractedPrimer << " " << "r1BeginsInR2" << std::endl;
+				if(setUp.pars_.verbose_){
+					std::cout << extractedPrimer << " " << "r1BeginsInR2" << std::endl;
+				}
 				seqInfo filteringSeq;
 				SeqIOOptions filterSeqOpts;
 
@@ -603,6 +631,9 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 				while(processedReader.readNextRead(filteringSeq)){
 					if(checkingContamination){
 						bool pass = false;
+						if(ids.targets_.at(extractedPrimer).refs_.empty()){
+							pass = true;
+						}
 						kmerInfo seqKInfo(filteringSeq.seq_, pars.compKmerLen, false);
 						for(const auto & refKinfo : ids.targets_.at(extractedPrimer).refKInfos_){
 							if(refKinfo.compareKmers(seqKInfo).second >= pars.compKmerSimCutOff){
@@ -616,6 +647,7 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 							}
 							tempWriter.write(filteringSeq);
 						}else{
+							++contamination;
 							contaminationWriter.openWrite(filteringSeq);
 							++possibleContaminationCounts[name];
 						}
@@ -629,33 +661,48 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 		auto medianlength = vectorMedianRef(readLengthsPerTarget.at(tar));
 		ids.targets_.at(tar).addLenCutOff(medianlength - (medianlength * .10), medianlength + (medianlength * .10));
 	}
+	std::unordered_map<std::string, uint32_t> badQual;
+	std::unordered_map<std::string, uint32_t> badNs;
+	std::unordered_map<std::string, uint32_t> badMaxLen;
+	std::unordered_map<std::string, uint32_t> badMinLen;
+	std::unordered_map<std::string, uint32_t> goodFinal;
+
+	std::set<std::string> allNames;
 
 	for(const auto & extractedMid : primersInMids){
 		for(const auto & extractedPrimer : extractedMid.second){
 			std::string name = extractedPrimer + extractedMid.first;
 
 			if(PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP == bib::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
-				std::cout << extractedPrimer << " " << "NOOVERLAP" << std::endl;
+				if(setUp.pars_.verbose_){
+					std::cout << extractedPrimer << " " << "NOOVERLAP" << std::endl;
+				}
 				if(!bib::in(name, tempOuts)){
 					continue;
 				}
+				allNames.emplace(name);
 				PairedRead filteringSeq;
 				SeqInput tempReader(tempOuts[name]);
 				tempReader.openIn();
 				auto finalSeqOut = SeqIOOptions::genPairedOut(bib::files::make_path(setUp.pars_.directoryName_, name));
-				auto backSeqOut =  SeqIOOptions::genPairedOut(bib::files::make_path(badDir, name));
+				auto badSeqOut =  SeqIOOptions::genPairedOut(bib::files::make_path(badDir, name));
 				SeqOutput finalWriter(finalSeqOut);
-				SeqOutput badWriter(finalSeqOut);
+				SeqOutput badWriter(badSeqOut);
 				while(tempReader.readNextRead(filteringSeq)){
 					bool bad = false;
 					if(!nChecker.checkRead(filteringSeq)){
+						++badNs[name];
 						bad = true;
 					}else if(!qualChecker.checkRead(filteringSeq)){
+						++badQual[name];
 						bad = true;
 					}else{
+						++used;
+						++goodFinal[name];
 						finalWriter.openWrite(filteringSeq);
 					}
 					if(bad){
+						++qualityFilters;
 						badWriter.openWrite(filteringSeq);
 					}
 				}
@@ -664,28 +711,38 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 				if(!bib::in(name, tempOuts)){
 					continue;
 				}
-				std::cout << extractedPrimer << " " << "r1BeginsInR2" << std::endl;
+				if(setUp.pars_.verbose_){
+					std::cout << extractedPrimer << " " << "r1BeginsInR2" << std::endl;
+				}
+				allNames.emplace(name);
 				seqInfo filteringSeq;
 				SeqInput tempReader(tempOuts[name]);
 				tempReader.openIn();
 				auto finalSeqOut = SeqIOOptions::genFastqOut(bib::files::make_path(setUp.pars_.directoryName_, name));
-				auto backSeqOut =  SeqIOOptions::genFastqOut(bib::files::make_path(badDir, name));
+				auto badSeqOUt =  SeqIOOptions::genFastqOut(bib::files::make_path(badDir, name));
 				SeqOutput finalWriter(finalSeqOut);
-				SeqOutput badWriter(finalSeqOut);
+				SeqOutput badWriter(badSeqOUt);
 				while(tempReader.readNextRead(filteringSeq)){
 					bool bad = false;
 					if(!nChecker.checkRead(filteringSeq)){
 						bad = true;
+						++badNs[name];
 					}else if(!qualChecker.checkRead(filteringSeq)){
 						bad = true;
+						++badQual[name];
 					}else if(!ids.targets_.at(extractedPrimer).lenCuts_->minLenChecker_.checkRead(filteringSeq)){
 						bad = true;
+						++badMinLen[name];
 					}else if(!ids.targets_.at(extractedPrimer).lenCuts_->maxLenChecker_.checkRead(filteringSeq)){
 						bad = true;
+						++badMaxLen[name];
 					}else{
+						++used;
+						++goodFinal[name];
 						finalWriter.openWrite(filteringSeq);
 					}
 					if(bad){
+						++qualityFilters;
 						badWriter.openWrite(filteringSeq);
 					}
 				}
@@ -693,9 +750,103 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 		}
 	}
 
+	OutOptions extractionStatsOpts(bib::files::make_path(setUp.pars_.directoryName_, "extractionStats.tab.txt"));
+	OutputStream extractionStatsOut(extractionStatsOpts);
+	extractionStatsOut << "Total\tfailedBarcode\tfailedPrimers\tpossibleContamination\tfailedQualityLenFilters\tused" << std::endl;
+	extractionStatsOut << count
+			<< "\t" << getPercentageString(readsNotMatchedToBarcode, count)
+			<< "\t" << getPercentageString(unrecognizedPrimers, count)
+			<< "\t" << getPercentageString(contamination, count)
+			<< "\t" << getPercentageString(qualityFilters, count)
+			<< "\t" << getPercentageString(used, count) << std::endl;
 
+	OutOptions extractionProfileOpts(bib::files::make_path(setUp.pars_.directoryName_, "extractionProfile.tab.txt"));
+	OutputStream extractionProfileOut(extractionProfileOpts);
+	extractionProfileOut << "name\ttotalMatching\tgood\tbad\tfailedMinLen\tfailedMaxLen\tfailedQuality\tfailedNs\tfailedPossibleContamination" << std::endl;
+	for(const auto & name : allNames){
+		uint32_t totalBad = badQual[name] + badNs[name] + badMinLen[name] + badMaxLen[name] + possibleContaminationCounts[name];
+		extractionProfileOut << name
+				<< "\t" << matchingPrimerCounts[name]
+				<< "\t" <<  getPercentageString(goodFinal[name], matchingPrimerCounts[name])
+				<< "\t" <<  getPercentageString(totalBad, matchingPrimerCounts[name])
+				<< "\t" <<  getPercentageString(badMinLen[name], totalBad)
+				<< "\t" <<  getPercentageString(badMaxLen[name], totalBad)
+				<< "\t" <<  getPercentageString(badQual[name], totalBad)
+				<< "\t" <<  getPercentageString(badNs[name], totalBad)
+				<< "\t" <<  getPercentageString(possibleContaminationCounts[name], totalBad)
+				<< std::endl;
+	}
 
-
+	{
+		auto unRecBarOpts = SeqIOOptions::genFastqIn(bib::files::make_path(setUp.pars_.directoryName_, "filteredOff/bad/unrecognizedBarcode_NO_MATCHING_R1.fastq"));
+		if(unRecBarOpts.inExists()){
+			SeqIO reader(unRecBarOpts);
+			reader.openIn();
+			seqInfo read;
+			strCounter counter;
+			std::function<std::string(const seqInfo &, size_t, uint32_t)> getSubStr  = [](const seqInfo & read, size_t position, uint32_t size){
+				std::string ret = "";
+				if(position + size <= read.seq_.size()){
+					ret = read.seq_.substr(position, size);
+				}
+				return ret;
+			};
+			while(reader.readNextRead(read)){
+				counter.increaseCountByString(getSubStr(read, 0, 20));
+			}
+			counter.setFractions();
+			table outTable(VecStr { "str", "count", "fraction" });
+			for (const auto & str : counter.counts_) {
+				if (str.second > 0 && str.first != "") {
+					outTable.content_.emplace_back(
+							toVecStr(str.first, str.second, counter.fractions_[str.first]));
+				}
+			}
+			outTable.sortTable("count", true);
+			OutputStream countsOuts(bib::files::make_path(setUp.pars_.directoryName_, "top_mostCommonR1Starts_for_unrecognizedBarcodes"));
+			uint32_t count = 0;
+			countsOuts << "seq\tcount\tpercentOfUnrecognizedReads" << std::endl;
+			while(count < 10 && count < outTable.content_.size()){
+				countsOuts << outTable.content_[count][0] << "\t" <<  outTable.content_[count][1] << "\t" << getPercentageString(bib::StrToNumConverter::stoToNum<uint32_t>(outTable.content_[count][1]), counter.getTotalCount()) << std::endl;
+				++count;
+			}
+		}
+	}
+	{
+		auto unRecBarOpts = SeqIOOptions::genFastqIn(bib::files::make_path(setUp.pars_.directoryName_, "filteredOff/bad/unrecognizedBarcode_NO_MATCHING_R2.fastq"));
+		if(unRecBarOpts.inExists()){
+			SeqIO reader(unRecBarOpts);
+			reader.openIn();
+			seqInfo read;
+			strCounter counter;
+			std::function<std::string(const seqInfo &, size_t, uint32_t)> getSubStr  = [](const seqInfo & read, size_t position, uint32_t size){
+				std::string ret = "";
+				if(position + size <= read.seq_.size()){
+					ret = read.seq_.substr(position, size);
+				}
+				return ret;
+			};
+			while(reader.readNextRead(read)){
+				counter.increaseCountByString(getSubStr(read, 0, 20));
+			}
+			counter.setFractions();
+			table outTable(VecStr { "str", "count", "fraction" });
+			for (const auto & str : counter.counts_) {
+				if (str.second > 0 && str.first != "") {
+					outTable.content_.emplace_back(
+							toVecStr(str.first, str.second, counter.fractions_[str.first]));
+				}
+			}
+			outTable.sortTable("count", true);
+			OutputStream countsOuts(bib::files::make_path(setUp.pars_.directoryName_, "top_mostCommonR2Starts_for_unrecognizedBarcodes"));
+			uint32_t count = 0;
+			countsOuts << "seq\tcount\tpercentOfUnrecognizedReads" << std::endl;
+			while(count < 10 && count < outTable.content_.size()){
+				countsOuts << outTable.content_[count][0] << "\t" <<  outTable.content_[count][1] << "\t" << getPercentageString(bib::StrToNumConverter::stoToNum<uint32_t>(outTable.content_[count][1]), counter.getTotalCount()) << std::endl;
+				++count;
+			}
+		}
+	}
 
 //		auto barcodeName = bfs::basename(f.first.string());
 //		if ((counts[barcodeName].first + counts[barcodeName].second) == 0

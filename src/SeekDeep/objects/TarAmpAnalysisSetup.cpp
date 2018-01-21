@@ -127,6 +127,7 @@ TarAmpAnalysisSetup::TarAmpAnalysisSetup(const TarAmpPars & pars) :
 	infoDir_ = bib::files::makeDir(dir_.string(), bib::files::MkdirPar("info"));
 	logsDir_ = bib::files::makeDir(dir_.string(), bib::files::MkdirPar("logs"));
 	idsDir_ = bib::files::makeDir(infoDir_.string(), bib::files::MkdirPar("ids"));
+	refsDir_ = bib::files::makeDir(infoDir_.string(), bib::files::MkdirPar("refs"));
 	reportsDir_ = bib::files::makeDir(dir_.string(),
 			bib::files::MkdirPar("reports"));
 	serverConfigsDir_ = bib::files::makeDir(dir_.string(), bib::files::MkdirPar("serverConfigs"));
@@ -174,6 +175,10 @@ TarAmpAnalysisSetup::TarAmpAnalysisSetup(const TarAmpPars & pars) :
 	if("" != pars.lenCutOffsFnp){
 		addLenCutOffs(pars.lenCutOffsFnp);
 	}
+	//add overlap status
+	if("" != pars.overlapStatusFnp){
+		addOverlapStatus(pars.overlapStatusFnp);
+	}
 
 	auto targets = getTargets();
 	VecStr failedTargets;
@@ -190,6 +195,8 @@ TarAmpAnalysisSetup::TarAmpAnalysisSetup(const TarAmpPars & pars) :
 		ss << bib::conToStr(failedTargets, ", ") << "\n";
 		throw std::runtime_error { ss.str() };
 	}
+
+
 }
 
 void TarAmpAnalysisSetup::addIndexToTargetsNames(
@@ -497,6 +504,12 @@ void TarAmpAnalysisSetup::addLenCutOffs(const bfs::path & lenCutOffsFnp){
 	}
 }
 
+void TarAmpAnalysisSetup::addOverlapStatus(const bfs::path & overlapStatusFnp){
+	idsMids_->addOverLapStatuses(overlapStatusFnp);
+}
+
+
+
 
 std::vector<VecStr> TarAmpAnalysisSetup::getTarCombos() const{
 	std::unordered_map<std::string, VecStr> targetsForReps;
@@ -528,22 +541,34 @@ void TarAmpAnalysisSetup::writeOutIdFiles() const{
 		auto collapse = bib::conToStr(tarCombo, "_");
 		auto refs = idsMids_->getRefSeqs(tarCombo);
 		auto lens = idsMids_->genLenCutOffs(tarCombo);
+		auto overlapStatuses = idsMids_->genOverlapStatuses(tarCombo);
+
 		if (!lens.empty()) {
 			auto lensOutOpts = TableIOOpts::genTabFileOut(
 					bib::files::make_path(idsDir_,
 							collapse + "_lenCutOffs.tab.txt"));
 			lens.outPutContents(lensOutOpts);
 		}
-		if (!refs.empty()) {
-			SeqOutput::write(refs,
-					SeqIOOptions::genFastaOut(
-							bib::files::make_path(idsDir_, collapse).string()));
+		if (!overlapStatuses.empty()) {
+			auto overlapStatusesOpts = TableIOOpts::genTabFileOut(
+					bib::files::make_path(idsDir_,
+							collapse + "_overlapStatus.tab.txt"));
+			overlapStatuses.outPutContents(overlapStatusesOpts);
 		}
+
 		idsMids_->writeIdFile(
 				OutOptions(
 						bib::files::make_path(idsDir_, collapse + ".id.txt")),
 				tarCombo);
 	}
+	for(const auto & tar : idsMids_->targets_){
+		if(!tar.second.refs_.empty()){
+			SeqOutput::write(tar.second.refs_,
+					SeqIOOptions::genFastaOut(
+							bib::files::make_path(refsDir_, tar.first)));
+		}
+	}
+
 }
 
 VecStr TarAmpAnalysisSetup::getExpectantInputNames()const{

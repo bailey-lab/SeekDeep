@@ -118,9 +118,9 @@ void SeekDeepSetUp::setUpExtractorPairedEnd(ExtractorPairedEndPars & pars) {
 			"Remove this many sequences off of the end of r1 reads", false, "Post Processing");
 	setOption(pars.r2Trim_, "--r2Trim",
 			"Remove this many sequences off of the end of r2 reads", false, "Post Processing");
-	setOption(pars.lenCutOffFilename_, "--lenCutOffFilename",
+	setOption(pars.lenCutOffFilename_, "--lenCutOffs",
 			"A file with at least three columns, target,minlen,maxlen the target column should match up with the first column in the id file", false, "Post Processing");
-	setOption(pars.comparisonSeqFnp_, "--comparisonSeqFnp",
+	setOption(pars.comparisonSeqFnp_, "--compareSeq",
 			"A fasta file or a directory to fasta files, with references to check against, if file record name need to match target name, if directory file name should be TARGET.fasta", false, "Post Processing");
 
 	setOption(pars.qPars_.qualCheck_, "--qualCheckLevel",

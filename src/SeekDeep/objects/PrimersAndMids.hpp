@@ -79,6 +79,8 @@ public:
 	void writeIdFile(const OutOptions & outOpts, const VecStr & targets) const;
 
 	table genLenCutOffs(const VecStr & targets) const;
+	table genOverlapStatuses(const VecStr & targets) const;
+
 
 
 	std::vector<seqInfo> getRefSeqs(const VecStr & targets) const;

@@ -118,7 +118,7 @@ struct ExtractorPairedEndPars{
 
   bfs::path overlapStatusFnp_ = "";
   bool noOverlapProcessForNoOverlapStatusTargets_ = false;
-  uint32_t numberOfNs = 0;
+  uint32_t numberOfNs = 1;
 
   PairedReadProcessor::ProcessParams pairProcessorParams_;
 

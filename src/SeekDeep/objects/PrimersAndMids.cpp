@@ -224,6 +224,23 @@ table PrimersAndMids::genLenCutOffs(const VecStr & targets) const {
 	return ret;
 }
 
+table PrimersAndMids::genOverlapStatuses(const VecStr & targets) const {
+	table ret(VecStr { "target", "status"});
+	for (const auto & tar : targets) {
+		if (!hasTarget(tar)) {
+			std::stringstream ss;
+			ss << __PRETTY_FUNCTION__ << ": error, doesn't contain " << tar
+					<< std::endl;
+			throw std::runtime_error { ss.str() };
+		}
+		if (nullptr != targets_.at(tar).lenCuts_) {
+			ret.addRow(tar, PairedReadProcessor::getOverlapStatusStr(targets_.at(tar).overlapStatus_));
+		}
+	}
+	return ret;
+}
+
+
 std::vector<seqInfo> PrimersAndMids::getRefSeqs(const VecStr & targets) const {
 	std::vector<seqInfo> ret;
 	for (const auto & tar : targets) {

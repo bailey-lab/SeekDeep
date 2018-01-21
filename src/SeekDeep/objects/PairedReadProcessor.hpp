@@ -25,6 +25,23 @@ public:
 		R1ENDSINR2
 	};
 
+	static std::string getOverlapStatusStr(const ReadPairOverLapStatus  status){
+		switch (status) {
+			case ReadPairOverLapStatus::NOOVERLAP:
+				return "NOOVERLAP";
+				break;
+			case ReadPairOverLapStatus::R1BEGINSINR2:
+				return "R1BEGINSINR2";
+				break;
+			case ReadPairOverLapStatus::R1ENDSINR2:
+				return "R1ENDSINR2";
+				break;
+			default:
+				return "NOTHANDLED";//shouldn't be getting here
+				break;
+		}
+	}
+
 	struct ProcessParams{
 		uint32_t minOverlap_ = 10;
 		double errorAllowed_ = 0.01;
