@@ -389,7 +389,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 			"If the input sample names are by index and not targets", false, "ID Files");
 	setUp.setOption(pars.targetsToIndexFnp, "--targetsToIndex",
 			"A tsv file with two columns named targets and index where targets in a comma separated value with the targets for the index in index",
-			pars.byIndex, "ID Files");
+			false, "ID Files");
 
 	setUp.setOption(pars.numThreads, "--numThreads", "Number of CPUs to use");
 
@@ -934,13 +934,21 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 				+ bib::files::make_path(bfs::absolute(analysisSetup.infoDir_),
 						"groupMeta.tab.txt").string();
 	}
+
 	auto popDir = bib::files::make_path(bfs::absolute(analysisSetup.dir_),
 			"popClustering");
 
 	for (const auto & tar : targets) {
-		processClusterCmds.emplace_back(
-				"cd " + bib::files::make_path(popDir, tar).string() + " && "
-						+ processClusterTemplate + " --experimentName " + tar);
+		std::stringstream processClustersCmdsStream;
+		processClustersCmdsStream
+				<< "cd " + bib::files::make_path(popDir, tar).string() + " && "
+						+ processClusterTemplate + " --experimentName " + tar;
+		auto refSeqFnp = bib::files::make_path(pars.outDir, "info/refs/" + tar + ".fasta");
+		if(bfs::exists(refSeqFnp)){
+			processClustersCmdsStream << " --ref " << bfs::absolute(refSeqFnp);
+		}
+		processClusterCmds.emplace_back(processClustersCmdsStream.str());
+
 	}
 	OutOptions processClusterCmdsOpts(
 			bib::files::make_path(analysisSetup.dir_, "processClusterCmds.txt"));

@@ -80,9 +80,9 @@ bool TarAmpAnalysisSetup::TarAmpPars::checkForRequiredFnpPars(
 	status = status && checkIfFnpExists(samplesNamesFnp, warnings);
 	status = status && checkIfFnpExists(inputDir, warnings);
 	status = status && checkIfFnpExists(idFile, warnings);
-	if (byIndex) {
-		status = status && checkIfFnpExists(targetsToIndexFnp, warnings);
-	}
+//	if (byIndex) {
+//		status = status && checkIfFnpExists(targetsToIndexFnp, warnings);
+//	}
 	return status;
 }
 
@@ -142,7 +142,16 @@ TarAmpAnalysisSetup::TarAmpAnalysisSetup(const TarAmpPars & pars) :
 	writeSampleNamesFile();
 	if(pars_.byIndex){
 		addIndexToTargetsNames(pars_.targetsToIndexFnp);
-		bfs::copy(pars_.targetsToIndexFnp, bib::files::make_path(infoDir_, "indexToTargets.tab.txt"));
+		if("" == pars_.targetsToIndexFnp){
+			table indexToTargetsTab(VecStr{"index", "	targets"});
+			for(const auto & indexToTar : indexToTars_){
+				indexToTargetsTab.addRow(indexToTar.first, bib::conToStr(indexToTar.second, ","));
+			}
+			OutputStream indexToTargetsOut(OutOptions(bib::files::make_path(infoDir_, "indexToTargets.tab.txt")));
+			indexToTargetsTab.outPutContents(indexToTargetsOut, "\t");
+		}else{
+			bfs::copy(pars_.targetsToIndexFnp, bib::files::make_path(infoDir_, "indexToTargets.tab.txt"));
+		}
 	}
 	//check for incompatible set ups
 	if (!idsMids_->containsMids() && pars_.byIndex) {
@@ -201,41 +210,51 @@ TarAmpAnalysisSetup::TarAmpAnalysisSetup(const TarAmpPars & pars) :
 
 void TarAmpAnalysisSetup::addIndexToTargetsNames(
 		const bfs::path & targetsToIndexFnp) {
-	table targetsToIndexTab(targetsToIndexFnp.string(), "\t", true);
-	std::set<std::string> tarsSet;
-	for (const auto & row : targetsToIndexTab.content_) {
-		auto tars = tokenizeString(row[targetsToIndexTab.getColPos("targets")],
-				",");
-		auto index = row[targetsToIndexTab.getColPos("index")];
-		if (bib::in(index, indexToTars_)) {
+	if("" == targetsToIndexFnp){
+		auto tars = idsMids_->getTargets();
+		auto indxs = getIndexes();
+		for(const auto & indx : indxs){
+			indexToTars_[indx] = tars;
+		}
+	}else{
+		table targetsToIndexTab(targetsToIndexFnp.string(), "\t", true);
+		std::set<std::string> tarsSet;
+		for (const auto & row : targetsToIndexTab.content_) {
+			auto tars = tokenizeString(row[targetsToIndexTab.getColPos("targets")],
+					",");
+			auto index = row[targetsToIndexTab.getColPos("index")];
+			if (bib::in(index, indexToTars_)) {
+				std::stringstream ss;
+				ss << __PRETTY_FUNCTION__ << ": error already have targets for index: "
+						<< index << "\n";
+				ss << "Check to see if there are repeat values in " << targetsToIndexFnp
+						<< "\n";
+				throw std::runtime_error { ss.str() };
+			}
+			bib::sort(tars);
+			indexToTars_[index] = tars;
+			tarsSet.insert(tars.begin(), tars.end());
+		}
+		auto indexes = getIndexes();
+		VecStr missingIndex;
+		for (const auto & index : indexes) {
+			if (!bib::in(index, indexToTars_)) {
+				missingIndex.emplace_back(index);
+			}
+		}
+		if (!missingIndex.empty()) {
 			std::stringstream ss;
-			ss << __PRETTY_FUNCTION__ << ": error already have targets for index: "
-					<< index << "\n";
-			ss << "Check to see if there are repeat values in " << targetsToIndexFnp
-					<< "\n";
+			ss << __PRETTY_FUNCTION__
+					<< ": error, missing the following index from the index to targets file "
+					<< targetsToIndexFnp << "\n";
+			ss << "Targets: " << bib::conToStr(missingIndex, ", ") << "\n";
+			ss << "Indexes Read In: "
+					<< bib::conToStr(bib::getVecOfMapKeys(indexToTars_), ", ") << "\n";
 			throw std::runtime_error { ss.str() };
 		}
-		bib::sort(tars);
-		indexToTars_[index] = tars;
-		tarsSet.insert(tars.begin(), tars.end());
 	}
-	auto indexes = getIndexes();
-	VecStr missingIndex;
-	for (const auto & index : indexes) {
-		if (!bib::in(index, indexToTars_)) {
-			missingIndex.emplace_back(index);
-		}
-	}
-	if (!missingIndex.empty()) {
-		std::stringstream ss;
-		ss << __PRETTY_FUNCTION__
-				<< ": error, missing the following index from the index to targets file "
-				<< targetsToIndexFnp << "\n";
-		ss << "Targets: " << bib::conToStr(missingIndex, ", ") << "\n";
-		ss << "Indexes Read In: "
-				<< bib::conToStr(bib::getVecOfMapKeys(indexToTars_), ", ") << "\n";
-		throw std::runtime_error { ss.str() };
-	}
+
+
 }
 
 
