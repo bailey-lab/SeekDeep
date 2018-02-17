@@ -181,7 +181,19 @@ class Utils:
         ''' forcibly delete directory and then re-make it''' 
         Utils.rm_rf(d)
         Utils.mkdir(d)
-        
+
+    @staticmethod
+    def ensureLibDirectoryPresent(localInstallDir):
+        """
+            If a dynamic library's id isn't it's full path name and it isn't in the
+            dylib search path it won't be linked in properly, so will modify the id
+            of the libraries to be it's full name 
+        """
+        libDir = os.path.join(localInstallDir, "lib")
+        lib64Dir = os.path.join(localInstallDir, "lib64")
+        if os.path.exists(lib64Dir) and not os.path.exists(libDir):
+          os.symlink(lib64Dir, libDir);
+                
     @staticmethod
     def fixDyLibOnMac(libDir):
         """

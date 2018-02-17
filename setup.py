@@ -324,10 +324,11 @@ class Packages():
         if "bhtsne" in libsNeeded:
             self.packages_["bhtsne"] = self.__bhtsne()
         #developer, private repos
-        if "elucidator" in libsNeeded:
-            self.packages_["elucidator"] = self.__elucidator()
-        if "mipwrangler" in libsNeeded:
-            self.packages_["mipwrangler"] = self.__MIPWrangler()
+        if self.args.private:
+          if "elucidator" in libsNeeded:
+              self.packages_["elucidator"] = self.__elucidator()
+          if "mipwrangler" in libsNeeded:
+              self.packages_["mipwrangler"] = self.__MIPWrangler()
         '''
         
         self.packages_["mlpack"] = self.__mlpack()
@@ -354,7 +355,6 @@ class Packages():
                     pack = pickle.load(inputPkl)
                     pack.defaultBuildCmd_ = buildCmd
         else:
-            
             refs = pack.getGitRefs(url)
             for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
                 pack.addHeaderOnlyVersion(url, ref)
@@ -1694,7 +1694,6 @@ class Setup:
                        "seekdeep": self.SeekDeep,
                        "bibcpp": self.bibcpp,
                        "seqserver": self.seqserver,
-                       "elucidator": self.elucidator,
                        "njhrinside": self.njhRInside,
                        "jsoncpp": self.jsoncpp,
                        "pstreams": self.pstreams,
@@ -1718,7 +1717,6 @@ class Setup:
                        "bcftools": self.bcftools,
                        "hts": self.hts,
                        "restbed": self.restbed,
-                       "mipwrangler": self.MIPWrangler,
                        "eigen": self.eigen,
                        "glpk": self.glpk,
                        "cmake": self.cmake,
@@ -1727,6 +1725,9 @@ class Setup:
                        "lapack": self.lapack,
                        "atlas": self.atlas
                        }
+        if self.args.private:
+          self.setUps["mipwrangler"] = self.MIPWrangler;
+          self.setUps["elucidator"] = self.elucidator;
         ''' 
         "mlpack": self.mlpack,
         "liblinear": self.liblinear,
@@ -2071,7 +2072,8 @@ class Setup:
             libPath = os.path.join(bPaths.local_dir, "lib")
             if(os.path.exists(libPath)):
                 Utils.fixDyLibOnMac(libPath)
-        
+        Utils.ensureLibDirectoryPresent(bPaths.local_dir)
+            
     def __defaultBibBuild(self, package, version):
         if "develop" == version or "release" in version or "master" == version:
             self.__defaultBuild(package, version, False)
@@ -2463,7 +2465,8 @@ class SetupRunner:
         parser.add_argument('--symlinkBin', action = 'store_true', help = "Symlink in executables into a directory bin next to external")
         parser.add_argument('--clearCache', action = 'store_true')
         parser.add_argument('--clean', action = 'store_true',  help = "Remove intermediate build files to save space")
-    
+        parser.add_argument('--private', action = 'store_true',  help = "Add the private repos MIPWrangler and elucidator if you have the rights to access")
+
         return parser.parse_args()
 
     @staticmethod
