@@ -282,7 +282,9 @@ int SeekDeepRunner::processClusters(const bib::progutils::CmdArgs & inputCommand
 		table hapIdTab = sampColl.genHapIdTable();
 		hapIdTab.outPutContents(TableIOOpts::genTabFileOut(bib::files::make_path(sampColl.masterOutputDir_,
 				"hapIdTable.tab.txt"), true));
+		auto popSeqsPerSamp = sampColl.genOutPopSeqsPerSample();
 		sampColl.dumpPopulation();
+		SeqOutput::write(popSeqsPerSamp, SeqIOOptions::genFastqOut(bib::files::make_path(sampColl.masterOutputDir_, "population", "popSeqsWithMetaWtihSampleName")));
 	}
 	if("" != pars.groupingsFile){
 		sampColl.createGroupInfoFiles();
