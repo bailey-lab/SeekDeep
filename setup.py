@@ -1772,6 +1772,7 @@ class Setup:
                     #self.packages_.addPackage(self.setUpsNeeded,LibNameVer(libSplit[0].lower(), libSplit[1]))
         if self.args.compfile:
             self.parseSetUpNeeded(self.args.compfile[0])
+        self.__initSetUpFuncs()
         #check to see if package is available
         for foundSetup in self.foundSetUpsNeeded:
             if foundSetup.name not in self.setUps:
