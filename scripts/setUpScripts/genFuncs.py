@@ -6,7 +6,7 @@ from utils import Utils
 
 class genHelper:
     @staticmethod
-    def generateCompfileFull(outFileName, externalDirLoc, cc, cxx, outName, installDirName, installDirLoc, neededLibs,ldFlags = "", cxxFlags = ""):
+    def generateCompfileFull(outFileName, externalDirLoc, cc, cxx, outName, installDirName, installDirLoc, neededLibs,ldFlags = "", cxxFlags = "", private =False):
         availableLibs = ["CPPITERTOOLS","CPPPROGUTILS","ZI_LIB","BOOST",
                          "R","BAMTOOLS","CPPCMS","MATHGL","ARMADILLO",
                          "MLPACK","LIBLINEAR","CURL","GTKMM", "BIBSEQ",
@@ -41,6 +41,8 @@ class genHelper:
                 f.write("{ld_flags}\n".format(ld_flags = " ".join(ldFlags.split(","))))
             f.write("CXXOPT += -O2 -funroll-loops -DNDEBUG  \n")
             f.write("\n")
+            if private:
+              f.write("PRIVATE = TRUE\n")
             f.write("#debug\n")
             f.write("CXXDEBUG = -g -gstabs+ \n")
             f.write("INSTALL_DIR={INSTALL_LOCATION}\n".format(INSTALL_LOCATION = os.path.join(installDirLoc,installDirName)))
@@ -91,7 +93,7 @@ class genHelper:
         return parser.parse_args()
     
     @staticmethod
-    def mkConfigCmd(name,libs, argv, ldflags="", cxxFlags=""):
+    def mkConfigCmd(name,libs, argv, ldflags="", cxxFlags="", private = False):
         if libs == "":
             cmd = os.path.join(os.path.dirname(os.path.dirname(__file__)), "setUpScripts/njhConfigure.py") + " -name {name} ".format(name=name)
         else:
@@ -107,6 +109,8 @@ class genHelper:
             cmd += addingFlags + cxxFlags + "\""
         if len(sys.argv) > 1:
             cmd += " " + " ".join(sys.argv[1:])
+        if private:
+          cmd += " -private "
         return cmd
 
 

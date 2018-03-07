@@ -16,6 +16,8 @@ def parse_args():
     parser.add_argument('-neededLibs', type=str)
     parser.add_argument('-ldFlags', type=str)
     parser.add_argument('-cxxFlags', type=str)
+    parser.add_argument('-private', type=bool)
+    parser.add_argument('-private', action = "store_true", help="Use private repos")
     return parser.parse_args()
 
 def main():
@@ -43,6 +45,6 @@ def main():
         prefix = args.prefix
     if args.neededLibs:
         neededLibs = args.neededLibs.split(",")
-    genHelper.generateCompfileFull(args.outFilename, external, CC, CXX, outname, installName, prefix, neededLibs, ldFlags, cxxFlags)
+    genHelper.generateCompfileFull(args.outFilename, external, CC, CXX, outname, installName, prefix, neededLibs, ldFlags, cxxFlags, args.private)
     
 main()

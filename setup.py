@@ -1815,6 +1815,9 @@ class Setup:
                             #self.packages_.addPackage(self.setUpsNeeded, LibNameVer(k[4:].lower(),valSplit[1]))
                     else:
                         raise Exception("Need to supply version in compfile with USE_PACKAGE#Version")
+            elif "PRIVATE" == k and "TRUE" == v:
+              self.args.private = True;
+              
                 
 
     def parseCompFile(self, fn):
