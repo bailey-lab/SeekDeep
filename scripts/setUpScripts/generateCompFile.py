@@ -16,7 +16,6 @@ def parse_args():
     parser.add_argument('-neededLibs', type=str)
     parser.add_argument('-ldFlags', type=str)
     parser.add_argument('-cxxFlags', type=str)
-    parser.add_argument('-private', type=bool)
     parser.add_argument('-private', action = "store_true", help="Use private repos")
     return parser.parse_args()
 
