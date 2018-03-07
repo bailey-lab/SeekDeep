@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 
 import shutil, os, argparse, sys
 sys.path.append(os.path.join(os.path.dirname(__file__), "pyUtils"))
@@ -63,27 +63,27 @@ def genHellos(outFilename, overWrite = False, python = False):
         genPyHello(outFilename)
         #rwx to user and group, r-x to everyone
         fd = os.open( outFilename, os.O_RDONLY )
-        os.fchmod( fd, 0775)
+        os.fchmod( fd, 0o775)
         os.close( fd )
-        print (CT.boldGreen("Now run"))
-        print ("./" + outFilename + " ")
-        print (CT.boldGreen("or"))
-        print ("./" + outFilename + " --name Nick")
+        print((CT.boldGreen("Now run")))
+        print(("./" + outFilename + " "))
+        print((CT.boldGreen("or")))
+        print(("./" + outFilename + " --name Nick"))
     else:
         if not outFilename.endswith(".cpp"):
             outFilename = outFilename + ".cpp"
         if os.path.exists(outFilename) and not overWrite:
             raise Exception("File " + outFilename + " already exists, use --overWrite to over write it")
         genCppHello(outFilename)
-        print (CT.boldGreen("Now run"))
-        print ("g++ -std=c++11 " + outFilename + " -o hello #-std=c++11 needed for cstdint include in libstdc++")
+        print((CT.boldGreen("Now run")))
+        print(("g++ -std=c++11 " + outFilename + " -o hello #-std=c++11 needed for cstdint include in libstdc++"))
         print ("./hello")
-        print (CT.boldGreen("or run"))
+        print((CT.boldGreen("or run")))
         #mac
         if Utils.isMac():
-            print ("clang++ " + outFilename + " -o hello")
+            print(("clang++ " + outFilename + " -o hello"))
         else:
-            print ("clang++-3.6 -std=c++11 " + outFilename + " -o hello #-std=c++11 needed for cstdint include in libstdc++")
+            print(("clang++-3.6 -std=c++11 " + outFilename + " -o hello #-std=c++11 needed for cstdint include in libstdc++"))
         print ("./hello")
 if __name__ == '__main__':
     args = parse_args_genHello()

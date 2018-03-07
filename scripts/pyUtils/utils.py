@@ -1,8 +1,8 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 
-"purcaro@gmail.com"
 
-import urllib, os, shutil, tarfile, multiprocessing, subprocess, sys, socket
+
+import urllib.request, urllib.parse, urllib.error, os, shutil, tarfile, multiprocessing, subprocess, sys, socket
 from color_text import ColorText as CT 
 
 
@@ -54,7 +54,7 @@ class Utils:
         #print CT.boldBlack("here")
         cmd = "cd " + Utils.shellquote(d) + " && " + cmd + " && cd -"
         #print CT.boldBlack("newcmd")
-        print CT.boldGreen(cmd)
+        print(CT.boldGreen(cmd))
         Utils.run(cmd)
 
     @staticmethod
@@ -62,42 +62,25 @@ class Utils:
         # print CT.boldRed("before process")
         # from http://stackoverflow.com/a/4418193
         process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        #print CT.boldRed("after process")
-        # Poll process for new output until finished
-        actualOutput = ""
-        while True:
-            nextline = process.stdout.readline()
-            if nextline == '' and process.poll() != None:
-                break
-            sys.stdout.write(nextline)
-            actualOutput = actualOutput + nextline
-            sys.stdout.flush()
-
-        output = process.communicate()[0]
+        output, errors = process.communicate()
+        sys.stdout.write(output.decode('utf-8'))
+        sys.stdout.flush()
         exitCode = process.returncode
         #print "exit code "  + CT.boldRed(str(exitCode))
         if (exitCode == 0):
-            return actualOutput
-        raise Exception(cmd, exitCode, actualOutput)
+            return output.decode('utf-8')
+        raise Exception(cmd, exitCode, output.decode('utf-8'), errors)
 
     @staticmethod
     def runAndCapture(cmd):
-        # from http://stackoverflow.com/a/4418193
-        process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        # Poll process for new output until finished
-        actualOutput = ""
-        while True:
-            nextline = process.stdout.readline()
-            if nextline == '' and process.poll() != None:
-                break
-            actualOutput = actualOutput + nextline
-        #this is suppose to capture the output but it isn't for some reason so capturing it with the above
-        output = process.communicate()[0]
-        exitCode = process.returncode
-        if (exitCode == 0):
-            return actualOutput
-            #return output
-        raise Exception(cmd, exitCode, actualOutput)
+      # from http://stackoverflow.com/a/4418193
+      process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+      output, errors = process.communicate()
+      #this is suppose to capture the output but it isn't for some reason so capturing it with the above
+      exitCode = process.returncode
+      if (exitCode == 0):
+          return output.decode('utf-8')
+      raise Exception(cmd, exitCode, output.decode('utf-8'), errors)
 
     @staticmethod
     def shellquote(s):
@@ -112,7 +95,7 @@ class Utils:
     def mkdir(d):
         '''mkdir if it doesn't already exist '''
         if not os.path.exists(d):
-            print CT.boldText("mkdir"), CT.boldGreen(d)
+            print(CT.boldText("mkdir"), CT.boldGreen(d))
             os.makedirs(d)
 
     @staticmethod
@@ -120,7 +103,7 @@ class Utils:
         '''get file from url and put it into directory d, return new name  '''
         fn = url.split('/')[-1]
         out_fnp = os.path.join(d, fn)
-        urllib.urlretrieve(url, out_fnp)
+        urllib.request.urlretrieve(url, out_fnp)
         return out_fnp
 
     @staticmethod
@@ -129,23 +112,23 @@ class Utils:
         just a size check but fairly likely not to be the same for a difference '''
         fn = url.split('/')[-1]
         out_fnp = os.path.join(d, fn)
-        net_file_size = int(urllib.urlopen(url).info()['Content-Length'])
+        net_file_size = int(urllib.request.urlopen(url).info()['Content-Length'])
         if os.path.exists(out_fnp):
             fn_size = os.path.getsize(out_fnp)
             if fn_size == net_file_size:
-                print "skipping download of", CT.boldGreen(fn)
+                print("skipping download of", CT.boldGreen(fn))
                 return out_fnp
             else:
-                print "files sizes differed:", "on disk:", fn_size, "from net:", net_file_size
-        print "retrieving", CT.boldGreen(fn), "from", CT.boldBlue(url)
-        urllib.urlretrieve(url, out_fnp)
+                print("files sizes differed:", "on disk:", fn_size, "from net:", net_file_size)
+        print("retrieving", CT.boldGreen(fn), "from", CT.boldBlue(url))
+        urllib.request.urlretrieve(url, out_fnp)
         return out_fnp
 
     @staticmethod
     def rm_rf(d):
         '''remove directory forcibly'''
         if os.path.exists(d):
-            print CT.boldText("rm -rf"), CT.boldRed(d)
+            print(CT.boldText("rm -rf"), CT.boldRed(d))
             shutil.rmtree(d)
 
     @staticmethod
@@ -161,15 +144,15 @@ class Utils:
             tar = tarfile.open(fnp, "r")
         else:
             raise Exception("invalid file? " + fnp)
-        print "untarring", CT.boldGreen(fnp), "to", CT.boldBlue(d)
+        print("untarring", CT.boldGreen(fnp), "to", CT.boldBlue(d))
         tar.extractall(d)
         tar.close()
         
     @staticmethod
     def getStrFromStrOrList(inputArg):
-        if type(inputArg) is list:
+        if isinstance(inputArg, list):
             return str(inputArg[0])
-        elif type(inputArg) is not str:
+        elif not isinstance(inputArg, str):
             return str(inputArg)
         else:
             return inputArg
@@ -208,9 +191,9 @@ class Utils:
                 try:
                     cmd = "install_name_tool -id {full_libpath} {full_libpath}".format(full_libpath = os.path.abspath(fullFile))
                     Utils.run(cmd)
-                except Exception,e:
+                except Exception as e:
                     print (e)
-                    print ("Failed to fix dylib for {path}".format(path = os.path.abspath(fullFile)))
+                    print(("Failed to fix dylib for {path}".format(path = os.path.abspath(fullFile))))
             elif os.path.isdir(fullFile):
                 Utils.fixDyLibOnMac(fullFile)
 

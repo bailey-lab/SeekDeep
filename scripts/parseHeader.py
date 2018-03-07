@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 
 import shutil, os, argparse, sys, stat
 import CppHeaderParser
@@ -18,22 +18,22 @@ def main():
         print(e)
         sys.exit(1)
     
-    print CT.boldBlack("Class public methods")
-    for k in cppHeader.classes.keys():
-        print CT.boldBlack(k)
+    print(CT.boldBlack("Class public methods"))
+    for k in list(cppHeader.classes.keys()):
+        print(CT.boldBlack(k))
         for i in range(len(cppHeader.classes[k]["methods"]["public"])):
-            print "\t",cppHeader.classes[k]["methods"]["public"][i]["name"]
-    print ""
-    print CT.boldBlack("Includes")        
+            print("\t",cppHeader.classes[k]["methods"]["public"][i]["name"])
+    print("")
+    print(CT.boldBlack("Includes"))        
     for include in cppHeader.includes:
         if "//" in include:
-            print "\t" + include[0:include.find("//")].strip()
+            print("\t" + include[0:include.find("//")].strip())
         elif "/*" in include:
-            print "\t" + include[0:include.find("/*")].strip()
+            print("\t" + include[0:include.find("/*")].strip())
         else:
-            print "\t" + include
+            print("\t" + include)
     
-    print("\n" + CT.boldBlack("Free functions are:"))
+    print(("\n" + CT.boldBlack("Free functions are:")))
     for func in cppHeader.functions:
-        print("\t%s"%func["name"])
+        print(("\t%s"%func["name"]))
 main()

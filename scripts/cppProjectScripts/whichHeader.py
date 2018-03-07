@@ -1,6 +1,6 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 
-from __future__ import print_function
+
 import sys, os, argparse
 from sets import Set
 sys.path.append(os.path.join(os.path.dirname(os.path.dirname(__file__)), "pyUtils"))
@@ -95,7 +95,7 @@ def printBashMatches(args):
     partial = args[0]
     def matchForBashAutocomplete(x):
         return x.startswith("std::" + partial)
-    matches = filter(matchForBashAutocomplete, objToHeader.keys())
+    matches = list(filter(matchForBashAutocomplete, list(objToHeader.keys())))
     for x in sorted(matches):
         print(x[5:]) # skip "std::"
 

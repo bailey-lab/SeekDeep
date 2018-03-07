@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 
 import shutil, os, argparse, sys, stat, time
 sys.path.append(os.path.join(os.path.dirname(os.path.dirname(__file__)), "setUpScripts"))
@@ -8,29 +8,29 @@ from utils import Utils
 from color_text import ColorText as CT
     
 def genCommonIncludes(filename, includes):
-     with open(filename, "w") as f:
-         f.write("#pragma once\n")
-         f.write("\n")
-         f.write("// Created on "+ time.strftime("%Y/%m/%d") +"\n")
-         f.write("// Add system libraries here\n")
-         f.write("\n")
-         for i in includes:
-             f.write("#include <" + i + ">\n")
+  with open(filename, "w") as f:
+      f.write("#pragma once\n")
+      f.write("\n")
+      f.write("// Created on "+ time.strftime("%Y/%m/%d") +"\n")
+      f.write("// Add system libraries here\n")
+      f.write("\n")
+      for i in includes:
+        f.write("#include <" + i + ">\n")
             
 def genTypeDefs(filename, projName):
-     with open(filename, "w") as f:
-         f.write("#pragma once\n")
-         f.write("\n")
-         f.write("// Created on "+ time.strftime("%Y/%m/%d") +"\n")
-         f.write("// Add project typedefs here\n")
-         f.write("\n")
-         for i in ["vector", "map", "string"]:
-             f.write("#include <" + i + ">\n")
-         f.write("\n")
-         f.write("namespace " + projName+" {\n")
-         f.write("//typedef std::map<std::string, std::string> MapStrStr;\n")
-         f.write("//typedef std::vector<std::string> VecStr;\n")
-         f.write("}  // namespace " + projName + "\n")
+  with open(filename, "w") as f:
+    f.write("#pragma once\n")
+    f.write("\n")
+    f.write("// Created on "+ time.strftime("%Y/%m/%d") +"\n")
+    f.write("// Add project typedefs here\n")
+    f.write("\n")
+    for i in ["vector", "map", "string"]:
+      f.write("#include <" + i + ">\n")
+      f.write("\n")
+      f.write("namespace " + projName+" {\n")
+      f.write("//typedef std::map<std::string, std::string> MapStrStr;\n")
+      f.write("//typedef std::vector<std::string> VecStr;\n")
+      f.write("}  // namespace " + projName + "\n")
         
 def genCommon(dest, projName, includes):
     genCommonIncludes(os.path.join(dest, "src/" + projName + "/common/allSystemIncludes.h"), includes)
@@ -45,13 +45,13 @@ def genCommon(dest, projName, includes):
         f.write("#include \""+ projName + "/common/typedefs.h\"\n")
         
 def genWholeProjInclude(dest, projName):
-     with open(os.path.join(dest, "src/" + projName + ".h"), "w") as f:
-         f.write("#pragma once\n")
-         f.write("\n")
-         f.write("// Created on "+ time.strftime("%Y/%m/%d") +"\n")
-         f.write("// Including whole project\n")
-         f.write("\n")
-         f.write("#include \""+ projName + "/common.h\"")
+  with open(os.path.join(dest, "src/" + projName + ".h"), "w") as f:
+    f.write("#pragma once\n")
+    f.write("\n")
+    f.write("// Created on "+ time.strftime("%Y/%m/%d") +"\n")
+    f.write("// Including whole project\n")
+    f.write("\n")
+    f.write("#include \""+ projName + "/common.h\"")
 
 def genMain(dest, projName):
     with open(os.path.join(dest, "src/" + "main.cpp"), "w") as f:
@@ -141,10 +141,10 @@ def genCppProject(args):
     #determine this file's location to dtermine where to copy setup and make files to
     exFrom = os.path.abspath(os.path.dirname(__file__))
     cpSetUpCmd = exFrom + "/copySetUpFiles.py -from " + exFrom + "/../../ -to " + projectOut
-    print CT.boldBlack(cpSetUpCmd)
+    print(CT.boldBlack(cpSetUpCmd))
     Utils.run(cpSetUpCmd)
     cpMakefilesCmd = "cp " + exFrom + "/../cppMakefiles/Makefile " + projectOut
-    print CT.boldBlack(cpMakefilesCmd)
+    print(CT.boldBlack(cpMakefilesCmd))
     Utils.run(cpMakefilesCmd)
     #generate README.md
     genReadme(projectOut, args.projName)

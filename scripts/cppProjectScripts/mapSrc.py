@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 
 import fnmatch, subprocess, sys, os, argparse, re, copy
 sys.path.append(os.path.join(os.path.dirname(os.path.dirname(__file__)), "pyUtils"))
@@ -57,7 +57,7 @@ def main():
             if args.addSystem:
                 for match in re.finditer(patternSystem, line):
                     modifiedHeaderName = ((line[(line.find("<") + 1):line.find(">")]).replace(".", "_")).replace("/", "__");
-                    if modifiedHeaderName not in graph.nodePositions_.keys():
+                    if modifiedHeaderName not in list(graph.nodePositions_.keys()):
                         graph.addNode(modifiedHeaderName, fileNode.externalHeaderColor, "external", 0, 1)
                     if(".h" in file): 
                         graph.addPair(os.path.basename(file).replace(".", "_"), modifiedHeaderName, fileNode.headToHeadColor)

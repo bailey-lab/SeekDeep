@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 
 import shutil, os, argparse, sys, stat
 sys.path.append("scripts/pyUtils")

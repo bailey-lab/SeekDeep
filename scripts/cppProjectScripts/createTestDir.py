@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 
 import shutil, os, argparse, sys, stat,errno
 import CppHeaderParser
@@ -70,7 +70,7 @@ def createTestMain(path, overWrite):
         if overWrite:
             os.remove(mainPath)
         else:
-            print mainPath, "already exists, use --overWrite to remove current"
+            print(mainPath, "already exists, use --overWrite to remove current")
             return
     with open(mainPath, "w") as mainFile:
         mainFile.write(mainBody)
@@ -79,7 +79,7 @@ def copyMakefile(fromLoc, dest, overWrite):
         if overWrite:
             os.remove(dest)
         else:
-            print dest, "already exists, use --overWrite to replace it"
+            print(dest, "already exists, use --overWrite to replace it")
             return
     shutil.copy(fromLoc, dest)
 
@@ -93,7 +93,7 @@ def main():
         except CppHeaderParser.CppParseError as e:
             print(e)
             sys.exit(1)
-            print CT.boldBlack("Class public methods")
+            print(CT.boldBlack("Class public methods"))
 
         if(len(cppHeader.classes) + len(cppHeader.functions) > 0):
             testerCppPath = os.path.join(args.outDir,head.replace(".hpp", "Tester.cpp"))
@@ -102,14 +102,14 @@ def main():
                 if args.overWrite:
                     os.remove(testerCppPath)
                 else:
-                    print "Skipping", testerCppPath, "it already exist, use --overWrite to replace"
+                    print("Skipping", testerCppPath, "it already exist, use --overWrite to replace")
                     continue
             with open(testerCppPath, "w") as testerFile:
                 testerFile.write("#include <catch.hpp>\n")
                 testerFile.write("#include \"" + "../" + head + "\"\n")
                 for func in cppHeader.functions:
                     testerFile.write(testerBodyTemplate.format(REPLACETHIS=func["name"], REPLACETHIS_DETAILED = getFuncDetailed(func)))
-                for k in cppHeader.classes.keys():
+                for k in list(cppHeader.classes.keys()):
                     for i in range(len(cppHeader.classes[k]["methods"]["public"])):
                         testerFile.write(testerBodyTemplate.format(REPLACETHIS=cppHeader.classes[k]["methods"]["public"][i]["name"], REPLACETHIS_DETAILED = getFuncDetailed(cppHeader.classes[k]["methods"]["public"][i])))
     createTestMain(os.path.join(args.outDir, args.src), args.overWrite)

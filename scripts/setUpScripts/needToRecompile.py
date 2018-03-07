@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 
 import fnmatch, subprocess, sys, os, argparse, re, copy
 sys.path.append(os.path.join(os.path.dirname(os.path.dirname(__file__)), "pyUtils"))
@@ -43,7 +43,7 @@ def main():
             graph.addNode(os.path.basename(file).replace(".", "_"), fileNode.cppColor, "internal", statbuf.st_mtime, os.path.getsize(file))
             lastPeriod = file.rfind(".c")
             objNameFile = file[:lastPeriod] + ".o"
-            if objNameFile in objectFilesTrimedDic.keys():
+            if objNameFile in list(objectFilesTrimedDic.keys()):
                 statbuf = os.stat(objectFilesTrimedDic[objNameFile])
                 graph.addObjecTime(os.path.basename(file).replace(".", "_"), statbuf.st_mtime)
         else:
@@ -74,8 +74,8 @@ def main():
     #print srcFileDict.keys()
     out = ""
     for need in needToRecompile:
-        if(need in srcFileDict.keys()):
+        if(need in list(srcFileDict.keys())):
             out += " " + srcFileDict[need]
-    print out
+    print(out)
 
 main()
