@@ -59,17 +59,23 @@ class Utils:
 
     @staticmethod
     def run(cmd):
-        # print CT.boldRed("before process")
         # from http://stackoverflow.com/a/4418193
         process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        output, errors = process.communicate()
-        sys.stdout.write(output.decode('utf-8'))
-        sys.stdout.flush()
+        #output, errors = process.communicate()
+        #sys.stdout.write(output.decode('utf-8'))
+        #sys.stdout.flush()
+        output = "";
+        while True:
+          nextline = process.stdout.readline().decode('utf-8')
+          if nextline == '' and process.poll() != None:
+              break
+          sys.stdout.write(nextline)
+          output = output + nextline
+          sys.stdout.flush()
         exitCode = process.returncode
-        #print "exit code "  + CT.boldRed(str(exitCode))
         if (exitCode == 0):
-            return output.decode('utf-8')
-        raise Exception(cmd, exitCode, output.decode('utf-8'), errors)
+            return output
+        raise Exception(cmd, exitCode, output)
 
     @staticmethod
     def runAndCapture(cmd):
