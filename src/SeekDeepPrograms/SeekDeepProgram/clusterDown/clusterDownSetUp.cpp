@@ -36,6 +36,7 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 	// input file info
 	pars_.ioOptions_.out_.outFilename_ = "output";
 	pars_.ioOptions_.lowerCaseBases_ = "remove";
+
 	if (false) {
 		std::stringstream tempOut;
 		tempOut << commands_.subProgram_ << std::endl;
@@ -304,6 +305,7 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 	pars_.chiOpts_.checkChimeras_ = !dontMarkChimeras;
 	setOption(pars_.chiOpts_.parentFreqs_, "--parFreqs",
 			"Parent freq multiplier cutoff", false, "Chimeras");
+	setOption(pars_.chiOpts_.keepLowQaulityMismatches_, "--chiKeepLowQaulityMismatches", "When marking chimeras also consider low quality mismatches, these are removed by default to prevent errors from incorrectly mising chimeras but could also hurt chimera marking", false, "Chimeras");
 
 	setOption(pars.snapShotsOpts_.snapShots_, "--snapShots", "Output Snap Shots of clustering results after each iteration", false, "Additional Output");
 	setOption(pars.sortBy, "--sortBy", "Sort Clusters By");
@@ -321,6 +323,7 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 	processRefFilename();
 	bool mustMakeDirectory = true;
 	processDirectoryOutputName(mustMakeDirectory);
+	processWritingOptions();
 	pars_.gap_ = "5,1";
 	pars_.gapRight_ = "0,0";
 	pars_.gapLeft_ = "5,1";

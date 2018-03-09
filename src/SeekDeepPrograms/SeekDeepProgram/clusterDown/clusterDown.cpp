@@ -30,6 +30,7 @@
 namespace bibseq {
 
 
+
 int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 	SeekDeepSetUp setUp(inputCommands);
 	// parameters
@@ -256,8 +257,12 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 				setUp.pars_.directoryName_ + "chimeraNumberInfo.txt", ".txt", false, false);
 		chimerasInfoFile << "#chimericClusters\t#chimericReads" << std::endl;
 		setUp.pars_.chiOpts_.chiOverlap_.largeBaseIndel_ = .99;
+
+//		collapserObj.opts_.verboseOpts_.verbose_ = true;
+//		collapserObj.opts_.verboseOpts_.debug_ = true;
 		auto chiInfoTab = collapserObj.markChimeras(clusters, alignerObj,
 				setUp.pars_.chiOpts_);
+
 		chiInfoTab.outPutContents(
 				TableIOOpts(
 						OutOptions(setUp.pars_.directoryName_ + "chiParentsInfo.txt",
@@ -324,6 +329,14 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 			std::cerr << "No additional out directory found for: "
 					<< setUp.pars_.ioOptions_.firstName_ << std::endl;
 			std::cerr << bib::bashCT::reset;
+			std::cerr << processFileNameForID(setUp.pars_.ioOptions_.firstName_.string())<< std::endl;
+			std::cerr << "Options:" << std::endl;
+			table inTab(pars.additionalOutLocationFile, "\t");
+		  MapStrStr additionalOutNames;
+		  for (const auto& fIter : inTab.content_) {
+		    additionalOutNames[makeIDNameComparable(fIter[0])] = fIter[1];
+		  }
+		  std::cerr << bib::conToStr(bib::getVecOfMapKeys(additionalOutNames)) << std::endl;
 		} else {
 			SeqOutput::write(clusters, SeqIOOptions(additionalOutDir + setUp.pars_.ioOptions_.out_.outFilename_.string(),
 					setUp.pars_.ioOptions_.outFormat_,setUp.pars_.ioOptions_.out_));

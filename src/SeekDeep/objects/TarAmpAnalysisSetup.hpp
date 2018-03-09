@@ -22,6 +22,7 @@ public:
 		bfs::path idFile = "";
 		bfs::path lenCutOffsFnp = "";
 		bfs::path refSeqsDir = "";
+		bfs::path overlapStatusFnp = "";
 		bfs::path targetsToIndexFnp = "";
 		bool byIndex = false;
 
@@ -35,7 +36,7 @@ public:
 
 		//Illumina specific
 		//paired end specific
-		uint32_t maxOverlap = 250;
+//		uint32_t maxOverlap = 250;
 		uint32_t r1Trim = std::numeric_limits<uint32_t>::max();
 		uint32_t r2Trim = std::numeric_limits<uint32_t>::max();
 		//
@@ -123,6 +124,7 @@ public:
 	bfs::path infoDir_;
 	bfs::path logsDir_;
 	bfs::path idsDir_;
+	bfs::path refsDir_;
 	bfs::path serverConfigsDir_;
 	bfs::path reportsDir_;
 
@@ -157,6 +159,7 @@ public:
 
 	void addLenCutOffs(const bfs::path & lenCutOffsFnp);
 
+	void addOverlapStatus(const bfs::path & overlapStatusFnp);
 
 
 	void writeOutIdFiles() const;

@@ -485,7 +485,7 @@ int SeekDeepRunner::extractor(const bib::progutils::CmdArgs & inputCommands) {
 			setUp.pars_.generalMatch_, setUp.pars_.generalMismatch_);
 	gapScoringParameters gapPars(setUp.pars_.gapInfo_);
 	KmerMaps emptyMaps;
-	bool countEndGaps = true;
+	bool countEndGaps = false;
 	if(setUp.pars_.debug_){
 		std::cout << bib::bashCT::boldRed("Creating Scoring Matrix: Stop") << std::endl;
 		std::cout << bib::bashCT::boldGreen("Determining Max Read Size: Start") << std::endl;

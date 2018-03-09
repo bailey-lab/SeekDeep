@@ -27,7 +27,7 @@
 
 #include "SeekDeepUtilsRunner.hpp"
 
-#include <unordered_map>
+#include <bibseq/ProgramRunners.h>
 
 namespace bibseq {
 
@@ -36,7 +36,8 @@ SeekDeepUtilsRunner::SeekDeepUtilsRunner() :
 				{ addFunc("dryRunQaulityFiltering", dryRunQaulityFiltering, false),
 					addFunc("runMultipleCommands",    runMultipleCommands, false),
 					addFunc("setupTarAmpAnalysis", setupTarAmpAnalysis, false),
-					addFunc("replaceUnderscores", replaceUnderscores, false) }, //
+					addFunc("replaceUnderscores", replaceUnderscores, false),
+				  addFunc("rBind", ManipulateTableRunner::rBind, false)}, //
 				"SeekDeepUtils") {
 }
 
@@ -352,6 +353,8 @@ table getStitchReport(const Json::Value & logs) {
 	return flashOutTab;
 }
 
+
+
 int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 		const bib::progutils::CmdArgs & inputCommands) {
 	TarAmpAnalysisSetup::TarAmpPars pars;
@@ -386,10 +389,8 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 			"If the input sample names are by index and not targets", false, "ID Files");
 	setUp.setOption(pars.targetsToIndexFnp, "--targetsToIndex",
 			"A tsv file with two columns named targets and index where targets in a comma separated value with the targets for the index in index",
-			pars.byIndex, "ID Files");
+			false, "ID Files");
 
-	setUp.setOption(pars.maxOverlap, "--maxOverlap",
-			"Max overlap allowed in stitcher", false, "Illumina Stitching");
 	setUp.setOption(pars.numThreads, "--numThreads", "Number of CPUs to use");
 
 	setUp.setOption(pars.extraExtractorCmds, "--extraExtractorCmds",
@@ -413,6 +414,10 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	if (pars.techIs454() || pars.techIsIonTorrent()) {
 		pars.inputFilePat = ".*.fastq";
 	}
+	setUp.setOption(pars.overlapStatusFnp, "--overlapStatusFnp",
+			"A file with two columns, target,status; status column should contain 1 of 3 values (capitalization doesn't matter): r1BegOverR2End,r1EndOverR2Beg,NoOverlap. r1BegOverR2End=target size < read length (causes read through),r1EndOverR2Beg= target size > read length less than 2 x read length, NoOverlap=target size > 2 x read length",
+			pars.techIsIllumina(), "Illumina Stitching");
+
 	setUp.setOption(pars.inputFilePat, "--inputFilePat",
 			"The input file pattern in the input directory to work on", false, "Input");
 
@@ -550,6 +555,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 					<< bib::conToStr(analysisSetup.getTargets(), ", ") << "\n";
 		}
 	}
+
 	//now write id files
 	analysisSetup.writeOutIdFiles();
 
@@ -566,143 +572,15 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	VecStr samplesEmpty;
 	Json::Value logs;
 	std::mutex logsMut;
-
+	std::unordered_map<std::string, std::pair<VecStr, VecStr>> readsByPairs ;
+	std::unordered_map<std::string, bfs::path> filesByPossibleName;
 	ReadPairsOrganizer rpOrganizer(expectedSamples);
 	if (analysisSetup.pars_.techIsIllumina()) {
+
 		rpOrganizer.processFiles(files);
-		auto readsByPairs = rpOrganizer.processReadPairs();
+		readsByPairs = rpOrganizer.processReadPairs();
 		auto keys = getVectorOfMapKeys(readsByPairs);
 		bib::sort(keys);
-		bib::concurrent::LockableQueue<std::string> filesKeys(keys);
-		auto extractStitchFiles =
-				[&analysisSetup ,&samplesExtracted, &samplesEmpty,
-				&filesKeys, &readsByPairs,
-				&logs, &logsMut]() {
-					const std::string zcatTempCmdR1 = analysisSetup.pars_.zcatCmd + " " + "{FILES} > "
-					+ "{OUTPUT}_R1.fastq";
-					const std::string zcatTempCmdR2 = analysisSetup.pars_.zcatCmd + " " + "{FILES} > "
-					+ "{OUTPUT}_R2.fastq";
-					const std::string stitchCmd = analysisSetup.pars_.stitcherCmd + " " +
-					"{OUTPUT}_R1.fastq " +
-					"{OUTPUT}_R2.fastq " +
-					"-o {OUTPUT} " +
-					"--max-overlap " + estd::to_string(analysisSetup.pars_.maxOverlap);
-					std::string key = "";
-					VecStr currentEmptySamps;
-					VecStr currentSamplesExtracted;
-					std::unordered_map<std::string, Json::Value> currentLogs;
-
-					while(filesKeys.getVal(key)) {
-						//check to see if all the files were erased and therefore sample was just empty files
-						if(readsByPairs.at(key).first.empty()) {
-							currentEmptySamps.emplace_back(key);
-							continue;
-						}
-						auto zcatR1 = bib::replaceString(zcatTempCmdR1, "{FILES}", bib::conToStr(readsByPairs.at(key).first, " "));
-						zcatR1 = bib::replaceString(zcatR1, "{OUTPUT}", bib::files::make_path(analysisSetup.dir_, key).string());
-						auto zcatR2 = bib::replaceString(zcatTempCmdR2, "{FILES}", bib::conToStr(readsByPairs.at(key).second, " "));
-						zcatR2 = bib::replaceString(zcatR2, "{OUTPUT}", bib::files::make_path(analysisSetup.dir_, key).string());
-						if(analysisSetup.pars_.debug){
-							std::cout << "bfs::absolute(analysisSetup.dir_).lexically_relative( bfs::current_path()): " << bfs::absolute(analysisSetup.dir_).lexically_relative( bfs::current_path()) << std::endl;
-							std::cout << "bfs::current_path() " << bfs::current_path() << std::endl;
-							std::cout << "analysisSetup.dir_: " << analysisSetup.dir_ << std::endl << std::endl;
-						}
-						auto curStitchCmd = bib::replaceString(stitchCmd, "{OUTPUT}", bib::files::make_path(bfs::absolute(analysisSetup.dir_).lexically_relative( bfs::current_path()), key).string());
-						auto zcatR1Out = bib::sys::run( {zcatR1});
-						auto zcatR2Out = bib::sys::run( {zcatR2});
-						if(std::numeric_limits<uint32_t>::max() != analysisSetup.pars_.r1Trim) {
-							auto finalFnp = bib::files::make_path(analysisSetup.dir_, key).string() + "_R1.fastq";
-							auto tempFnp = bib::files::make_path(analysisSetup.dir_, "tempTrim_" + key).string() + "_R1.fastq";
-							auto opts = SeqIOOptions::genFastqInOut(finalFnp,tempFnp,false);
-							SeqIO reader(opts);
-							reader.openIn();
-							reader.openOut();
-							seqInfo r1seq;
-							while(reader.readNextRead(r1seq)) {
-								readVecTrimmer::trimToMaxLength(r1seq, analysisSetup.pars_.r1Trim);
-								reader.write(r1seq);
-							}
-							reader.closeIn();
-							reader.closeOut();
-							bfs::remove(finalFnp);
-							bfs::rename(tempFnp, finalFnp);
-						}
-
-
-						if(std::numeric_limits<uint32_t>::max() != analysisSetup.pars_.r2Trim) {
-							auto finalFnp = bib::files::make_path(analysisSetup.dir_, key).string() + "_R2.fastq";
-							auto tempFnp = bib::files::make_path(analysisSetup.dir_, "tempTrim_" + key).string() + "_R2.fastq";
-							auto opts = SeqIOOptions::genFastqInOut(finalFnp,tempFnp,false);
-							SeqIO reader(opts);
-							reader.openIn();
-							reader.openOut();
-							seqInfo r2seq;
-							while(reader.readNextRead(r2seq)) {
-								readVecTrimmer::trimToMaxLength(r2seq, analysisSetup.pars_.r2Trim);
-								reader.write(r2seq);
-							}
-							reader.closeIn();
-							reader.closeOut();
-							bfs::remove(finalFnp);
-							bfs::rename(tempFnp, finalFnp);
-						}
-						auto curStitchCmdOut = bib::sys::run( {curStitchCmd});
-						currentLogs[key]["zcat1"] = zcatR1Out.toJson();
-						currentLogs[key]["zcat2"] = zcatR2Out.toJson();
-						currentLogs[key]["stitch"] = curStitchCmdOut.toJson();
-						currentLogs[key]["name"] = key;
-						currentSamplesExtracted.emplace_back(key);
-					}
-					{
-						std::lock_guard<std::mutex> lock(logsMut);
-						addOtherVec(samplesEmpty, currentEmptySamps);
-						addOtherVec(samplesExtracted, currentSamplesExtracted);
-						for(const auto & keyLog : currentLogs) {
-							logs[keyLog.first] = keyLog.second;
-
-						}
-					}
-				};
-
-		std::vector<std::thread> threads;
-		for (uint32_t tNum = 0; tNum < analysisSetup.pars_.numThreads; ++tNum) {
-			threads.emplace_back(std::thread(extractStitchFiles));
-		}
-
-		for (auto & th : threads) {
-			th.join();
-		}
-		std::ofstream outLog;
-		openTextFile(outLog,
-				OutOptions(
-						bib::files::make_path(analysisSetup.logsDir_, "extractLog").string(),
-						".json"));
-		outLog << logs << std::endl;
-		table flashOutTab = getStitchReport(logs);
-		flashOutTab.outPutContents(
-				TableIOOpts::genTabFileOut(
-						bib::files::make_path(analysisSetup.reportsDir_,
-								"StitchStats.tab.txt"), true));
-
-		VecStr noReadsStitched;
-		for (const auto & row : flashOutTab.content_) {
-			auto stitchedNum = estd::stou(
-					row[flashOutTab.getColPos("CombinedPairs")]);
-			if (0 == stitchedNum) {
-				noReadsStitched.emplace_back(row[flashOutTab.getColPos("SampleName")]);
-			}
-		}
-		if (!noReadsStitched.empty()) {
-			foundErrors = true;
-			errorOutput << "The following samples had no reads stitched "
-					<< std::endl;
-			for (const auto & samp : noReadsStitched) {
-				errorOutput << "\tSample: " << samp << std::endl;
-				for (const auto & sampFiles : rpOrganizer.readPairs_.at(samp)) {
-					errorOutput << "\t\t" << sampFiles << std::endl;
-				}
-			}
-		}
 		if (!rpOrganizer.readPairsUnrecognized_.empty()) {
 			foundErrors = true;
 			errorOutput
@@ -725,11 +603,6 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 				}
 			}
 		}
-		for (const auto & sample : samplesExtracted) {
-			if (!bib::in(sample, noReadsStitched)) {
-				inputPassed.emplace_back(sample);
-			}
-		}
 	} else {
 		// ion torrent and 454 extraction and moving goes here
 		// need to add to extractSamples if found
@@ -741,7 +614,6 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 			compressed = true;
 		}
 
-		std::unordered_map<std::string, bfs::path> filesByPossibleName;
 		for(const auto & file : files){
 			auto fNameNoExt = file.first.filename().replace_extension("");
 			if(compressed){
@@ -755,107 +627,24 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 		}
 		auto keys = bib::getVecOfMapKeys(filesByPossibleName);
 		bib::sort(keys);
-		bib::concurrent::LockableQueue<std::string> filesKeys(keys);
-		VecStr emptyFiles;
-		VecStr failedToExtract;
-		auto extractReads = [&analysisSetup,
-												 &filesByPossibleName, &filesKeys,
-												 &logs, &logsMut,&compressed,&emptyFiles,
-												 &failedToExtract,&samplesExtracted](){
-			std::string key = "";
-			std::unordered_map<std::string, Json::Value> currentLogs;
-			VecStr currentSamplesExtracted;
-			VecStr currentEmpty;
-			VecStr currentFailedExtraction;
-			while(filesKeys.getVal(key)){
-				if(0 == bfs::file_size(filesByPossibleName.at(key))){
-					currentEmpty.emplace_back(key);
-					continue;
-				}
-				std::stringstream cpyCmd;
-				if(compressed){
-					cpyCmd << analysisSetup.pars_.zcatCmd << " " << filesByPossibleName.at(key) << " >" << bib::files::make_path(analysisSetup.dir_, key + ".fastq");
-				}else{
-					cpyCmd << "cp " << filesByPossibleName.at(key) << " " << bib::files::make_path(analysisSetup.dir_, key + ".fastq");
-				}
-				auto runOut = bib::sys::run({cpyCmd.str()});
-				if(runOut.success_){
-					currentSamplesExtracted.emplace_back(key);
-				}else{
-					currentFailedExtraction.emplace_back(key);
-				}
-				currentLogs[key]["extract"] = runOut.toJson();
-				currentLogs[key]["name"] = key;
-			}
-			{
-				std::lock_guard<std::mutex> logsLock(logsMut);
-				for(const auto & log : currentLogs){
-					logs[log.first] = log.second;
-				}
-				addOtherVec(samplesExtracted, currentSamplesExtracted);
-				addOtherVec(emptyFiles, currentEmpty);
-				addOtherVec(failedToExtract, currentFailedExtraction);
-			}
-		};
-
-		std::vector<std::thread> threads;
-		for(uint32_t t = 0; t < analysisSetup.pars_.numThreads; ++t){
-			threads.emplace_back(std::thread(extractReads));
-		}
-		for(auto & t : threads){
-			t.join();
-		}
-		std::ofstream outLog;
-		openTextFile(outLog,
-				OutOptions(
-						bib::files::make_path(analysisSetup.logsDir_, "extractLog").string(),
-						".json"));
-		outLog << logs << std::endl;
-		if (!emptyFiles.empty()) {
-			foundErrors = true;
-			errorOutput << "The following input files were found to be empty" << std::endl;
-			for (const auto & samp : emptyFiles) {
-				errorOutput << "\tSample: " << samp << std::endl;
-				errorOutput << "\t" << filesByPossibleName.at(samp) << std::endl;
-			}
-		}
-		if (!failedToExtract.empty()) {
-			foundErrors = true;
-			errorOutput << "The following input files failed to extract, see log for reason for why" << std::endl;
-			for (const auto & samp : failedToExtract) {
-				errorOutput << "\tSample: " << samp << std::endl;
-				errorOutput << "\t" << filesByPossibleName.at(samp) << std::endl;
-			}
-		}
-		if (!unrecognizedInput.empty()) {
-			foundErrors = true;
-			errorOutput
-					<< "The following files were found but didn't match any input sample names in "
-					<< analysisSetup.pars_.samplesNamesFnp << std::endl;
-			for (const auto & samp : unrecognizedInput) {
-				errorOutput << "\tSample: " << samp << std::endl;
-				errorOutput << "\t" << filesByPossibleName.at(samp) << std::endl;
-			}
-		}
-		inputPassed = samplesExtracted;
 	}
 
-	VecStr samplesNotFound;
-	for (const auto & expected : expectedSamples) {
-		if (!bib::in(expected, samplesExtracted)
-				&& !bib::in(bib::replaceString(expected, "MID", ""),
-						samplesExtracted)) {
-			samplesNotFound.emplace_back(expected);
-		}
-	}
-
-	if (!samplesNotFound.empty()) {
-		foundErrors = true;
-		errorOutput << "The following input files were not found" << std::endl;
-		for (const auto & samp : samplesNotFound) {
-			errorOutput << "\tSample: " << samp << std::endl;
-		}
-	}
+//	VecStr samplesNotFound;
+//	for (const auto & expected : expectedSamples) {
+//		if (!bib::in(expected, samplesExtracted)
+//				&& !bib::in(bib::replaceString(expected, "MID", ""),
+//						samplesExtracted)) {
+//			samplesNotFound.emplace_back(expected);
+//		}
+//	}
+//
+//	if (!samplesNotFound.empty()) {
+//		foundErrors = true;
+//		errorOutput << "The following input files were not found" << std::endl;
+//		for (const auto & samp : samplesNotFound) {
+//			errorOutput << "\tSample: " << samp << std::endl;
+//		}
+//	}
 
 	OutOptions wrningsOpts(
 			bib::files::make_path(analysisSetup.dir_, "WARNINGS_PLEASE_READ.txt"));
@@ -872,18 +661,25 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	VecStr qlusterCmds;
 	if (analysisSetup.pars_.byIndex) {
 		//extractor cmds
-		std::string extractorCmdTemplate =
-				setUp.commands_.masterProgram_
-						+ " extractor --dout {INDEX}_extraction --overWriteDir --fastq ";
-		if (analysisSetup.pars_.techIsIllumina()) {
-			extractorCmdTemplate += "{INDEX}.extendedFrags.fastq --illumina ";
-		} else {
-			extractorCmdTemplate += "{INDEX}.fastq ";
+		std::string extractorCmdTemplate;
+		if(analysisSetup.pars_.techIsIllumina()){
+			 extractorCmdTemplate =
+							setUp.commands_.masterProgram_
+									+ " extractorPairedEnd --dout {INDEX}_extraction --overWriteDir  ";
+		}else{
+			 extractorCmdTemplate =
+							setUp.commands_.masterProgram_
+									+ " extractor --dout {INDEX}_extraction --overWriteDir  ";
 		}
-		std::string qualTrimTemplate = "--trimAtQual 2";
-		std::string lenCutOffsTemplate =
-				"--lenCutOffs info/ids/{TARS}_lenCutOffs.tab.txt";
-		std::string idTemplate = "--id info/ids/{TARS}.id.txt --multiplex ";
+		if (analysisSetup.pars_.techIsIllumina()) {
+			extractorCmdTemplate += "--fastq1 {INDEX_R1} --fastq2 /{INDEX_R2} ";
+		} else {
+			extractorCmdTemplate += "--fastq {INDEX_InFile} ";
+		}
+		std::string lenCutOffsTemplate ="--lenCutOffs info/ids/{TARS}_lenCutOffs.tab.txt ";
+		std::string idTemplate = "--id info/ids/{TARS}.id.txt ";
+		std::string overLapStatusTemplate = "--overlapStatusFnp info/ids/{TARS}_overlapStatus.tab.txt ";
+		std::string refSeqsDir = "--compareSeq info/refs/ ";
 		//qluster cmds;
 		auto extractionDirs = bib::files::make_path(
 				bfs::absolute(analysisSetup.dir_), "{INDEX}_extraction");
@@ -904,28 +700,67 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 			qlusterCmdTemplate += "--ionTorrent";
 		}
 		auto indexes = analysisSetup.getIndexes();
+		if(setUp.pars_.verbose_){
+			std::cout << "indexes" << std::endl;
+			printVector(indexes);
+		}
 		for (const auto & index : indexes) {
-			if (bib::in(index, inputPassed)) {
+			//if (bib::in(index, inputPassed)) {
+			if (true) {
+
 				auto tarsNames = bib::conToStr(analysisSetup.indexToTars_[index], "_");
 				auto cmds = VecStr { extractorCmdTemplate, idTemplate };
-				if (!analysisSetup.pars_.noQualTrim
-						&& analysisSetup.pars_.techIsIllumina()) {
-					cmds.emplace_back(qualTrimTemplate);
-				}
 				if (bfs::exists(
 						bib::files::make_path(analysisSetup.idsDir_,
 								tarsNames + "_lenCutOffs.tab.txt"))) {
 					cmds.emplace_back(lenCutOffsTemplate);
 				}
-				if (analysisSetup.indexToTars_[index].size() > 1) {
-					cmds.emplace_back("--multipleTargets");
+				bool anyRefs = false;
+				for (const auto & tar : analysisSetup.indexToTars_[index]) {
+					if (bfs::exists(
+							bib::files::make_path(analysisSetup.refsDir_, tar + ".fasta"))) {
+						anyRefs = true;
+						break;
+					}
 				}
+				if(anyRefs){
+					cmds.emplace_back(refSeqsDir);
+				}
+
 				if ("" != analysisSetup.pars_.extraExtractorCmds) {
 					cmds.emplace_back(analysisSetup.pars_.extraExtractorCmds);
+				}
+				if(pars.techIsIllumina()){
+					cmds.emplace_back(overLapStatusTemplate);
 				}
 				auto currentExtractCmd = bib::conToStr(cmds, " ");
 				currentExtractCmd = bib::replaceString(currentExtractCmd, "{INDEX}",
 						index);
+				if(pars.techIsIllumina()){
+					//INDEX_R1, INDEX_R2
+					auto searchForPairs = readsByPairs.find(index);
+					if(searchForPairs != readsByPairs.end()){
+						currentExtractCmd = bib::replaceString(currentExtractCmd, "{INDEX_R1}",
+								bfs::absolute(searchForPairs->second.first.front()).string() );
+						currentExtractCmd = bib::replaceString(currentExtractCmd, "{INDEX_R2}",
+								bfs::absolute(searchForPairs->second.second.front()).string() );
+					}else{
+						std::stringstream ss;
+						ss << __PRETTY_FUNCTION__ << ", error index: " << index << " was not found in readsByPairs" << "\n";
+						ss << "Options: " << bib::conToStr(bib::getVecOfMapKeys(readsByPairs), ", ");
+					}
+				}else{
+					//INDEX_InFile
+					auto searchForFile = filesByPossibleName.find(index);
+					if(searchForFile != filesByPossibleName.end()){
+						currentExtractCmd = bib::replaceString(currentExtractCmd, "{INDEX_InFile}",
+								bfs::absolute(searchForFile->second).string());
+					}else{
+						std::stringstream ss;
+						ss << __PRETTY_FUNCTION__ << ", error index: " << index << " was not found in filesByPossibleName" << "\n";
+						ss << "Options: " << bib::conToStr(bib::getVecOfMapKeys(filesByPossibleName), ", ");
+					}
+				}
 				currentExtractCmd = bib::replaceString(currentExtractCmd, "{TARS}",
 						tarsNames);
 				extractorCmds.emplace_back(currentExtractCmd);
@@ -950,18 +785,27 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 		}
 	} else {
 		//extractor cmds
-		std::string extractorCmdTemplate =
-				setUp.commands_.masterProgram_
-						+ " extractor --dout {REP}_extraction --overWriteDir --fastq ";
-		if (analysisSetup.pars_.techIsIllumina()) {
-			extractorCmdTemplate += "{REP}.extendedFrags.fastq --illumina ";
+		std::string extractorCmdTemplate;
+		if(analysisSetup.pars_.techIsIllumina()){
+			 extractorCmdTemplate =
+							setUp.commands_.masterProgram_
+									+ " extractorPairedEnd --dout {REP}_extraction --overWriteDir  ";
 		}else{
-			extractorCmdTemplate += "{REP}.fastq ";
+			 extractorCmdTemplate =
+							setUp.commands_.masterProgram_
+									+ " extractor --dout {INDEX}_extraction --overWriteDir  ";
 		}
-		std::string qualTrimTemplate = "--trimAtQual 2";
-		std::string lenCutOffsTemplate =
-				"--lenCutOffs info/ids/{TARS}_lenCutOffs.tab.txt";
-		std::string idTemplate = "--id info/ids/{TARS}.id.txt";
+		if (analysisSetup.pars_.techIsIllumina()) {
+			extractorCmdTemplate += "--fastq1 {REP_R1} --fastq2 /{REP_R2} ";
+		} else {
+			extractorCmdTemplate += "--fastq {REP_InFile} ";
+		}
+
+		std::string lenCutOffsTemplate ="--lenCutOffs info/ids/{TARS}_lenCutOffs.tab.txt ";
+		std::string idTemplate = "--id info/ids/{TARS}.id.txt ";
+		std::string overLapStatusTemplate = "--overlapStatusFnp info/ids/{TARS}_overlapStatus.tab.txt ";
+		std::string refSeqsDir = "--compareSeq info/refs/ ";
+
 		std::string sampleNameTemplate = "--sampleName {REP}";
 		//qluster cmds;
 		auto extractionDirs = bib::files::make_path(
@@ -1007,17 +851,10 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 				auto currentSampTemp = bib::replaceString(sampleNameTemplate, "{REP}",
 						sampName);
 				auto cmds = VecStr { extractorCmdTemplate, idTemplate, currentSampTemp };
-				if (!analysisSetup.pars_.noQualTrim
-						&& analysisSetup.pars_.techIsIllumina()) {
-					cmds.emplace_back(qualTrimTemplate);
-				}
 				if (bfs::exists(
 						bib::files::make_path(analysisSetup.idsDir_,
 								tarsNames + "_lenCutOffs.tab.txt"))) {
 					cmds.emplace_back(lenCutOffsTemplate);
-				}
-				if (rep.second.size() > 1) {
-					cmds.emplace_back("--multipleTargets");
 				}
 				if ("" != analysisSetup.pars_.extraExtractorCmds) {
 					cmds.emplace_back(analysisSetup.pars_.extraExtractorCmds);
@@ -1025,6 +862,31 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 				auto currentExtractCmd = bib::conToStr(cmds, " ");
 				currentExtractCmd = bib::replaceString(currentExtractCmd, "{REP}",
 						fName);
+				if(pars.techIsIllumina()){
+					//INDEX_R1, INDEX_R2
+					auto searchForPairs = readsByPairs.find(fName);
+					if(searchForPairs != readsByPairs.end()){
+						currentExtractCmd = bib::replaceString(currentExtractCmd, "{REP_R1}",
+								bfs::absolute(searchForPairs->second.first.front()).string() );
+						currentExtractCmd = bib::replaceString(currentExtractCmd, "{REP_R2}",
+								bfs::absolute(searchForPairs->second.second.front()).string() );
+					}else{
+						std::stringstream ss;
+						ss << __PRETTY_FUNCTION__ << ", error REP: " << fName << " was not found in readsByPairs" << "\n";
+						ss << "Options: " << bib::conToStr(bib::getVecOfMapKeys(readsByPairs), ", ");
+					}
+				}else{
+					//INDEX_InFile
+					auto searchForFile = filesByPossibleName.find(fName);
+					if(searchForFile != filesByPossibleName.end()){
+						currentExtractCmd = bib::replaceString(currentExtractCmd, "{REP_InFile}",
+								bfs::absolute(searchForFile->second).string());
+					}else{
+						std::stringstream ss;
+						ss << __PRETTY_FUNCTION__ << ", error REP: " << fName << " was not found in filesByPossibleName" << "\n";
+						ss << "Options: " << bib::conToStr(bib::getVecOfMapKeys(filesByPossibleName), ", ");
+					}
+				}
 				currentExtractCmd = bib::replaceString(currentExtractCmd, "{TARS}",
 						tarsNames);
 				extractorCmds.emplace_back(currentExtractCmd);
@@ -1072,13 +934,21 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 				+ bib::files::make_path(bfs::absolute(analysisSetup.infoDir_),
 						"groupMeta.tab.txt").string();
 	}
+
 	auto popDir = bib::files::make_path(bfs::absolute(analysisSetup.dir_),
 			"popClustering");
 
 	for (const auto & tar : targets) {
-		processClusterCmds.emplace_back(
-				"cd " + bib::files::make_path(popDir, tar).string() + " && "
-						+ processClusterTemplate);
+		std::stringstream processClustersCmdsStream;
+		processClustersCmdsStream
+				<< "cd " + bib::files::make_path(popDir, tar).string() + " && "
+						+ processClusterTemplate + " --experimentName " + tar;
+		auto refSeqFnp = bib::files::make_path(pars.outDir, "info/refs/" + tar + ".fasta");
+		if(bfs::exists(refSeqFnp)){
+			processClustersCmdsStream << " --ref " << bfs::absolute(refSeqFnp);
+		}
+		processClusterCmds.emplace_back(processClustersCmdsStream.str());
+
 	}
 	OutOptions processClusterCmdsOpts(
 			bib::files::make_path(analysisSetup.dir_, "processClusterCmds.txt"));
@@ -1139,7 +1009,22 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	chmod(startServerCmdOpts.outFilename_.c_str(),
 			S_IWUSR | S_IRUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IEXEC | S_IXGRP);
 
-	//start server config
+	//combining extraction counts
+	OutOptions combineExtractionCmdOpts(
+			bib::files::make_path(analysisSetup.dir_, "combineExtractionCountsCmd.sh"));
+	OutputStream combineExtractionCmdOut(combineExtractionCmdOpts);
+	combineExtractionCmdOut << "#!/usr/bin/env bash" << std::endl;
+	combineExtractionCmdOut << "SeekDeep rBind --recursive --depth 1 --contains allPrimerCounts.tab.txt --delim tab --header --out reports/allAllPrimerCounts.tab.txt  --overWrite" << std::endl;
+	combineExtractionCmdOut << "SeekDeep rBind --recursive --depth 1 --contains extractionProfile.tab.txt --delim tab --header --out reports/allExtractionProfile.tab.txt  --overWrite" << std::endl;
+	combineExtractionCmdOut << "SeekDeep rBind --recursive --depth 1 --contains extractionStats.tab.txt --delim tab --header --out reports/allExtractionStats.tab.txt  --overWrite" << std::endl;
+	combineExtractionCmdOut << "SeekDeep rBind --recursive --depth 1 --contains midCounts.tab.txt --delim tab --header --out reports/allMidCounts.tab.txt  --overWrite" << std::endl;
+	combineExtractionCmdOut << "SeekDeep rBind --recursive --depth 1 --contains processPairsCounts.tab.txt --delim tab --header --out reports/allProcessPairsCounts.tab.txt  --overWrite" << std::endl;
+	combineExtractionCmdOut << "SeekDeep rBind --recursive --depth 1 --contains top_mostCommonR1Starts_for_unrecognizedBarcodes.tab.txt --delim tab --header --out reports/allTop_mostCommonR1Starts_for_unrecognizedBarcodes.tab.txt  --overWrite" << std::endl;
+	combineExtractionCmdOut << "SeekDeep rBind --recursive --depth 1 --contains top_mostCommonR2Starts_for_unrecognizedBarcodes.tab.txt --delim tab --header --out reports/allTop_mostCommonR2Starts_for_unrecognizedBarcodes.tab.txt  --overWrite" << std::endl;
+	chmod(combineExtractionCmdOpts.outFilename_.c_str(),
+			S_IWUSR | S_IRUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IEXEC | S_IXGRP);
+
+	//run file analysis file
 	OutOptions runAnalysisOpts(
 			bib::files::make_path(analysisSetup.dir_, "runAnalysis.sh"));
 	std::ofstream runAnalysisFile;
@@ -1160,6 +1045,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	runAnalysisFile << "" << setUp.commands_.masterProgram_
 			<< " runMultipleCommands --cmdFile extractorCmds.txt      --numThreads $numThreads --raw"
 			<< std::endl;
+	runAnalysisFile << "./combineExtractionCountsCmd.sh"<< std::endl;
 	runAnalysisFile << "" << setUp.commands_.masterProgram_
 			<< " runMultipleCommands --cmdFile qlusterCmds.txt        --numThreads $numThreads --raw"
 			<< std::endl;

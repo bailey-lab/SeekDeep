@@ -31,6 +31,154 @@
 
 namespace bibseq {
 
+
+void SeekDeepSetUp::setUpExtractorPairedEnd(ExtractorPairedEndPars & pars) {
+	if (needsHelp()) {
+		commands_.arguments_["-h"] = "";
+	}
+	//ioOptions_.lowerCaseBases = "remove";
+	description_ = "Extract sequences from various sequences input types (fastq,fasta,sff,etc.) with primers and barcodes plus some filtering";
+	examples_.emplace_back("MASTERPROGRAM SUBPROGRAM --fasta reads.fasta --id idFile.tab.txt --dout outPutDir");
+	examples_.emplace_back("MASTERPROGRAM SUBPROGRAM --fastq reads.fastq --id idFile.tab.txt --dout outPutDir --illumina");
+
+
+	processVerbose();
+	processDebug();
+	pars.pairProcessorParams_.verbose_ = pars_.verbose_;
+
+	setOption(pars.noOverlapProcessForNoOverlapStatusTargets_, "--noOverlapProcessForNoOverlapStatusTargets_", "noOverlapProcessForNoOverlapStatusTargets",
+			false, "Post-Processing-PairProcessing");
+
+	setOption(pars.pairProcessorParams_.errorAllowed_, "--overLapErrorAllowed",
+			"The amount of error to allow in the overlap processing", false, "Post-Processing-PairProcessing");
+	setOption(pars.pairProcessorParams_.hardMismatchCutOff_, "--hardMismatchCutOff",
+			 "A hard cut off for number of mismatches between overlapping sequences in pair processing", false, "Post-Processing-PairProcessing");
+	setOption(pars.pairProcessorParams_.minOverlap_, "--minOverlap",
+			"The minimal amount of over lap in pair processing", false, "Post-Processing-PairProcessing");
+	setOption(pars.pairProcessorParams_.writeOverHangs_, "--writeOverHangs",
+			"Write out the overhang for sequences that have read through", false, "Post-Processing-PairProcessing");
+
+	setOption(pars.primerToUpperCase, "--primerUpper",
+			"Leave primers in upper case", false, "Primer");
+	setOption(pars.primerErrors.distances_.query_.coverage_, "--primerCoverage",
+			"Amount of primers found", false, "Primer");
+	setOption(pars.primerErrors.hqMismatches_, "--primerNumOfMismatches",
+			"Number of Mismatches to allow in primers", false, "Primer");
+	setOption(pars.primerErrors.oneBaseIndel_, "--primerOneBaseIndels",
+			"Number Of One base indels to allow in primers", false, "Primer");
+	setOption(pars.primerErrors.twoBaseIndel_, "--primerTwoBaseIndels",
+			"Number Of Two base indels to allow in primers", false, "Primer");
+
+
+
+	setOption(pars.sampleName, "--sampleName",
+			"A name to append to the output files",
+			false, "Output Naming");
+	processAlnInfoInput();
+
+	setOption(pars.rename, "--rename", "Rename Sequences With Barcode Names",
+			false, "Output Naming");
+	setOption(pars.barcodeErrors, "--barcodeErrors", "Errors Allowed in Barcode", false, "Barcodes");
+
+
+	setOption(pars.mDetPars.barcodesBothEnds_, "--barcodeBothEnds",
+			"Look for Barcodes in Both Primers", false, "Barcodes");
+	setOption(pars.midEndsRevComp, "--midEndsRevComp",
+			"Barcodes on both ends are in the reverse complement of each other", false, "Barcodes");
+	setOption(pars.mDetPars.checkForShorten_, "--checkShortenBars",
+			"Check for shorten Barcodes if the first base may have been trimmed off", false, "Barcodes");
+
+	setOption(pars.mDetPars.variableStop_, "--midWithinStart",
+			"By default the primer or barcodes are searched at the very beginning of seq, use this flag to extended the search, should be kept low to cut down on false positives",
+			false, "Barcodes");
+
+	setOption(pars.primerWithinStart_, "--primerWithinStart",
+			"By default the primer or barcodes are searched at the very beginning of seq, use this flag to extended the search, should be kept low to cut down on false positives",
+			false, "Primers");
+
+
+
+	processReadInNames(VecStr{"--fastq1", "--fastq1gz", "--fastq2", "--fastq2gz"},true);
+	bool mustMakeDirectory = true;
+	processDirectoryOutputName(mustMakeDirectory);
+	if (setOption(pars.idFilename, "--id", "The name of the ID file", true, "ID File")) {
+		if (!bfs::exists(pars.idFilename)) {
+			failed_ = true;
+			warnings_.emplace_back("Error the id file doesn't exist: " + pars.idFilename.string());
+		}
+	}
+
+	setOption(pars.idFileDelim, "--idFileDelim", "Id File Delim", false, "ID File");
+	setOption(pars.mDetPars.checkComplement_, "--checkComplement",
+			"Check the Complement of the Seqs As Well", false, "Complement");
+	setOption(pars.smallFragmentCutoff, "--smallFragmentCutOff",
+			"Remove sequences smaller than this length", false, "Pre Processing");
+
+	setOption(pars.r1Trim_, "--r1Trim",
+			"Remove this many sequences off of the end of r1 reads", false, "Post Processing");
+	setOption(pars.r2Trim_, "--r2Trim",
+			"Remove this many sequences off of the end of r2 reads", false, "Post Processing");
+	setOption(pars.lenCutOffFilename_, "--lenCutOffs",
+			"A file with at least three columns, target,minlen,maxlen the target column should match up with the first column in the id file", false, "Post Processing");
+	setOption(pars.comparisonSeqFnp_, "--compareSeq",
+			"A fasta file or a directory to fasta files, with references to check against, if file record name need to match target name, if directory file name should be TARGET.fasta", false, "Post Processing");
+
+	setOption(pars.qPars_.qualCheck_, "--qualCheckLevel",
+			"Bin qualities at this quality to do filtering on fraction above this", false, "Post Processing");
+	setOption(pars.qPars_.qualCheckCutOff_, "--qualCheckCutOff",
+			"The fractions of bases that have to be above the qualCheckLevel to be kept", false, "Post Processing");
+
+	setOption(pars.overlapStatusFnp_, "--overlapStatusFnp",
+			"A file with two columns, target,status; status column should contain 1 of 3 values (capitalization doesn't matter): r1BegOverR2End,r1EndOverR2Beg,NoOverlap. r1BegOverR2End=target size < read length (causes read through),r1EndOverR2Beg= target size > read length less than 2 x read length, NoOverlap=target size > 2 x read length", true, "Post Processing");
+
+
+
+	pars_.gapInfo_.gapOpen_ = 5;
+	pars_.gapInfo_.gapExtend_ = 1;
+	pars_.gap_ = "5,1";
+	pars_.gapInfo_.gapRightQueryOpen_ = 0;
+	pars_.gapInfo_.gapRightQueryExtend_ = 0;
+	pars_.gapInfo_.gapRightRefOpen_ = 0;
+	pars_.gapInfo_.gapRightRefExtend_ = 0;
+	pars_.gapRight_ = "0,0";
+	pars_.gapInfo_.gapLeftQueryOpen_ = 0;
+	pars_.gapInfo_.gapLeftQueryExtend_ = 0;
+	pars_.gapInfo_.gapLeftRefOpen_ = 0;
+	pars_.gapInfo_.gapLeftRefExtend_ = 0;
+	pars_.gapLeft_ = "0,0";
+	processGap();
+	if (needsHelp()) {
+		printFlags(std::cout);
+		std::cout << "The id file should be tab delimited and contains the "
+				"primer and reverse primer and MIDs if the data is multiplex, "
+				"example below" << std::endl;
+		std::cout << "\ttarget\tforwardPrimer\treversePrimer" << std::endl;
+		std::cout << "\tPFMSP1\tAACTAGAAGCTTTAGAAGATGCA\tACATATGATTGGTTAAATCAAAG"
+				<< std::endl;
+		std::cout << "\tPFMSP2\tAGATGCAGCTTTAACTAGAAGAA\tTTAAAACATATGATTGGTCAAAG"
+				<< std::endl;
+		std::cout << "\tid	barcode" << std::endl;
+		std::cout << "\tMID01\t	ACGAGTGCGT" << std::endl;
+		std::cout << "\tMID02	\tACGCTCGACA" << std::endl;
+		std::cout << bib::bashCT::bold << "Output Files:" << bib::bashCT::reset
+				<< std::endl;
+		std::cout
+				<< "extractionProfile.tab.txt: This breaks down the filtering per final extraction sequence file"
+				<< std::endl;
+		std::cout
+				<< "extractionStats.tab.txt: This has info how the whole extraction went"
+				<< std::endl;
+		std::cout
+				<< "seqFiles: Extracted files will be named [PrimerName][MIDNAME].fast(a/q), if not multiplexed then just [PrimerName].fast(a/q)"
+				<< std::endl;
+		std::cout
+				<< "filteredOff: Reads that failed filtering will be found in this directory along with reads that don't match any supplied barcodes and/or primers"
+				<< std::endl;
+		exit(1);
+	}
+	finishSetUp(std::cout);
+}
+
 void SeekDeepSetUp::setUpExtractor(extractorPars & pars) {
 	if (needsHelp()) {
 		commands_.arguments_["-h"] = "";
@@ -200,11 +348,15 @@ void SeekDeepSetUp::setUpExtractor(extractorPars & pars) {
 	pars_.gapInfo_.gapOpen_ = 5;
 	pars_.gapInfo_.gapExtend_ = 1;
 	pars_.gap_ = "5,1";
-	pars_.gapInfo_.gapRightOpen_ = 0;
-	pars_.gapInfo_.gapRightExtend_ = 0;
+	pars_.gapInfo_.gapRightQueryOpen_ = 0;
+	pars_.gapInfo_.gapRightQueryExtend_ = 0;
+	pars_.gapInfo_.gapRightRefOpen_ = 0;
+	pars_.gapInfo_.gapRightRefExtend_ = 0;
 	pars_.gapRight_ = "0,0";
-	pars_.gapInfo_.gapLeftOpen_ = 0;
-	pars_.gapInfo_.gapLeftExtend_ = 0;
+	pars_.gapInfo_.gapLeftQueryOpen_ = 0;
+	pars_.gapInfo_.gapLeftQueryExtend_ = 0;
+	pars_.gapInfo_.gapLeftRefOpen_ = 0;
+	pars_.gapInfo_.gapLeftRefExtend_ = 0;
 	pars_.gapLeft_ = "0,0";
 	processGap();
 	if (needsHelp()) {

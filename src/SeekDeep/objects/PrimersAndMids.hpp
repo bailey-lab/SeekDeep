@@ -9,6 +9,8 @@
 
 #include <bibseq.h>
 
+#include "SeekDeep/objects/PairedReadProcessor.hpp"
+
 namespace bibseq {
 
 class PrimersAndMids {
@@ -27,6 +29,7 @@ public:
 
 		PrimerDeterminator::primerInfo info_;
 		std::vector<seqInfo> refs_;
+		std::vector<kmerInfo> refKInfos_;
 
 		std::unique_ptr<lenCutOffs> lenCuts_;
 
@@ -34,14 +37,25 @@ public:
 
 		void addSingleRef(const seqInfo & ref);
 		void addMultileRef(const std::vector<seqInfo> & refs);
+
+		void setRefKInfos(uint32_t klen, bool setRevComp);
+
+		PairedReadProcessor::ReadPairOverLapStatus overlapStatus_;
+
 	};
 
 	PrimersAndMids(const bfs::path & idFileFnp);
 
-	bfs::path idFile_;
+	const bfs::path idFile_;
 
 	std::unordered_map<std::string, Target> targets_;
 	std::unordered_map<std::string, MidDeterminator::MidInfo> mids_;
+
+	std::unique_ptr<MidDeterminator> mDeterminator_;
+	std::unique_ptr<PrimerDeterminator> pDeterminator_;
+
+	void initMidDeterminator();
+	void initPrimerDeterminator();
 
 	bool hasTarget(const std::string & target) const;
 
@@ -58,12 +72,16 @@ public:
 	bool hasMultipleTargets() const;
 
 	bool containsMids() const;
+	bool containsTargets() const;
 
 	void writeIdFile(const OutOptions & outOpts) const;
 
 	void writeIdFile(const OutOptions & outOpts, const VecStr & targets) const;
 
 	table genLenCutOffs(const VecStr & targets) const;
+	table genOverlapStatuses(const VecStr & targets) const;
+
+
 
 	std::vector<seqInfo> getRefSeqs(const VecStr & targets) const;
 
@@ -72,6 +90,11 @@ public:
 
 	static std::map<std::string, PrimersAndMids::Target::lenCutOffs> readInLenCutOffs(
 			const bfs::path & lenCutOffsFnp);
+
+	void addLenCutOffs(const bfs::path & lenCutOffsFnp);
+	void addOverLapStatuses(const bfs::path & overlapStatuses);
+	void addRefSeqs(const bfs::path & refDirectory);
+	void setRefSeqsKInfos(uint32_t klen, bool setRevComp);
 
 };
 

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 class ColorText:
 
@@ -93,6 +93,6 @@ class ColorText:
     @staticmethod
     def outputColors():
         for i in range(16,232):
-            print ColorText.addBGColor(i) + str(i) + ColorText.reset
+            print(ColorText.addBGColor(i) + str(i) + ColorText.reset)
     
     

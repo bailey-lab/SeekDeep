@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 
 import shutil, os, argparse, sys
@@ -11,7 +11,7 @@ def copyDir(src, dist, overWrite):
         if(overWrite):
             shutil.rmtree(dist)
         else:
-            print "Error, directory " + str(dist) + " already exist, set overwrite to overwrite dir"
+            print("Error, directory " + str(dist) + " already exist, set overwrite to overwrite dir")
             exit(1)
     shutil.copytree(src, dist, ignore=ignore_patterns('*.pyc', '*~', '.*'))
 
@@ -21,7 +21,7 @@ def copySetUp(cwDir, distDir, overWrite=False):
         if(overWrite):
             shutil.copy(os.path.join(cwDir, "setup.py"), os.path.join(distDir, "setup.py"))
         else:
-            print "Error, file " + os.path.join(distDir, "setup.py") + " already exist, set overwrite to overwrite setup.py"
+            print("Error, file " + os.path.join(distDir, "setup.py") + " already exist, set overwrite to overwrite setup.py")
             exit(1)
     else:
         shutil.copy(os.path.join(cwDir, "setup.py"), os.path.join(distDir, "setup.py"))

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import fnmatch, subprocess, sys, os, argparse, re, copy
 sys.path.append(os.path.join(os.path.dirname(os.path.dirname(__file__)), "pyUtils"))

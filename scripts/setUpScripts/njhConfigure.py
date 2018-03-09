@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import shutil, os, argparse, sys, stat
 sys.path.append(os.path.join(os.path.dirname(os.path.dirname(__file__)), "pyUtils"))
@@ -15,6 +15,7 @@ def parse_args():
     parser.add_argument('-libs', type=str)
     parser.add_argument('-ldFlags', type=str)
     parser.add_argument('-cxxFlags', type=str)
+    parser.add_argument('-private', action = "store_true", help="Use private repos")
     parser.add_argument('-name', type=str, required = True)
     return parser.parse_args()
 
@@ -29,6 +30,8 @@ def main():
     cmd = os.path.join(os.path.dirname(os.path.dirname(__file__)), "setUpScripts/generateCompFile.py") + """ -installName {name}
      -outFilename compfile.mk -externalLoc {external} -CC {CC} -CXX {CXX}
       -neededLibs {libs} -outname {name}"""
+    if args.private:
+      cmd += " -private ";
     if args.prefix and args.prefix != "":
         prefix = args.prefix;
         cmd += " -prefix {prefix}"

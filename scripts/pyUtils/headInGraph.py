@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import fnmatch, subprocess, sys, os, argparse, re
 
@@ -77,12 +77,12 @@ class headInGraph():
     
     def printInfo(self):
         for nPos in range(len(self.nodes_)):
-            print self.nodes_[nPos].value_
-            print self.nodes_[nPos].visted_
+            print(self.nodes_[nPos].value_)
+            print(self.nodes_[nPos].visted_)
             if self.nodes_[nPos].visted_:
-                print "\033[1;32mvisited true\033[0m"
+                print("\033[1;32mvisited true\033[0m")
             else:
-                print "\033[1;31m visted is false\033[0m"
+                print("\033[1;31m visted is false\033[0m")
     
     def printChildren(self, nodePos, out):
         if not self.nodes_[nodePos].visited_:

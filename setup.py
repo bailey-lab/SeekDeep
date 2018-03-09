@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import subprocess, sys, os, argparse,shutil
 from collections import namedtuple, defaultdict
@@ -7,7 +7,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "scripts/setUpScripts"))
 from utils import Utils
 from genFuncs import genHelper 
 from color_text import ColorText as CT
-import pickle, datetime, re
+import pickle, datetime, re, math
 
 #tuples
 BuildPaths = namedtuple("BuildPaths", 'url build_dir build_sub_dir local_dir')
@@ -258,14 +258,16 @@ class Packages():
             self.packages_["eigen"] = self.__eigen()
         if "glpk" in libsNeeded:
             self.packages_["glpk"] = self.__glpk()
-        if "curl" in libsNeeded:
-            self.packages_["curl"] = self.__curl()
         if "lapack" in libsNeeded:
             self.packages_["lapack"] = self.__lapack()
         if "atlas" in libsNeeded:
             self.packages_["atlas"] = self.__atlas()
         
         #git repos 
+        if "adapterremoval" in libsNeeded:
+            self.packages_["adapterremoval"] = self.__adapterremoval()
+        if "curl" in libsNeeded:
+            self.packages_["curl"] = self.__curl()
         if "mongoc" in libsNeeded:
             self.packages_["mongoc"] = self.__mongoc()
         if "mongocxx" in libsNeeded:
@@ -304,6 +306,8 @@ class Packages():
             self.packages_["restbed"] = self.__restbed()
         if "zlib-ng" in libsNeeded:
             self.packages_["zlib-ng"] = self.__zlibng()
+        if "openblas" in libsNeeded:
+            self.packages_["openblas"] = self.__openblas()
         #bib setup
         if "bibseq" in libsNeeded:
             self.packages_["bibseq"] = self.__bibseq()
@@ -322,10 +326,11 @@ class Packages():
         if "bhtsne" in libsNeeded:
             self.packages_["bhtsne"] = self.__bhtsne()
         #developer, private repos
-        if "elucidator" in libsNeeded:
-            self.packages_["elucidator"] = self.__elucidator()
-        if "mipwrangler" in libsNeeded:
-            self.packages_["mipwrangler"] = self.__MIPWrangler()
+        if self.args.private:
+          if "elucidator" in libsNeeded:
+              self.packages_["elucidator"] = self.__elucidator()
+          if "mipwrangler" in libsNeeded:
+              self.packages_["mipwrangler"] = self.__MIPWrangler()
         '''
         
         self.packages_["mlpack"] = self.__mlpack()
@@ -352,7 +357,6 @@ class Packages():
                     pack = pickle.load(inputPkl)
                     pack.defaultBuildCmd_ = buildCmd
         else:
-            
             refs = pack.getGitRefs(url)
             for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
                 pack.addHeaderOnlyVersion(url, ref)
@@ -688,6 +692,7 @@ class Packages():
     
     def __curl(self):
         name = "curl"
+        url = "https://github.com/curl/curl.git"
         extraFlags = ""
         #curl library doesn't link to the openssl library at run time as it finds at configure so need to add the following to 
         #make the openssl library directory found to be set as run time path
@@ -700,13 +705,27 @@ class Packages():
                     if pkgconfgOutput_split.startswith("-L"):
                         extraFlags = extraFlags + " -Wl,-rpath," + pkgconfgOutput_split[2:]
                 extraFlags = extraFlags + " $LDFLAGS\""
-        buildCmd = """CC={CC} CXX={CXX}  """ + extraFlags + """ ./configure 
+        buildCmd = """./buildconf && CC={CC} CXX={CXX}  """ + extraFlags + """ ./configure 
             --prefix={local_dir}
             && make -j {num_cores} 
             && make -j {num_cores} install"""
         buildCmd = " ".join(buildCmd.split())
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "7.53.1")
-        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/curl/curl-7.53.1.tar.gz", "7.53.1")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "curl-7_56_1")
+        if self.args.noInternet:
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                pack = pickle.load(inputPkl)
+                pack.defaultBuildCmd_ = buildCmd
+        elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                pack = pickle.load(inputPkl)
+                pack.defaultBuildCmd_ = buildCmd
+        else:
+            refs = pack.getGitRefs(url)
+            for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
+                pack.addVersion(url, ref)
+            Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
+                pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
         return pack
     
     def __atlas(self):
@@ -741,7 +760,30 @@ class Packages():
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
                 pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
         return pack
-        
+      
+    def __adapterremoval(self):
+        name = "adapterremoval"
+        buildCmd = "CC={CC} CXX={CXX} make -j {num_cores} && make -j {num_cores} install PREFIX={local_dir}"
+        url = "https://github.com/MikkelSchubert/adapterremoval.git"
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v2.2.2")
+        if self.args.noInternet:
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                pack = pickle.load(inputPkl)
+                pack.defaultBuildCmd_ = buildCmd
+        elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                pack = pickle.load(inputPkl)
+                pack.defaultBuildCmd_ = buildCmd
+        else:
+            refs = pack.getGitRefs(url)
+            for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
+                pack.addVersion(url, ref)
+            Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
+                pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
+        return pack
+    
+    
     def __bowtie2(self):
         name = "bowtie2"
         buildCmd = "CC={CC} CXX={CXX} make -j {num_cores} && mkdir -p {local_dir}/bin && cp -r bowtie2* {local_dir}/bin/"
@@ -834,6 +876,30 @@ class Packages():
         name = "zlib-ng"
         url = "https://github.com/Dead2/zlib-ng"
         buildCmd = "CC={CC} CXX={CXX} && ./configure --prefix={local_dir} && make -j {num_cores} && make install -j {num_cores}"
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "develop")
+
+        if self.args.noInternet:
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                pack = pickle.load(inputPkl)
+                pack.defaultBuildCmd_ = buildCmd
+        elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                    pack = pickle.load(inputPkl)
+                    pack.defaultBuildCmd_ = buildCmd
+        else:
+            refs = pack.getGitRefs(url)
+            for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
+                pack.addVersion(url, ref)
+                pack.versions_[ref].altLibName_ = "z"
+            Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
+                pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
+        return pack
+
+    def __openblas(self):
+        name = "openblas"
+        url = "https://github.com/xianyi/OpenBLAS.git"
+        buildCmd = "CC={CC} CXX={CXX} && make PREFIX={local_dir} -j {num_cores} && make install PREFIX={local_dir} -j {num_cores}"
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "develop")
 
         if self.args.noInternet:
@@ -1459,7 +1525,7 @@ class Packages():
                             raise Exception("Package " + packVer.name + " already in " + filename + " but with a different version, present: " + packsInFile[packVer.name] + ", adding: " + packVer.version)
                     #if bib project, add the flags of it's dependencies
                     if pack.bibProject_:
-                        cmd = "python ./setup.py --compfile compfile.mk --numCores 1 --append --outMakefile {makefileCommon}".format(makefileCommon = os.path.abspath(filename))
+                        cmd = "./setup.py --compfile compfile.mk --numCores 1 --append --outMakefile {makefileCommon}".format(makefileCommon = os.path.abspath(filename))
                         buildSubDir = pack.getBuildSubDir(packVer.version)
                         Utils.run_in_dir(cmd, buildSubDir)
                     pvIncFlags = self.getIncludeFlags(packVer)
@@ -1490,7 +1556,7 @@ class Packages():
                     pack = self.package(packVer.name)
                     #if bib project, add the flags of it's dependencies
                     if pack.bibProject_:
-                            cmd = "python ./setup.py --compfile compfile.mk --numCores 1 --append --outMakefile {makefileCommon}".format(makefileCommon = os.path.abspath(filename))
+                            cmd = "./setup.py --compfile compfile.mk --numCores 1 --append --outMakefile {makefileCommon}".format(makefileCommon = os.path.abspath(filename))
                             buildSubDir = pack.getBuildSubDir(packVer.version)
                             Utils.run_in_dir(cmd, buildSubDir)
                     pvIncFlags = self.getIncludeFlags(packVer)
@@ -1550,20 +1616,20 @@ class Packages():
 
     def __bibProjectBuildCmdOld(self):
         cmd = """
-        python ./configure.py -CC {CC} -CXX {CXX} -externalLibDir {external} -prefix {localTop} 
-        && python ./setup.py --compfile compfile.mk --numCores {num_cores}
+        ./configure.py -CC {CC} -CXX {CXX} -externalLibDir {external} -prefix {localTop} 
+        && ./setup.py --compfile compfile.mk --numCores {num_cores}
         && make -j {num_cores} && make install"""
         cmd = " ".join(cmd.split())
         return cmd
     
     def __bibProjectBuildCmd(self):
         cmd = """
-        python ./configure.py -CC {CC} -CXX {CXX} -externalLibDir {external} -prefix $(dirname {local_dir}) """
+         ./configure.py -CC {CC} -CXX {CXX} -externalLibDir {external} -prefix $(dirname {local_dir}) """
         if self.args.noInternet:
-            cmd = cmd + """&& python ./setup.py --compfile compfile.mk --numCores {num_cores}
+            cmd = cmd + """&& ./setup.py --compfile compfile.mk --numCores {num_cores}
              --outMakefile makefile-common.mk --overWrite --noInternet """
         else:
-            cmd = cmd + """&& python ./setup.py --compfile compfile.mk --numCores {num_cores}
+            cmd = cmd + """&& ./setup.py --compfile compfile.mk --numCores {num_cores}
              --outMakefile makefile-common.mk --overWrite """
         cmd = cmd + """&& make clean
         && make -j {num_cores} && make install"""
@@ -1616,27 +1682,27 @@ class Setup:
         self.packages_ = Packages(self.extDirLoc, self.args, packNames) # path object to hold the paths for install
         
     def getAllAvailablePackages(self):
-        return self.setUps.keys()
+        return list(self.setUps.keys())
         
     def setup(self):
         if self.args.forceUpdate:
             for setUpNeeded in self.setUpsNeeded:
-                if not setUpNeeded.name in self.setUps.keys():
-                    print CT.boldBlack( "Unrecognized option ") + CT.boldRed(setUpNeeded.name)
+                if not setUpNeeded.name in list(self.setUps.keys()):
+                    print(CT.boldBlack( "Unrecognized option ") + CT.boldRed(setUpNeeded.name))
                 else:
                     self.rmDirsForLib(setUpNeeded)
                     
         for setUpNeeded in self.setUpsNeeded:
-            if not setUpNeeded.name in self.setUps.keys():
-                print CT.boldBlack( "Unrecognized option ") + CT.boldRed(setUpNeeded.name)
+            if not setUpNeeded.name in list(self.setUps.keys()):
+                print(CT.boldBlack( "Unrecognized option ") + CT.boldRed(setUpNeeded.name))
             else:
                 self.__setup(setUpNeeded.name, setUpNeeded.version)
 
         for p in self.installed:
-            print p.name + ":" + str(p.version), CT.boldGreen("installed")
+            print(p.name + ":" + str(p.version), CT.boldGreen("installed"))
 
         for p in self.failedInstall:
-            print  p.name + ":" + str(p.version), CT.boldRed("failed to install")
+            print(p.name + ":" + str(p.version), CT.boldRed("failed to install"))
 
     def __initSetUpFuncs(self):
         self.setUps = {"zi_lib": self.zi_lib,
@@ -1654,7 +1720,6 @@ class Setup:
                        "seekdeep": self.SeekDeep,
                        "bibcpp": self.bibcpp,
                        "seqserver": self.seqserver,
-                       "elucidator": self.elucidator,
                        "njhrinside": self.njhRInside,
                        "jsoncpp": self.jsoncpp,
                        "pstreams": self.pstreams,
@@ -1668,16 +1733,17 @@ class Setup:
                        "magic": self.magic,
                        "zlib": self.zlib,
                        "zlib-ng": self.zlibng,
+                       "openblas": self.openblas,
                        "flash": self.flash,
                        "pigz": self.pigz,
                        "bowtie2": self.bowtie2,
                        "muscle": self.muscle,
+                       "adapterremoval": self.adapterremoval,
                        "lastz": self.lastz,
                        "samtools": self.samtools,
                        "bcftools": self.bcftools,
                        "hts": self.hts,
                        "restbed": self.restbed,
-                       "mipwrangler": self.MIPWrangler,
                        "eigen": self.eigen,
                        "glpk": self.glpk,
                        "cmake": self.cmake,
@@ -1686,20 +1752,22 @@ class Setup:
                        "lapack": self.lapack,
                        "atlas": self.atlas
                        }
+        if self.args.private:
+          self.setUps["mipwrangler"] = self.MIPWrangler;
+          self.setUps["elucidator"] = self.elucidator;
         ''' 
         "mlpack": self.mlpack,
         "liblinear": self.liblinear,
         '''
     def printAvailableSetUps(self):
         self.__initSetUpFuncs()
-        installs = self.getAllAvailablePackages()
-        installs.sort()
+        installs = sorted(self.getAllAvailablePackages())
         self.setupPackages(installs)
-        print "Available installs:"
-        print "To Install use ./setup.py --libs lib1:ver,lib2:ver,lib3:ver"
-        print "E.g. ./setup.py --libs bamtools:v2.4.0,boost:1_60_0"
+        print("Available installs:")
+        print("To Install use ./setup.py --libs lib1:ver,lib2:ver,lib3:ver")
+        print("E.g. ./setup.py --libs bamtools:v2.4.0,boost:1_60_0")
         for installAvail in installs:
-            print installAvail
+            print(installAvail)
             pack = self.__package(installAvail)
             sys.stdout.write("\t")
             sys.stdout.write(",".join([p.replace("__", "/") for p in pack.getVersions()]))
@@ -1707,17 +1775,17 @@ class Setup:
             
     def printGitRefs(self):
         self.__initSetUpFuncs()
-        print "Git branches and tags:"
+        print("Git branches and tags:")
         for setUpNeeded in self.setUpsNeeded:
-            print setUpNeeded.name
+            print(setUpNeeded.name)
             pack = self.__package(setUpNeeded.name)
             refs = pack.getGitRefs(pack.versions_[pack.defaultVersion_].bPaths_.url)
-            print "\t" + "Branches"
+            print("\t" + "Branches")
             for b in refs.branches:
-                print "\t\t" + b
-            print "\t" + "Tags"
+                print("\t\t" + b)
+            print("\t" + "Tags")
             for t in refs.tags:
-                print "\t\t" + t
+                print("\t\t" + t)
 
     def __processArgsForSetupsNeeded(self):
         if self.args.libs:
@@ -1731,6 +1799,7 @@ class Setup:
                     #self.packages_.addPackage(self.setUpsNeeded,LibNameVer(libSplit[0].lower(), libSplit[1]))
         if self.args.compfile:
             self.parseSetUpNeeded(self.args.compfile[0])
+        self.__initSetUpFuncs()
         #check to see if package is available
         for foundSetup in self.foundSetUpsNeeded:
             if foundSetup.name not in self.setUps:
@@ -1758,13 +1827,13 @@ class Setup:
             extPath = extPath.replace(")", "")
             extPath = extPath.strip()
         else:
-            print "did not find external folder location; assuming ./external"
+            print("did not find external folder location; assuming ./external")
             extPath = "./external"
         return extPath
 
     def parseSetUpNeeded(self, fn):
         args = self.parseCompFile(fn)
-        for k,v in args.iteritems():
+        for k,v in args.items():
             if k.startswith("USE_"):
                 if '0' != v:
                     if "#" in v:
@@ -1774,6 +1843,9 @@ class Setup:
                             #self.packages_.addPackage(self.setUpsNeeded, LibNameVer(k[4:].lower(),valSplit[1]))
                     else:
                         raise Exception("Need to supply version in compfile with USE_PACKAGE#Version")
+            elif "PRIVATE" == k and "TRUE" == v:
+              self.args.private = True;
+              
                 
 
     def parseCompFile(self, fn):
@@ -1800,17 +1872,17 @@ class Setup:
     
     def rmDirsForLib(self,packVer):
         if packVer.name not in self.setUps:
-            print CT.boldBlack( "Unrecognized package: ") + CT.boldRed(packVer.name)
+            print(CT.boldBlack( "Unrecognized package: ") + CT.boldRed(packVer.name))
         else:
             pack = self.__package(packVer.name)
             if not pack.hasVersion(packVer.version):
                 raise Exception("No version " + str(packVer.version) + " for " + str(packVer.name))
             p = pack.versions_[packVer.version].bPaths_
             if os.path.exists(p.build_dir):
-                print "Removing " + CT.boldBlack(p.build_dir)
+                print("Removing " + CT.boldBlack(p.build_dir))
                 Utils.rm_rf(p.build_dir)
             if os.path.exists(p.local_dir):
-                print "Removing " + CT.boldBlack(p.local_dir)
+                print("Removing " + CT.boldBlack(p.local_dir))
                 Utils.rm_rf(p.local_dir)
     
 
@@ -1824,15 +1896,15 @@ class Setup:
             raise Exception("Package " + str(name) + " doesn't have version " + str(version))
         bPath = pack.versions_[version].bPaths_
         if os.path.exists(bPath.local_dir):
-            print CT.boldGreen(name + ":" + version), "found at " + CT.boldBlue(bPath.local_dir)
+            print(CT.boldGreen(name + ":" + version), "found at " + CT.boldBlue(bPath.local_dir))
         else:
-            print CT.boldGreen(name + ":" + version), CT.boldRed("NOT"), "found; building..."
+            print(CT.boldGreen(name + ":" + version), CT.boldRed("NOT"), "found; building...")
             try:
                 self.setUps[name](version)
                 self.installed.append(LibNameVer(name, version))
             except Exception as inst:
-                print inst 
-                print CT.boldRed("failed to install ") + name + ":" + str(version)
+                print(inst) 
+                print(CT.boldRed("failed to install ") + name + ":" + str(version))
                 self.failedInstall.append(LibNameVer(name, version))
 
     def num_cores(self):
@@ -1842,12 +1914,12 @@ class Setup:
                 retCores = self.args.numCores
         else:
             if retCores > 8:
-                retCores  = retCores/2
+                retCores  = math.floor(retCores/2)
             if 1 != retCores:
                 retCores -= 1
             if retCores < 1:
                 retCores = 1 
-        return retCores
+        return int(retCores)
 
     def __buildFromFile(self, packVer, cmd):
         bPath = packVer.bPaths_
@@ -1859,7 +1931,7 @@ class Setup:
             if not os.path.exists(fnp):
                 raise Exception("Could not find file: " + str(fnp))
         else:
-            print "\t Getting file..."
+            print("\t Getting file...")
             Utils.mkdir(os.path.join(self.dirMaster_.ext_tars, packVer.nameVer_.name))
             fnp = Utils.get_file_if_size_diff(bPath.url, os.path.join(self.dirMaster_.ext_tars, packVer.nameVer_.name))
         Utils.clear_dir(bPath.build_dir)
@@ -1876,7 +1948,7 @@ class Setup:
         try:
             Utils.run_in_dir(cmd, bPath.build_sub_dir)
         except:
-            print "\t Failed to build, removing {d}".format(d = bPath.local_dir)
+            print("\t Failed to build, removing {d}".format(d = bPath.local_dir))
             Utils.rm_rf(bPath.local_dir)
             sys.exit(1)
                 
@@ -1886,27 +1958,27 @@ class Setup:
             self.__buildFromFile(packVer, cmd)
         else:
             if os.path.exists(bPath.build_sub_dir):
-                print "pulling from {url}".format(url=bPath.url)
+                print("pulling from {url}".format(url=bPath.url))
                 pCmd = "git checkout " + packVer.nameVer_.version.replace("__", "/") + " && git pull && if [ -f .gitmodules ]; then git submodule init && git submodule update; fi "
                 try:
                     Utils.run_in_dir(pCmd, bPath.build_sub_dir)
                 except:
-                    print "failed to pull from {url} with {cmd}".format(url=bPath.url, cmd = pCmd)
+                    print("failed to pull from {url} with {cmd}".format(url=bPath.url, cmd = pCmd))
                     sys.exit(1)
             else:
-                print "cloning from {url}".format(url=bPath.url)
+                print("cloning from {url}".format(url=bPath.url))
                 cCmd = "git clone -b " + packVer.nameVer_.version.replace("__", "/") + " {url} {d} && if [ -f .gitmodules ]; then git submodule init && git submodule update; fi ".format(url=bPath.url, d=bPath.build_sub_dir)
                 submoduleCmd = "if [ -f .gitmodules ]; then git submodule init && git submodule update; fi"
                 try:
                     Utils.run(cCmd)
                     Utils.run_in_dir(submoduleCmd, bPath.build_sub_dir)
                 except:
-                    print "failed to clone from {url}".format(url=bPath.url)
+                    print("failed to clone from {url}".format(url=bPath.url))
                     sys.exit(1)
             try:
                 Utils.run_in_dir(cmd, bPath.build_sub_dir)
             except:
-                print("Failed to build, removing {d}".format(d = bPath.local_dir))
+                print(("Failed to build, removing {d}".format(d = bPath.local_dir)))
                 Utils.rm_rf(bPath.local_dir)
                 sys.exit(1)
     
@@ -1917,30 +1989,30 @@ class Setup:
             self.__buildFromFile(packVer, cmd)
         else:
             if os.path.exists(bPath.build_sub_dir):
-                print "pulling from {url}".format(url=bPath.url)
+                print("pulling from {url}".format(url=bPath.url))
                 pCmd = "git checkout master && git pull && git checkout " + packVer.nameVer_.version + " && if [ -f .gitmodules ]; then git submodule init && git submodule update; fi"
                 try:
                     Utils.run_in_dir(pCmd, bPath.build_sub_dir)
-                except Exception, e:
-                    print e
-                    print "failed to pull from {url}".format(url=bPath.url)
+                except Exception as e:
+                    print(e)
+                    print("failed to pull from {url}".format(url=bPath.url))
                     sys.exit(1)
             else:
-                print "cloning from {url}".format(url=bPath.url)
+                print("cloning from {url}".format(url=bPath.url))
                 cCmd = "git clone {url} {d}".format(url=bPath.url, d=bPath.build_sub_dir)
                 tagCmd = "git checkout {tag} && if [ -f .gitmodules ]; then git submodule init && git submodule update; fi ".format(tag=packVer.nameVer_.version)
                 try:
                     Utils.run(cCmd)
                     Utils.run_in_dir(tagCmd, bPath.build_sub_dir)
-                except Exception, e:
-                    print e
-                    print "failed to clone from {url}".format(url=bPath.url)
+                except Exception as e:
+                    print(e)
+                    print("failed to clone from {url}".format(url=bPath.url))
                     sys.exit(1)
             try:
                 Utils.run_in_dir(cmd, bPath.build_sub_dir)
-            except Exception, e:
-                print e
-                print "failed to build in {BUILD}, removing {LOCAL}".format(BUILD=bPath.build_sub_dir, LOCAL = bPath.local_dir)
+            except Exception as e:
+                print(e)
+                print("failed to build in {BUILD}, removing {LOCAL}".format(BUILD=bPath.build_sub_dir, LOCAL = bPath.local_dir))
                 Utils.rm_rf(bPath.local_dir)
                 sys.exit(1)
     
@@ -1959,15 +2031,15 @@ class Setup:
             untaredDir = os.listdir(os.path.dirname(bPath.local_dir))[0]
             os.rename(os.path.join(os.path.dirname(bPath.local_dir), untaredDir), bPath.local_dir)
         else:
-            print "cloning from {url}".format(url=bPath.url)
+            print("cloning from {url}".format(url=bPath.url))
             cCmd = "git clone -b {branch} {url} {d}".format(branch = packVer.nameVer_.version.replace("__", "/"),url=bPath.url, d=bPath.local_dir)
             submoduleCmd = "if [ -f .gitmodules ]; then git submodule init && git submodule update; fi"
             try:
                 Utils.run(cCmd)
                 Utils.run_in_dir(submoduleCmd, bPath.build_sub_dir)
-            except Exception, e:
-                print e
-                print "failed to clone branch {branch} from {url}".format(branch = packVer.nameVer_.version.replace("__", "/"), url=bPath.url)
+            except Exception as e:
+                print(e)
+                print("failed to clone branch {branch} from {url}".format(branch = packVer.nameVer_.version.replace("__", "/"), url=bPath.url))
                 sys.exit(1)
     
     def __gitTag(self, packVer):
@@ -1991,7 +2063,7 @@ class Setup:
                 Utils.run(cmd)
                 Utils.run_in_dir(tagCmd, bPath.local_dir)
             except:
-                print "failed to clone from {url}".format(url=bPath.url)
+                print("failed to clone from {url}".format(url=bPath.url))
                 sys.exit(1)
     
     def __defaultBuild(self, package, version, fromGitTag = True):
@@ -2006,7 +2078,7 @@ class Setup:
         cmd = cmd.format(external = Utils.shellquote(self.dirMaster_.base_dir), build_sub_dir = Utils.shellquote(bPaths.build_sub_dir), local_dir=Utils.shellquote(bPaths.local_dir), num_cores=self.num_cores(), CC=self.CC, CXX=self.CXX)
         Utils.mkdir(os.path.dirname(bPaths.local_dir))
         if "" != cmd and self.args.verbose:
-            print cmd
+            print(cmd)
         if "git" == pack.libType_:
             Utils.mkdir(bPaths.build_dir)
             if fromGitTag:
@@ -2030,7 +2102,8 @@ class Setup:
             libPath = os.path.join(bPaths.local_dir, "lib")
             if(os.path.exists(libPath)):
                 Utils.fixDyLibOnMac(libPath)
-        
+        Utils.ensureLibDirectoryPresent(bPaths.local_dir)
+            
     def __defaultBibBuild(self, package, version):
         if "develop" == version or "release" in version or "master" == version:
             self.__defaultBuild(package, version, False)
@@ -2054,7 +2127,7 @@ class Setup:
                             os.remove(os.path.join(masterBinDir, bFile))
                         else:
                             raise Exception("File: " + os.path.join(masterBinDir, bFile) + " already exists, use --overWrite to overWrite")
-                    print "Linking " + CT.boldGreen(bFileFull) + " to " + CT.boldBlue(os.path.join(masterBinDir, bFile))
+                    print("Linking " + CT.boldGreen(bFileFull) + " to " + CT.boldBlue(os.path.join(masterBinDir, bFile)))
                     os.symlink(bFileFull, os.path.join(masterBinDir, bFile))
             
         
@@ -2076,7 +2149,7 @@ class Setup:
             pack = self.__package(setUpNeeded.name)
             bPaths = pack.versions_[setUpNeeded.version].bPaths_
             if os.path.exists(bPaths.local_dir):
-                print "Removing " + CT.boldBlack(bPaths.local_dir)
+                print("Removing " + CT.boldBlack(bPaths.local_dir))
                 Utils.rm_rf(bPaths.local_dir)
         for setUpNeeded in self.setUpsNeeded:
             pack = self.__package(setUpNeeded.name)
@@ -2085,10 +2158,10 @@ class Setup:
                 os.remove(os.path.join(bPath.build_dir,setUpNeeded.name, "makefile-common.mk"))
             self.__setup(setUpNeeded.name, setUpNeeded.version)
         for p in self.installed:
-            print p.name + ":" + str(p.version), CT.boldGreen("installed")
+            print(p.name + ":" + str(p.version), CT.boldGreen("installed"))
 
         for p in self.failedInstall:
-            print  p.name + ":" + str(p.version), CT.boldRed("failed to install")
+            print(p.name + ":" + str(p.version), CT.boldRed("failed to install"))
         
     
     def installRPackageSource(self,version, sourceFile):
@@ -2102,7 +2175,7 @@ class Setup:
             #    rHomeLoc = "R.framework/Resources/bin/R RHOME"
             cmd = """echo '.libPaths(.libPaths()[length(.libPaths()  )] ); install.packages(\"{SOURCEFILE}\", repos = NULL, type="source", Ncpus = {num_cores}, lib =.libPaths()[length(.libPaths()  )])' | $({local_dir}/{RHOMELOC})/bin/R --slave --vanilla
                 """.format(local_dir=Utils.shellquote(bPath.local_dir).replace(' ', '\ '),SOURCEFILE = pack, RHOMELOC =rHomeLoc, num_cores=self.num_cores())
-            print CT.boldBlack(cmd)
+            print(CT.boldBlack(cmd))
             cmd = " ".join(cmd.split())
             Utils.run(cmd)
 
@@ -2117,7 +2190,7 @@ class Setup:
             #    rHomeLoc = "R.framework/Resources/bin/R RHOME"
             cmd = """echo '.libPaths(.libPaths()[length(.libPaths()  )] ); install.packages(\"{PACKAGENAME}\", repos=\"http://cran.us.r-project.org\", Ncpus = {num_cores}, lib =.libPaths()[length(.libPaths()  )])'  | $({local_dir}/{RHOMELOC})/bin/R --slave --vanilla
                 """.format(local_dir=Utils.shellquote(bPath.local_dir).replace(' ', '\ '),PACKAGENAME = pack, RHOMELOC =rHomeLoc,num_cores=self.num_cores() )
-            print CT.boldBlack(cmd)
+            print(CT.boldBlack(cmd))
             cmd = " ".join(cmd.split())
             Utils.run(cmd)
 
@@ -2256,6 +2329,9 @@ class Setup:
     
     def zlibng(self, version):
         self.__defaultBuild("zlib-ng", version)
+
+    def openblas(self, version):
+        self.__defaultBuild("openblas", version)
         
     def flash(self, version):
         self.__defaultBuild("flash", version)
@@ -2268,6 +2344,9 @@ class Setup:
     
     def muscle(self, version):
         self.__defaultBuild("muscle", version) 
+        
+    def adapterremoval(self, version):
+        self.__defaultBuild("adapterremoval", version) 
     
     def lastz(self, version):
         self.__defaultBuild("lastz", version) 
@@ -2307,7 +2386,7 @@ class Setup:
             downloadDir = os.path.join(self.dirMaster_.ext_tars, pack.name_)
             Utils.mkdir(downloadDir)
             if pack.bibProject_:
-                downloadCmd = "python ./configure.py -CC {CC} -CXX {CXX} -externalLibDir {external} && ./setup.py --compfile compfile.mk --justDownload".format(external = Utils.shellquote(self.dirMaster_.base_dir), num_cores=self.num_cores(), CC=self.CC, CXX=self.CXX)
+                downloadCmd = "./configure.py -CC {CC} -CXX {CXX} -externalLibDir {external} && ./setup.py --compfile compfile.mk --justDownload".format(external = Utils.shellquote(self.dirMaster_.base_dir), num_cores=self.num_cores(), CC=self.CC, CXX=self.CXX)
                 Utils.mkdir(topTempDir)
                 packVer = pack.versions_[setUpNeeded.version]
                 tempDir = os.path.join(topTempDir, pack.name_)
@@ -2325,7 +2404,7 @@ class Setup:
             else:
                 url = packVer.getDownloadUrl()
                 dest = os.path.join(self.dirMaster_.ext_tars, packVer.nameVer_.name)
-                print ("Downloading " + CT.boldGreen(url) + " to " + CT.boldBlue(dest))
+                print(("Downloading " + CT.boldGreen(url) + " to " + CT.boldBlue(dest)))
                 if pack.libType_.startswith("git"):
                     fnp = Utils.get_file(url, dest)
                 else:
@@ -2343,33 +2422,33 @@ class Setup:
         failure = False;
         if not ccWhich or not cxxWhich or not cmakeWhich or not gitWhich:
             if not ccWhich:
-                print CT.boldRed("Could not find c compiler " + CT.purple + self.CC)
+                print(CT.boldRed("Could not find c compiler " + CT.purple + self.CC))
                 if self.args.compfile:
-                    print "Change CC in " + self.args.compfile[0]
+                    print("Change CC in " + self.args.compfile[0])
                 else:
-                    print "Can supply another c compiler by using -CC [option] or by defining bash environmental CC "
-                print ""
+                    print("Can supply another c compiler by using -CC [option] or by defining bash environmental CC ")
+                print("")
                 failure = True
             if not cxxWhich:
-                print CT.boldRed("Could not find c++ compiler " + CT.purple + self.CXX)
+                print(CT.boldRed("Could not find c++ compiler " + CT.purple + self.CXX))
                 if self.args.compfile:
-                    print "Change CXX in " + self.args.compfile[0]
+                    print("Change CXX in " + self.args.compfile[0])
                 else:
-                    print "Can supply another c++ compiler by using -CXX [option] or by defining bash environmental CXX "
-                print ""
+                    print("Can supply another c++ compiler by using -CXX [option] or by defining bash environmental CXX ")
+                print("")
                 failure = True
             if not cmakeWhich and "cmake" not in self.packages_.packages_:
                 failure = True
-                print CT.boldRed("Could not find " + CT.purple + "cmake")
+                print(CT.boldRed("Could not find " + CT.purple + "cmake"))
                 if Utils.isMac():
-                    print "If you have brew, you can install via, brew update && brew install cmake, otherwise you can follow instructions from http://www.cmake.org/install/"
+                    print("If you have brew, you can install via, brew update && brew install cmake, otherwise you can follow instructions from http://www.cmake.org/install/")
                     
                 else:
-                    print "On ubuntu to install latest cmake do the following"
-                    print "sudo add-apt-repository ppa:george-edison55/cmake-3.x"
-                    print "sudo apt-get update"
-                    print "sudo apt-get install cmake"
-                    print "or if you have linuxbrew, brew install cmake"
+                    print("On ubuntu to install latest cmake do the following")
+                    print("sudo add-apt-repository ppa:george-edison55/cmake-3.x")
+                    print("sudo apt-get update")
+                    print("sudo apt-get install cmake")
+                    print("or if you have linuxbrew, brew install cmake")
             if not gitWhich:
                 failure = True
                 print ("Can't find commandline tool git")
@@ -2419,7 +2498,8 @@ class SetupRunner:
         parser.add_argument('--symlinkBin', action = 'store_true', help = "Symlink in executables into a directory bin next to external")
         parser.add_argument('--clearCache', action = 'store_true')
         parser.add_argument('--clean', action = 'store_true',  help = "Remove intermediate build files to save space")
-    
+        parser.add_argument('--private', action = 'store_true',  help = "Add the private repos MIPWrangler and elucidator if you have the rights to access")
+
         return parser.parse_args()
 
     @staticmethod
@@ -2457,7 +2537,7 @@ class SetupRunner:
             s.clean()
             return 0
         if len(s.setUpsNeeded) == 0 and not args.compfile:
-            print ("To see available setup use " + str(__file__).replace(".pyc", ".py") + " --printLibs")
+            print(("To see available setup use " + str(__file__).replace(".pyc", ".py") + " --printLibs"))
             #s.printAvailableSetUps()
             return 0
         elif args.printGitRefs:

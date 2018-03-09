@@ -28,4 +28,15 @@ extractorPars::extractorPars(){
 }
 
 
+ExtractorPairedEndPars::ExtractorPairedEndPars(){
+
+
+  primerErrors.hqMismatches_ = 2;
+  primerErrors.lqMismatches_ = 5; /**@todo incorporate this*/
+  primerErrors.distances_.query_.coverage_ = 1;
+  primerErrors.largeBaseIndel_ = 0.99;
+  primerErrors.oneBaseIndel_ = 0.5;
+  primerErrors.twoBaseIndel_ = 0.5;
+}
+
 }  // namespace bibseq

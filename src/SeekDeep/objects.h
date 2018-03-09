@@ -12,5 +12,6 @@
 #include "SeekDeep/objects/TarAmpAnalysisSetup.hpp"
 #include "SeekDeep/objects/PrimersAndMids.hpp"
 #include "SeekDeep/objects/ReadPairsOrganizer.hpp"
+#include "SeekDeep/objects/PairedReadProcessor.hpp"
 
 

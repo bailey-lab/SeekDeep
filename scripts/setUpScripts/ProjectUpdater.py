@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import shutil, os, argparse, sys, stat, time, platform
 sys.path.append(os.path.join(os.path.dirname(os.path.dirname(__file__)), "pyUtils"))
@@ -48,19 +48,19 @@ class ProjectUpdater():
                     self.remakeBibseqProject(dir)
                     installed.append(dir)
                 except Exception as inst:
-                    print inst
+                    print(inst)
                     failed.append(dir)
             else:
                 nonExistent.append(dir)
         #installed
         for d in installed:
-            print CT.green + "Updated " + d + CT.reset
+            print(CT.green + "Updated " + d + CT.reset)
         #failed
         for d in failed:
-            print CT.red + "Failed to update " + d + CT.reset
+            print(CT.red + "Failed to update " + d + CT.reset)
         #didn't exist
         for d in nonExistent:
-            print CT.cyan + os.path.basename(d) + " doesn't exist in " + self.projectDir + ", skipped" + CT.reset
+            print(CT.cyan + os.path.basename(d) + " doesn't exist in " + self.projectDir + ", skipped" + CT.reset)
             
     def copyDir(self, src, dist, overWrite):
         if(os.path.exists(dist)):
@@ -72,7 +72,7 @@ class ProjectUpdater():
     
     def copySetUp(self, distDir, overWrite=False):
         if not os.path.exists(distDir):
-            print CT.boldGreen(distDir) + CT.boldRed(" doesn't exist skipping")
+            print(CT.boldGreen(distDir) + CT.boldRed(" doesn't exist skipping"))
             return
         if os.path.exists(os.path.join(distDir, "setup.py")) and not overWrite:
             raise Exception("Error, file " + os.path.join(distDir, "setup.py") + " already exist, use --overWrite overwrite setup.py")
@@ -90,7 +90,7 @@ class ProjectUpdater():
     def copyMakefile(self, distDir, overWrite=False):
         distDir = os.path.join(self.projectDir, distDir)
         if not os.path.exists(distDir):
-            print CT.boldGreen(distDir) + CT.boldRed(" doesn't exist skipping")
+            print(CT.boldGreen(distDir) + CT.boldRed(" doesn't exist skipping"))
             return
         if os.path.exists(os.path.join(distDir, "Makefile")) and not overWrite:
             raise Exception("Error, file " + os.path.join(distDir, "Makefile") + " already exist, use --overWrite overwrite Makefile")
@@ -104,13 +104,13 @@ class ProjectUpdater():
         try:
             self.reatchHeadAndPull(subModuleDir, branch)
         except Exception as excp:
-            print "Failed to reatch head and pull for " + subModuleDir + ":" + branch
+            print("Failed to reatch head and pull for " + subModuleDir + ":" + branch)
             raise(excp)
         cmds = "cd " + os.path.join(self.projectDir, subModuleDir) + " && git commit -a -m \"" + commitMessage + "\" && git push"
         try:
             Utils.run(cmds)
         except Exception as pushExcep:
-            print "Failed to commit and push for " + subModuleDir + ":" + branch
+            print("Failed to commit and push for " + subModuleDir + ":" + branch)
             raise(pushExcep)
         
    

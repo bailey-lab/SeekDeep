@@ -41,6 +41,7 @@ class SeekDeepSetUp : public seqSetUp {
  public:
 	using seqSetUp::seqSetUp;
 
+	void setUpExtractorPairedEnd(ExtractorPairedEndPars & pars);
 	void setUpExtractor(extractorPars & pars);
 	void setUpClusterDown(clusterDownPars & pars);
 	void setUpMultipleSampleCluster(processClustersPars & pars);

@@ -39,12 +39,12 @@ SeekDeepRunner::SeekDeepRunner() :
 				},
 				{
 						addFunc("extractor", extractor, false),
-						addFunc("extractorPairedEnd", extractorPairedEnd, true),
+						addFunc("extractorPairedEnd", extractorPairedEnd, false),
 						addFunc("processClusters", processClusters,false),
 						addFunc("qluster", qluster, false),
 						addFunc("clusterDown",qluster, true),
 						addFunc("makeSampleDirectories", makeSampleDirectories, false)
-				}, "SeekDeep", "2", "5", "1") {
+				}, "SeekDeep", "2", "5", "2") {
 }
 
 //
