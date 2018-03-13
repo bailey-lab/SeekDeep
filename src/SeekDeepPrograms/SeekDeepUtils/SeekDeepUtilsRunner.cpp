@@ -566,8 +566,10 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 		printOutMapContents(files, "\t", std::cout);
 	}
 	auto expectedSamples = analysisSetup.getExpectantInputNames();
-	std::cout << "Expected input files: " << std::endl;
-	std::cout << bib::conToStr(expectedSamples, "\n") << std::endl;
+	if(setUp.pars_.debug_){
+		std::cout << "Expected input files: " << std::endl;
+		std::cout << bib::conToStr(expectedSamples, "\n") << std::endl;
+	}
 	VecStr unrecognizedInput;
 	VecStr sampleFilesFound;
 	VecStr sampleFilesNotFound;
@@ -586,8 +588,10 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 		auto keys = getVectorOfMapKeys(readsByPairs);
 		bib::sort(keys);
 		sampleFilesFound = keys;
-		std::cout << "Samples found: " << std::endl;
-		std::cout << bib::conToStr(keys, "\n") << std::endl;
+		if(setUp.pars_.debug_){
+			std::cout << "Samples found: " << std::endl;
+			std::cout << bib::conToStr(keys, "\n") << std::endl;
+		}
 		for(const auto & expected : expectedSamples){
 			if(!bib::in(expected, sampleFilesFound)){
 				sampleFilesNotFound.emplace_back(expected);
@@ -679,8 +683,11 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	VecStr extractorCmds;
 	VecStr qlusterCmds;
 	if (analysisSetup.pars_.byIndex) {
-		std::cout << "Samples:" << std::endl;
-		std::cout << bib::conToStr(getVectorOfMapKeys(analysisSetup.samples_), "\n") << std::endl;
+		if(setUp.pars_.debug_){
+			std::cout << "Samples:" << std::endl;
+			std::cout << bib::conToStr(getVectorOfMapKeys(analysisSetup.samples_), "\n") << std::endl;
+
+		}
 
 
 		//extractor cmds
@@ -847,8 +854,11 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 		} else if (analysisSetup.pars_.techIsIonTorrent()) {
 			qlusterCmdTemplate += "--ionTorrent";
 		}
-		std::cout << "Samples:" << std::endl;
-		std::cout << bib::conToStr(getVectorOfMapKeys(analysisSetup.samples_), "\n") << std::endl;
+		if(setUp.pars_.debug_){
+			std::cout << "Samples:" << std::endl;
+			std::cout << bib::conToStr(getVectorOfMapKeys(analysisSetup.samples_), "\n") << std::endl;
+
+		}
 
 		std::unordered_map<std::string, VecStr> targetsForReps;
 		for (const auto & tars : analysisSetup.samples_) {
@@ -885,6 +895,24 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 				if ("" != analysisSetup.pars_.extraExtractorCmds) {
 					cmds.emplace_back(analysisSetup.pars_.extraExtractorCmds);
 				}
+				//add ref files
+				bool anyRefs = false;
+				for (const auto & tar : rep.second) {
+					if (bfs::exists(
+							bib::files::make_path(analysisSetup.refsDir_, tar + ".fasta"))) {
+						anyRefs = true;
+						break;
+					}
+				}
+				if(anyRefs){
+					cmds.emplace_back(refSeqsDir);
+				}
+				// add overlap status
+				if(pars.techIsIllumina()){
+					cmds.emplace_back(overLapStatusTemplate);
+				}
+
+
 				auto currentExtractCmd = bib::conToStr(cmds, " ");
 				currentExtractCmd = bib::replaceString(currentExtractCmd, "{REP}",
 						fName);

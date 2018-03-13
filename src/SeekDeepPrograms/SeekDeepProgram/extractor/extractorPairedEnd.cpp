@@ -385,6 +385,7 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 			} else if (pars.sampleName != "") {
 				fullname += pars.sampleName;
 			}
+			//std::cout << "fullname: " << fullname << std::endl;
 			//bad out
 			auto badDirOutOpts = setUp.pars_.ioOptions_;
 			badDirOutOpts.out_.outFilename_ =
@@ -461,9 +462,9 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 			}
 			if (ids.containsMids()) {
 				fullname += barcodeName;
-			}// else if (pars.sampleName != "") {
-//				fullname += pars.sampleName;
-//			}
+			} else if ("" != pars.sampleName) {
+				fullname += pars.sampleName;
+			}
 
 			if("unrecognized" == forwardPrimerName ||
 				 "unrecognized" == reversePrimerName){
@@ -524,6 +525,9 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 	for(const auto & extractedMid : primersInMids){
 		for(const auto & extractedPrimer : extractedMid.second){
 			std::string name = extractedPrimer + extractedMid.first;
+			if(!ids.containsMids() && "" != pars.sampleName){
+				name = extractedPrimer + pars.sampleName;
+			}
 			SeqIOOptions currentPairOpts;
 			if(setUp.pars_.ioOptions_.inFormat_ == SeqIOOptions::inFormats::FASTQPAIREDGZ){
 				currentPairOpts = SeqIOOptions::genPairedInGz(
@@ -576,6 +580,7 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 	outPairProcessOut << "inputName\tName\ttotal\tnotCombined\tperfectOverlapCombined\tr1BeginsInR2Combined\tr1EndsInR2Combined" << std::endl;;
 	auto processedPairsKeys = bib::getVecOfMapKeys(resultsPerMidTarPair);
 	bib::sort(processedPairsKeys);
+
 	for(const auto & processedResultsKey : processedPairsKeys){
 		const auto & processedResults = resultsPerMidTarPair[processedResultsKey];
 		outPairProcessOut << seqName
@@ -586,6 +591,7 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 				<< "\t" << getPercentageString(processedResults.r1BeginsInR2Combined, processedResults.total)
 				<< "\t" << getPercentageString(processedResults.r1EndsInR2Combined, processedResults.total)
 				<< std::endl;
+
 	}
 
 	bool checkingContamination = pars.comparisonSeqFnp_ != "";
@@ -598,9 +604,15 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 	std::unordered_map<std::string, SeqIOOptions> tempOuts;
 	std::unordered_map<std::string, std::vector<uint32_t>> readLengthsPerTarget;
 	std::unordered_map<std::string, uint32_t> possibleContaminationCounts;
+	std::unordered_map<std::string, uint32_t> failedPairProcessing;
+	uint32_t failedPairProcessingTotal = 0;
 	for(const auto & extractedMid : primersInMids){
 		for(const auto & extractedPrimer : extractedMid.second){
 			std::string name = extractedPrimer + extractedMid.first;
+			if(!ids.containsMids() && "" != pars.sampleName){
+				name = extractedPrimer + pars.sampleName;
+			}
+
 			if(PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP == bib::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
 				if(setUp.pars_.verbose_ && setUp.pars_.debug_){
 					std::cout << extractedPrimer << " " << "NOOVERLAP" << std::endl;
@@ -612,6 +624,11 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 					}
 					continue;
 				}
+				//add failed pair processing
+				uint32_t failedPairProcessingForName = resultsPerMidTarPair[name].total - resultsPerMidTarPair[name].overlapFail;
+				failedPairProcessing[name] = failedPairProcessingForName;
+				failedPairProcessingTotal += failedPairProcessingForName;
+				//get seq options for expected pair status
 				SeqIOOptions filterSeqOpts = *resultsPerMidTarPair[name].notCombinedOpts;
 				SeqInput processedReader(filterSeqOpts);
 				auto contaminationOutOpts = SeqIOOptions::genPairedOut(bib::files::make_path(unfilteredByPairsProcessedDir, "possibleContamination_" + name));
@@ -667,6 +684,11 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 						}
 						continue;
 					}
+					//add failed pair processing
+					uint32_t failedPairProcessingForName = resultsPerMidTarPair[name].total - resultsPerMidTarPair[name].r1BeginsInR2Combined;
+					failedPairProcessing[name] = failedPairProcessingForName;
+					failedPairProcessingTotal += failedPairProcessingForName;
+					//get seq options for expected pair status
 					filterSeqOpts = *resultsPerMidTarPair[name].r1BeginsInR2CombinedOpts;
 				}else{
 					if(nullptr == resultsPerMidTarPair[name].r1EndsInR2CombinedOpts){
@@ -675,6 +697,11 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 						}
 						continue;
 					}
+					//add failed pair processing
+					uint32_t failedPairProcessingForName = resultsPerMidTarPair[name].total - resultsPerMidTarPair[name].r1EndsInR2Combined;
+					failedPairProcessing[name] = failedPairProcessingForName;
+					failedPairProcessingTotal += failedPairProcessingForName;
+					//get seq options for expected pair status
 					filterSeqOpts = *resultsPerMidTarPair[name].r1EndsInR2CombinedOpts;
 				}
 				SeqInput processedReader(filterSeqOpts);
@@ -730,7 +757,9 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 	for(const auto & extractedMid : primersInMids){
 		for(const auto & extractedPrimer : extractedMid.second){
 			std::string name = extractedPrimer + extractedMid.first;
-
+			if(!ids.containsMids() && "" != pars.sampleName){
+				name = extractedPrimer + pars.sampleName;
+			}
 			if(PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP == bib::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
 				if(setUp.pars_.verbose_&& setUp.pars_.debug_){
 					std::cout << extractedPrimer << " " << "NOOVERLAP" << std::endl;
@@ -810,18 +839,21 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 
 	OutOptions extractionStatsOpts(bib::files::make_path(setUp.pars_.directoryName_, "extractionStats.tab.txt"));
 	OutputStream extractionStatsOut(extractionStatsOpts);
-	extractionStatsOut << "inputName\tTotal\tfailedBarcode\tfailedPrimers\tpossibleContamination\tfilteredOff\tused" << std::endl;
+	extractionStatsOut << "inputName\tTotal\tfailedBarcode\tfailedPrimers\tfailedPairProcessing\tpossibleContamination\tfilteredOff\tused" << std::endl;
 	extractionStatsOut << seqName
 			<< "\t" << count
 			<< "\t" << getPercentageString(readsNotMatchedToBarcode, count)
 			<< "\t" << getPercentageString(unrecognizedPrimers, count)
+			<< "\t" << getPercentageString(failedPairProcessingTotal, count)
 			<< "\t" << getPercentageString(contamination, count)
 			<< "\t" << getPercentageString(qualityFilters, count)
 			<< "\t" << getPercentageString(used, count) << std::endl;
 
 	OutOptions extractionProfileOpts(bib::files::make_path(setUp.pars_.directoryName_, "extractionProfile.tab.txt"));
 	OutputStream extractionProfileOut(extractionProfileOpts);
-	extractionProfileOut << "inputName\tname\ttotalMatching\tgood\tbad\tfailedMinLen\tfailedMaxLen\tfailedQuality\tfailedNs\tfailedPossibleContamination" << std::endl;
+	extractionProfileOut << "inputName\tname\ttotalMatching\tgood\tbad\tfailedMinLen\tfailedMaxLen\tfailedQuality\tfailedNs\tfailedPossibleContamination\tfailedPairProcessing";
+
+	extractionProfileOut << std::endl;
 	for(const auto & name : allNames){
 		uint32_t totalBad = badQual[name] + badNs[name] + badMinLen[name] + badMaxLen[name] + possibleContaminationCounts[name];
 		extractionProfileOut << seqName
@@ -834,6 +866,7 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 				<< "\t" <<  getPercentageString(badQual[name], totalBad)
 				<< "\t" <<  getPercentageString(badNs[name], totalBad)
 				<< "\t" <<  getPercentageString(possibleContaminationCounts[name], totalBad)
+				<< "\t" <<  getPercentageString(failedPairProcessing[name], matchingPrimerCounts[name])
 				<< std::endl;
 	}
 
