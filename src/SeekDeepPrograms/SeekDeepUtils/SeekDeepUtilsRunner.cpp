@@ -566,21 +566,33 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 		printOutMapContents(files, "\t", std::cout);
 	}
 	auto expectedSamples = analysisSetup.getExpectantInputNames();
+	std::cout << "Expected input files: " << std::endl;
+	std::cout << bib::conToStr(expectedSamples, "\n") << std::endl;
 	VecStr unrecognizedInput;
-	VecStr inputPassed;
-	VecStr samplesExtracted;
-	VecStr samplesEmpty;
+	VecStr sampleFilesFound;
+	VecStr sampleFilesNotFound;
+	//VecStr samplesExtracted;
+	//VecStr samplesEmpty;
 	Json::Value logs;
 	std::mutex logsMut;
 	std::unordered_map<std::string, std::pair<VecStr, VecStr>> readsByPairs ;
 	std::unordered_map<std::string, bfs::path> filesByPossibleName;
 	ReadPairsOrganizer rpOrganizer(expectedSamples);
+
 	if (analysisSetup.pars_.techIsIllumina()) {
 
 		rpOrganizer.processFiles(files);
 		readsByPairs = rpOrganizer.processReadPairs();
 		auto keys = getVectorOfMapKeys(readsByPairs);
 		bib::sort(keys);
+		sampleFilesFound = keys;
+		std::cout << "Samples found: " << std::endl;
+		std::cout << bib::conToStr(keys, "\n") << std::endl;
+		for(const auto & expected : expectedSamples){
+			if(!bib::in(expected, sampleFilesFound)){
+				sampleFilesNotFound.emplace_back(expected);
+			}
+		}
 		if (!rpOrganizer.readPairsUnrecognized_.empty()) {
 			foundErrors = true;
 			errorOutput
@@ -593,22 +605,29 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 				}
 			}
 		}
-		if (!samplesEmpty.empty()) {
+		if (!sampleFilesNotFound.empty()) {
 			foundErrors = true;
-			errorOutput << "The following files were found to be empty " << std::endl;
-			for (const auto & samp : samplesEmpty) {
+			errorOutput << "The following files were expected but were not found " << std::endl;
+			for (const auto & samp : sampleFilesNotFound) {
 				errorOutput << "\tSample: " << samp << std::endl;
-				for (const auto & sampFiles : rpOrganizer.readPairs_.at(samp)) {
-					errorOutput << "\t\t" << sampFiles << std::endl;
-				}
 			}
 		}
+//		if (!samplesEmpty.empty()) {
+//			foundErrors = true;
+//			errorOutput << "The following files were found to be empty " << std::endl;
+//			for (const auto & samp : samplesEmpty) {
+//				errorOutput << "\tSample: " << samp << std::endl;
+//				for (const auto & sampFiles : rpOrganizer.readPairs_.at(samp)) {
+//					errorOutput << "\t\t" << sampFiles << std::endl;
+//				}
+//			}
+//		}
 	} else {
 		// ion torrent and 454 extraction and moving goes here
 		// need to add to extractSamples if found
 		// need to find samples that are empty
 		// add to inputPassed
-		//just checking for possible compression with file ending, might consider changing to libmagic or something to make sure
+		// just checking for possible compression with file ending, might consider changing to libmagic or something to make sure
 		bool compressed = false;
 		if(bib::endsWith(analysisSetup.pars_.inputFilePat, ".gz")){
 			compressed = true;
@@ -660,6 +679,10 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	VecStr extractorCmds;
 	VecStr qlusterCmds;
 	if (analysisSetup.pars_.byIndex) {
+		std::cout << "Samples:" << std::endl;
+		std::cout << bib::conToStr(getVectorOfMapKeys(analysisSetup.samples_), "\n") << std::endl;
+
+
 		//extractor cmds
 		std::string extractorCmdTemplate;
 		if(analysisSetup.pars_.techIsIllumina()){
@@ -824,6 +847,8 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 		} else if (analysisSetup.pars_.techIsIonTorrent()) {
 			qlusterCmdTemplate += "--ionTorrent";
 		}
+		std::cout << "Samples:" << std::endl;
+		std::cout << bib::conToStr(getVectorOfMapKeys(analysisSetup.samples_), "\n") << std::endl;
 
 		std::unordered_map<std::string, VecStr> targetsForReps;
 		for (const auto & tars : analysisSetup.samples_) {
@@ -834,13 +859,14 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 		for (auto & rep : targetsForReps) {
 			bib::sort(rep.second);
 		}
+
 		for (const auto & rep : targetsForReps) {
-			if (bib::in(rep.first, inputPassed)
-					|| bib::in(bib::replaceString(rep.first, "MID", ""), inputPassed)) {
+			if (bib::in(rep.first, sampleFilesFound)
+					|| bib::in(bib::replaceString(rep.first, "MID", ""), sampleFilesFound)) {
 				std::string fName = rep.first;
-				if (!bib::in(rep.first, samplesExtracted)) {
-					fName = bib::replaceString(rep.first, "MID", "");
-				}
+//				if (!bib::in(rep.first, samplesExtracted)) {
+//					fName = bib::replaceString(rep.first, "MID", "");
+//				}
 
 				std::string sampName = rep.first;
 				if (!bib::beginsWith(rep.first, "MID")) {
