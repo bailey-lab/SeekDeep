@@ -52,7 +52,7 @@ def main():
         
     pattern = re.compile("^[\w]*#include.*\".*\.h")
     for file in allFiles:
-        for i, line in enumerate(open(file)):
+        for i, line in enumerate(open(file, 'rt', encoding = 'utf-8')):
             for match in re.finditer(pattern, line):
                 if(".h" in file): 
                     graph.addPair(os.path.basename(file).replace(".", "_"), os.path.basename(re.findall('"([^"]*)"', line)[0]).replace(".", "_"), fileNode.headToHeadColor)
