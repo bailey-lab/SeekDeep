@@ -90,8 +90,8 @@ bool TarAmpAnalysisSetup::TarAmpPars::allChecks(VecStr & warnings) const {
 	bool status = true;
 	status = status && checkForRequiredFnpPars(warnings);
 	status = status && checkForOptionalFnpPars(warnings);
-	status = status && checkForStitcher(warnings);
-	status = status && checkForZcat(warnings);
+	//status = status && checkForStitcher(warnings);
+	//status = status && checkForZcat(warnings);
 	return status;
 }
 
