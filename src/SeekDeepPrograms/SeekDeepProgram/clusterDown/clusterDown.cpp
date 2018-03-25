@@ -179,7 +179,19 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 		std::cout << alignerObj.parts_.gapScores_.toJson() << std::endl;
 	}
 	setUp.rLog_.logCurrentTime("Reading in previous alignments");
-	alignerObj.processAlnInfoInput(setUp.pars_.alnInfoDirName_);
+	alignerObj.processAlnInfoInput(setUp.pars_.alnInfoDirName_, setUp.pars_.verbose_);
+	if(setUp.pars_.verbose_){
+		uint32_t alignmentsReadIn = 0;
+		for(const auto & alnHold : alignerObj.alnHolder_.globalHolder_){
+			alignmentsReadIn += alnHold.second.infos_.size();
+		}
+		for(const auto & alnHold : alignerObj.alnHolder_.localHolder_){
+			alignmentsReadIn += alnHold.second.infos_.size();
+		}
+		std::cout << "Global Alignments Holders: " << alignerObj.alnHolder_.globalHolder_.size() << std::endl;
+		std::cout << "Local Alignments Holders: " << alignerObj.alnHolder_.localHolder_.size() << std::endl;
+		std::cout << "Read in: " << alignmentsReadIn << "alignments" << std::endl;
+	}
 	setUp.rLog_.logCurrentTime("Removing singlets");
 	collapser collapserObj = collapser(setUp.pars_.colOpts_);
 
@@ -515,7 +527,7 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 
 	if (setUp.pars_.writingOutAlnInfo_) {
 		setUp.rLog_.logCurrentTime("Writing previous alignments");
-		alignerObj.alnHolder_.write(setUp.pars_.outAlnInfoDirName_);
+		alignerObj.alnHolder_.write(setUp.pars_.outAlnInfoDirName_, setUp.pars_.verbose_);
 	}
 	//log number of alignments done
 	setUp.rLog_ << "Number of Alignments Done: "
