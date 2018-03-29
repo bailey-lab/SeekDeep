@@ -233,9 +233,8 @@ table PrimersAndMids::genOverlapStatuses(const VecStr & targets) const {
 					<< std::endl;
 			throw std::runtime_error { ss.str() };
 		}
-		if (nullptr != targets_.at(tar).overlapStatus_) {
-			ret.addRow(tar, PairedReadProcessor::getOverlapStatusStr(targets_.at(tar).overlapStatus_));
-		}
+		//targets_.at(tar).overlapStatus_
+		ret.addRow(tar, PairedReadProcessor::getOverlapStatusStr(targets_.at(tar).overlapStatus_));
 	}
 	return ret;
 }
