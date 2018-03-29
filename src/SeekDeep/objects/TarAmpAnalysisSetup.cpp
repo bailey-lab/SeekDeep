@@ -568,6 +568,7 @@ void TarAmpAnalysisSetup::writeOutIdFiles() const{
 							collapse + "_lenCutOffs.tab.txt"));
 			lens.outPutContents(lensOutOpts);
 		}
+
 		if (!overlapStatuses.empty()) {
 			auto overlapStatusesOpts = TableIOOpts::genTabFileOut(
 					bib::files::make_path(idsDir_,
