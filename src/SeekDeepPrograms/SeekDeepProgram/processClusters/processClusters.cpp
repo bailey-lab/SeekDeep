@@ -314,14 +314,9 @@ int SeekDeepRunner::processClusters(const bib::progutils::CmdArgs & inputCommand
 		auto statsFnp = bib::files::make_path(extractDir, "extractionStats.tab.txt");
 		if(bfs::exists(profileFnp)){
 			table currentProfileTab(profileFnp.string(), "\t", true);
-			auto minLenPos = getPositionsOfTargetStartsWith(currentProfileTab.columnNames_, "len<");
-			auto maxLenPos = getPositionsOfTargetStartsWith(currentProfileTab.columnNames_, "len>");
-			currentProfileTab.columnNames_[minLenPos.front()] = "minlen";
-			currentProfileTab.columnNames_[maxLenPos.front()] = "maxlen";
 			auto oldColumnNames = currentProfileTab.columnNames_;
 			currentProfileTab.addColumn(VecStr{extractDir.filename().string()}, "extractionDir");
 			currentProfileTab = currentProfileTab.getColumns(concatVecs(VecStr{"extractionDir"}, oldColumnNames));
-
 			if(profileTab.empty()){
 				profileTab = currentProfileTab;
 			}else{
@@ -371,6 +366,7 @@ int SeekDeepRunner::processClusters(const bib::progutils::CmdArgs & inputCommand
 		std::cout << alignerObj.numberOfAlingmentsDone_ << std::endl;
 		setUp.logRunTime(std::cout);
 	}
+
 	return 0;
 }
 

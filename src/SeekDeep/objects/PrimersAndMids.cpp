@@ -60,11 +60,12 @@ PrimersAndMids::PrimersAndMids(const bfs::path & idFileFnp) :
 	auto firstLine = bib::files::getFirstLine(idFileFnp.string());
 	bib::strToLower(firstLine);
 	if (!bib::beginsWith(firstLine, "gene")
-			&& !bib::beginsWith(firstLine, "target")) {
+			&& !bib::beginsWith(firstLine, "target")
+				&& !bib::beginsWith(firstLine, "id")) {
 		std::stringstream ss;
 		ss << __PRETTY_FUNCTION__ << ": error the id file "
 				<< bib::bashCT::boldRed(idFile_.string())
-				<< " should start with either target or gene (case insensitive)\n";
+				<< " should start with either target, gene, or id (case insensitive)\n";
 		ss << "line: " << firstLine << "\n";
 		throw std::runtime_error { ss.str() };
 	}
@@ -162,6 +163,19 @@ bool PrimersAndMids::containsTargets() const {
 	return !targets_.empty();
 }
 
+bool PrimersAndMids::screeningForPossibleContamination() const {
+	bool hasRefs = false;
+	for(const auto & tar : targets_){
+		if(!tar.second.refs_.empty()){
+			hasRefs = true;
+			break;
+		}
+	}
+	return hasRefs;
+}
+
+
+
 
 
 void PrimersAndMids::writeIdFile(const OutOptions & outOpts) const {
@@ -233,8 +247,9 @@ table PrimersAndMids::genOverlapStatuses(const VecStr & targets) const {
 					<< std::endl;
 			throw std::runtime_error { ss.str() };
 		}
-		//targets_.at(tar).overlapStatus_
-		ret.addRow(tar, PairedReadProcessor::getOverlapStatusStr(targets_.at(tar).overlapStatus_));
+		if(PairedReadProcessor::ReadPairOverLapStatus::NONE != targets_.at(tar).overlapStatus_){
+			ret.addRow(tar, PairedReadProcessor::getOverlapStatusStr(targets_.at(tar).overlapStatus_));
+		}
 	}
 	return ret;
 }
@@ -289,6 +304,41 @@ std::map<std::string, PrimersAndMids::Target::lenCutOffs> PrimersAndMids::readIn
 						row[lenCutTab.getColPos("maxlen")]) });
 	}
 	return ret;
+}
+
+void PrimersAndMids::checkIfMIdsOrPrimersReadInThrow(
+		const std::string & funcName) const {
+	if (0 == getMids().size() && 0 == getTargets().size()) {
+		std::stringstream ss;
+		ss << funcName << ", failed to read either targets or primers from "
+				<< idFile_ << "\n";
+		throw std::runtime_error { ss.str() };
+	}
+}
+
+void PrimersAndMids::initAllAddLenCutsRefs(const InitPars & pars){
+	//init mids
+	if(containsMids()){
+		initMidDeterminator();
+		mDeterminator_->setAllowableMismatches(pars.barcodeErrors_);
+		mDeterminator_->setMidEndsRevComp(pars.midEndsRevComp_);
+	}
+
+	//init primers
+	if(containsTargets()){
+		initPrimerDeterminator();
+	}
+
+	//add in any length cuts if any
+	if("" != pars.lenCutOffFilename_){
+		addLenCutOffs(pars.lenCutOffFilename_);
+	}
+
+	//add in ref sequences if any
+	if("" != pars.comparisonSeqFnp_){
+		addRefSeqs(pars.comparisonSeqFnp_);
+		setRefSeqsKInfos(pars.compKmerLen_, true);
+	}
 }
 
 void PrimersAndMids::initMidDeterminator(){
@@ -470,5 +520,15 @@ void PrimersAndMids::addRefSeqs(const bfs::path & refSeqsDir){
 		throw std::runtime_error { errorStream.str() };
 	}
 }
+
+
+void PrimersAndMids::addDefaultLengthCutOffs(uint32_t minLength, uint32_t maxLength){
+	for(auto & tar : targets_ ){
+		if(nullptr == tar.second.lenCuts_){
+			tar.second.addLenCutOff(minLength, maxLength);
+		}
+	}
+}
+
 
 }  // namespace bibseq

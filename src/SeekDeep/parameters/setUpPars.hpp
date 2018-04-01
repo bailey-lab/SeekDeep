@@ -9,116 +9,64 @@
 
 #include <bibseq.h>
 #include "SeekDeep/objects/PairedReadProcessor.hpp"
-
+#include "SeekDeep/objects/PrimersAndMids.hpp"
 
 namespace bibseq {
+
+struct CoreExtractorPars{
+	std::string idFileDelim = "whitespace";
+
+
+  uint32_t smallFragmentCutoff = 50;
+  bool rename = false;
+  QualFilteringPars qPars_;
+  uint32_t numberOfNs = 1;
+
+
+  MidDeterminator::MidDeterminePars mDetPars;
+  PrimerDeterminator::PrimerDeterminatorPars pDetPars;
+  bool noPrimers_{false};
+  PrimersAndMids::InitPars primIdsPars;
+
+  std::string sampleName = "";
+
+  void setCorePars(seqSetUp & setUp);
+
+};
 
 struct extractorPars{
 
 	extractorPars();
 
-	std::string idFilename = "";
-	std::string idFileDelim = "whitespace";
-	uint32_t numberOfNs = 1;
 
-  bool screenForPossibleContamination = false;
-  std::string compareSeq = "";
-  bool contaminationMutlipleCompare = false;
-  bool qualWindowTrim = false;
-  bool multiplex = false;
-  uint32_t qualityWindowLength = 0;
-  uint32_t qualityWindowStep = 0;
-  uint32_t qualityWindowThres = 0;
+	CoreExtractorPars corePars_;
+
   uint32_t minLen = std::numeric_limits<uint32_t>::max();
   uint32_t maxLength = std::numeric_limits<uint32_t>::max();
 
-  uint32_t r1MinLen = std::numeric_limits<uint32_t>::max();
-  uint32_t r2MinLen = std::numeric_limits<uint32_t>::max();
-  uint32_t r1MaxLen = std::numeric_limits<uint32_t>::max();
-  uint32_t r2MaxLen = std::numeric_limits<uint32_t>::max();
 
-  uint32_t smallFragmentCutoff = 50;
-
-  bool HMP = false;
-  uint32_t primerLen = 30;
-  bool trimTcag = false;
-
-  uint32_t barcodeErrors = 0;
-  bool midEndsRevComp = false;
-  bool rename = false;
-
-  bool noReversePrimer = false;
-  bool reversePrimerToUpperCase = false;
-  comparison rPrimerErrors;
-
-  bool noForwardPrimer = false;
-  bool forwardPrimerToUpperCase = false;
-  comparison fPrimerErrors;
-
-
-  double kmerCutOff = .20;
-  uint32_t contaminationKLen = 7;
-
-  MidDeterminator::MidDeterminePars mDetPars;
-  uint32_t qualCheck = 30;
-  bool checkingQCheck = false;
-  double qualCheckCutOff = 0.75;
   bool illumina = false;
-  std::string sampleName = "";
-  std::string compareSeqFilename = "";
-  bool multipleTargets = false;
 
-  std::string multipleLenCutOffFilename = "";
 
   uint32_t smallExtractReadCount = 5;
   bool filterOffSmallReadCounts = false;
 
-	bool mothurExtract = false;
-	bool pyroExtract = false;
-	uint32_t maxFlowCutoff = 0;
-
 	uint32_t trimAtQualCutOff = 2;
 	bool trimAtQual = false;
+	bool qualWindowTrim = false;
 
 };
+
+
 
 struct ExtractorPairedEndPars{
 
 	ExtractorPairedEndPars();
+	CoreExtractorPars corePars_;
 
-	bfs::path idFilename = "";
-	std::string idFileDelim = "whitespace";
-
-
-  uint32_t smallFragmentCutoff = 50;
-
-
-  uint32_t barcodeErrors = 0;
-  bool midEndsRevComp = false;
-  bool rename = false;
-
-  bool primerToUpperCase = false;
-  comparison primerErrors;
-
-
-  MidDeterminator::MidDeterminePars mDetPars;
-
-  uint32_t primerWithinStart_ = 0;
-
-  std::string sampleName = "";
 
   uint32_t r1Trim_ = 1;
   uint32_t r2Trim_ = 1;
-  QualFilteringPars qPars_;
-  bfs::path lenCutOffFilename_ = "";
-
-  bfs::path comparisonSeqFnp_ = "";
-  uint32_t compKmerLen = 5;
-  double compKmerSimCutOff = 0.50;
-
-  bfs::path overlapStatusFnp_ = "";
-  bool noOverlapProcessForNoOverlapStatusTargets_ = false;
-  uint32_t numberOfNs = 1;
 
   PairedReadProcessor::ProcessParams pairProcessorParams_;
 

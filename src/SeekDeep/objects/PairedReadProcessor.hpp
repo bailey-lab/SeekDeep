@@ -22,7 +22,8 @@ public:
 	enum class ReadPairOverLapStatus{
 		NOOVERLAP,
 		R1BEGINSINR2,
-		R1ENDSINR2
+		R1ENDSINR2,
+		NONE
 	};
 
 	static std::string getOverlapStatusStr(const ReadPairOverLapStatus  status){

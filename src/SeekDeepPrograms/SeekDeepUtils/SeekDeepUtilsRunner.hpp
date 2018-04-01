@@ -37,11 +37,13 @@ class SeekDeepUtilsRunner : public bib::progutils::ProgramRunner {
  public:
   SeekDeepUtilsRunner();
   
-  static int dryRunQaulityFiltering(const bib::progutils::CmdArgs & inputCommands);
+  static int dryRunQualityFiltering(const bib::progutils::CmdArgs & inputCommands);
 	static int runMultipleCommands(const bib::progutils::CmdArgs & inputCommands);
 
 	static int setupTarAmpAnalysis(const bib::progutils::CmdArgs & inputCommands);
 	static int replaceUnderscores(const bib::progutils::CmdArgs & inputCommands);
+
+	static int genTargetInfoFromGenomes(const bib::progutils::CmdArgs & inputCommands);
 
 };
 

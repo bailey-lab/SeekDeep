@@ -44,11 +44,17 @@ void SeekDeepSetUp::setUpExtractorPairedEnd(ExtractorPairedEndPars & pars) {
 
 	processVerbose();
 	processDebug();
+	//core
+	pars.corePars_.setCorePars(*this);
+	processAlnInfoInput();
+	processReadInNames(VecStr{"--fastq1", "--fastq1gz", "--fastq2", "--fastq2gz"},true);
+	bool mustMakeDirectory = true;
+	processDirectoryOutputName(mustMakeDirectory);
+
+	//paired end specific stuff
 	pars.pairProcessorParams_.verbose_ = pars_.verbose_;
-
-	setOption(pars.noOverlapProcessForNoOverlapStatusTargets_, "--noOverlapProcessForNoOverlapStatusTargets_", "noOverlapProcessForNoOverlapStatusTargets",
+	setOption(pars.corePars_.primIdsPars.noOverlapProcessForNoOverlapStatusTargets_, "--noOverlapProcessForNoOverlapStatusTargets_", "noOverlapProcessForNoOverlapStatusTargets",
 			false, "Post-Processing-PairProcessing");
-
 	setOption(pars.pairProcessorParams_.errorAllowed_, "--overLapErrorAllowed",
 			"The amount of error to allow in the overlap processing", false, "Post-Processing-PairProcessing");
 	setOption(pars.pairProcessorParams_.hardMismatchCutOff_, "--hardMismatchCutOff",
@@ -57,78 +63,11 @@ void SeekDeepSetUp::setUpExtractorPairedEnd(ExtractorPairedEndPars & pars) {
 			"The minimal amount of over lap in pair processing", false, "Post-Processing-PairProcessing");
 	setOption(pars.pairProcessorParams_.writeOverHangs_, "--writeOverHangs",
 			"Write out the overhang for sequences that have read through", false, "Post-Processing-PairProcessing");
-
-	setOption(pars.primerToUpperCase, "--primerUpper",
-			"Leave primers in upper case", false, "Primer");
-	setOption(pars.primerErrors.distances_.query_.coverage_, "--primerCoverage",
-			"Amount of primers found", false, "Primer");
-	setOption(pars.primerErrors.hqMismatches_, "--primerNumOfMismatches",
-			"Number of Mismatches to allow in primers", false, "Primer");
-	setOption(pars.primerErrors.oneBaseIndel_, "--primerOneBaseIndels",
-			"Number Of One base indels to allow in primers", false, "Primer");
-	setOption(pars.primerErrors.twoBaseIndel_, "--primerTwoBaseIndels",
-			"Number Of Two base indels to allow in primers", false, "Primer");
-
-
-
-	setOption(pars.sampleName, "--sampleName",
-			"A name to append to the output files",
-			false, "Output Naming");
-	processAlnInfoInput();
-
-	setOption(pars.rename, "--rename", "Rename Sequences With Barcode Names",
-			false, "Output Naming");
-	setOption(pars.barcodeErrors, "--barcodeErrors", "Errors Allowed in Barcode", false, "Barcodes");
-
-
-	setOption(pars.mDetPars.barcodesBothEnds_, "--barcodeBothEnds",
-			"Look for Barcodes in Both Primers", false, "Barcodes");
-	setOption(pars.midEndsRevComp, "--midEndsRevComp",
-			"Barcodes on both ends are in the reverse complement of each other", false, "Barcodes");
-	setOption(pars.mDetPars.checkForShorten_, "--checkShortenBars",
-			"Check for shorten Barcodes if the first base may have been trimmed off", false, "Barcodes");
-
-	setOption(pars.mDetPars.variableStop_, "--midWithinStart",
-			"By default the primer or barcodes are searched at the very beginning of seq, use this flag to extended the search, should be kept low to cut down on false positives",
-			false, "Barcodes");
-
-	setOption(pars.primerWithinStart_, "--primerWithinStart",
-			"By default the primer or barcodes are searched at the very beginning of seq, use this flag to extended the search, should be kept low to cut down on false positives",
-			false, "Primers");
-
-
-
-	processReadInNames(VecStr{"--fastq1", "--fastq1gz", "--fastq2", "--fastq2gz"},true);
-	bool mustMakeDirectory = true;
-	processDirectoryOutputName(mustMakeDirectory);
-	if (setOption(pars.idFilename, "--id", "The name of the ID file", true, "ID File")) {
-		if (!bfs::exists(pars.idFilename)) {
-			failed_ = true;
-			warnings_.emplace_back("Error the id file doesn't exist: " + pars.idFilename.string());
-		}
-	}
-
-	setOption(pars.idFileDelim, "--idFileDelim", "Id File Delim", false, "ID File");
-	setOption(pars.mDetPars.checkComplement_, "--checkComplement",
-			"Check the Complement of the Seqs As Well", false, "Complement");
-	setOption(pars.smallFragmentCutoff, "--smallFragmentCutOff",
-			"Remove sequences smaller than this length", false, "Pre Processing");
-
 	setOption(pars.r1Trim_, "--r1Trim",
 			"Remove this many sequences off of the end of r1 reads", false, "Post Processing");
 	setOption(pars.r2Trim_, "--r2Trim",
 			"Remove this many sequences off of the end of r2 reads", false, "Post Processing");
-	setOption(pars.lenCutOffFilename_, "--lenCutOffs",
-			"A file with at least three columns, target,minlen,maxlen the target column should match up with the first column in the id file", false, "Post Processing");
-	setOption(pars.comparisonSeqFnp_, "--compareSeq",
-			"A fasta file or a directory to fasta files, with references to check against, if file record name need to match target name, if directory file name should be TARGET.fasta", false, "Post Processing");
-
-	setOption(pars.qPars_.qualCheck_, "--qualCheckLevel",
-			"Bin qualities at this quality to do filtering on fraction above this", false, "Post Processing");
-	setOption(pars.qPars_.qualCheckCutOff_, "--qualCheckCutOff",
-			"The fractions of bases that have to be above the qualCheckLevel to be kept", false, "Post Processing");
-
-	setOption(pars.overlapStatusFnp_, "--overlapStatusFnp",
+	setOption(pars.corePars_.primIdsPars.overlapStatusFnp_, "--overlapStatusFnp",
 			"A file with two columns, target,status; status column should contain 1 of 3 values (capitalization doesn't matter): r1BegOverR2End,r1EndOverR2Beg,NoOverlap. r1BegOverR2End=target size < read length (causes read through),r1EndOverR2Beg= target size > read length less than 2 x read length, NoOverlap=target size > 2 x read length", true, "Post Processing");
 
 
@@ -184,166 +123,60 @@ void SeekDeepSetUp::setUpExtractor(extractorPars & pars) {
 		commands_.arguments_["-h"] = "";
 	}
 	//ioOptions_.lowerCaseBases = "remove";
-	description_ = "Extract sequences from various sequences input types (fastq,fasta,sff,etc.) with primers and barcodes plus some filtering";
+	description_ = "Extract sequences from various sequences input types (fastq,fasta,etc.) with primers and barcodes plus some filtering";
 	examples_.emplace_back("MASTERPROGRAM SUBPROGRAM --fasta reads.fasta --id idFile.tab.txt --dout outPutDir");
 	examples_.emplace_back("MASTERPROGRAM SUBPROGRAM --fastq reads.fastq --id idFile.tab.txt --dout outPutDir --illumina");
 
 
 	processVerbose();
 	processDebug();
-	setOption(pars.noForwardPrimer, "--noForwardPrimer",
-			"No Forward Primer Required", false, "Primer");
-	setOption(pars.forwardPrimerToUpperCase, "--fUpper",
-			"Leave forward primer upper case", false, "Primer");
-	setOption(pars.fPrimerErrors.distances_.query_.coverage_, "--fCoverage",
-			"Amount of Forward Primer to find", false, "Primer");
-	setOption(pars.fPrimerErrors.hqMismatches_, "--fNumOfMismatches",
-			"Number of Mismatches to allow in Forward Primer", false, "Primer");
-	setOption(pars.fPrimerErrors.oneBaseIndel_, "--fOneBaseIndels",
-			"Number Of One base indels to allow in forward primer", false, "Primer");
-	setOption(pars.fPrimerErrors.twoBaseIndel_, "--fTwoBaseIndels",
-			"Number Of Two base indels to allow in forward primer", false, "Primer");
+	//core
+	pars.corePars_.setCorePars(*this);
+
 	//fPrimerErrors.largeBaseIndel_ = .99;
-	setOption(pars.noReversePrimer, "--noReverse",
-			"Don't look for reverse Primer", false, "Primer");
-	setOption(pars.reversePrimerToUpperCase, "--rUpper",
-			"Leave reverse primer upper case", false, "Primer");
-	setOption(pars.rPrimerErrors.distances_.query_.coverage_, "--rPrimerCoverage",
-			"Amount Of Reverse Primer Required", false, "Primer");
-	setOption(pars.rPrimerErrors.hqMismatches_, "--rNumOfMismatches",
-			"Number of Mismatches to allow in Reverse Primer", false, "Primer");
-	setOption(pars.rPrimerErrors.oneBaseIndel_, "--rOneBaseIndels",
-			"Number Of One base indels to allow in reverse primer", false, "Primer");
-	setOption(pars.rPrimerErrors.twoBaseIndel_, "--rTwoBaseIndels",
-			"Number Of Two base indels to allow in reverse primer", false, "Primer");
+//	setOption(pars.noReversePrimer, "--noReverse",
+//			"Don't look for reverse Primer", false, "Primer");
+//	setOption(pars.reversePrimerToUpperCase, "--rUpper",
+//			"Leave reverse primer upper case", false, "Primer");
+//	setOption(pars.rPrimerErrors.distances_.query_.coverage_, "--rPrimerCoverage",
+//			"Amount Of Reverse Primer Required", false, "Primer");
+//	setOption(pars.rPrimerErrors.hqMismatches_, "--rNumOfMismatches",
+//			"Number of Mismatches to allow in Reverse Primer", false, "Primer");
+//	setOption(pars.rPrimerErrors.oneBaseIndel_, "--rOneBaseIndels",
+//			"Number Of One base indels to allow in reverse primer", false, "Primer");
+//	setOption(pars.rPrimerErrors.twoBaseIndel_, "--rTwoBaseIndels",
+//			"Number Of Two base indels to allow in reverse primer", false, "Primer");
 	//rPrimerErrors.largeBaseIndel_ = .99;
 
-	setOption(pars.filterOffSmallReadCounts, "--filterOffSmallReadCounts",
-			"Whether to Filter Off Extraction of Small size (size set by --smallExtractReadCount)",
-			false, "Post Extraction Filtering");
-	setOption(pars.smallExtractReadCount, "--smallExtractReadCount",
-			"Filter Off Extraction of This Size or Smaller",
-			false, "Post Extraction Filtering");
+	setOption(pars.filterOffSmallReadCounts, "--filterOffSmallReadCounts", "Whether to Filter Off Extraction of Small size (size set by --smallExtractReadCount)", false, "Post Extraction Filtering");
+	setOption(pars.smallExtractReadCount, "--smallExtractReadCount", "Filter Off Extraction of This Size or Smaller", false, "Post Extraction Filtering");
 
-	setOption(pars.sampleName, "--sampleName",
-			"A name to append to the output files",
-			false, "Output Naming");
 	processAlnInfoInput();
 
-	setOption(pars.rename, "--rename", "Rename Sequences With Barcode Names",
-			false, "Output Naming");
-	setOption(pars.barcodeErrors, "--barcodeErrors", "Errors Allowed in Barcode", false, "Barcodes");
-	setOption(pars.trimTcag, "--trimTcag", "trim TCAG(454 tag) if it is present",
-			false, "Preprocessing");
-	if (setOption(pars.HMP, "--HMP", "HMP")) {
-		setOption(pars.primerLen, "--len,--primerLen", "PrimerLen");
-	}
-
-	setOption(pars.mDetPars.barcodesBothEnds_, "--barcodeBothEnds",
-			"Look for Barcodes in Both Primers", false, "Barcodes");
-	setOption(pars.midEndsRevComp, "--midEndsRevComp",
-			"Barcodes on both ends are in the reverse complement of each other", false, "Barcodes");
-	setOption(pars.mDetPars.checkForShorten_, "--checkShortenBars",
-			"Check for shorten Barcodes if the first base may have been trimmed off", false, "Barcodes");
-
-	setOption(pars.mDetPars.variableStop_, "--variableStart",
-			"By default the primer or barcodes are searched at the very beginning of seq, use this flag to extended the search, should be kept low to cut down on false positives",
-			false, "Barcodes");
-	if (setOption(pars.qualCheck, "--qualCheck", "Check the fraction of qualities above a threshold set by --qualCheckCutOff",
-			false, "Filtering")) {
-		pars.checkingQCheck = true;
-	}
-	if (setOption(pars.qualCheckCutOff, "--qualCheckCutOff",
-			"Cut Off for fraction of bases above qual check of "
-					+ estd::to_string(pars.qualCheck), false, "Filtering")) {
-		pars.checkingQCheck = true;
-	}
-	setOption(pars.illumina, "--illumina", "If input reads are from Illumina",
-			false, "Technology");
+	setOption(pars.illumina, "--illumina", "If input reads are from Illumina",false, "Technology");
 	if(pars.illumina){
-		pars.checkingQCheck = true;
+		pars.corePars_.qPars_.checkingQFrac_= true;
+		/**@todo fiddle with primer check errors allowed*/
 	}
 	processReadInNames(VecStr{"--fasta", "--fastagz", "--fastq", "--fastqgz"},true);
 	bool mustMakeDirectory = true;
 	processDirectoryOutputName(mustMakeDirectory);
-	if (setOption(pars.idFilename, "--id", "The name of the ID file", true, "ID File")) {
-		if (!bfs::exists(pars.idFilename)) {
-			failed_ = true;
-			warnings_.emplace_back("Error the id file doesn't exist: " + pars.idFilename);
-		}
-	}
 
-	setOption(pars.idFileDelim, "--idFileDelim", "Id File Delim", false, "ID File");
-	// unknown primers and ids
-	setOption(pars.multiplex, "--multiplex",
-			"Indicates that the Reads are multiplex barcoded", false, "Barcodes");
-	setOption(pars.mDetPars.checkComplement_, "--checkComplement",
-			"Check the Complement of the Seqs As Well", false, "Complement");
 	// setOption(within, "-within");
 	setOption(pars.minLen, "--minlen", "Minimum read length", false, "Filtering");
 	setOption(pars.maxLength, "--maxlen", "Maximum read length", false, "Filtering");
-	setOption(pars.numberOfNs, "--numberofns", "Number Of Ns Cut Off", false, "Filtering");
 	std::string qualWindow = "";
 	if (setOption(qualWindow, "--qualWindow",
 			"Sliding Quality Window, goes WindowSize,WindowStep,Thresdhold", false, "Filtering")) {
-		seqUtil::processQualityWindowString(qualWindow, pars.qualityWindowLength,
-				pars.qualityWindowStep, pars.qualityWindowThres);
+		seqUtil::processQualityWindowString(qualWindow, pars.corePars_.qPars_.qualityWindowLength_,
+				pars.corePars_.qPars_.qualityWindowStep_, pars.corePars_.qPars_.qualityWindowThres_);
 	} else {
-		pars.qualityWindowLength = 50;
-		pars.qualityWindowStep = 5;
-		pars.qualityWindowThres = 25;
+		pars.corePars_.qPars_.qualityWindowLength_ = 50;
+		pars.corePars_.qPars_.qualityWindowStep_ = 5;
+		pars.corePars_.qPars_.qualityWindowThres_ = 25;
 	}
-
-	bool compareSeqSuccess = processSeq(pars.compareSeq, "--compareSeq",
-			"Comparison Sequence For Contamination", false, "Contamination Filtering");
-	if(compareSeqSuccess){
-		commands_.lookForOptionDashCaseInsen(pars.compareSeqFilename, "--compareSeq");
-	}
-	setOption(pars.contaminationKLen, "--contaminationKLen",
-			"Contamination Kmer Length comparison", false, "Contamination Filtering");
-	setOption(pars.kmerCutOff, "--kmerCutOff",
-			"Kmer cut off for contamination check", false, "Contamination Filtering");
-	if (setOption(pars.screenForPossibleContamination, "--contamination",
-			"Screening For Contamination", false, "Contamination Filtering")) {
-		if (!compareSeqSuccess) {
-			warnings_.emplace_back(
-					"Need to have --compareSeq if checking for contamination");
-		}
-	}
-	setOption(pars.contaminationMutlipleCompare, "--contaminationMutlipleCompare",
-			"Compare to all the sequences within the compare seq file if a file is given", false, "Contamination Filtering");
-	setOption(pars.multipleTargets, "--multipleTargets",
-			"Id file contains multiple targets", false, "Primers");
-	if (pars.multipleTargets) {
-		if (pars.screenForPossibleContamination) {
-			commands_.lookForOptionDashCaseInsen(pars.compareSeqFilename, "--compareSeq");
-		}
-	}
-	setOption(pars.multipleLenCutOffFilename, "--lenCutOffs",
-			"Length cut offs for when extracting multiple targets", false, "Filtering");
 	setOption(pars.qualWindowTrim, "--qualWindowTrim", "Trim To Qual Window", false, "Post Processing");
-	setOption(pars.smallFragmentCutoff, "--smallFragmentCutOff",
-			"Remove sequences smaller than this length", false, "Pre Processing");
-
-	setOption(pars.mothurExtract, "--mothurExtract",
-			"Extract Data Files for mothur analysis");
-	setOption(pars.pyroExtract, "--pyro",
-				"Do Pyro extract for files necessary for AmpliconNoise");
-	if (pars.mothurExtract || pars.pyroExtract) {
-		if (!setOption(pars.maxFlowCutoff, "--maxFlows", "Max Flows", true)) {
-			addWarning("Need to supply maxFlows if doing --pyro or --mothurExtract");
-			failed_ = true;
-		}
-		if (SeqIOOptions::inFormats::SFFBIN != pars_.ioOptions_.inFormat_
-				&& SeqIOOptions::inFormats::SFFTXT != pars_.ioOptions_.inFormat_) {
-			addWarning(
-					"Seq input format needs to be sff or sffbin if using --pyro or --mothurExtract");
-			failed_ = true;
-		}
-	}
-
-	pars.trimAtQual = setOption(pars.trimAtQualCutOff, "--trimAtQual",
-			"Trim Reads at first occurrence of quality score", false, "Post Processing");
+	pars.trimAtQual = setOption(pars.trimAtQualCutOff, "--trimAtQual", "Trim Reads at first occurrence of quality score", false, "Post Processing");
 
 	pars_.gapInfo_.gapOpen_ = 5;
 	pars_.gapInfo_.gapExtend_ = 1;
@@ -359,6 +192,20 @@ void SeekDeepSetUp::setUpExtractor(extractorPars & pars) {
 	pars_.gapInfo_.gapLeftRefExtend_ = 0;
 	pars_.gapLeft_ = "0,0";
 	processGap();
+
+	if (pars_.verbose_) {
+		if (pars.corePars_.qPars_.checkingQFrac_) {
+			std::cout << "Quality Check: " << pars.corePars_.qPars_.qualCheck_ << std::endl;
+			std::cout << "Quality Check Cut Off: " << pars.corePars_.qPars_.qualCheckCutOff_<< std::endl;
+		} else {
+			std::cout << "Quality Window Length: " << pars.corePars_.qPars_.qualityWindowLength_
+					<< std::endl;
+			std::cout << "Quality Window Step: " << pars.corePars_.qPars_.qualityWindowStep_
+					<< std::endl;
+			std::cout << "Quality Window Threshold: " << pars.corePars_.qPars_.qualityWindowThres_
+					<< std::endl;
+		}
+	}
 	if (needsHelp()) {
 		printFlags(std::cout);
 		std::cout << "The id file should be tab delimited and contains the "
