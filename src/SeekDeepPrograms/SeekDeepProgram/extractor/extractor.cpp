@@ -621,7 +621,7 @@ int SeekDeepRunner::extractor(const bib::progutils::CmdArgs & inputCommands) {
 		}
 	}
 
-	if (!setUp.pars_.debug_) {
+	if(!pars.corePars_.keepUnfilteredReads){
 		bib::files::rmDirForce(unfilteredReadsDir);
 	}
 	if (setUp.pars_.writingOutAlnInfo_) {

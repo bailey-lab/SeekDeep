@@ -357,22 +357,30 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 			//forward
 			std::string forwardPrimerName = "";
 			bool foundInReverse = false;
-			forwardPrimerName = ids.pDeterminator_->determineForwardPrimer(seq.seqBase_, pars.corePars_.pDetPars, alignObj);
-			if ("unrecognized" ==  forwardPrimerName && pars.corePars_.pDetPars.checkComplement_) {
-				forwardPrimerName = ids.pDeterminator_->determineForwardPrimer(seq.mateSeqBase_, pars.corePars_.pDetPars, alignObj);
-				if (seq.seqBase_.on_) {
-					foundInReverse = true;
+			if(pars.corePars_.noPrimers_){
+				forwardPrimerName = ids.pDeterminator_->primers_.begin()->first;
+			}else{
+				forwardPrimerName = ids.pDeterminator_->determineForwardPrimer(seq.seqBase_, pars.corePars_.pDetPars, alignObj);
+				if ("unrecognized" ==  forwardPrimerName && pars.corePars_.pDetPars.checkComplement_) {
+					forwardPrimerName = ids.pDeterminator_->determineForwardPrimer(seq.mateSeqBase_, pars.corePars_.pDetPars, alignObj);
+					if (seq.seqBase_.on_) {
+						foundInReverse = true;
+					}
 				}
 			}
 
+
 			//reverse primer
 			std::string reversePrimerName = "";
-			if (!foundInReverse) {
-				reversePrimerName = ids.pDeterminator_->determineWithReversePrimer(seq.mateSeqBase_, pars.corePars_.pDetPars, alignObj);
-			} else {
-				reversePrimerName = ids.pDeterminator_->determineWithReversePrimer(seq.seqBase_,     pars.corePars_.pDetPars, alignObj);
+			if(pars.corePars_.noPrimers_){
+				reversePrimerName = ids.pDeterminator_->primers_.begin()->first;
+			}else{
+				if (!foundInReverse) {
+					reversePrimerName = ids.pDeterminator_->determineWithReversePrimer(seq.mateSeqBase_, pars.corePars_.pDetPars, alignObj);
+				} else {
+					reversePrimerName = ids.pDeterminator_->determineWithReversePrimer(seq.seqBase_,     pars.corePars_.pDetPars, alignObj);
+				}
 			}
-
 			std::string fullname = "";
 			if(forwardPrimerName != reversePrimerName){
 				fullname = forwardPrimerName + "-" + reversePrimerName;
@@ -822,6 +830,9 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 	auto unRecBarR2Opts = SeqIOOptions::genFastqIn(bib::files::make_path(setUp.pars_.directoryName_, "filteredOff/bad/unrecognizedBarcode_NO_MATCHING_R2.fastq"));
 	writeOutUnrecCounts(unRecBarR1Opts, bib::files::make_path(setUp.pars_.directoryName_, "top_mostCommonR1Starts_for_unrecognizedBarcodes.tab.txt"));
 	writeOutUnrecCounts(unRecBarR2Opts, bib::files::make_path(setUp.pars_.directoryName_, "top_mostCommonR2Starts_for_unrecognizedBarcodes.tab.txt"));
+	if(!pars.corePars_.keepUnfilteredReads){
+		bib::files::rmDirForce(unfilteredReadsDir);
+	}
 	if(setUp.pars_.verbose_){
 		setUp.logRunTime(std::cout);
 	}

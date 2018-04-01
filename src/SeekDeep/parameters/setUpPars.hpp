@@ -30,6 +30,8 @@ struct CoreExtractorPars{
 
   std::string sampleName = "";
 
+  bool keepUnfilteredReads = false;
+
   void setCorePars(seqSetUp & setUp);
 
 };
