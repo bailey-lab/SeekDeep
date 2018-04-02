@@ -284,8 +284,7 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 	}else{
 		expectedSamples = {"all"};
 	}
-	auto barcodeFiles = bib::files::listAllFiles(unfilteredByBarcodesDir, false,
-			VecStr { });
+	auto barcodeFiles = bib::files::listAllFiles(unfilteredByBarcodesDir, false, VecStr { });
 	ReadPairsOrganizer prOrg(expectedSamples);
 	prOrg.processFiles(barcodeFiles);
 	auto readsByPairs = prOrg.processReadPairs();
