@@ -481,22 +481,19 @@ void PrimersAndMids::addRefSeqs(const bfs::path & refSeqsDir){
 			std::regex { R"(.*\.fasta$)" } });
 	VecStr found;
 	auto tars = getTargets();
-	bool failedOverlapStatusProcessing = false;
+	bool foundOtherRefSeqs = false;
 	std::stringstream errorStream;
 	std::set<std::string> alreadyAdded;
 	for (const auto & ff : fastaFiles) {
 		auto tarName = bfs::basename(ff.first);
 		found.emplace_back(tarName);
 		if (!bib::in(tarName, targets_)) {
-			failedOverlapStatusProcessing = true;
-			errorStream << __PRETTY_FUNCTION__ << ", error found " << tarName
-					<< " but it isn't a listed target in " << idFile_ << "\n";
-			errorStream << "options are: "
-					<< bib::conToStr(getVectorOfMapKeys(targets_), ", ") << "\n";
+			foundOtherRefSeqs = true;
+			errorStream << __PRETTY_FUNCTION__ << ", error found " << tarName << " but it isn't a listed target in " << idFile_ << "\n";
+			errorStream << "options are: " << bib::conToStr(getVectorOfMapKeys(targets_), ", ") << "\n";
 		} else if (bib::in(tarName, alreadyAdded)) {
-			failedOverlapStatusProcessing = true;
-			errorStream << __PRETTY_FUNCTION__ << ", error already have " << tarName
-					<< " in table" << "\n";
+			foundOtherRefSeqs = true;
+			errorStream << __PRETTY_FUNCTION__ << ", error already have " << tarName << " in table" << "\n";
 		} else {
 			auto inOpts = SeqIOOptions::genFastaIn(ff.first.string(), false);
 			SeqInput reader(inOpts);
@@ -515,9 +512,9 @@ void PrimersAndMids::addRefSeqs(const bfs::path & refSeqsDir){
 					<< " when loading sequences for others though" << "\n";
 		}
 	}
-
-	if (failedOverlapStatusProcessing) {
-		throw std::runtime_error { errorStream.str() };
+	if (foundOtherRefSeqs) {
+		//for now leaving this out of reporting as projects with mixed targets will generate what is probably unnecessary warnings
+		//std::cerr << errorStream.str() << std::endl;
 	}
 }
 
