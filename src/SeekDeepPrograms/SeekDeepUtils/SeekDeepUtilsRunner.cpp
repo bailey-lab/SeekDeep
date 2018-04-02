@@ -1137,7 +1137,9 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 				bfs::absolute(analysisSetup.dir_), "{REP}_extraction");
 
 		std::string qlusterCmdTemplate = "cd " + extractionDirs.string() + " && "
-				+ setUp.commands_.masterProgram_ + " qluster "
+				+ "if [ -f {TARGET}{MIDREP}.fastq  ]; then "
+				+ setUp.commands_.masterProgram_ +
+					  " qluster "
 						"--fastq {TARGET}{MIDREP}.fastq "
 						"--alnInfoDir {TARGET}{MIDREP}_alnCache --overWriteDir "
 						"--additionalOut ../popClustering/locationByIndex/{TARGET}.tab.txt "
