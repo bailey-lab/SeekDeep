@@ -32,9 +32,9 @@
 namespace bibseq {
 
 
-std::map<std::string, double> processCustomCutOffs(const bfs::path & customCutOffsFnp){
+std::unordered_map<std::string, double> processCustomCutOffs(const bfs::path & customCutOffsFnp, const VecStr & allSamples, double defaultFracCutOff){
 	table customCutOffsTab;
-	std::map<std::string, double> ret;
+	std::unordered_map<std::string, double> ret;
 	if ("" != customCutOffsFnp.string()) {
 		customCutOffsTab = table(customCutOffsFnp.string(), "whitespace", true);
 		if (!bib::in(std::string("sample"), customCutOffsTab.columnNames_)
@@ -51,6 +51,11 @@ std::map<std::string, double> processCustomCutOffs(const bfs::path & customCutOf
 					bib::lexical_cast<double>(
 							customCutOffsTab.content_[rowPos][customCutOffsTab.getColPos(
 									"cutOff")]);
+		}
+	}
+	for(const auto & samp : allSamples){
+		if(!bib::in(samp, ret)){
+			ret[samp] = defaultFracCutOff;
 		}
 	}
 	return ret;
@@ -79,8 +84,6 @@ int SeekDeepRunner::processClusters(const bib::progutils::CmdArgs & inputCommand
 	pars.popIteratorMap.writePars(popParsOutFile);
 
 
-	//process custom cut offs
-	std::map<std::string, double> customCutOffsMap = processCustomCutOffs(pars.customCutOffs);
 	//read in the files in the corresponding sample directories
 	auto analysisFiles = bib::files::listAllFiles(pars.masterDir, true,
 			{ std::regex { "^" + setUp.pars_.ioOptions_.firstName_.string() + "$" } }, 3);
@@ -139,16 +142,20 @@ int SeekDeepRunner::processClusters(const bib::progutils::CmdArgs & inputCommand
 	collapser collapserObj(setUp.pars_.colOpts_);
 	collapserObj.opts_.kmerOpts_.checkKmers_ = false;
 	// output info about the read In reads
-
 	collapse::SampleCollapseCollection sampColl(setUp.pars_.ioOptions_, pars.masterDir,
 			setUp.pars_.directoryName_,
 			PopNamesInfo(pars.experimentName, samplesDirs),
 			pars.clusterCutOff,
 			pars.sampleMinTotalReadCutOff);
 
+
+
 	if("" != pars.groupingsFile){
 		sampColl.addGroupMetaData(pars.groupingsFile);
 	}
+
+	//process custom cut offs
+	std::unordered_map<std::string, double> customCutOffsMap = processCustomCutOffs(pars.customCutOffs, samplesDirs, pars.fracCutoff);
 
 	{
 		bib::concurrent::LockableQueue<std::string> sampleQueue(samplesDirs);
@@ -165,6 +172,7 @@ int SeekDeepRunner::processClusters(const bib::progutils::CmdArgs & inputCommand
 				}
 
 				sampColl.setUpSample(samp, *currentAligner, collapserObj, setUp.pars_.chiOpts_);
+
 				sampColl.clusterSample(samp, *currentAligner, collapserObj, pars.iteratorMap);
 
 				//exclude clusters that don't have the necessary replicate number
@@ -239,19 +247,35 @@ int SeekDeepRunner::processClusters(const bib::progutils::CmdArgs & inputCommand
 			//now exclude all marked chimeras, currently this will also remark chimeras unnecessarily
 			sampColl.sampleCollapses_.at(sampleName)->excludeChimeras(false, pars.chiCutOff);
 		}
-		if (bib::in(sampleName, customCutOffsMap)) {
-			if (setUp.pars_.debug_) {
-				std::cout << "Custom Cut off for " << sampleName << " : "
-						<< customCutOffsMap[sampleName] << std::endl;
-			}
-			sampColl.sampleCollapses_.at(sampleName)->excludeFraction(customCutOffsMap[sampleName],
-					true);
-		} else {
-			sampColl.sampleCollapses_.at(sampleName)->excludeFraction(pars.fracCutoff, true);
-		}
 
+		sampColl.excludeOnFrac(sampleName, customCutOffsMap, pars.fracExcludeOnlyInFinalAverageFrac);
+
+		if(pars.collapseLowFreqOneOffs){
+			sampColl.sampleCollapses_.at(sampleName)->collapseLowFreqOneOffs(pars.lowFreqMultiplier, alignerObj, collapserObj);
+			if (!expectedSeqs.empty()) {
+				sampColl.sampleCollapses_.at(sampleName)->excluded_.checkAgainstExpected(
+						expectedSeqs, alignerObj, false);
+				sampColl.sampleCollapses_.at(sampleName)->collapsed_.checkAgainstExpected(
+						expectedSeqs, alignerObj, false);
+				if(setUp.pars_.debug_){
+					std::cout << "sample: " << sampleName << std::endl;
+				}
+				for(const auto & clus : sampColl.sampleCollapses_.at(sampleName)->collapsed_.clusters_){
+					if(setUp.pars_.debug_){
+						std::cout << clus.seqBase_.name_ << " : " << clus.expectsString << std::endl;
+					}
+					if("" ==  clus.expectsString ){
+						std::stringstream ss;
+						ss << __PRETTY_FUNCTION__ << ": Error, expects string is blank" << std::endl;
+						ss << clus.seqBase_.name_ << std::endl;
+						throw std::runtime_error{ss.str()};
+					}
+				}
+			}
+		}
 		std::string sortBy = "fraction";
 		sampColl.sampleCollapses_.at(sampleName)->renameClusters(sortBy);
+
 		sampColl.dumpSample(sampleName);
 	}
 	if(setUp.pars_.verbose_){

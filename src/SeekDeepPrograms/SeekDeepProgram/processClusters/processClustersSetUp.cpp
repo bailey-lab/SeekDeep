@@ -113,6 +113,9 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 		failed_ = true;
 	}
 	setOption(pars.clusterCutOff, "--clusterCutOff", "Input Cluster Size Cut Off", false, "Filtering");
+	setOption(pars.fracExcludeOnlyInFinalAverageFrac, "--fracExcludeOnlyInFinalAverageFrac", "By default fraction exclusion is done per rep, use fracExcludeOnlyInFinalAverageFrac to exclude only on the final averaged frac", false, "Filtering");
+
+
 	setOption(pars.noTrees, "--noTrees", "Don't generate html difference trees");
 	processDirectoryOutputName("clusters_" + getCurrentDate(), true);
 
@@ -120,6 +123,12 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 	processRefFilename();
 	setOption(pars.noPopulation, "--noPopulation",
 			"Don't do Population Clustering", false, "Population");
+
+
+	setOption(pars.collapseLowFreqOneOffs, "--collapseLowFreqOneOffs",
+			"Collapse any haplotypes that are low frequency compared to another haplotype (determined by lowFreqMultiplier) and only differs by 1 base", false, "Filtering");
+	setOption(pars.lowFreqMultiplier, "--lowFreqMultiplier",
+			"Low Freq Multiplier used for --collapseLowFreqOneOffs, considered low frequency if haplotype frac is less than its fraction times this number than the other haplotype", false, "Filtering");
 
 	setOption(pars.fracCutoff, "--fracCutOff",
 			"Final cluster Fraction Cut off", false, "Filtering");

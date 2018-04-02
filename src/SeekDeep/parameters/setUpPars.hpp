@@ -134,6 +134,10 @@ struct processClustersPars {
   bool extra = false;
   double fracCutoff = 0.005;
   uint32_t runsRequired = 0;
+  bool fracExcludeOnlyInFinalAverageFrac = false;
+
+  bool collapseLowFreqOneOffs = false;
+  double lowFreqMultiplier = 30;
 
   bool keepChimeras = false;
   bool investigateChimeras = false;
