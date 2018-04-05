@@ -786,9 +786,24 @@ class Packages():
     
     def __bowtie2(self):
         name = "bowtie2"
+        url = "https://github.com/BenLangmead/bowtie2.git"
         buildCmd = "CC={CC} CXX={CXX} make -j {num_cores} && mkdir -p {local_dir}/bin && cp -r bowtie2* {local_dir}/bin/"
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "2.2.6")
-        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/bowtie2/bowtie2-2.2.6.tar.gz", "2.2.6")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v2.3.4.1")
+        if self.args.noInternet:
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                pack = pickle.load(inputPkl)
+                pack.defaultBuildCmd_ = buildCmd
+        elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                pack = pickle.load(inputPkl)
+                pack.defaultBuildCmd_ = buildCmd
+        else:
+            refs = pack.getGitRefs(url)
+            for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
+                pack.addVersion(url, ref)
+            Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
+                pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
         return pack
         
     def __flash(self):
@@ -836,9 +851,25 @@ class Packages():
         
     def __samtools(self):
         name = "samtools"
-        buildCmd = "CC={CC} CXX={CXX} ./configure --prefix={local_dir} && make -j {num_cores} && make install "
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "1.3.1")
-        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/samtools/samtools-1.3.1.tar.bz2", "1.3.1")
+        url = "https://github.com/samtools/samtools.git"
+        buildCmd = "git clone https://github.com/samtools/htslib.git && cd htslib && git checkout SAMVERSION && CC={CC} CXX={CXX} autoheader && autoconf  && cd .. && CC={CC} CXX={CXX} autoheader && autoconf &&  ./configure --prefix={local_dir} && make -j {num_cores} && make install "
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "1.8")
+        if self.args.noInternet:
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                pack = pickle.load(inputPkl)
+                pack.defaultBuildCmd_ = buildCmd
+        elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                pack = pickle.load(inputPkl)
+                pack.defaultBuildCmd_ = buildCmd
+        else:
+            refs = pack.getGitRefs(url)
+            for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
+                pack.addVersion(url, ref)
+                pack.versions_[ref].cmd_ = buildCmd.replace("SAMVERSION", ref)
+            Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
+                pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
         return pack
     
     def __bcftools(self):
@@ -853,7 +884,6 @@ class Packages():
         url = "https://github.com/samtools/htslib.git"
         buildCmd = "CC={CC} CXX={CXX} && autoheader && autoconf && ./configure --prefix={local_dir} && make -j {num_cores} && make install -j {num_cores}"
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "1.3.1")
-
         if self.args.noInternet:
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
                 pack = pickle.load(inputPkl)
