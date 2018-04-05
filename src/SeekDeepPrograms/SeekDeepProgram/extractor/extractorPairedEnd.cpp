@@ -447,7 +447,7 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 	aligner processingPairsAligner(maxReadSize, alnGapPars, pairedProcessingScoring, false);
 	processingPairsAligner.qScorePars_.qualThresWindow_ = 0;
 	std::unordered_map<std::string, std::vector<uint32_t>> lengthsPerStitchedTarget;
-	std::unordered_map<std::string, PairedReadProcessor::ProcessedResults> resultsPerMidTarPair;
+	std::unordered_map<std::string, std::pair<std::string, PairedReadProcessor::ProcessedResults>> resultsPerMidTarPair;
 	for(const auto & extractedMid : primersInMids){
 		for(const auto & extractedPrimer : extractedMid.second){
 			std::string name = extractedPrimer + extractedMid.first;
@@ -498,12 +498,12 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 			if(setUp.pars_.verbose_){
 				std::cout << "Done Pair Processing for " << name << std::endl;
 			}
-			resultsPerMidTarPair[name] = currentProcessResults;
+			resultsPerMidTarPair[name] = std::make_pair(extractedPrimer,currentProcessResults);
 		}
 	}
 
 	OutputStream outPairProcessOut(bib::files::make_path(setUp.pars_.directoryName_, "processPairsCounts.tab.txt"));
-	outPairProcessOut << "inputName\tName\ttotal\tnotCombined\tperfectOverlapCombined\tr1BeginsInR2Combined\tr1EndsInR2Combined" << std::endl;;
+	outPairProcessOut << "inputName\tName\ttarget\ttotal\tnotCombined\tperfectOverlapCombined\tr1BeginsInR2Combined\tr1EndsInR2Combined" << std::endl;;
 	auto processedPairsKeys = bib::getVecOfMapKeys(resultsPerMidTarPair);
 	bib::sort(processedPairsKeys);
 
@@ -511,13 +511,13 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 		const auto & processedResults = resultsPerMidTarPair[processedResultsKey];
 		outPairProcessOut << seqName
 				<< "\t" << processedResultsKey
-				<< "\t" << processedResults.total
-				<< "\t" << getPercentageString(processedResults.overlapFail, processedResults.total)
-				<< "\t" << getPercentageString(processedResults.perfectOverlapCombined, processedResults.total)
-				<< "\t" << getPercentageString(processedResults.r1BeginsInR2Combined, processedResults.total)
-				<< "\t" << getPercentageString(processedResults.r1EndsInR2Combined, processedResults.total)
+				<< "\t" << processedResults.first
+				<< "\t" << processedResults.second.total
+				<< "\t" << getPercentageString(processedResults.second.overlapFail, processedResults.second.total)
+				<< "\t" << getPercentageString(processedResults.second.perfectOverlapCombined, processedResults.second.total)
+				<< "\t" << getPercentageString(processedResults.second.r1BeginsInR2Combined, processedResults.second.total)
+				<< "\t" << getPercentageString(processedResults.second.r1EndsInR2Combined, processedResults.second.total)
 				<< std::endl;
-
 	}
 
 	VecStr lengthNeeded;
@@ -543,18 +543,18 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 					std::cout << extractedPrimer << " " << "NOOVERLAP" << std::endl;
 				}
 				PairedRead filteringSeq;
-				if(nullptr == resultsPerMidTarPair[name].notCombinedOpts){
+				if(nullptr == resultsPerMidTarPair[name].second.notCombinedOpts){
 					if(setUp.pars_.verbose_){
 						std::cout << "No reads for " << name << std::endl;
 					}
 					continue;
 				}
 				//add failed pair processing
-				uint32_t failedPairProcessingForName = resultsPerMidTarPair[name].total - resultsPerMidTarPair[name].overlapFail;
+				uint32_t failedPairProcessingForName = resultsPerMidTarPair[name].second.total - resultsPerMidTarPair[name].second.overlapFail;
 				failedPairProcessing[name] = failedPairProcessingForName;
 				failedPairProcessingTotal += failedPairProcessingForName;
 				//get seq options for expected pair status
-				SeqIOOptions filterSeqOpts = *resultsPerMidTarPair[name].notCombinedOpts;
+				SeqIOOptions filterSeqOpts = *resultsPerMidTarPair[name].second.notCombinedOpts;
 				SeqInput processedReader(filterSeqOpts);
 				auto contaminationOutOpts = SeqIOOptions::genPairedOut(bib::files::make_path(unfilteredByPairsProcessedDir, "possibleContamination_" + name));
 				SeqOutput contaminationWriter(contaminationOutOpts);
@@ -602,31 +602,31 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 				SeqIOOptions filterSeqOpts;
 
 				if(PairedReadProcessor::ReadPairOverLapStatus::R1BEGINSINR2 == bib::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
-					if(nullptr == resultsPerMidTarPair[name].r1BeginsInR2CombinedOpts){
+					if(nullptr == resultsPerMidTarPair[name].second.r1BeginsInR2CombinedOpts){
 						if(setUp.pars_.verbose_){
 							std::cout << "No reads stitched for " << name << std::endl;
 						}
 						continue;
 					}
 					//add failed pair processing
-					uint32_t failedPairProcessingForName = resultsPerMidTarPair[name].total - resultsPerMidTarPair[name].r1BeginsInR2Combined;
+					uint32_t failedPairProcessingForName = resultsPerMidTarPair[name].second.total - resultsPerMidTarPair[name].second.r1BeginsInR2Combined;
 					failedPairProcessing[name] = failedPairProcessingForName;
 					failedPairProcessingTotal += failedPairProcessingForName;
 					//get seq options for expected pair status
-					filterSeqOpts = *resultsPerMidTarPair[name].r1BeginsInR2CombinedOpts;
+					filterSeqOpts = *resultsPerMidTarPair[name].second.r1BeginsInR2CombinedOpts;
 				}else{
-					if(nullptr == resultsPerMidTarPair[name].r1EndsInR2CombinedOpts){
+					if(nullptr == resultsPerMidTarPair[name].second.r1EndsInR2CombinedOpts){
 						if(setUp.pars_.verbose_){
 							std::cout << "No reads stitched for " << name << std::endl;
 						}
 						continue;
 					}
 					//add failed pair processing
-					uint32_t failedPairProcessingForName = resultsPerMidTarPair[name].total - resultsPerMidTarPair[name].r1EndsInR2Combined;
+					uint32_t failedPairProcessingForName = resultsPerMidTarPair[name].second.total - resultsPerMidTarPair[name].second.r1EndsInR2Combined;
 					failedPairProcessing[name] = failedPairProcessingForName;
 					failedPairProcessingTotal += failedPairProcessingForName;
 					//get seq options for expected pair status
-					filterSeqOpts = *resultsPerMidTarPair[name].r1EndsInR2CombinedOpts;
+					filterSeqOpts = *resultsPerMidTarPair[name].second.r1EndsInR2CombinedOpts;
 				}
 				SeqInput processedReader(filterSeqOpts);
 				auto contaminationOutOpts = SeqIOOptions::genFastqOut(bib::files::make_path(unfilteredByPairsProcessedDir, "possibleContamination_" + name + ".fastq"));
