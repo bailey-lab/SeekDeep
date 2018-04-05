@@ -467,7 +467,7 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 			if(pars.corePars_.primIdsPars.noOverlapProcessForNoOverlapStatusTargets_ && PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP == bib::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
 				PairedReadProcessor::ProcessedResults currentProcessResults;
 				currentProcessResults.notCombinedOpts = std::make_shared<SeqIOOptions>(currentPairOpts);
-				resultsPerMidTarPair[name] = currentProcessResults;
+				resultsPerMidTarPair[name] = std::make_pair(extractedPrimer, currentProcessResults);
 				continue;
 			}
 			OutOptions currentOutOpts(bib::files::make_path(unfilteredByPairsProcessedDir, name));
