@@ -66,7 +66,7 @@ int SeekDeepUtilsRunner::genTargetInfoFromGenomes(const bib::progutils::CmdArgs 
 	setUp.setOption(pars.numThreads_, "--numThreads", "Number of CPUs to utilize");
 	setUp.setOption(removeRefAlignments, "--removeRefAlignments", "Remove Ref Alignments");
   setUp.setOption(pars.genomeDir_, "--genomeDir", "Name of the genome file fnp", true);
-  setUp.setOption(pars.primaryGenome_, "--primaryGenome", "The primary reference genome", true);
+  //setUp.setOption(pars.primaryGenome_, "--primaryGenome", "The primary reference genome", true);
 	setUp.setOption(selectedGenomesStr, "--selectedGenomes", "Name of the other genomes in --genomeDir to be read in, leave blank to just do all fastas");
 	setUp.setOption(primersFile, "--primers", "A file that contains three columns, target,forwardPrimer,reversePrimer 5` to 3` directions, same file as the input to SeekDeep", true);
 	setUp.processDirectoryOutputName("extractedRegions_TODAY", true);
