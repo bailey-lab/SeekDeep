@@ -1,6 +1,6 @@
 //
 // SeekDeep - A library for analyzing amplicon sequence data
-// Copyright (C) 2012-2016 Nicholas Hathaway <nicholas.hathaway@umassmed.edu>,
+// Copyright (C) 2012-2018 Nicholas Hathaway <nicholas.hathaway@umassmed.edu>,
 // Jeffrey Bailey <Jeffrey.Bailey@umassmed.edu>
 //
 // This file is part of SeekDeep.
@@ -23,7 +23,6 @@
 //  SeekDeep
 //
 //  Created by Nicholas Hathaway on 8/11/13.
-//  Copyright (c) 2013 Nicholas Hathaway. All rights reserved.
 //
 #include "SeekDeepRunner.hpp"
 #include <bibcpp.h>

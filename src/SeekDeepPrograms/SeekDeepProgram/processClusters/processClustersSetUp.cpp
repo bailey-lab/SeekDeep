@@ -5,11 +5,9 @@
  *      Author: nick
  */
 
-
-
 //
 // SeekDeep - A library for analyzing amplicon sequence data
-// Copyright (C) 2012-2016 Nicholas Hathaway <nicholas.hathaway@umassmed.edu>,
+// Copyright (C) 2012-2018 Nicholas Hathaway <nicholas.hathaway@umassmed.edu>,
 // Jeffrey Bailey <Jeffrey.Bailey@umassmed.edu>
 //
 // This file is part of SeekDeep.
@@ -26,7 +24,6 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with SeekDeep.  If not, see <http://www.gnu.org/licenses/>.
-//
 //
 #include "SeekDeepPrograms/SeekDeepProgram/SeekDeepSetUp.hpp"
 #include <bibcpp/bashUtils.h>
