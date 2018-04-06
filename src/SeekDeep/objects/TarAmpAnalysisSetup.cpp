@@ -5,7 +5,26 @@
  *      Author: nick
  */
 
-
+//
+// SeekDeep - A library for analyzing amplicon sequence data
+// Copyright (C) 2012-2018 Nicholas Hathaway <nicholas.hathaway@umassmed.edu>,
+// Jeffrey Bailey <Jeffrey.Bailey@umassmed.edu>
+//
+// This file is part of SeekDeep.
+//
+// SeekDeep is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// SeekDeep is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with SeekDeep.  If not, see <http://www.gnu.org/licenses/>.
+//
 #include "TarAmpAnalysisSetup.hpp"
 
 
@@ -90,8 +109,8 @@ bool TarAmpAnalysisSetup::TarAmpPars::allChecks(VecStr & warnings) const {
 	bool status = true;
 	status = status && checkForRequiredFnpPars(warnings);
 	status = status && checkForOptionalFnpPars(warnings);
-	status = status && checkForStitcher(warnings);
-	status = status && checkForZcat(warnings);
+	//status = status && checkForStitcher(warnings);
+	//status = status && checkForZcat(warnings);
 	return status;
 }
 
@@ -568,6 +587,7 @@ void TarAmpAnalysisSetup::writeOutIdFiles() const{
 							collapse + "_lenCutOffs.tab.txt"));
 			lens.outPutContents(lensOutOpts);
 		}
+
 		if (!overlapStatuses.empty()) {
 			auto overlapStatusesOpts = TableIOOpts::genTabFileOut(
 					bib::files::make_path(idsDir_,

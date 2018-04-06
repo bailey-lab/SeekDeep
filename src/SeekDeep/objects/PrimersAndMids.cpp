@@ -4,7 +4,26 @@
  *  Created on: Nov 27, 2016
  *      Author: nick
  */
-
+//
+// SeekDeep - A library for analyzing amplicon sequence data
+// Copyright (C) 2012-2018 Nicholas Hathaway <nicholas.hathaway@umassmed.edu>,
+// Jeffrey Bailey <Jeffrey.Bailey@umassmed.edu>
+//
+// This file is part of SeekDeep.
+//
+// SeekDeep is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// SeekDeep is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with SeekDeep.  If not, see <http://www.gnu.org/licenses/>.
+//
 #include "PrimersAndMids.hpp"
 
 namespace bibseq {
@@ -60,11 +79,12 @@ PrimersAndMids::PrimersAndMids(const bfs::path & idFileFnp) :
 	auto firstLine = bib::files::getFirstLine(idFileFnp.string());
 	bib::strToLower(firstLine);
 	if (!bib::beginsWith(firstLine, "gene")
-			&& !bib::beginsWith(firstLine, "target")) {
+			&& !bib::beginsWith(firstLine, "target")
+				&& !bib::beginsWith(firstLine, "id")) {
 		std::stringstream ss;
 		ss << __PRETTY_FUNCTION__ << ": error the id file "
 				<< bib::bashCT::boldRed(idFile_.string())
-				<< " should start with either target or gene (case insensitive)\n";
+				<< " should start with either target, gene, or id (case insensitive)\n";
 		ss << "line: " << firstLine << "\n";
 		throw std::runtime_error { ss.str() };
 	}
@@ -162,6 +182,19 @@ bool PrimersAndMids::containsTargets() const {
 	return !targets_.empty();
 }
 
+bool PrimersAndMids::screeningForPossibleContamination() const {
+	bool hasRefs = false;
+	for(const auto & tar : targets_){
+		if(!tar.second.refs_.empty()){
+			hasRefs = true;
+			break;
+		}
+	}
+	return hasRefs;
+}
+
+
+
 
 
 void PrimersAndMids::writeIdFile(const OutOptions & outOpts) const {
@@ -233,7 +266,7 @@ table PrimersAndMids::genOverlapStatuses(const VecStr & targets) const {
 					<< std::endl;
 			throw std::runtime_error { ss.str() };
 		}
-		if (nullptr != targets_.at(tar).lenCuts_) {
+		if(PairedReadProcessor::ReadPairOverLapStatus::NONE != targets_.at(tar).overlapStatus_){
 			ret.addRow(tar, PairedReadProcessor::getOverlapStatusStr(targets_.at(tar).overlapStatus_));
 		}
 	}
@@ -290,6 +323,41 @@ std::map<std::string, PrimersAndMids::Target::lenCutOffs> PrimersAndMids::readIn
 						row[lenCutTab.getColPos("maxlen")]) });
 	}
 	return ret;
+}
+
+void PrimersAndMids::checkIfMIdsOrPrimersReadInThrow(
+		const std::string & funcName) const {
+	if (0 == getMids().size() && 0 == getTargets().size()) {
+		std::stringstream ss;
+		ss << funcName << ", failed to read either targets or primers from "
+				<< idFile_ << "\n";
+		throw std::runtime_error { ss.str() };
+	}
+}
+
+void PrimersAndMids::initAllAddLenCutsRefs(const InitPars & pars){
+	//init mids
+	if(containsMids()){
+		initMidDeterminator();
+		mDeterminator_->setAllowableMismatches(pars.barcodeErrors_);
+		mDeterminator_->setMidEndsRevComp(pars.midEndsRevComp_);
+	}
+
+	//init primers
+	if(containsTargets()){
+		initPrimerDeterminator();
+	}
+
+	//add in any length cuts if any
+	if("" != pars.lenCutOffFilename_){
+		addLenCutOffs(pars.lenCutOffFilename_);
+	}
+
+	//add in ref sequences if any
+	if("" != pars.comparisonSeqFnp_){
+		addRefSeqs(pars.comparisonSeqFnp_);
+		setRefSeqsKInfos(pars.compKmerLen_, true);
+	}
 }
 
 void PrimersAndMids::initMidDeterminator(){
@@ -432,22 +500,19 @@ void PrimersAndMids::addRefSeqs(const bfs::path & refSeqsDir){
 			std::regex { R"(.*\.fasta$)" } });
 	VecStr found;
 	auto tars = getTargets();
-	bool failedOverlapStatusProcessing = false;
+	bool foundOtherRefSeqs = false;
 	std::stringstream errorStream;
 	std::set<std::string> alreadyAdded;
 	for (const auto & ff : fastaFiles) {
 		auto tarName = bfs::basename(ff.first);
 		found.emplace_back(tarName);
 		if (!bib::in(tarName, targets_)) {
-			failedOverlapStatusProcessing = true;
-			errorStream << __PRETTY_FUNCTION__ << ", error found " << tarName
-					<< " but it isn't a listed target in " << idFile_ << "\n";
-			errorStream << "options are: "
-					<< bib::conToStr(getVectorOfMapKeys(targets_), ", ") << "\n";
+			foundOtherRefSeqs = true;
+			errorStream << __PRETTY_FUNCTION__ << ", error found " << tarName << " but it isn't a listed target in " << idFile_ << "\n";
+			errorStream << "options are: " << bib::conToStr(getVectorOfMapKeys(targets_), ", ") << "\n";
 		} else if (bib::in(tarName, alreadyAdded)) {
-			failedOverlapStatusProcessing = true;
-			errorStream << __PRETTY_FUNCTION__ << ", error already have " << tarName
-					<< " in table" << "\n";
+			foundOtherRefSeqs = true;
+			errorStream << __PRETTY_FUNCTION__ << ", error already have " << tarName << " in table" << "\n";
 		} else {
 			auto inOpts = SeqIOOptions::genFastaIn(ff.first.string(), false);
 			SeqInput reader(inOpts);
@@ -466,10 +531,20 @@ void PrimersAndMids::addRefSeqs(const bfs::path & refSeqsDir){
 					<< " when loading sequences for others though" << "\n";
 		}
 	}
-
-	if (failedOverlapStatusProcessing) {
-		throw std::runtime_error { errorStream.str() };
+	if (foundOtherRefSeqs) {
+		//for now leaving this out of reporting as projects with mixed targets will generate what is probably unnecessary warnings
+		//std::cerr << errorStream.str() << std::endl;
 	}
 }
+
+
+void PrimersAndMids::addDefaultLengthCutOffs(uint32_t minLength, uint32_t maxLength){
+	for(auto & tar : targets_ ){
+		if(nullptr == tar.second.lenCuts_){
+			tar.second.addLenCutOff(minLength, maxLength);
+		}
+	}
+}
+
 
 }  // namespace bibseq
