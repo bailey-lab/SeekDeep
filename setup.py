@@ -608,7 +608,7 @@ class Packages():
         name = "libpca"
         #the version will get overridden by setting pack.defaultBuildCmd_ latter, but the dependency check needs to install it first
         armPack = self.__armadillo()
-        buildCmd = """CC={CC} CXX={CXX} ./configure --prefix {local_dir} && make -j {num_cores} install"""
+        buildCmd = """CC={CC} CXX={CXX} autoreconf -f -i &&  ./configure --prefix {local_dir} && make -j {num_cores} install"""
         defaultArmVer = "8.200.0"
         url = "https://github.com/nickjhathaway/libpca.git"
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "1.3.3")
