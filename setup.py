@@ -626,7 +626,7 @@ class Packages():
                 pack.addVersion(url, ref, [LibNameVer("armadillo", defaultArmVer)] )
                 armLdFlags = armPack.versions_[defaultArmVer].getLdFlags(self.dirMaster_.install_dir)
                 armIncFlags = armPack.versions_[defaultArmVer].getIncludeFlags(self.dirMaster_.install_dir)
-                pack.versions_[ref].cmd_ = "CC={CC} CXX={CXX} LDFLAGS=\"" + armLdFlags + "\" CXXFLAGS=\"" + armIncFlags + "\" ./configure --prefix {local_dir}  && make -j {num_cores} install"
+                pack.versions_[ref].cmd_ = "CC={CC} CXX={CXX} LDFLAGS=\"" + armLdFlags + "\" CXXFLAGS=\"" + armIncFlags + "\" autoreconf -f -i &&  ./configure  --prefix {local_dir}  && make -j {num_cores} install"
                 pack.versions_[ref].cmd_ = " ".join(pack.versions_[ref].cmd_.split())
                 pack.versions_[ref] .altLibName_ = "pca" 
             Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
