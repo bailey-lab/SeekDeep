@@ -176,12 +176,17 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 
 
 	while (reader.readNextRead(seq)) {
+//		std::cout << seq.seqBase_.name_ << std::endl;
+//		bool print = false;
+//		if("M02551:63:000000000-D3YB2:1:1102:10373:15072 1:N:0:1" == seq.seqBase_.name_){
+//			print = true;
+//		}
+		//std::cout << __PRETTY_FUNCTION__ << " " << __LINE__ << std::endl;
 		++count;
 		if (setUp.pars_.verbose_ && count % 50 == 0) {
 			std::cout << "\r" << count ;
 			std::cout.flush();
 		}
-
 		readVec::handelLowerCaseBases(seq, setUp.pars_.ioOptions_.lowerCaseBases_);
 
 		if (len(seq) < pars.corePars_.smallFragmentCutoff) {
@@ -194,7 +199,13 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 
 		std::pair<MidDeterminator::midPos, MidDeterminator::midPos> currentMid;
 		if (ids.containsMids()) {
+//			if(print){
+//				std::cout << __PRETTY_FUNCTION__ << " " << __LINE__ << std::endl;
+//			}
 			currentMid = ids.mDeterminator_->fullDetermine(seq, pars.corePars_.mDetPars);
+//			if(print){
+//				std::cout << __PRETTY_FUNCTION__ << " " << __LINE__ << std::endl;
+//			}
 		} else {
 			currentMid = {MidDeterminator::midPos("all", 0, 0, 0), MidDeterminator::midPos("all", 0, 0, 0)};
 		}
