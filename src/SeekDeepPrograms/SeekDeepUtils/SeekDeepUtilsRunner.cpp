@@ -492,6 +492,7 @@ int SeekDeepUtilsRunner::runMultipleCommands(
 					for(const auto & tok : repToks){
 						addOtherVec(finalReplacements, getInputValues(tok, ","));
 					}
+					replacements[toks.front()] = finalReplacements;
 				}
 			}
 		}
