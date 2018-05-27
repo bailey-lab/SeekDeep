@@ -401,19 +401,22 @@ int SeekDeepUtilsRunner::dryRunQualityFiltering(
 
 int SeekDeepUtilsRunner::runMultipleCommands(
 		const bib::progutils::CmdArgs & inputCommands) {
-	seqSetUp setUp(inputCommands);
 	std::string filename = "";
 	std::string logFile = "";
 	uint32_t numThreads = 1;
 	bool raw = false;
+	bool noFilesInReplacementToks = false;
+	seqSetUp setUp(inputCommands);
 	setUp.setOption(numThreads, "--numThreads", "Number of threads to use");
 	setUp.setOption(logFile, "--logFile",
 			"Name of a file to log the output of the commands");
 	setUp.setOption(filename, "--cmdFile",
 			"Name of the file, first line is command with REPLACETHIS, the next lines are the cmd to run with that line replacing REPLACETHIS",
 			true);
-	setUp.setOption(raw, "--raw,-r",
+	setUp.setOption(raw, "--raw",
 			"If if the file is simply just a list of commands to run");
+	setUp.setOption(noFilesInReplacementToks, "--noFilesInReplacementToks",
+			"The replacement tokens are by default checked to see if there are files and more replacement strings are read in where each line is a replacement, this turns off that behavior");
 	setUp.processVerbose();
 	setUp.processWritingOptions();
 	setUp.processDebug();
@@ -481,7 +484,15 @@ int SeekDeepUtilsRunner::runMultipleCommands(
 			if (toks.front() == "CMD") {
 				cmd = toks.back();
 			} else {
-				replacements[toks.front()] = tokenizeString(toks.back(), ",");
+				if(noFilesInReplacementToks){
+					replacements[toks.front()] = tokenizeString(toks.back(), ",");
+				}else{
+					auto repToks = tokenizeString(toks.back(), ",");
+					VecStr finalReplacements;
+					for(const auto & tok : repToks){
+						addOtherVec(finalReplacements, getInputValues(tok, ","));
+					}
+				}
 			}
 		}
 		for (const auto & r : replacements) {
