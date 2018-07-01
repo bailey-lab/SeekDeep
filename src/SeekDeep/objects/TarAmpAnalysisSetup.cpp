@@ -79,15 +79,19 @@ bool TarAmpAnalysisSetup::TarAmpPars::checkIfFnpExists(const bfs::path & fnp,
 }
 
 
-bool TarAmpAnalysisSetup::TarAmpPars::techIs454()const{
+bool TarAmpAnalysisSetup::TarAmpPars::techIs454() const {
 	return "454" == technology;
 }
 
-bool TarAmpAnalysisSetup::TarAmpPars::techIsIllumina()const{
+bool TarAmpAnalysisSetup::TarAmpPars::techIsIllumina() const {
 	return "illumina" == technology;
 }
 
-bool TarAmpAnalysisSetup::TarAmpPars::techIsIonTorrent()const{
+bool TarAmpAnalysisSetup::TarAmpPars::techIsIlluminaSingleEnd() const {
+	return "illumina-singleend" == technology;
+}
+
+bool TarAmpAnalysisSetup::TarAmpPars::techIsIonTorrent() const {
 	return "iontorrent" == technology;
 }
 

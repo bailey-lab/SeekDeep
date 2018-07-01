@@ -154,7 +154,7 @@ void SeekDeepSetUp::setUpExtractor(extractorPars & pars) {
 
 	setOption(pars.illumina, "--illumina", "If input reads are from Illumina",false, "Technology");
 	if(pars.illumina){
-		pars.corePars_.qPars_.checkingQFrac_= true;
+		pars.corePars_.qPars_.checkingQFrac_ = true;
 		/**@todo fiddle with primer check errors allowed*/
 	}
 	processReadInNames(VecStr{"--fasta", "--fastagz", "--fastq", "--fastqgz"},true);

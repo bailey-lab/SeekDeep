@@ -114,7 +114,7 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 				<< std::endl;
 	}
 
-	// read in the paramteres from the parameters file
+	// read in the parameters from the parameters file
 	setUp.rLog_ << "Parameters used" << "\n";
 	pars.iteratorMap.writePars(setUp.rLog_.runLogFile_);
 	if (setUp.pars_.verbose_) {
@@ -147,8 +147,12 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 	std::sort(clusters.begin(), clusters.end());
 	//readVecSorter::sortReadVector(clusters, sortBy);
 	setUp.rLog_.logCurrentTime("Indexing kmers");
-	KmerMaps kMaps = indexKmers(clusters, setUp.pars_.colOpts_.kmerOpts_.kLength_, setUp.pars_.colOpts_.kmerOpts_.runCutOff_,
-			setUp.pars_.colOpts_.kmerOpts_.kmersByPosition_, setUp.pars_.expandKmerPos_, setUp.pars_.expandKmerSize_);
+	KmerMaps kMaps = indexKmers(clusters,
+			setUp.pars_.colOpts_.kmerOpts_.kLength_,
+			setUp.pars_.colOpts_.kmerOpts_.runCutOff_,
+			setUp.pars_.colOpts_.kmerOpts_.kmersByPosition_,
+			setUp.pars_.expandKmerPos_,
+			setUp.pars_.expandKmerSize_);
 	setUp.rLog_.logCurrentTime("Creating aligner");
 	// create aligner class object
 	aligner alignerObj(maxSize,

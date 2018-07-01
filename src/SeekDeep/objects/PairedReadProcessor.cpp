@@ -238,6 +238,11 @@ bool PairedReadProcessor::processPairedEnd(
 		aligner & alignerObj,
 		ProcessedResults & res){
 
+//	auto seqOutTemp = SeqIOOptions::genFastqOut("test.fastq");
+//	seqOutTemp.out_.append_ = true;
+//	SeqOutput tempWriter(seqOutTemp);
+//	tempWriter.openOut();
+
 	if(reader.readNextRead(seq)){
 		double percentId = 1 - params_.errorAllowed_ ;
 		++res.total;
@@ -357,7 +362,10 @@ bool PairedReadProcessor::processPairedEnd(
 				}
 				if(params_.writeOverHangs_){
 					writers.overhangsWriter->openWrite(overhang);
+
 				}
+//				tempWriter.write(alignerObj.alignObjectA_);
+//				tempWriter.write(alignerObj.alignObjectB_);
 				std::string cseq;
 				cseq.reserve(alignerObj.comp_.distances_.basesInAln_);
 				std::vector<uint32_t> quals;
