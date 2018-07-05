@@ -43,7 +43,10 @@ struct CoreExtractorPars{
 
 
   MidDeterminator::MidDeterminePars mDetPars;
+
   PrimerDeterminator::PrimerDeterminatorPars pDetPars;
+  PrimerDeterminator::PrimerDeterminatorPars backEndpDetPars;
+
   bool noPrimers_{false};
   PrimersAndMids::InitPars primIdsPars;
 
@@ -75,6 +78,8 @@ struct extractorPars{
 	uint32_t trimAtQualCutOff = 2;
 	bool trimAtQual = false;
 	bool qualWindowTrim = false;
+
+	bool trimToMaxLength = false;
 
 };
 

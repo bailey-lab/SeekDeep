@@ -253,7 +253,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	}
 	auto expectedSamples = analysisSetup.getExpectantInputNames();
 	if(setUp.pars_.debug_){
-		std::cout << "Expected input files: " << std::endl;
+		std::cout << "Expected samples: " << std::endl;
 		std::cout << bib::conToStr(expectedSamples, "\n") << std::endl;
 	}
 	VecStr unrecognizedInput;
@@ -314,46 +314,47 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 //		}
 	} else {
 		// ion torrent and 454 extraction and moving goes here
-		// need to add to extractSamples if found
 		// need to find samples that are empty
 		// add to inputPassed
 		// just checking for possible compression with file ending, might consider changing to libmagic or something to make sure
 		bool compressed = false;
-		if(bib::endsWith(analysisSetup.pars_.inputFilePat, ".gz")){
+		if (bib::endsWith(analysisSetup.pars_.inputFilePat, ".gz")) {
 			compressed = true;
 		}
-
-		for(const auto & file : files){
+		for (const auto & file : files) {
 			auto fNameNoExt = file.first.filename().replace_extension("");
-			if(compressed){
+			if (compressed) {
 				fNameNoExt.replace_extension("");
 			}
-			if(bib::in(fNameNoExt.string(), expectedSamples)){
+			if (bib::in(fNameNoExt.string(), expectedSamples)) {
 				filesByPossibleName[fNameNoExt.string()] = file.first;
-			}else{
+			} else {
 				unrecognizedInput.emplace_back(file.first.string());
 			}
 		}
 		auto keys = bib::getVecOfMapKeys(filesByPossibleName);
 		bib::sort(keys);
+		sampleFilesFound = keys;
+		VecStr samplesNotFound;
+		//std::cout <<"expectedSamples.size(): " << expectedSamples.size() << std::endl;
+		for (const auto & expected : expectedSamples) {
+			if (!bib::in(expected, keys)
+					&& !bib::in(bib::replaceString(expected, "MID", ""),
+							keys)) {
+				samplesNotFound.emplace_back(expected);
+			}
+		}
+
+		if (!samplesNotFound.empty()) {
+			foundErrors = true;
+			errorOutput << "The following input files were not found" << std::endl;
+			for (const auto & samp : samplesNotFound) {
+				errorOutput << "\tSample: " << samp << std::endl;
+			}
+		}
 	}
 
-//	VecStr samplesNotFound;
-//	for (const auto & expected : expectedSamples) {
-//		if (!bib::in(expected, samplesExtracted)
-//				&& !bib::in(bib::replaceString(expected, "MID", ""),
-//						samplesExtracted)) {
-//			samplesNotFound.emplace_back(expected);
-//		}
-//	}
-//
-//	if (!samplesNotFound.empty()) {
-//		foundErrors = true;
-//		errorOutput << "The following input files were not found" << std::endl;
-//		for (const auto & samp : samplesNotFound) {
-//			errorOutput << "\tSample: " << samp << std::endl;
-//		}
-//	}
+
 
 	OutOptions wrningsOpts(
 			bib::files::make_path(analysisSetup.dir_, "WARNINGS_PLEASE_READ.txt"));
@@ -372,7 +373,6 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 		if(setUp.pars_.debug_){
 			std::cout << "Samples:" << std::endl;
 			std::cout << bib::conToStr(getVectorOfMapKeys(analysisSetup.samples_), "\n") << std::endl;
-
 		}
 
 
@@ -511,7 +511,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 		}else{
 			 extractorCmdTemplate =
 							setUp.commands_.masterProgram_
-									+ " extractor --dout {INDEX}_extraction --overWriteDir ";
+									+ " extractor --dout {REP}_extraction --overWriteDir ";
 			 if(analysisSetup.pars_.techIsIlluminaSingleEnd()){
 				 extractorCmdTemplate += " --illumina ";
 			 }
@@ -548,9 +548,11 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 			qlusterCmdTemplate += "--ionTorrent";
 		}
 		if(setUp.pars_.debug_){
-			std::cout << "Samples:" << std::endl;
-			std::cout << bib::conToStr(getVectorOfMapKeys(analysisSetup.samples_), "\n") << std::endl;
+			std::cout << "Sample Files Found: " << std::endl;
+			std::cout << bib::conToStr(sampleFilesFound, "\n") << std::endl;
 
+			std::cout << "Targets:" << std::endl;
+			std::cout << bib::conToStr(getVectorOfMapKeys(analysisSetup.samples_), "\n") << std::endl;
 		}
 
 		std::unordered_map<std::string, VecStr> targetsForReps;
@@ -561,6 +563,10 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 		}
 		for (auto & rep : targetsForReps) {
 			bib::sort(rep.second);
+			if(setUp.pars_.debug_){
+				std::cout << "Sample: " << rep.first << std::endl;
+				std::cout << "\t" << bib::conToStr(rep.second, ", ") << std::endl;
+			}
 		}
 
 		for (const auto & rep : targetsForReps) {
@@ -637,6 +643,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 				currentExtractCmd = bib::replaceString(currentExtractCmd, "{TARS}",
 						tarsNames);
 				extractorCmds.emplace_back(currentExtractCmd);
+
 				for (const auto & tar : rep.second) {
 					std::string currentQlusterCmdTemplate = qlusterCmdTemplate;
 					if ("" != analysisSetup.pars_.extraQlusterCmds) {

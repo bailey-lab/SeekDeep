@@ -445,12 +445,17 @@ int SeekDeepRunner::extractor(const bib::progutils::CmdArgs & inputCommands) {
 					continue;
 				}
 
+				//trim to max length
+				if(pars.trimToMaxLength){
+					readVecTrimmer::trimToMaxLength(seq, ids.targets_.at(frontPrimerName).lenCuts_->maxLenChecker_.maxLen_);
+				}
+
 				//back end primer
 				seq->seqBase_.reverseComplementRead(true, true);
 				if(foundInReverse){
-					backPrimerName = ids.pDeterminator_->determineForwardPrimer(seq, pars.corePars_.pDetPars, alignObj);
+					backPrimerName = ids.pDeterminator_->determineForwardPrimer(seq, pars.corePars_.backEndpDetPars, alignObj);
 				}else{
-					backPrimerName = ids.pDeterminator_->determineWithReversePrimer(seq, pars.corePars_.pDetPars, alignObj);
+					backPrimerName = ids.pDeterminator_->determineWithReversePrimer(seq, pars.corePars_.backEndpDetPars, alignObj);
 					//if wasn't found in reverse, reverse back
 					seq->seqBase_.reverseComplementRead(true, true);
 				}
@@ -474,7 +479,7 @@ int SeekDeepRunner::extractor(const bib::progutils::CmdArgs & inputCommands) {
 					if("unrecognized" == backPrimerName){
 						seq->seqBase_.name_.append("_badReverse");
 					}else{
-						seq->seqBase_.name_.append("[backPrimer=]" + backPrimerName);
+						seq->seqBase_.name_.append("[backPrimer=" + backPrimerName + "]");
 					}
 					midReaderOuts.openWrite(fullname + "bad", seq);
 					continue;

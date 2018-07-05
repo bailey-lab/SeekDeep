@@ -129,8 +129,39 @@ void SeekDeepSetUp::setUpExtractor(extractorPars & pars) {
 
 	processVerbose();
 	processDebug();
+	setOption(pars.illumina, "--illumina", "If input reads are from Illumina",false, "Technology");
+	if(pars.illumina){
+		pars.corePars_.qPars_.checkingQFrac_ = true;
+
+		pars.corePars_.pDetPars.allowable_.hqMismatches_ = 2;
+		pars.corePars_.pDetPars.allowable_.lqMismatches_ = 5;
+		pars.corePars_.pDetPars.allowable_.distances_.query_.coverage_ = 1;
+		pars.corePars_.pDetPars.allowable_.largeBaseIndel_ = 0.99;
+		pars.corePars_.pDetPars.allowable_.oneBaseIndel_ = 0.5;
+		pars.corePars_.pDetPars.allowable_.twoBaseIndel_ = 0.5;
+
+	}
+
 	//core
 	pars.corePars_.setCorePars(*this);
+	//copy over the regular determined primers to the back end primers
+	pars.corePars_.backEndpDetPars.primerWithin_ = pars.corePars_.pDetPars.primerWithin_;
+	pars.corePars_.backEndpDetPars.primerToLowerCase_ = pars.corePars_.pDetPars.primerToLowerCase_ ;
+
+	pars.corePars_.backEndpDetPars.allowable_.hqMismatches_ = pars.corePars_.pDetPars.allowable_.hqMismatches_;
+	pars.corePars_.backEndpDetPars.allowable_.lqMismatches_ = pars.corePars_.pDetPars.allowable_.lqMismatches_;
+	pars.corePars_.backEndpDetPars.allowable_.distances_.query_.coverage_ = pars.corePars_.pDetPars.allowable_.distances_.query_.coverage_;
+	pars.corePars_.backEndpDetPars.allowable_.largeBaseIndel_ = pars.corePars_.pDetPars.allowable_.largeBaseIndel_;
+	pars.corePars_.backEndpDetPars.allowable_.oneBaseIndel_ = pars.corePars_.pDetPars.allowable_.oneBaseIndel_;
+	pars.corePars_.backEndpDetPars.allowable_.twoBaseIndel_ = pars.corePars_.pDetPars.allowable_.twoBaseIndel_;
+	setOption(pars.corePars_.pDetPars.primerWithin_, "--frontEndPrimerWithinStart",
+			"By default the primer or barcodes are searched at the very beginning of seq, use this flag to extended the search, should be kept low to cut down on false positives, this is for the front primer",
+			false, "Primers");
+	setOption(pars.corePars_.backEndpDetPars.primerWithin_, "--backEndPrimerWithinStart",
+			"By default the primer or barcodes are searched at the very beginning of seq, use this flag to extended the search, should be kept low to cut down on false positives, this is for the back primer",
+			false, "Primers");
+
+
 
 	//fPrimerErrors.largeBaseIndel_ = .99;
 //	setOption(pars.noReversePrimer, "--noReverse",
@@ -152,11 +183,7 @@ void SeekDeepSetUp::setUpExtractor(extractorPars & pars) {
 
 	processAlnInfoInput();
 
-	setOption(pars.illumina, "--illumina", "If input reads are from Illumina",false, "Technology");
-	if(pars.illumina){
-		pars.corePars_.qPars_.checkingQFrac_ = true;
-		/**@todo fiddle with primer check errors allowed*/
-	}
+
 	processReadInNames(VecStr{"--fasta", "--fastagz", "--fastq", "--fastqgz"},true);
 	bool mustMakeDirectory = true;
 	processDirectoryOutputName(mustMakeDirectory);
@@ -177,6 +204,7 @@ void SeekDeepSetUp::setUpExtractor(extractorPars & pars) {
 	setOption(pars.qualWindowTrim, "--qualWindowTrim", "Trim To Qual Window", false, "Post Processing");
 	pars.trimAtQual = setOption(pars.trimAtQualCutOff, "--trimAtQual", "Trim Reads at first occurrence of quality score", false, "Post Processing");
 
+	setOption(pars.trimToMaxLength, "--trimToMaxLength", "Trim sequences to max expected length to improve primer determination for mixed target datasets");
 	pars_.gapInfo_.gapOpen_ = 5;
 	pars_.gapInfo_.gapExtend_ = 1;
 	pars_.gap_ = "5,1";
