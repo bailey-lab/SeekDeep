@@ -144,6 +144,8 @@ void SeekDeepSetUp::setUpExtractor(extractorPars & pars) {
 
 	//core
 	pars.corePars_.setCorePars(*this);
+	setOption(pars.corePars_.noReversePrimer_, "--noReversePrimer", "Don't check for reverse primer");
+
 	//copy over the regular determined primers to the back end primers
 	pars.corePars_.backEndpDetPars.primerWithin_ = pars.corePars_.pDetPars.primerWithin_;
 	pars.corePars_.backEndpDetPars.primerToLowerCase_ = pars.corePars_.pDetPars.primerToLowerCase_ ;

@@ -450,15 +450,21 @@ int SeekDeepRunner::extractor(const bib::progutils::CmdArgs & inputCommands) {
 					readVecTrimmer::trimToMaxLength(seq, ids.targets_.at(frontPrimerName).lenCuts_->maxLenChecker_.maxLen_);
 				}
 
-				//back end primer
-				seq->seqBase_.reverseComplementRead(true, true);
-				if(foundInReverse){
-					backPrimerName = ids.pDeterminator_->determineForwardPrimer(seq, pars.corePars_.backEndpDetPars, alignObj);
-				}else{
-					backPrimerName = ids.pDeterminator_->determineWithReversePrimer(seq, pars.corePars_.backEndpDetPars, alignObj);
-					//if wasn't found in reverse, reverse back
+				if(!pars.corePars_.noReversePrimer_){
+					//back end primer
 					seq->seqBase_.reverseComplementRead(true, true);
+					if(foundInReverse){
+						backPrimerName = ids.pDeterminator_->determineForwardPrimer(seq, pars.corePars_.backEndpDetPars, alignObj);
+					}else{
+						backPrimerName = ids.pDeterminator_->determineWithReversePrimer(seq, pars.corePars_.backEndpDetPars, alignObj);
+						//if wasn't found in reverse, reverse back
+						seq->seqBase_.reverseComplementRead(true, true);
+					}
+				}else{
+					backPrimerName = frontPrimerName;
 				}
+
+
 				std::string primerName = "";
 				if (frontPrimerName == backPrimerName) {
 					primerName = frontPrimerName;

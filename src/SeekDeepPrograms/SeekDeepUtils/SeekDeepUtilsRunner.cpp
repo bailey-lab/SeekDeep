@@ -42,7 +42,7 @@ SeekDeepUtilsRunner::SeekDeepUtilsRunner() :
 int SeekDeepUtilsRunner::genTargetInfoFromGenomes(const bib::progutils::CmdArgs & inputCommands) {
 	seqSetUp setUp(inputCommands);
 	MultiGenomeMapper::inputParameters pars;
-
+	std::string gffExtraAttributesStr = "descriptions";
 	bfs::path primersFile = "";
 	std::string forwardPrimer = "";
 	std::string reversePrimer = "";
@@ -66,7 +66,9 @@ int SeekDeepUtilsRunner::genTargetInfoFromGenomes(const bib::progutils::CmdArgs 
   setUp.setOption(pars.genomeDir_, "--genomeDir", "Name of the genome file fnp", true);
   setUp.setOption(pars.primaryGenome_, "--primaryGenome", "The primary reference genome");
   setUp.setOption(pars.gffDir_, "--gffDir", "A directory with a gff for the genomes in --genomeDir, should be named GENOME.gff (for GENOME.fasta)");
-	setUp.setOption(selectedGenomesStr, "--selectedGenomes", "Name of the other genomes in --genomeDir to be read in, leave blank to just do all fastas");
+  setUp.setOption(gffExtraAttributesStr, "--gffExtraAttributes", "Extra attributes to add to genome that has an accompany gff");
+
+  setUp.setOption(selectedGenomesStr, "--selectedGenomes", "Name of the other genomes in --genomeDir to be read in, leave blank to just do all fastas");
 	setUp.setOption(primersFile, "--primers", "A file that contains three columns, target,forwardPrimer,reversePrimer 5` to 3` directions, same file as the input to SeekDeep", true);
 	setUp.processDirectoryOutputName("extractedRegions_TODAY", true);
 	setUp.finishSetUp(std::cout);
