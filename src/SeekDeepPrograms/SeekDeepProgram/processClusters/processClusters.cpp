@@ -32,18 +32,10 @@ namespace bibseq {
 
 
 std::unordered_map<std::string, double> processCustomCutOffs(const bfs::path & customCutOffsFnp, const VecStr & allSamples, double defaultFracCutOff){
-	table customCutOffsTab;
 	std::unordered_map<std::string, double> ret;
 	if ("" != customCutOffsFnp.string()) {
-		customCutOffsTab = table(customCutOffsFnp.string(), "whitespace", true);
-		if (!bib::in(std::string("sample"), customCutOffsTab.columnNames_)
-				|| !bib::in(std::string("cutOff"), customCutOffsTab.columnNames_)) {
-			std::stringstream ss;
-			ss << "Error in loading custom cut off file, "
-					<<  customCutOffsFnp << ", missing sample or cutOff\n"
-					<< vectorToString(customCutOffsTab.columnNames_, ",");
-			throw std::runtime_error { ss.str() };
-		}
+		table customCutOffsTab(customCutOffsFnp.string(), "\t", true);
+		customCutOffsTab.checkForColumnsThrow(VecStr{"sample", "cutOff"}, __PRETTY_FUNCTION__);
 		for (const auto & rowPos : iter::range(customCutOffsTab.content_.size())) {
 			ret[customCutOffsTab.content_[rowPos][customCutOffsTab.getColPos(
 					"sample")]] =
