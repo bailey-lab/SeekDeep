@@ -99,8 +99,10 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 	setOption(pars.parameters, "--par", "ParametersFileName", !pars.noErrorsSet && !pars.strictErrorsSet && !pars.strictErrorsSetHq1, "Clustering");
 
 	setOption(pars.binParameters, "--binPar", "bin Parameters Filename", false, "Clustering");
-	setOption(pars.sampleMinTotalReadCutOff, "--sampleMinTotalReadCutOff",
+	setOption(pars.preFiltCutOffs.sampleMinReadCount, "--sampleMinTotalReadCutOff",
 			"Sample Minimum Total Read Cut Off, if the total read count for the sample is below this it will be thrown out", false, "Filtering");
+	setOption(pars.preFiltCutOffs.replicateMinReadCount, "--replicateMinTotalReadCutOff",
+				"Replicate Minimum Total Read Cut Off, if the total read count for the replicate is below this it will be thrown out", false, "Filtering");
 
 	setOption(pars.runsRequired, "--runsRequired", "Number of PCR runs Required for a haplotype to be kept", false, "Filtering");
 	setOption(pars.experimentName, "--experimentName", "Name given to the final population haplotypes", false, "Population");
@@ -109,7 +111,7 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 						+ pars.experimentName);
 		failed_ = true;
 	}
-	setOption(pars.clusterCutOff, "--clusterCutOff", "Input Cluster Size Cut Off", false, "Filtering");
+	setOption(pars.preFiltCutOffs.clusterSizeCutOff, "--clusterCutOff", "Input Cluster Size Cut Off", false, "Filtering");
 	setOption(pars.fracExcludeOnlyInFinalAverageFrac, "--fracExcludeOnlyInFinalAverageFrac", "By default fraction exclusion is done per rep, use fracExcludeOnlyInFinalAverageFrac to exclude only on the final averaged frac", false, "Filtering");
 
 

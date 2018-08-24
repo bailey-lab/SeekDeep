@@ -155,7 +155,6 @@ struct processClustersPars {
   std::string parameters = "";
   std::string binParameters = "";
 
-  uint32_t clusterCutOff = 1;
   bool extra = false;
   double fracCutoff = 0.005;
   uint32_t runsRequired = 0;
@@ -197,7 +196,7 @@ struct processClustersPars {
 	uint32_t hqMismatches = 0;
 	uint32_t stopAfter = 100;
 
-	uint32_t sampleMinTotalReadCutOff = 0;
+	collapse::SampleCollapseCollection::PreFilteringCutOffs preFiltCutOffs;
 
 };
 

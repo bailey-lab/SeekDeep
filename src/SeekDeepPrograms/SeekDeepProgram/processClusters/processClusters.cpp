@@ -136,8 +136,7 @@ int SeekDeepRunner::processClusters(const bib::progutils::CmdArgs & inputCommand
 	collapse::SampleCollapseCollection sampColl(setUp.pars_.ioOptions_, pars.masterDir,
 			setUp.pars_.directoryName_,
 			PopNamesInfo(pars.experimentName, samplesDirs),
-			pars.clusterCutOff,
-			pars.sampleMinTotalReadCutOff);
+			pars.preFiltCutOffs);
 
 
 
