@@ -94,11 +94,15 @@ PrimersAndMids::PrimersAndMids(const bfs::path & idFileFnp) :
 	std::string line = "";
 	while (bib::files::crossPlatGetline(idFile, line)) {
 		auto lowerLine = bib::strToLowerRet(line);
-		if (bib::beginsWith(lowerLine, "gene")
-				|| bib::beginsWith(lowerLine, "target")) {
+		auto lowerLineToks = bib::tokenizeString(lowerLine, "whitespace");
+
+		if (lowerLineToks.size() > 1 &&
+				("gene" == lowerLineToks[0]
+				|| "target" == lowerLineToks[0])) {
 			readingPrimers = true;
 			readingMids = false;
-		} else if (bib::beginsWith(lowerLine, "id")) {
+		} else if (lowerLineToks.size() > 1 &&
+				"id" == lowerLineToks[0]) {
 			readingPrimers = false;
 			readingMids = true;
 		} else if (readingPrimers) {

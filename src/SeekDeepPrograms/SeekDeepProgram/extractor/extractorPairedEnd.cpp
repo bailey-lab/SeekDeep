@@ -456,7 +456,7 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 	aligner processingPairsAligner(maxReadSize, alnGapPars, pairedProcessingScoring, false);
 	processingPairsAligner.qScorePars_.qualThresWindow_ = 0;
 	std::unordered_map<std::string, std::vector<uint32_t>> lengthsPerStitchedTarget;
-	std::unordered_map<std::string, std::pair<std::string, PairedReadProcessor::ProcessedResults>> resultsPerMidTarPair;
+	std::unordered_map<std::string, std::pair<std::string, PairedReadProcessor::ProcessedResultsCounts>> resultsPerMidTarPair;
 	for(const auto & extractedMid : primersInMids){
 		for(const auto & extractedPrimer : extractedMid.second){
 			std::string name = extractedPrimer + extractedMid.first;
@@ -474,7 +474,7 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 						bib::files::make_path(unfilteredByPrimersDir, name + "_R2.fastq"));
 			}
 			if(pars.corePars_.primIdsPars.noOverlapProcessForNoOverlapStatusTargets_ && PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP == bib::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
-				PairedReadProcessor::ProcessedResults currentProcessResults;
+				PairedReadProcessor::ProcessedResultsCounts currentProcessResults;
 				currentProcessResults.notCombinedOpts = std::make_shared<SeqIOOptions>(currentPairOpts);
 				resultsPerMidTarPair[name] = std::make_pair(extractedPrimer, currentProcessResults);
 				continue;

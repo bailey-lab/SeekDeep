@@ -144,7 +144,7 @@ void PairedReadProcessor::ProcessorOutWriters::unsetWriters(){
 }
 
 
-Json::Value PairedReadProcessor::ProcessedResults::toJson() const{
+Json::Value PairedReadProcessor::ProcessedResultsCounts::toJson() const{
 	Json::Value outVal;
 	outVal["overlapFail"] = overlapFail;
 	outVal["overlapFailPerc"] = (overlapFail/static_cast<double>(total)) * 100;
@@ -175,7 +175,7 @@ Json::Value PairedReadProcessor::ProcessedResults::toJson() const{
 	return outVal;
 }
 
-Json::Value PairedReadProcessor::ProcessedResults::toJsonCounts() const{
+Json::Value PairedReadProcessor::ProcessedResultsCounts::toJsonCounts() const{
 	Json::Value outVal;
 	outVal["overlapFail"] = overlapFail;
 	outVal["overlapFailPerc"] = (overlapFail/static_cast<double>(total)) * 100;
@@ -191,12 +191,12 @@ Json::Value PairedReadProcessor::ProcessedResults::toJsonCounts() const{
 	return outVal;
 }
 
-PairedReadProcessor::ProcessedResults PairedReadProcessor::processPairedEnd(
+PairedReadProcessor::ProcessedResultsCounts PairedReadProcessor::processPairedEnd(
 		SeqInput & reader,
 		ProcessorOutWriters & writers,
 		aligner & alignerObj){
 	writers.checkWritersSet(__PRETTY_FUNCTION__);
-	ProcessedResults res;
+	ProcessedResultsCounts res;
 	if(!reader.inOpen()){
 		reader.openIn();
 	}
@@ -231,165 +231,206 @@ PairedReadProcessor::ProcessedResults PairedReadProcessor::processPairedEnd(
 	return res;
 }
 
+PairedReadProcessor::ProcessedPairRes PairedReadProcessor::processPairedEnd(
+		PairedRead & seq,
+		ProcessedResultsCounts & counts,
+		aligner & alignerObj) const {
+	ProcessedPairRes ret;
+	double percentId = 1 - params_.errorAllowed_ ;
+	//std::cout << __PRETTY_FUNCTION__ << " " << __LINE__ <<  std::endl;
+	alignerObj.alignRegGlobalNoInternalGaps(seq.seqBase_, seq.mateSeqBase_);
+	//std::cout << __PRETTY_FUNCTION__ << " " << __LINE__ <<  std::endl;
+	alignerObj.profileAlignment(seq.seqBase_, seq.mateSeqBase_, false, true, true);
+	//std::cout << __PRETTY_FUNCTION__ << " " << __LINE__ <<  std::endl;
+
+	if( alignerObj.comp_.distances_.eventBasedIdentityHq_ >= percentId &&
+			alignerObj.comp_.distances_.basesInAln_ >= params_.minOverlap_ &&
+			alignerObj.comp_.hqMismatches_ + alignerObj.comp_.lqMismatches_ <= params_.hardMismatchCutOff_){
+		AlignOverlapEnd frontCase = AlignOverlapEnd::UNHANDLEED;
+		AlignOverlapEnd backCase  = AlignOverlapEnd::UNHANDLEED;
+		if( '-' != alignerObj.alignObjectA_.seqBase_.seq_.front() &&
+				'-' != alignerObj.alignObjectB_.seqBase_.seq_.front()){
+			frontCase = AlignOverlapEnd::NOOVERHANG;
+		}else if('-' != alignerObj.alignObjectA_.seqBase_.seq_.front() &&
+						 '-' == alignerObj.alignObjectB_.seqBase_.seq_.front()){
+			frontCase = AlignOverlapEnd::R1OVERHANG;
+		}else if('-' == alignerObj.alignObjectA_.seqBase_.seq_.front() &&
+						 '-' != alignerObj.alignObjectB_.seqBase_.seq_.front()){
+			frontCase = AlignOverlapEnd::R2OVERHANG;
+		}else{
+			std::stringstream ss;
+			ss << __PRETTY_FUNCTION__ << ", error not handled case for " << seq.seqBase_.name_ << "\n";
+			ss << "R1.front(): " << alignerObj.alignObjectA_.seqBase_.seq_.front() << ", R2.front(): " << alignerObj.alignObjectB_.seqBase_.seq_.front() << "\n";
+			throw std::runtime_error{ss.str()};
+		}
+		if( '-' != alignerObj.alignObjectA_.seqBase_.seq_.back() &&
+				'-' != alignerObj.alignObjectB_.seqBase_.seq_.back()){
+			backCase = AlignOverlapEnd::NOOVERHANG;
+		}else if('-' != alignerObj.alignObjectA_.seqBase_.seq_.back() &&
+						 '-' == alignerObj.alignObjectB_.seqBase_.seq_.back()){
+			backCase = AlignOverlapEnd::R1OVERHANG;
+		}else if('-' == alignerObj.alignObjectA_.seqBase_.seq_.back() &&
+						 '-' != alignerObj.alignObjectB_.seqBase_.seq_.back()){
+			backCase = AlignOverlapEnd::R2OVERHANG;
+		}else{
+			std::stringstream ss;
+			ss << __PRETTY_FUNCTION__ << ", error not handled case for " << seq.seqBase_.name_ << "\n";
+			ss << "R1.front(): " << alignerObj.alignObjectA_.seqBase_.seq_.front() << ", R2.front(): " << alignerObj.alignObjectB_.seqBase_.seq_.front() << "\n";
+			throw std::runtime_error{ss.str()};
+		}
+
+		if(AlignOverlapEnd::NOOVERHANG == frontCase && AlignOverlapEnd::NOOVERHANG == backCase){
+			//no over hangs, perfect overlap
+			std::string cseq;
+			cseq.reserve(alignerObj.comp_.distances_.basesInAln_);
+			std::vector<uint32_t> quals;
+			quals.reserve(alignerObj.comp_.distances_.basesInAln_);
+			for(const auto pos : iter::range(len(alignerObj.alignObjectA_))){
+				addToConsensus(pos,
+						alignerObj.alignObjectA_.seqBase_,
+						alignerObj.alignObjectB_.seqBase_,
+						cseq,
+						quals,
+						alignerObj);
+			}
+
+			ret.combinedSeq_ = std::make_shared<seqInfo>(seq.seqBase_.name_, cseq, quals);
+			ret.status_ = ReadPairOverLapStatus::PERFECTOVERLAP;
+			//writers.perfectOverlapCombinedWriter->openWrite(combinedSeq);
+			++counts.perfectOverlapCombined;
+		}else if((AlignOverlapEnd::NOOVERHANG == frontCase || AlignOverlapEnd::R1OVERHANG == frontCase) &&
+						 (AlignOverlapEnd::NOOVERHANG == backCase  || AlignOverlapEnd::R2OVERHANG == backCase)){
+			//ideal situation, R1 end overlaps R2 beg
+			std::string cseq;
+			cseq.reserve(alignerObj.alignObjectA_.seqBase_.seq_.size());
+			std::vector<uint32_t> quals;
+			quals.reserve(alignerObj.alignObjectA_.seqBase_.seq_.size());
+			uint32_t r1End = alignerObj.alignObjectA_.seqBase_.seq_.find_last_not_of('-') + 1;
+			uint32_t r2Start = alignerObj.alignObjectB_.seqBase_.seq_.find_first_not_of('-');
+			//add r1 beginning
+			if(0 != r2Start ){
+				cseq.append(alignerObj.alignObjectA_.seqBase_.seq_.substr(0, r2Start));
+				addOtherVec(quals, getSubVector(alignerObj.alignObjectA_.seqBase_.qual_, 0,r2Start));
+			}
+			//get consensus of middle
+			for(const auto pos : iter::range(r2Start, r1End)){
+				addToConsensus(pos,
+						alignerObj.alignObjectA_.seqBase_,
+						alignerObj.alignObjectB_.seqBase_,
+						cseq,
+						quals,
+						alignerObj);
+			}
+			//add r2 ending
+			if(alignerObj.alignObjectA_.seqBase_.seq_.size() != r1End){
+				cseq.append(alignerObj.alignObjectB_.seqBase_.seq_.substr(r1End));
+				addOtherVec(quals, getSubVector(alignerObj.alignObjectB_.seqBase_.qual_, r1End));
+			}
+			ret.combinedSeq_ = std::make_shared<seqInfo>(seq.seqBase_.name_, cseq, quals);
+			ret.status_ = ReadPairOverLapStatus::R1ENDSINR2;
+			++counts.r1EndsInR2Combined;
+		}else if((AlignOverlapEnd::NOOVERHANG == frontCase || AlignOverlapEnd::R2OVERHANG == frontCase) &&
+						 (AlignOverlapEnd::NOOVERHANG == backCase  || AlignOverlapEnd::R1OVERHANG == backCase)){
+			//read through situation, R2 end overlaps R1 beg, overhang is likely illumina adaptor/primer
+			uint32_t r1Start = 0;
+			if(AlignOverlapEnd::NOOVERHANG != frontCase){
+				r1Start = alignerObj.alignObjectA_.seqBase_.seq_.find_first_not_of('-');
+			}
+			uint32_t r2End = alignerObj.alignObjectB_.seqBase_.seq_.size();
+			if(AlignOverlapEnd::NOOVERHANG != backCase){
+				r2End =
+						alignerObj.alignObjectB_.seqBase_.seq_.find_last_not_of('-') + 1;
+			}
+			if(params_.writeOverHangs_){
+				if(AlignOverlapEnd::NOOVERHANG != frontCase){
+					ret.r2Overhang_ = std::make_shared<seqInfo>(alignerObj.alignObjectB_.seqBase_.getSubRead(0, r1Start));
+					ret.r2Overhang_->reverseComplementRead(false, true);
+				}
+				if(AlignOverlapEnd::NOOVERHANG != backCase){
+					ret.r1Overhang_ = std::make_shared<seqInfo>(alignerObj.alignObjectA_.seqBase_.getSubRead(r2End));
+				}
+				//writers.overhangsWriter->openWrite(overhang);
+			}
+//				tempWriter.write(alignerObj.alignObjectA_);
+//				tempWriter.write(alignerObj.alignObjectB_);
+			std::string cseq;
+			cseq.reserve(alignerObj.comp_.distances_.basesInAln_);
+			std::vector<uint32_t> quals;
+			quals.reserve(alignerObj.comp_.distances_.basesInAln_);
+			//get consensus of middle
+			for(const auto pos : iter::range(r1Start, r2End)){
+				addToConsensus(pos,
+						alignerObj.alignObjectA_.seqBase_,
+						alignerObj.alignObjectB_.seqBase_,
+						cseq,
+						quals,
+						alignerObj);
+			}
+			ret.combinedSeq_ = std::make_shared<seqInfo>(seq.seqBase_.name_, cseq, quals);
+			ret.status_ = ReadPairOverLapStatus::R1BEGINSINR2;
+			++counts.r1BeginsInR2Combined;
+		} else {
+			//failure
+//			writers.notCombinedWriter->openWrite(seq);
+//			++res.overhangFail;
+			std::stringstream ss;
+			ss << __PRETTY_FUNCTION__ << ", error not handled case for " << seq.seqBase_.name_ << "\n";
+			ss << "R1 Case: " << getAlignOverlapEndStr(frontCase) << ", R2 Case: " << getAlignOverlapEndStr(backCase) << "\n";
+			throw std::runtime_error{ss.str()};
+		}
+	}else{
+		++counts.overlapFail;
+		//writers.notCombinedWriter->openWrite(seq);
+		ret.status_ = ReadPairOverLapStatus::NOOVERLAP;
+		ret.combinedSeq_ = nullptr; //not really needed as it should default construct to nullptr anyways
+	}
+	return ret;
+}
+
 bool PairedReadProcessor::processPairedEnd(
 		SeqInput & reader,
 		PairedRead & seq,
 		ProcessorOutWriters & writers,
 		aligner & alignerObj,
-		ProcessedResults & res){
-
-//	auto seqOutTemp = SeqIOOptions::genFastqOut("test.fastq");
-//	seqOutTemp.out_.append_ = true;
-//	SeqOutput tempWriter(seqOutTemp);
-//	tempWriter.openOut();
-
+		ProcessedResultsCounts & res){
+//  uncomment for debugging
+//	OutOptions tempOutOpts(bfs::path("temp.fastq"));
+//	tempOutOpts.append_ = true;
+//	OutputStream tempOut(tempOutOpts);
 	if(reader.readNextRead(seq)){
-		double percentId = 1 - params_.errorAllowed_ ;
 		++res.total;
-//		std::cout << '\r' << res.total;
-//		std::cout.flush();
 		if(res.total % 25000 == 0 && params_.verbose_){
 			std::cout << res.total << std::endl;
 		}
-		//std::cout << __PRETTY_FUNCTION__ << " " << __LINE__ <<  std::endl;
-		alignerObj.alignRegGlobalNoInternalGaps(seq.seqBase_, seq.mateSeqBase_);
-		//std::cout << __PRETTY_FUNCTION__ << " " << __LINE__ <<  std::endl;
-		alignerObj.profileAlignment(seq.seqBase_, seq.mateSeqBase_, false, true, true);
-		//std::cout << __PRETTY_FUNCTION__ << " " << __LINE__ <<  std::endl;
+		auto processedPairResults = processPairedEnd(seq,res, alignerObj);
+//    uncomment for debugging
 
-		if( alignerObj.comp_.distances_.eventBasedIdentityHq_ >= percentId &&
-				alignerObj.comp_.distances_.basesInAln_ >= params_.minOverlap_ &&
-				alignerObj.comp_.hqMismatches_ + alignerObj.comp_.lqMismatches_ <= params_.hardMismatchCutOff_){
-			AlignOverlapEnd frontCase = AlignOverlapEnd::UNHANDLEED;
-			AlignOverlapEnd backCase  = AlignOverlapEnd::UNHANDLEED;
-			if( '-' != alignerObj.alignObjectA_.seqBase_.seq_.front() &&
-					'-' != alignerObj.alignObjectB_.seqBase_.seq_.front()){
-				frontCase = AlignOverlapEnd::NOOVERHANG;
-			}else if('-' != alignerObj.alignObjectA_.seqBase_.seq_.front() &&
-							 '-' == alignerObj.alignObjectB_.seqBase_.seq_.front()){
-				frontCase = AlignOverlapEnd::R1OVERHANG;
-			}else if('-' == alignerObj.alignObjectA_.seqBase_.seq_.front() &&
-							 '-' != alignerObj.alignObjectB_.seqBase_.seq_.front()){
-				frontCase = AlignOverlapEnd::R2OVERHANG;
-			}else{
-				std::stringstream ss;
-				ss << __PRETTY_FUNCTION__ << ", error not handled case for " << seq.seqBase_.name_ << "\n";
-				ss << "R1.front(): " << alignerObj.alignObjectA_.seqBase_.seq_.front() << ", R2.front(): " << alignerObj.alignObjectB_.seqBase_.seq_.front();
-				throw std::runtime_error{ss.str()};
-			}
-			if( '-' != alignerObj.alignObjectA_.seqBase_.seq_.back() &&
-					'-' != alignerObj.alignObjectB_.seqBase_.seq_.back()){
-				backCase = AlignOverlapEnd::NOOVERHANG;
-			}else if('-' != alignerObj.alignObjectA_.seqBase_.seq_.back() &&
-							 '-' == alignerObj.alignObjectB_.seqBase_.seq_.back()){
-				backCase = AlignOverlapEnd::R1OVERHANG;
-			}else if('-' == alignerObj.alignObjectA_.seqBase_.seq_.back() &&
-							 '-' != alignerObj.alignObjectB_.seqBase_.seq_.back()){
-				backCase = AlignOverlapEnd::R2OVERHANG;
-			}else{
-				std::stringstream ss;
-				ss << __PRETTY_FUNCTION__ << ", error not handled case for " << seq.seqBase_.name_ << "\n";
-				ss << "R1.front(): " << alignerObj.alignObjectA_.seqBase_.seq_.front() << ", R2.front(): " << alignerObj.alignObjectB_.seqBase_.seq_.front();
-				throw std::runtime_error{ss.str()};
-			}
+//		alignerObj.alignObjectA_.seqBase_.outPutFastq(tempOut);
+//		alignerObj.alignObjectB_.seqBase_.outPutFastq(tempOut);
 
-			if(AlignOverlapEnd::NOOVERHANG == frontCase && AlignOverlapEnd::NOOVERHANG == backCase){
-				//no over hangs, perfect overlap
-				std::string cseq;
-				cseq.reserve(alignerObj.comp_.distances_.basesInAln_);
-				std::vector<uint32_t> quals;
-				quals.reserve(alignerObj.comp_.distances_.basesInAln_);
-				for(const auto pos : iter::range(len(alignerObj.alignObjectA_))){
-					addToConsensus(pos,
-							alignerObj.alignObjectA_.seqBase_,
-							alignerObj.alignObjectB_.seqBase_,
-							cseq,
-							quals,
-							alignerObj);
-				}
-
-				seqInfo combinedSeq(seq.seqBase_.name_, cseq, quals);
-				writers.perfectOverlapCombinedWriter->openWrite(combinedSeq);
-				++res.perfectOverlapCombined;
-			}else if((AlignOverlapEnd::NOOVERHANG == frontCase || AlignOverlapEnd::R1OVERHANG == frontCase) &&
-							 (AlignOverlapEnd::NOOVERHANG == backCase  || AlignOverlapEnd::R2OVERHANG == backCase)){
-				//ideal situation, R1 end overlaps R2 beg
-				std::string cseq;
-				cseq.reserve(alignerObj.alignObjectA_.seqBase_.seq_.size());
-				std::vector<uint32_t> quals;
-				quals.reserve(alignerObj.alignObjectA_.seqBase_.seq_.size());
-				uint32_t r1End = alignerObj.alignObjectA_.seqBase_.seq_.find_last_not_of('-') + 1;
-				uint32_t r2Start = alignerObj.alignObjectB_.seqBase_.seq_.find_first_not_of('-');
-				//add r1 beginning
-				if(0 != r2Start ){
-					cseq.append(alignerObj.alignObjectA_.seqBase_.seq_.substr(0, r2Start));
-					addOtherVec(quals, getSubVector(alignerObj.alignObjectA_.seqBase_.qual_, 0,r2Start));
-				}
-				//get consensus of middle
-				for(const auto pos : iter::range(r2Start, r1End)){
-					addToConsensus(pos,
-							alignerObj.alignObjectA_.seqBase_,
-							alignerObj.alignObjectB_.seqBase_,
-							cseq,
-							quals,
-							alignerObj);
-				}
-				//add r2 ending
-				if(alignerObj.alignObjectA_.seqBase_.seq_.size() != r1End){
-					cseq.append(alignerObj.alignObjectB_.seqBase_.seq_.substr(r1End));
-					addOtherVec(quals, getSubVector(alignerObj.alignObjectB_.seqBase_.qual_, r1End));
-				}
-				seqInfo combinedSeq(seq.seqBase_.name_, cseq, quals);
-				writers.r1EndsInR2CombinedWriter->openWrite(combinedSeq);
-				++res.r1EndsInR2Combined;
-
-			}else if((AlignOverlapEnd::NOOVERHANG == frontCase || AlignOverlapEnd::R2OVERHANG == frontCase) &&
-							 (AlignOverlapEnd::NOOVERHANG == backCase  || AlignOverlapEnd::R1OVERHANG == backCase)){
-				//read through situation, R2 end overlaps R1 beg, overhang is likely illumina adaptor/primer
-				uint32_t r1Start =
-						alignerObj.alignObjectA_.seqBase_.seq_.find_first_not_of('-');
-				uint32_t r2End =
-						alignerObj.alignObjectB_.seqBase_.seq_.find_last_not_of('-') + 1;
-				//write out overhangs
-				seqInfo back = alignerObj.alignObjectB_.seqBase_.getSubRead(0, r1Start);
-				seqInfo front = alignerObj.alignObjectA_.seqBase_.getSubRead(r2End);
-				back.reverseComplementRead(false, true);
-				std::shared_ptr<PairedRead> overhang;
-				if(std::string::npos != back.name_.find("_Comp")){
-					overhang = std::make_shared<PairedRead>(back, front);
-				}else{
-					overhang = std::make_shared<PairedRead>(front, back);
-				}
-				if(params_.writeOverHangs_){
-					writers.overhangsWriter->openWrite(overhang);
-
-				}
-//				tempWriter.write(alignerObj.alignObjectA_);
-//				tempWriter.write(alignerObj.alignObjectB_);
-				std::string cseq;
-				cseq.reserve(alignerObj.comp_.distances_.basesInAln_);
-				std::vector<uint32_t> quals;
-				quals.reserve(alignerObj.comp_.distances_.basesInAln_);
-				//get consensus of middle
-				for(const auto pos : iter::range(r1Start, r2End)){
-					addToConsensus(pos,
-							alignerObj.alignObjectA_.seqBase_,
-							alignerObj.alignObjectB_.seqBase_,
-							cseq,
-							quals,
-							alignerObj);
-				}
-				seqInfo combinedSeq(seq.seqBase_.name_, cseq, quals);
-				writers.r1BeginsInR2CombinedWriter->openWrite(combinedSeq);
-				++res.r1BeginsInR2Combined;
-			}else{
-				//failure
+		std::stringstream errorStream;
+		std::stringstream errorStream2;
+		switch (processedPairResults.status_) {
+			case ReadPairOverLapStatus::NONE:
+				errorStream << __PRETTY_FUNCTION__ << ", error not handled case for " << seq.seqBase_.name_ << ", case: " <<getOverlapStatusStr(processedPairResults.status_) << "\n";
+				throw std::runtime_error{errorStream.str()};
+				break;
+			case ReadPairOverLapStatus::NOOVERLAP:
 				writers.notCombinedWriter->openWrite(seq);
-				++res.overhangFail;
-			}
-		}else{
-			++res.overlapFail;
-			writers.notCombinedWriter->openWrite(seq);
+				break;
+			case ReadPairOverLapStatus::PERFECTOVERLAP:
+				writers.perfectOverlapCombinedWriter->openWrite(processedPairResults.combinedSeq_);
+				break;
+			case ReadPairOverLapStatus::R1BEGINSINR2:
+				writers.r1BeginsInR2CombinedWriter->openWrite(processedPairResults.combinedSeq_);
+				break;
+			case ReadPairOverLapStatus::R1ENDSINR2:
+				writers.r1EndsInR2CombinedWriter->openWrite(processedPairResults.combinedSeq_);
+				break;
+			default:
+				errorStream2 << __PRETTY_FUNCTION__ << ", error not handled case for " << seq.seqBase_.name_ << ", case: " <<getOverlapStatusStr(processedPairResults.status_) << "\n";
+				throw std::runtime_error{errorStream2.str()};
+				break;
 		}
 		return true;
 	}else{

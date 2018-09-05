@@ -42,6 +42,7 @@ public:
 		NOOVERLAP,
 		R1BEGINSINR2,
 		R1ENDSINR2,
+		PERFECTOVERLAP,
 		NONE
 	};
 
@@ -50,11 +51,34 @@ public:
 			case ReadPairOverLapStatus::NOOVERLAP:
 				return "NOOVERLAP";
 				break;
+			case ReadPairOverLapStatus::PERFECTOVERLAP:
+				return "PERFECTOVERLAP";
+				break;
 			case ReadPairOverLapStatus::R1BEGINSINR2:
 				return "R1BEGINSINR2";
 				break;
 			case ReadPairOverLapStatus::R1ENDSINR2:
 				return "R1ENDSINR2";
+				break;
+			default:
+				return "NOTHANDLED";//shouldn't be getting here
+				break;
+		}
+	}
+
+	static std::string getAlignOverlapEndStr(const AlignOverlapEnd  status){
+		switch (status) {
+			case AlignOverlapEnd::NOOVERHANG:
+				return "NOOVERHANG";
+				break;
+			case AlignOverlapEnd::R1OVERHANG:
+				return "R1OVERHANG";
+				break;
+			case AlignOverlapEnd::R2OVERHANG:
+				return "R2OVERHANG";
+				break;
+			case AlignOverlapEnd::UNHANDLEED:
+				return "UNHANDLEED";
 				break;
 			default:
 				return "NOTHANDLED";//shouldn't be getting here
@@ -98,7 +122,7 @@ public:
 
 	};
 
-	struct ProcessedResults {
+	struct ProcessedResultsCounts {
 		uint32_t overlapFail = 0;
 		uint32_t overhangFail = 0;
 		uint32_t perfectOverlapCombined = 0;
@@ -119,17 +143,29 @@ public:
 	std::function<void(uint32_t, const seqInfo&,const seqInfo&,std::string&,std::vector<uint32_t>&,aligner&)> addToConsensus;
 
 
-	ProcessedResults processPairedEnd(
+	ProcessedResultsCounts processPairedEnd(
 			SeqInput & reader,
 			ProcessorOutWriters & writers,
 			aligner & alignerObj);
+
+	struct ProcessedPairRes{
+		std::shared_ptr<seqInfo> combinedSeq_;
+		std::shared_ptr<seqInfo> r1Overhang_;
+		std::shared_ptr<seqInfo> r2Overhang_;
+		ReadPairOverLapStatus status_ {ReadPairOverLapStatus::NONE};
+	};
+
+	ProcessedPairRes processPairedEnd(
+			PairedRead & seq,
+			ProcessedResultsCounts & counts,
+			aligner & alignerObj) const;
 
 	bool processPairedEnd(
 			SeqInput & reader,
 			PairedRead & seq,
 			ProcessorOutWriters & writers,
 			aligner & alignerObj,
-			ProcessedResults & res);
+			ProcessedResultsCounts & res);
 
 };
 
