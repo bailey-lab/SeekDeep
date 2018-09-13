@@ -29,7 +29,7 @@ struct extractBetweenSeqsPars{
 	bool removeRefAlignments = false;
 	bib::files::MkdirPar outputDirPars{"extractedRegions_TODAY"};
 
-	void setUpCoreOptions(seqSetUp & setUp);
+	void setUpCoreOptions(seqSetUp & setUp, bool needReadLength = false);
 
 };
 

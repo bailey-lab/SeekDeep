@@ -67,7 +67,7 @@ public:
 		std::vector<seqInfo> refs_;
 		std::vector<kmerInfo> refKInfos_;
 
-		std::unique_ptr<lenCutOffs> lenCuts_;
+		std::shared_ptr<lenCutOffs> lenCuts_;
 
 		void addLenCutOff(uint32_t minLen, uint32_t maxLen, bool mark = true);
 
@@ -81,6 +81,8 @@ public:
 	};
 
 	PrimersAndMids(const bfs::path & idFileFnp);
+	PrimersAndMids(const std::unordered_map<std::string, Target> & targets);
+
 
 	void checkIfMIdsOrPrimersReadInThrow(const std::string & funcName) const;
 

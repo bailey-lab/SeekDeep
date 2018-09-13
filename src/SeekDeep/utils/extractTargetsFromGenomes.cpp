@@ -10,10 +10,10 @@
 
 namespace bibseq {
 
-void extractBetweenSeqsPars::setUpCoreOptions(seqSetUp & setUp){
+void extractBetweenSeqsPars::setUpCoreOptions(seqSetUp & setUp, bool needReadLength){
 	setUp.setOption(shortNames, "--shortNames", "Create short names for reference genomes extractions");
 	setUp.setOption(lenCutOffSizeExpand, "--lenCutOffSizeExpand", "When creating length cut off file how much to expand the length of the found targets");
-	setUp.setOption(pairedEndLength, "--pairedEndLength", "Paired End Read Length", true);
+	setUp.setOption(pairedEndLength, "--pairedEndLength", "Paired End Read Length", needReadLength);
 	setUp.setOption(barcodeSize, "--barcodeSize", "Barcode Size, if on both primer, the sum of the two barcodes");
 	setUp.setOption(errors, "--errors", "Number of errors to allow in primers");
 	setUp.setOption(sizeLimit, "--sizeLimit", "Output target extractions for only targets below this size");

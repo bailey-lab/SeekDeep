@@ -64,6 +64,7 @@ int SeekDeepUtilsRunner::genTargetInfoFromGenomes(const bib::progutils::CmdArgs 
 	ids.initPrimerDeterminator();
 
 	extractBetweenSeqs(ids, pars);
+
 	setUp.startARunLog(pars.outputDirPars.dirName_.string());
 
 

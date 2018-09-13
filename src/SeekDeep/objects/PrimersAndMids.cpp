@@ -43,7 +43,7 @@ PrimersAndMids::Target::Target(const std::string & name,
 
 void PrimersAndMids::Target::addLenCutOff(uint32_t minLen, uint32_t maxLen,
 		bool mark) {
-	lenCuts_ = std::make_unique<lenCutOffs>(minLen, maxLen, mark);
+	lenCuts_ = std::make_shared<lenCutOffs>(minLen, maxLen, mark);
 }
 
 void PrimersAndMids::Target::setRefKInfos(uint32_t klen, bool setRevComp) {
@@ -68,8 +68,18 @@ void PrimersAndMids::Target::addMultileRef(const std::vector<seqInfo> & refs) {
 	addOtherVec(refs_, refs);
 }
 
-PrimersAndMids::PrimersAndMids(const bfs::path & idFileFnp) :
-		idFile_(idFileFnp) {
+
+PrimersAndMids::PrimersAndMids(
+		const std::unordered_map<std::string, Target> & targets) :
+		targets_(targets) {
+
+}
+
+
+
+
+
+PrimersAndMids::PrimersAndMids(const bfs::path & idFileFnp) : idFile_(idFileFnp) {
 	if (!bfs::exists(idFile_)) {
 		std::stringstream ss;
 		ss << __PRETTY_FUNCTION__ << ": error, "
@@ -90,7 +100,7 @@ PrimersAndMids::PrimersAndMids(const bfs::path & idFileFnp) :
 	}
 	bool readingPrimers = false;
 	bool readingMids = false;
-	std::ifstream idFile(idFileFnp.string());
+	InputStream idFile{InOptions{idFileFnp}};
 	std::string line = "";
 	while (bib::files::crossPlatGetline(idFile, line)) {
 		auto lowerLine = bib::strToLowerRet(line);
@@ -101,8 +111,7 @@ PrimersAndMids::PrimersAndMids(const bfs::path & idFileFnp) :
 				|| "target" == lowerLineToks[0])) {
 			readingPrimers = true;
 			readingMids = false;
-		} else if (lowerLineToks.size() > 1 &&
-				"id" == lowerLineToks[0]) {
+		} else if (lowerLineToks.size() > 1 && "id" == lowerLineToks[0]) {
 			readingPrimers = false;
 			readingMids = true;
 		} else if (readingPrimers) {
