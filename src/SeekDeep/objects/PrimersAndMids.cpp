@@ -86,7 +86,7 @@ PrimersAndMids::PrimersAndMids(const bfs::path & idFileFnp) : idFile_(idFileFnp)
 				<< bib::bashCT::boldRed(idFile_.string()) << " doesn't exist\n";
 		throw std::runtime_error { ss.str() };
 	}
-	auto firstLine = bib::files::getFirstLine(idFileFnp.string());
+	auto firstLine = bib::files::getFirstLine(idFileFnp);
 	bib::strToLower(firstLine);
 	if (!bib::beginsWith(firstLine, "gene")
 			&& !bib::beginsWith(firstLine, "target")
