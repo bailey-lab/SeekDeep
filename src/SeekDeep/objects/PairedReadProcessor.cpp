@@ -237,6 +237,16 @@ PairedReadProcessor::ProcessedPairRes PairedReadProcessor::processPairedEnd(
 		aligner & alignerObj) const {
 	ProcessedPairRes ret;
 	double percentId = 1 - params_.errorAllowed_ ;
+	if(0 != params_.r1Trim_){
+		readVecTrimmer::trimOffEndBases(seq.seqBase_, params_.r1Trim_);
+	}
+	if(0 != params_.r2Trim_){
+		if(seq.mateRComplemented_){
+			readVecTrimmer::trimOffForwardBases(seq.mateSeqBase_, params_.r2Trim_);
+		}else{
+			readVecTrimmer::trimOffEndBases(seq.mateSeqBase_, params_.r2Trim_);
+		}
+	}
 	//std::cout << __PRETTY_FUNCTION__ << " " << __LINE__ <<  std::endl;
 	alignerObj.alignRegGlobalNoInternalGaps(seq.seqBase_, seq.mateSeqBase_);
 	//std::cout << __PRETTY_FUNCTION__ << " " << __LINE__ <<  std::endl;

@@ -121,6 +121,10 @@ ExtractorPairedEndPars::ExtractorPairedEndPars(){
 	corePars_.pDetPars.allowable_.largeBaseIndel_ = 0.99;
 	corePars_.pDetPars.allowable_.oneBaseIndel_ = 0.5;
 	corePars_.pDetPars.allowable_.twoBaseIndel_ = 0.5;
+
+	pairProcessorParams_.r1Trim_ = 1;
+	pairProcessorParams_.r2Trim_ = 1;
+
 }
 
 }  // namespace bibseq

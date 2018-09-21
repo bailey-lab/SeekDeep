@@ -92,8 +92,7 @@ struct ExtractorPairedEndPars{
 	CoreExtractorPars corePars_;
 
 
-  uint32_t r1Trim_ = 1;
-  uint32_t r2Trim_ = 1;
+
 
   PairedReadProcessor::ProcessParams pairProcessorParams_;
 
