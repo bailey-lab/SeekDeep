@@ -13,26 +13,7 @@ namespace bibseq {
 
 
 
-template<typename CON>
-std::string conToStrEndSpecial(const CON & container,
-		const std::string & delim, const std::string & lastDelim) {
-	std::string ret = "";
-	if (container.size() > 1) {
-		uint32_t count = 0;
-		for (const auto & element : container) {
-			if (count + 1 == container.size()) {
-				ret += lastDelim;
-			} else if (count > 0) {
-				ret += delim;
-			}
-			ret += estd::to_string(element);
-			++count;
-		}
-	} else {
-		ret = bib::conToStr(container, delim);
-	}
-	return ret;
-}
+
 
 int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 		const bib::progutils::CmdArgs & inputCommands) {
@@ -44,7 +25,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	setUp.processDebug();
 	pars.debug = setUp.pars_.debug_;
 	setUp.setOption(pars.technology, "--technology",
-			"Sequencing Technology (should be " + conToStrEndSpecial(acceptableTechs, ", ", " or ") + ")",
+			"Sequencing Technology (should be " + bib::conToStrEndSpecial(acceptableTechs, ", ", " or ") + ")",
 			false, "Technology");
 	bib::for_each(acceptableTechs, [](std::string & tech){
 		stringToLower(tech);
@@ -57,7 +38,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 		std::stringstream ss;
 		ss
 				<< "Error in setting technology, should be "
-				<< conToStrEndSpecial(acceptableTechs, ", ", " or ")
+				<< bib::conToStrEndSpecial(acceptableTechs, ", ", " or ")
 				<< " not "
 				<< pars.technology << "\n";
 		setUp.addWarning(ss.str());

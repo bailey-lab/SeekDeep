@@ -90,7 +90,7 @@ public:
 	const bfs::path idFile_;
 
 	std::unordered_map<std::string, Target> targets_;
-	std::unordered_map<std::string, MidDeterminator::MidInfo> mids_;
+	std::unordered_map<std::string, MidDeterminator::MID> mids_;
 
 	std::unique_ptr<MidDeterminator> mDeterminator_;
 	std::unique_ptr<PrimerDeterminator> pDeterminator_;

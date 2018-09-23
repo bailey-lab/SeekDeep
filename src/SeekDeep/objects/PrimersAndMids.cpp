@@ -185,7 +185,7 @@ void PrimersAndMids::addMid(const std::string & midNmae,
 				<< bib::bashCT::boldRed(midNmae) << "\n";
 		throw std::runtime_error { ss.str() };
 	}
-	mids_.emplace(midNmae, MidDeterminator::MidInfo(midNmae, barcode));
+	mids_.emplace(midNmae, MidDeterminator::MID(midNmae, barcode));
 }
 
 void PrimersAndMids::addMid(const std::string & midNmae,
@@ -196,9 +196,7 @@ void PrimersAndMids::addMid(const std::string & midNmae,
 				<< bib::bashCT::boldRed(midNmae) << "\n";
 		throw std::runtime_error { ss.str() };
 	}
-	mids_.emplace(midNmae, MidDeterminator::MidInfo(midNmae, forBarcode));
-
-//	mids_.emplace(midNmae, MidDeterminator::MidInfo(midNmae, forBarcode, revBarcode));
+	mids_.emplace(midNmae, MidDeterminator::MID(midNmae, forBarcode, revBarcode));
 }
 
 
@@ -246,7 +244,9 @@ void PrimersAndMids::writeIdFile(const OutOptions & outOpts) const {
 		auto mKeys = getMids();
 		bib::sort(mKeys);
 		for (const auto & mKey : mKeys) {
-			idFileOut << mKey << "\t" << mids_.at(mKey).bar_->motifOriginal_ << "\n";
+			idFileOut << mKey
+					<< "\t" << (nullptr != mids_.at(mKey).forwardBar_ ? mids_.at(mKey).forwardBar_->bar_->motifOriginal_: "")
+					<<         (nullptr != mids_.at(mKey).reverseBar_ ? "\t" + mids_.at(mKey).reverseBar_->bar_->motifOriginal_: "")<< "\n";
 		}
 	}
 }
@@ -269,7 +269,9 @@ void PrimersAndMids::writeIdFile(const OutOptions & outOpts,
 		auto mKeys = getMids();
 		bib::sort(mKeys);
 		for (const auto & mKey : mKeys) {
-			idFileOut << mKey << "\t" << mids_.at(mKey).bar_->motifOriginal_ << "\n";
+			idFileOut << mKey
+					<< "\t" << (nullptr != mids_.at(mKey).forwardBar_ ? mids_.at(mKey).forwardBar_->bar_->motifOriginal_: "")
+					<<         (nullptr != mids_.at(mKey).reverseBar_ ? "\t" + mids_.at(mKey).reverseBar_->bar_->motifOriginal_: "")<< "\n";
 		}
 	}
 }
@@ -331,9 +333,9 @@ void PrimersAndMids::checkMidNamesThrow() const {
 	std::regex pat{"(^MID)([0-9]+$)"};
 	std::smatch match;
 	for (const auto & mid : mids_) {
-		if(!std::regex_match(mid.second.midName_, match, pat)){
+		if(!std::regex_match(mid.second.name_, match, pat)){
 			ss << "MID names need to begin with MID and end with a number: failed " << bib::bashCT::red
-				<< mid.second.midName_ << bib::bashCT::reset << "\n";
+				<< mid.second.name_ << bib::bashCT::reset << "\n";
 			failed = true;
 		}
 	}
