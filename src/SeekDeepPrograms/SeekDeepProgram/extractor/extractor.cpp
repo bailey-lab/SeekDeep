@@ -137,7 +137,7 @@ int SeekDeepRunner::extractor(const bib::progutils::CmdArgs & inputCommands) {
 	}
 
 	if (ids.containsMids()) {
-		auto failureCases = MidDeterminator::midPos::getFailureCaseNames();
+		auto failureCases = MidDeterminator::ProcessedRes::getProcessedCaseNames();
 		for(const auto & failureCase : failureCases){
 			std::string unRecName = "unrecognizedBarcode_" + failureCase;
 			auto midOpts = setUp.pars_.ioOptions_;
@@ -192,51 +192,53 @@ int SeekDeepRunner::extractor(const bib::progutils::CmdArgs & inputCommands) {
 		}
 		readVec::getMaxLength(seq, maxReadSize);
 
-		std::pair<MidDeterminator::midPos, MidDeterminator::midPos> currentMid;
+
 		if (ids.containsMids()) {
-			currentMid = ids.mDeterminator_->fullDetermine(seq, pars.corePars_.mDetPars);
-		} else {
-			currentMid = {MidDeterminator::midPos("all", 0, 0, 0),MidDeterminator::midPos("all", 0, 0, 0)};
-		}
-		if (seq->seqBase_.name_.find("_Comp") != std::string::npos) {
-			++counts[currentMid.first.midName_].second;
-		} else {
-			++counts[currentMid.first.midName_].first;
-		}
-		if (!currentMid.first) {
-			std::string unRecName = "unrecognizedBarcode_" + MidDeterminator::midPos::getFailureCaseName(currentMid.first.fCase_);
-			bool possibleContaimination = false;
-			if(ids.screeningForPossibleContamination()){
-				//this will check the read against all targets and their reverse complement so it will be a conservative estimate
-				//of whether or not this is contamination, if the read is still on by the end then that it means it's not
-				//considered possible contamination, could mark a lot seqs as contamination if not all seqs have comparison seqs
-				kmerInfo seqKInfo(seq->seqBase_.seq_, pars.corePars_.primIdsPars.compKmerLen_, false);
-				seq->seqBase_.on_ = false;
-				for(const auto & tar : ids.targets_){
-					for(const auto & refInfo : tar.second.refKInfos_){
-						if(refInfo.compareKmers(seqKInfo).second >= pars.corePars_.primIdsPars.compKmerSimCutOff_){
-							seq->seqBase_.on_ = true;
-							break;
+			auto searchRes = ids.mDeterminator_->searchRead(seq->seqBase_);
+			auto processRes = ids.mDeterminator_->processSearchRead(seq->seqBase_, searchRes);
+			if(MidDeterminator::ProcessedRes::PROCESSED_CASE::MATCH == processRes.case_){
+				if (processRes.rcomplement_) {
+					++counts[processRes.midName_].second;
+				} else {
+					++counts[processRes.midName_].first;
+				}
+				readLens.emplace_back(len(*seq));
+				readerOuts.openWrite(processRes.midName_, seq);
+			}else{
+				std::string unRecName = "unrecognizedBarcode_" + MidDeterminator::ProcessedRes::getProcessedCaseName(processRes.case_);
+				bool possibleContaimination = false;
+				if(ids.screeningForPossibleContamination()){
+					//this will check the read against all targets and their reverse complement so it will be a conservative estimate
+					//of whether or not this is contamination, if the read is still on by the end then that it means it's not
+					//considered possible contamination, could mark a lot seqs as contamination if not all seqs have comparison seqs
+					kmerInfo seqKInfo(seq->seqBase_.seq_, pars.corePars_.primIdsPars.compKmerLen_, false);
+					seq->seqBase_.on_ = false;
+					for(const auto & tar : ids.targets_){
+						for(const auto & refInfo : tar.second.refKInfos_){
+							if(refInfo.compareKmers(seqKInfo).second >= pars.corePars_.primIdsPars.compKmerSimCutOff_){
+								seq->seqBase_.on_ = true;
+								break;
+							}
 						}
 					}
+					if(!seq->seqBase_.on_){
+						possibleContaimination = true;
+					}
 				}
-				if(!seq->seqBase_.on_){
-					possibleContaimination = true;
+				if(possibleContaimination){
+					unRecName = "possible_contamination_" + unRecName;
+					++readsNotMatchedToBarcodePossContam;
+					++failBarCodeCountsPossibleContamination[MidDeterminator::ProcessedRes::getProcessedCaseName(processRes.case_)];
+				}else{
+					++readsNotMatchedToBarcode;
+					++failBarCodeCounts[MidDeterminator::ProcessedRes::getProcessedCaseName(processRes.case_)];
 				}
+				readerOuts.openWrite(unRecName, seq);
 			}
-			if(possibleContaimination){
-				unRecName = "possible_contamination_" + unRecName;
-				++readsNotMatchedToBarcodePossContam;
-				MidDeterminator::increaseFailedBarcodeCounts(currentMid.first, failBarCodeCountsPossibleContamination);
-			}else{
-				++readsNotMatchedToBarcode;
-				MidDeterminator::increaseFailedBarcodeCounts(currentMid.first, failBarCodeCounts);
-			}
-			readerOuts.openWrite(unRecName, seq);
-		}else{
+		} else {
+			++counts["all"].first;
 			readLens.emplace_back(len(*seq));
-			/**@todo need to reorient the reads here before outputing if that's needed*/
-			readerOuts.openWrite(currentMid.first.midName_, seq);
+			readerOuts.openWrite("all", seq);
 		}
 	}
 	if (setUp.pars_.verbose_) {

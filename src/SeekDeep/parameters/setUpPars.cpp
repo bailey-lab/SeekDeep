@@ -49,17 +49,17 @@ void CoreExtractorPars::setCorePars(seqSetUp & setUp){
 			false, "Output Naming");
 	setUp.setOption(rename, "--rename", "Rename Sequences With Barcode/Primer Names",
 			false, "Output Naming");
-	setUp.setOption(primIdsPars.barcodeErrors_ , "--barcodeErrors", "Errors Allowed in Barcode", false, "Barcodes");
-	setUp.setOption(mDetPars.barcodesBothEnds_, "--barcodeBothEnds",
-			"Look for Barcodes in Both Primers", false, "Barcodes");
-	setUp.setOption(primIdsPars.midEndsRevComp_, "--midEndsRevComp",
-			"Barcodes on both ends are in the reverse complement of each other", false, "Barcodes");
-	setUp.setOption(mDetPars.checkForShorten_, "--checkShortenBars",
-			"Check for shorten Barcodes if the first base may have been trimmed off", false, "Barcodes");
 
-	setUp.setOption(mDetPars.variableStop_, "--midWithinStart",
+	setUp.setOption(primIdsPars.mPars_.allowableErrors_ , "--barcodeErrors", "Errors Allowed in Barcode", false, "Barcodes");
+	setUp.setOption(primIdsPars.mPars_.checkForShorten_, "--checkShortenBars",
+			"Check for shorten Barcodes if the first base may have been trimmed off", false, "Barcodes");
+	setUp.setOption(primIdsPars.mPars_.searchStop_, "--midWithinStart,--midSearchStop",
 			"By default the primer or barcodes are searched at the very beginning of seq, use this flag to extended the search, should be kept low to cut down on false positives",
 			false, "Barcodes");
+	setUp.setOption(primIdsPars.mPars_.searchStart_, "--midSearchStart",
+			"By default the primer or barcodes are searched at the very beginning of seq, use this flag to start searching for MID barcode after this many bases, can be used if random bases precede barcodes",
+			false, "Barcodes");
+	setUp.setOption(primIdsPars.mPars_.checkComplement_, "--checkRevComplementForMids", "Check the Reverse Complement of the Seqs As Well For MIDs", false, "Complement");
 
 	setUp.setOption(pDetPars.primerWithin_, "--primerWithinStart",
 			"By default the primer or barcodes are searched at the very beginning of seq, use this flag to extended the search, should be kept low to cut down on false positives",
@@ -72,7 +72,6 @@ void CoreExtractorPars::setCorePars(seqSetUp & setUp){
 		}
 	}
 	setUp.setOption(idFileDelim, "--idFileDelim", "Id File Delim", false, "ID File");
-	setUp.setOption(mDetPars.checkComplement_, "--checkRevComplementForMids", "Check the Reverse Complement of the Seqs As Well For MIDs", false, "Complement");
 	setUp.setOption(pDetPars.checkComplement_, "--checkRevComplementForPrimers", "Check the Reverse Complement of the Seqs As Well For Primers", false, "Complement");
 
 	setUp.setOption(smallFragmentCutoff, "--smallFragmentCutOff",

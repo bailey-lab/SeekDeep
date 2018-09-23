@@ -121,9 +121,9 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 	std::unordered_map<std::string, uint32_t>  failBarCodeCounts;
 	std::unordered_map<std::string, uint32_t>  failBarCodeCountsPossibleContamination;
 
-	if (ids.containsMids() && pars.corePars_.primIdsPars.barcodeErrors_> 0) {
+	if (ids.containsMids() && pars.corePars_.primIdsPars.mPars_.allowableErrors_> 0) {
 		if (setUp.pars_.debug_) {
-			std::cout << "Allowing " << pars.corePars_.primIdsPars.barcodeErrors_ << " errors in barcode" << std::endl;
+			std::cout << "Allowing " << pars.corePars_.primIdsPars.mPars_.allowableErrors_ << " errors in barcode" << std::endl;
 		}
 	}
 	if (ids.containsMids()) {
@@ -145,7 +145,7 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 	}
 
 	if (ids.containsMids()) {
-		auto failureCases = MidDeterminator::midPos::getFailureCaseNames();
+		auto failureCases = MidDeterminator::ProcessedRes::getProcessedCaseNames();
 		for(const auto & failureCase : failureCases){
 			std::string unRecName = "unrecognizedBarcode_" + failureCase;
 			auto midOpts = setUp.pars_.ioOptions_;
@@ -197,30 +197,25 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 		readVec::getMaxLength(seq.seqBase_, maxReadSize);
 		readVec::getMaxLength(seq.mateSeqBase_, maxReadSize);
 
-		std::pair<MidDeterminator::midPos, MidDeterminator::midPos> currentMid;
 		if (ids.containsMids()) {
-//			if(print){
-//				std::cout << __PRETTY_FUNCTION__ << " " << __LINE__ << std::endl;
-//			}
-			currentMid = ids.mDeterminator_->fullDetermine(seq, pars.corePars_.mDetPars);
-//			if(print){
-//				std::cout << __PRETTY_FUNCTION__ << " " << __LINE__ << std::endl;
-//			}
+			auto searchRes = ids.mDeterminator_->searchPairedEndRead(seq);
+			auto processRes = ids.mDeterminator_->processSearchPairedEndRead(seq, searchRes);
+			if(MidDeterminator::ProcessedRes::PROCESSED_CASE::MATCH == processRes.case_){
+				if (processRes.rcomplement_) {
+					++counts[processRes.midName_].second;
+				} else {
+					++counts[processRes.midName_].first;
+				}
+				readerOuts.openWrite(processRes.midName_, seq);
+			}else{
+				std::string unRecName = "unrecognizedBarcode_" + MidDeterminator::ProcessedRes::getProcessedCaseName(processRes.case_);
+				++readsNotMatchedToBarcode;
+				++failBarCodeCounts[MidDeterminator::ProcessedRes::getProcessedCaseName(processRes.case_)];
+				readerOuts.openWrite(unRecName, seq);
+			}
 		} else {
-			currentMid = {MidDeterminator::midPos("all", 0, 0, 0), MidDeterminator::midPos("all", 0, 0, 0)};
-		}
-		if (seq.seqBase_.name_.find("_Comp") != std::string::npos) {
-			++counts[currentMid.first.midName_].second;
-		} else {
-			++counts[currentMid.first.midName_].first;
-		}
-		if (!currentMid.first) {
-			std::string unRecName = "unrecognizedBarcode_" + MidDeterminator::midPos::getFailureCaseName(currentMid.first.fCase_);
-			++readsNotMatchedToBarcode;
-			MidDeterminator::increaseFailedBarcodeCounts(currentMid.first, failBarCodeCounts);
-			readerOuts.openWrite(unRecName, seq);
-		}else{
-			readerOuts.openWrite(currentMid.first.midName_, seq);
+			++counts["all"].first;
+			readerOuts.openWrite("all", seq);
 		}
 	}
 

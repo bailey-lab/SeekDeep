@@ -36,7 +36,9 @@ class PrimersAndMids {
 public:
 
 	struct InitPars{
-
+		InitPars(){
+			mPars_.allowableErrors_ = 1;
+		}
 		bfs::path idFile_;
 
 		bfs::path lenCutOffFilename_ = "";
@@ -45,8 +47,7 @@ public:
 	  uint32_t compKmerLen_ = 5;
 	  double compKmerSimCutOff_ = 0.50;
 
-	  uint32_t barcodeErrors_ = 0;
-	  bool midEndsRevComp_ = false;
+	  MidDeterminator::MidDeterminePars mPars_;
 
 	  bfs::path overlapStatusFnp_ = "";
 	  bool noOverlapProcessForNoOverlapStatusTargets_ = false;
@@ -96,7 +97,7 @@ public:
 
 	void initAllAddLenCutsRefs(const InitPars & pars);
 
-	void initMidDeterminator();
+	void initMidDeterminator(const MidDeterminator::MidDeterminePars & midSearchPars);
 	void initPrimerDeterminator();
 
 	bool hasTarget(const std::string & target) const;

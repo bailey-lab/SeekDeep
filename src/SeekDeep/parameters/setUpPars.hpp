@@ -42,13 +42,13 @@ struct CoreExtractorPars{
   uint32_t numberOfNs = 1;
 
 
-  MidDeterminator::MidDeterminePars mDetPars;
 
   PrimerDeterminator::PrimerDeterminatorPars pDetPars;
   PrimerDeterminator::PrimerDeterminatorPars backEndpDetPars;
 
   bool noPrimers_{false};
   bool noReversePrimer_{false};
+
   PrimersAndMids::InitPars primIdsPars;
 
   std::string sampleName = "";

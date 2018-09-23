@@ -351,9 +351,7 @@ void PrimersAndMids::checkIfMIdsOrPrimersReadInThrow(
 void PrimersAndMids::initAllAddLenCutsRefs(const InitPars & pars){
 	//init mids
 	if(containsMids()){
-		initMidDeterminator();
-		mDeterminator_->setAllowableMismatches(pars.barcodeErrors_);
-		mDeterminator_->setMidEndsRevComp(pars.midEndsRevComp_);
+		initMidDeterminator(pars.mPars_);
 	}
 
 	//init primers
@@ -373,13 +371,13 @@ void PrimersAndMids::initAllAddLenCutsRefs(const InitPars & pars){
 	}
 }
 
-void PrimersAndMids::initMidDeterminator(){
+void PrimersAndMids::initMidDeterminator(const MidDeterminator::MidDeterminePars & midSearchPars){
 	if(mids_.empty()){
 		std::stringstream ss;
 		ss << __PRETTY_FUNCTION__ << ", error mids_ are empty, can't init mid determinator" << "\n";
 		throw std::runtime_error{ss.str()};
 	}
-	mDeterminator_ = std::make_unique<MidDeterminator>(mids_);
+	mDeterminator_ = std::make_unique<MidDeterminator>(idFile_,midSearchPars);
 }
 
 void PrimersAndMids::initPrimerDeterminator(){
