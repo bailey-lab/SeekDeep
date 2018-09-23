@@ -350,6 +350,11 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 				barcodeReadPairs.first.front(), barcodeReadPairs.second.front());
 		SeqInput barcodePairsReader(barcodePairsReaderOpts);
 		barcodePairsReader.openIn();
+		bool primerCheckComplement = pars.corePars_.pDetPars.checkComplement_;
+		//turn on auto determination for dual barcoded system where the barcodes are the same since direction cannot be determined by the MID barcode
+		if("all" != barcodeName && ids.containsMids() && ids.mDeterminator_->mids_.at(barcodeName).forSameAsRev_){
+			primerCheckComplement = true;
+		}
 		while(barcodePairsReader.readNextRead(seq)){
 			//std::cout << barcodeCount << std::endl;
 			if (setUp.pars_.verbose_) {
@@ -364,17 +369,21 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 				forwardPrimerName = ids.pDeterminator_->primers_.begin()->first;
 			}else{
 				forwardPrimerName = ids.pDeterminator_->determineForwardPrimer(seq.seqBase_, pars.corePars_.pDetPars, alignObj);
-				if ("unrecognized" ==  forwardPrimerName && pars.corePars_.pDetPars.checkComplement_) {
+				if ("unrecognized" ==  forwardPrimerName && primerCheckComplement) {
 					forwardPrimerName = ids.pDeterminator_->determineForwardPrimer(seq.mateSeqBase_, pars.corePars_.pDetPars, alignObj);
-					if (seq.seqBase_.on_) {
+					if (seq.mateSeqBase_.on_) {
 						foundInReverse = true;
 					}
 				}
 			}
 
 
+
 			//reverse primer
 			std::string reversePrimerName = "";
+//			std::cout << __PRETTY_FUNCTION__ << " " << __LINE__ << std::endl;
+//			std::cout << "\tbarcodeName: " << barcodeName << std::endl;
+
 			if(pars.corePars_.noPrimers_){
 				reversePrimerName = ids.pDeterminator_->primers_.begin()->first;
 			}else{
@@ -384,6 +393,9 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 					reversePrimerName = ids.pDeterminator_->determineWithReversePrimer(seq.seqBase_,     pars.corePars_.pDetPars, alignObj);
 				}
 			}
+
+
+
 			std::string fullname = "";
 			if(forwardPrimerName != reversePrimerName){
 				fullname = forwardPrimerName + "-" + reversePrimerName;
@@ -395,6 +407,7 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 			} else if ("" != pars.corePars_.sampleName) {
 				fullname += pars.corePars_.sampleName;
 			}
+
 
 			if("unrecognized" == forwardPrimerName ||
 				 "unrecognized" == reversePrimerName){
@@ -419,6 +432,14 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 			}else{
 				primersInMids[barcodeName].emplace(forwardPrimerName);
 				//primer match
+				if(foundInReverse){
+					seq.seqBase_.name_.append("_Comp");
+					seq.mateSeqBase_.name_.append("_Comp");
+					auto tempMate = seq.seqBase_;
+					seq.seqBase_ = seq.mateSeqBase_;
+					seq.mateSeqBase_ = tempMate;
+
+				}
 				stats.increaseCounts(fullname, seq.seqBase_.name_,
 						ExtractionStator::extractCase::GOOD);
 				midReaderOuts.openWrite(fullname + "good", seq);

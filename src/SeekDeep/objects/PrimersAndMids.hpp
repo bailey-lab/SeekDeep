@@ -111,6 +111,7 @@ public:
 			const std::string & revPrimer);
 
 	void addMid(const std::string & midNmae, const std::string & barcode);
+	void addMid(const std::string & midNmae, const std::string & forBarcode, const std::string & revBarcode);
 
 	bool hasMultipleTargets() const;
 

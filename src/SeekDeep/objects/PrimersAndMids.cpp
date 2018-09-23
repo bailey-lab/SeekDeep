@@ -120,23 +120,28 @@ PrimersAndMids::PrimersAndMids(const bfs::path & idFileFnp) : idFile_(idFileFnp)
 				std::stringstream ss;
 				ss << __PRETTY_FUNCTION__ << ": error in id file "
 						<< bib::bashCT::boldRed(idFile_.string())
-						<< "primer line should contain 3 items not " << toks.size() << "\n";
+						<< " primer line should contain 3 items not " << toks.size() << "\n";
 				ss << "line: " << line << "\n";
 				throw std::runtime_error { ss.str() };
 			}
 			addTarget(toks[0], toks[1], toks[2]);
 		} else if (readingMids) {
 			auto toks = bib::tokenizeString(line, "whitespace");
-			if (2 != toks.size()) {
+			if (2 != toks.size() && 3 != toks.size() ) {
 				std::stringstream ss;
 				ss << __PRETTY_FUNCTION__ << ": error in id file "
 						<< bib::bashCT::boldRed(idFile_.string())
-						<< "barcode line should contain 2 items not " << toks.size()
+						<< " barcode line should contain 2 or 3 items not " << toks.size()
 						<< "\n";
 				ss << "line: " << line << "\n";
 				throw std::runtime_error { ss.str() };
 			}
-			addMid(toks[0], toks[1]);
+			if (2 == toks.size()) {
+				addMid(toks[0], toks[1]);
+			} else if (3 == toks.size()) {
+				//addMid(toks[0], toks[1]);
+				addMid(toks[0], toks[1], toks[2]);
+			}
 		}
 	}
 }
@@ -182,6 +187,22 @@ void PrimersAndMids::addMid(const std::string & midNmae,
 	}
 	mids_.emplace(midNmae, MidDeterminator::MidInfo(midNmae, barcode));
 }
+
+void PrimersAndMids::addMid(const std::string & midNmae,
+		const std::string & forBarcode, const std::string & revBarcode) {
+	if (hasMid(midNmae)) {
+		std::stringstream ss;
+		ss << __PRETTY_FUNCTION__ << ": error, already have "
+				<< bib::bashCT::boldRed(midNmae) << "\n";
+		throw std::runtime_error { ss.str() };
+	}
+	mids_.emplace(midNmae, MidDeterminator::MidInfo(midNmae, forBarcode));
+
+//	mids_.emplace(midNmae, MidDeterminator::MidInfo(midNmae, forBarcode, revBarcode));
+}
+
+
+
 
 bool PrimersAndMids::hasMultipleTargets() const {
 	return targets_.size() > 1;

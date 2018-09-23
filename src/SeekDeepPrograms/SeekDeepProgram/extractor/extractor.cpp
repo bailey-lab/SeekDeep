@@ -433,9 +433,14 @@ int SeekDeepRunner::extractor(const bib::progutils::CmdArgs & inputCommands) {
 					fullname += pars.corePars_.sampleName;
 				}
 			} else {
+				bool primerCheckComplement = pars.corePars_.pDetPars.checkComplement_;
+				//turn on auto determination for dual barcoded system where the barcodes are the same since direction cannot be determined by the MID barcode
+				if("all" != barcodeName && ids.containsMids() && ids.mDeterminator_->mids_.at(barcodeName).forSameAsRev_){
+					primerCheckComplement = true;
+				}
 				//front end primer
 				frontPrimerName = ids.pDeterminator_->determineForwardPrimer(seq, pars.corePars_.pDetPars, alignObj);
-				if (frontPrimerName == "unrecognized" && pars.corePars_.pDetPars.checkComplement_) {
+				if (frontPrimerName == "unrecognized" && primerCheckComplement) {
 					frontPrimerName = ids.pDeterminator_->determineWithReversePrimer(seq, pars.corePars_.pDetPars, alignObj);
 					if (seq->seqBase_.on_) {
 						foundInReverse = true;
