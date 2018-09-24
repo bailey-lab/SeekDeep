@@ -24,8 +24,10 @@ struct extractBetweenSeqsPars{
 	uint32_t lenCutOffSizeExpand = 20;
 	uint32_t pairedEndLength = std::numeric_limits<uint32_t>::max();
 	uint32_t barcodeSize = 0;
+
 	bool shortNames = false;
 	std::string selectedGenomesStr = "";
+	bool writeOutAllSeqsFile = false;
 	bool removeRefAlignments = false;
 	bib::files::MkdirPar outputDirPars{"extractedRegions_TODAY"};
 

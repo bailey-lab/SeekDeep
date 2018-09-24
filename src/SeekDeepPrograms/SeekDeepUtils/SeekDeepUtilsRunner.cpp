@@ -50,7 +50,7 @@ int SeekDeepUtilsRunner::genTargetInfoFromGenomes(const bib::progutils::CmdArgs 
 	setUp.processDebug();
 	setUp.setOption(pars.primersFile, "--primers", "A file that contains three columns, target,forwardPrimer,reversePrimer 5` to 3` directions, same file as the input to SeekDeep", true);
 
-	pars.setUpCoreOptions(setUp);
+	pars.setUpCoreOptions(setUp, true);
 	setUp.finishSetUp(std::cout);
 
 

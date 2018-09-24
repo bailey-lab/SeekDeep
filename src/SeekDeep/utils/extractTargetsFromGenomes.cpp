@@ -11,6 +11,9 @@
 namespace bibseq {
 
 void extractBetweenSeqsPars::setUpCoreOptions(seqSetUp & setUp, bool needReadLength){
+
+	setUp.setOption(writeOutAllSeqsFile, "--writeOutAllSeqsFile", "Write Out All Seqs File without collpasing to unique sequences");
+
 	setUp.setOption(shortNames, "--shortNames", "Create short names for reference genomes extractions");
 	setUp.setOption(lenCutOffSizeExpand, "--lenCutOffSizeExpand", "When creating length cut off file how much to expand the length of the found targets");
 	setUp.setOption(pairedEndLength, "--pairedEndLength", "Paired End Read Length", needReadLength);
@@ -156,6 +159,10 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 					}
 					std::vector<seqInfo> refSeqs;
 					std::vector<seqInfo> refTrimmedSeqs;
+
+					std::vector<seqInfo> allSeqs;
+					std::vector<seqInfo> allSeqsTrimmedSeqs;
+
 					for(auto & genome : genomeExtracts){
 						if(genome.second.empty()){
 							continue;
@@ -185,6 +192,9 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 							}
 							eSeq.name_ = name;
 							bool refFound = false;
+							if(extractPars.writeOutAllSeqsFile){
+								allSeqs.emplace_back(eSeq);
+							}
 							for(auto & rSeq : refSeqs){
 								if(rSeq.seq_ == eSeq.seq_){
 									refFound = true;
@@ -197,6 +207,9 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 							bool trimmed_refFound = false;
 							auto innerSeq = extract.gRegionInner_->extractSeq(tReader);
 							innerSeq.name_ = name;
+							if(extractPars.writeOutAllSeqsFile){
+								allSeqsTrimmedSeqs.emplace_back(innerSeq);
+							}
 							for(auto & rSeq : refTrimmedSeqs){
 								if(rSeq.seq_ == innerSeq.seq_){
 									trimmed_refFound = true;
@@ -208,6 +221,15 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 							}
 							++extractionCount;
 						}
+					}
+
+					if(!allSeqs.empty()){
+						auto fullSeqOpts = SeqIOOptions::genFastaOut(bib::files::make_path(primerDirectory, "all_" + primerInfo.primerPairName_ +".fasta"));
+						SeqOutput::write(allSeqs, fullSeqOpts);
+					}
+					if(!allSeqsTrimmedSeqs.empty()){
+						auto innerSeqOpts = SeqIOOptions::genFastaOut(bib::files::make_path(primerDirectory, "all_" + primerInfo.primerPairName_ +"_primersRemoved.fasta"));
+						SeqOutput::write(allSeqsTrimmedSeqs, innerSeqOpts);
 					}
 
 					if(!refSeqs.empty()){
