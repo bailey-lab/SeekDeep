@@ -42,6 +42,8 @@ public:
 		NOOVERLAP,
 		R1BEGINSINR2,
 		R1ENDSINR2,
+		R1ALLINR2,
+		R2ALLINR1,
 		PERFECTOVERLAP,
 		NONE
 	};
@@ -59,6 +61,12 @@ public:
 				break;
 			case ReadPairOverLapStatus::R1ENDSINR2:
 				return "R1ENDSINR2";
+				break;
+			case ReadPairOverLapStatus::R1ALLINR2:
+				return "R1ALLINR2";
+				break;
+			case ReadPairOverLapStatus::R2ALLINR1:
+				return "R2ALLINR1";
 				break;
 			default:
 				return "NOTHANDLED";//shouldn't be getting here
@@ -114,6 +122,8 @@ public:
 		std::unique_ptr<SeqOutput> perfectOverlapCombinedWriter;//(perfectOverlapCombinedOpts);
 		std::unique_ptr<SeqOutput> r1EndsInR2CombinedWriter;//(r1EndsInR2CombinedOpts);
 		std::unique_ptr<SeqOutput> r1BeginsInR2CombinedWriter;//(r1BeginsInR2CombinedOpts);
+		std::unique_ptr<SeqOutput> r1AllInR2CombinedWriter;//();
+		std::unique_ptr<SeqOutput> r2AllInR1CombinedWriter;//();
 		std::unique_ptr<SeqOutput> notCombinedWriter;//(notCombinedOpts);
 		std::unique_ptr<SeqOutput> overhangsWriter;//(overhangsOpts);
 
@@ -128,11 +138,15 @@ public:
 		uint32_t perfectOverlapCombined = 0;
 		uint32_t r1EndsInR2Combined = 0;
 		uint32_t r1BeginsInR2Combined = 0;
+		uint32_t r1AllInR2Combined = 0;
+		uint32_t r2AllInR1Combined = 0;
 		uint32_t total = 0;
 
 		std::shared_ptr<SeqIOOptions> perfectOverlapCombinedOpts;
 		std::shared_ptr<SeqIOOptions> r1EndsInR2CombinedOpts;
 		std::shared_ptr<SeqIOOptions> r1BeginsInR2CombinedOpts;
+		std::shared_ptr<SeqIOOptions> r1AllInR2CombinedOpts;
+		std::shared_ptr<SeqIOOptions> r2AllInR1CombinedOpts;
 		std::shared_ptr<SeqIOOptions> notCombinedOpts;
 		std::shared_ptr<SeqIOOptions> overhangsOpts;
 
