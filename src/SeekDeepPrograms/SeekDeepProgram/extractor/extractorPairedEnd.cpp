@@ -847,7 +847,11 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 			auto outTable = getSeqPortionCounts(opts, 0, 20);
 			OutputStream countsOuts(outFilename);
 			uint32_t count = 0;
-			countsOuts << "inputName\tseq\tcount\tfractionOfUnrecognizedReads" << std::endl;
+			if(opts.isPairedIn()){
+				countsOuts << "inputName\tr1Seq\tr2Seq\tcount\tfractionOfUnrecognizedReads" << std::endl;
+			}else{
+				countsOuts << "inputName\tseq\tcount\tfractionOfUnrecognizedReads" << std::endl;
+			}
 			while(count < 10 && count < outTable.content_.size()){
 				countsOuts << seqName
 						<< "\t" << bib::conToStr(outTable.content_[count], "\t") << std::endl;
@@ -857,8 +861,13 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 	};
 	auto unRecBarR1Opts = SeqIOOptions::genFastqIn(bib::files::make_path(setUp.pars_.directoryName_, "filteredOff/bad/unrecognizedBarcode_NO_MATCHING_R1.fastq"));
 	auto unRecBarR2Opts = SeqIOOptions::genFastqIn(bib::files::make_path(setUp.pars_.directoryName_, "filteredOff/bad/unrecognizedBarcode_NO_MATCHING_R2.fastq"));
+	auto unRecBarPaired = SeqIOOptions::genPairedIn(bib::files::make_path(setUp.pars_.directoryName_, "filteredOff/bad/unrecognizedBarcode_NO_MATCHING_R1.fastq"),
+			bib::files::make_path(setUp.pars_.directoryName_, "filteredOff/bad/unrecognizedBarcode_NO_MATCHING_R2.fastq"));
+
 	writeOutUnrecCounts(unRecBarR1Opts, bib::files::make_path(setUp.pars_.directoryName_, "top_mostCommonR1Starts_for_unrecognizedBarcodes.tab.txt"));
 	writeOutUnrecCounts(unRecBarR2Opts, bib::files::make_path(setUp.pars_.directoryName_, "top_mostCommonR2Starts_for_unrecognizedBarcodes.tab.txt"));
+	writeOutUnrecCounts(unRecBarPaired, bib::files::make_path(setUp.pars_.directoryName_, "top_mostCommonR1AndR2Starts_for_unrecognizedBarcodes.tab.txt"));
+
 	if(!pars.corePars_.keepUnfilteredReads){
 		bib::files::rmDirForce(unfilteredReadsDir);
 	}
