@@ -270,11 +270,11 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 
 	for(const auto & genome : gMapper->genomes_){
 		auto genomeBedOpts = bib::files::make_path(locationsCombined, genome.first + ".bed");
-		std::vector<std::shared_ptr<Bed3RecordCore>> allRegions;
+		std::vector<std::shared_ptr<Bed6RecordCore>> allRegions;
 		for(const auto & tar : ids.targets_){
 			auto bedForTarFnp = bib::files::make_path(outputDir, tar.first, "genomeLocations", genome.first + ".bed");
 			if(bfs::exists(bedForTarFnp)){
-				auto locs = getBed3s(bedForTarFnp);
+				auto locs = getBeds(bedForTarFnp);
 				addOtherVec(allRegions, locs);
 			}
 		}
@@ -283,7 +283,46 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 				intersectBedLocsWtihGffRecordsPars pars(genome.second->gffFnp_);
 				pars.selectFeatures_ = VecStr{"gene"};
 				pars.extraAttributes_ = tokenizeString(extractPars.gffExtraAttributesStr, ",");
-				intersectBedLocsWtihGffRecords(allRegions, pars);
+				auto jsonValues = intersectBedLocsWtihGffRecords(allRegions, pars);
+				auto geneIds = jsonValues.getMemberNames();
+				std::set<std::string> geneIdsSet(geneIds.begin(), geneIds.end());
+				auto genes = GeneFromGffs::getGenesFromGffForIds(genome.second->gffFnp_,geneIdsSet);
+				for(const auto & reg : allRegions){
+					if(reg->extraFields_.empty()){
+						continue;
+					}
+					auto geneToks = bib::tokenizeString(reg->extraFields_.back(), "],[");
+					if(geneToks.size() > 1){
+						geneToks.front().append("]");
+						for(const auto pos : iter::range<uint32_t>(1, geneToks.size() - 1)){
+							geneToks[pos] = "[" + geneToks[pos] + "]";
+						}
+						geneToks.back() = "[" +geneToks.back();
+					}
+					std::string replacement = "";
+					for(const auto & geneTok : geneToks){
+						MetaDataInName geneMeta(geneTok);
+						TwoBit::TwoBitFile tReader(genome.second->fnpTwoBit_);
+						auto infos = bib::mapAt(genes, geneMeta.getMeta("ID"))->generateGeneSeqInfo(tReader, false);
+						for(const auto & info : infos){
+							auto posInfos = info.second->getInfosByGDNAPos();
+
+							auto minPos = vectorMinimum(getVectorOfMapKeys(posInfos));
+							auto maxPos = vectorMaximum(getVectorOfMapKeys(posInfos));
+							auto startPos = std::max(minPos, reg->chromStart_);
+							auto stopPos =  std::min(maxPos, reg->chromEnd_);
+							auto aaStartPos = std::min(posInfos[startPos].aaPos_, posInfos[stopPos].aaPos_) + 1;
+							auto aaStopPos =  std::max(posInfos[startPos].aaPos_, posInfos[stopPos].aaPos_) + 1;
+							geneMeta.addMeta(info.first + "-AAStart", aaStartPos );
+							geneMeta.addMeta(info.first + "-AAStop", aaStopPos );
+						}
+						if("" != replacement){
+							replacement += ",";
+						}
+						replacement += geneMeta.createMetaName();
+					}
+					reg->extraFields_.back() = replacement;
+				}
 			}
 			OutputStream genomeBedOut(genomeBedOpts);
 			bib::sort(allRegions, [](
