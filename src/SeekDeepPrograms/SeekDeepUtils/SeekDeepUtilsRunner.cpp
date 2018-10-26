@@ -36,11 +36,12 @@ SeekDeepUtilsRunner::SeekDeepUtilsRunner() :
 					addFunc("setupTarAmpAnalysis", setupTarAmpAnalysis, false),
 					addFunc("replaceUnderscores", replaceUnderscores, false),
 				  addFunc("rBind", ManipulateTableRunner::rBind, false),
-					addFunc("genTargetInfoFromGenomes", genTargetInfoFromGenomes, false)}, //
+					addFunc("genTargetInfoFromGenomes", genTargetInfoFromGenomes, false),
+				}, //
 				"SeekDeepUtils") {
 }
 
-
+//
 
 int SeekDeepUtilsRunner::genTargetInfoFromGenomes(const bib::progutils::CmdArgs & inputCommands) {
 	extractBetweenSeqsPars pars;
@@ -198,6 +199,76 @@ int SeekDeepUtilsRunner::dryRunQualityFiltering(
 	return 0;
 }
 
+
+inline std::vector<bib::sys::RunOutput> runCmdsThreadedQueue(
+		const std::vector<std::string> & cmds, uint32_t numThreads, bool verbose,
+		bool debug) {
+	if (debug) {
+		for (const auto & cmd : cmds) {
+			std::cout << cmd << std::endl;
+		}
+		exit(1);
+	}
+
+	std::mutex allOutputsMut;
+	std::mutex coutMut;
+	std::vector<bib::sys::RunOutput> ret;
+	bib::concurrent::LockableQueue<std::string> cmdsQueue(cmds);
+	auto runCmds = [&coutMut, &allOutputsMut, &ret, &verbose,&cmdsQueue]() {
+		std::string cmd = "";
+		uint32_t cmdNum = 0;
+		std::vector<bib::sys::RunOutput> currentRets;
+		bool run = cmdsQueue.getVal(cmd);
+		while(run) {
+//		while(cmdsQueue.getVal(cmd)) {
+//			auto toks = tokenizeString(cmd, " ");
+//			OutOptions opts(bfs::path{toks[0]});
+//			opts.overWriteFile_ = true;
+//			OutputStream out(opts);
+//			sleep(bib::StrToNumConverter::stoToNum<uint32_t>(toks[1]));
+//			auto currentOut = bib::sys::run(std::vector<std::string> {cmd});
+//			if(0 == cmdNum) {
+//				auto currentOut = bib::sys::run(std::vector<std::string> {"sleep 1"});
+//			}
+			if(verbose) {
+				std::lock_guard<std::mutex> lock(coutMut);
+				auto tId = std::this_thread::get_id();
+				std::cout << "Thread: " << tId << std::endl;
+				std::cout << "\tRunning: " << cmd << std::endl;
+			}
+			auto currentOut = bib::sys::run(std::vector<std::string> {cmd});
+			if(verbose) {
+				auto tId = std::this_thread::get_id();
+				std::cout << "\tThread: " << tId << std::endl;
+				std::cout << "\tDone running: " << cmd << std::endl;
+			}
+			{
+				if(verbose) {
+					auto tId = std::this_thread::get_id();
+					std::cout << "\tThread: " << tId << std::endl;
+					std::cout << "\tInserting Results from: " << cmd << std::endl;
+				}
+				currentRets.emplace_back(currentOut);
+			}
+			run = cmdsQueue.getVal(cmd);
+			++cmdNum;
+		}
+		{
+			std::lock_guard<std::mutex> lock(allOutputsMut);
+			for(const auto & runOut : currentRets){
+				ret.emplace_back(runOut);
+			}
+		}
+	};
+	std::vector<std::thread> threads;
+	for (uint32_t t = 0; t < numThreads; ++t) {
+		threads.emplace_back(std::thread(runCmds));
+	}
+	bib::concurrent::joinAllThreads(threads);
+	return ret;
+}
+
+
 int SeekDeepUtilsRunner::runMultipleCommands(
 		const bib::progutils::CmdArgs & inputCommands) {
 	std::string filename = "";
@@ -316,8 +387,7 @@ int SeekDeepUtilsRunner::runMultipleCommands(
 		printVector(cmds, "\n");
 	}
 
-	auto allRunOutputs = bib::sys::runCmdsThreaded(cmds, numThreads,
-			setUp.pars_.verbose_, setUp.pars_.debug_);
+	auto allRunOutputs = runCmdsThreadedQueue(cmds, numThreads, setUp.pars_.verbose_, setUp.pars_.debug_);
 	Json::Value allLog;
 
 	allLog["totalTime"] = setUp.timer_.totalTime();
