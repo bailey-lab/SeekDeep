@@ -157,6 +157,10 @@ TarAmpAnalysisSetup::TarAmpAnalysisSetup(const TarAmpPars & pars) :
 
 	//add ids and primers
 	idsMids_ = std::make_unique<PrimersAndMids>(pars_.idFile);
+	// set this automatically
+	if(idsMids_->containsMids()){
+		pars_.byIndex = true;
+	}
 	if(idsMids_->containsMids()){
 		idsMids_->checkMidNamesThrow();
 	}
@@ -176,22 +180,25 @@ TarAmpAnalysisSetup::TarAmpAnalysisSetup(const TarAmpPars & pars) :
 			bfs::copy(pars_.targetsToIndexFnp, bib::files::make_path(infoDir_, "indexToTargets.tab.txt"));
 		}
 	}
-	//check for incompatible set ups
-	if (!idsMids_->containsMids() && pars_.byIndex) {
-		std::stringstream ss;
-		ss << __PRETTY_FUNCTION__
-				<< ": error, if input files don't have MID still, then the sample file"
-				<< pars_.samplesNamesFnp << " should be by target and not index" << "\n";
-		throw std::runtime_error { ss.str() };
-	}
 
-	if (idsMids_->containsMids() && !pars_.byIndex) {
-		std::stringstream ss;
-		ss << __PRETTY_FUNCTION__
-				<< ": error, if input files have MIDs still, then the sample file"
-				<< pars_.samplesNamesFnp << " should be by index and not by target" << "\n";
-		throw std::runtime_error { ss.str() };
-	}
+
+
+	//check for incompatible set ups
+//	if (!idsMids_->containsMids() && pars_.byIndex) {
+//		std::stringstream ss;
+//		ss << __PRETTY_FUNCTION__
+//				<< ": error, if input files don't have MID still, then the sample file"
+//				<< pars_.samplesNamesFnp << " should be by target and not index" << "\n";
+//		throw std::runtime_error { ss.str() };
+//	}
+//
+//	if (idsMids_->containsMids() && !pars_.byIndex) {
+//		std::stringstream ss;
+//		ss << __PRETTY_FUNCTION__
+//				<< ": error, if input files have MIDs still, then the sample file"
+//				<< pars_.samplesNamesFnp << " should be by index and not by target" << "\n";
+//		throw std::runtime_error { ss.str() };
+//	}
 
 	//add meta data if available
 	if("" != pars.groupMeta){
