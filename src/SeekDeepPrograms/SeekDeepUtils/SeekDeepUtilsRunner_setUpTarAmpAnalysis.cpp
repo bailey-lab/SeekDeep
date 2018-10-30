@@ -666,9 +666,9 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	}
 	VecStr processClusterCmds;
 	if (nullptr != analysisSetup.groupMetaData_) {
-		processClusterTemplate += " --groupingsFile "
+		processClusterTemplate += " --groupingsFile \""
 				+ bib::files::make_path(bfs::absolute(analysisSetup.infoDir_),
-						"groupMeta.tab.txt").string();
+						"groupMeta.tab.txt").string() + "\"";
 	}
 
 	auto popDir = bib::files::make_path(bfs::absolute(analysisSetup.dir_),
