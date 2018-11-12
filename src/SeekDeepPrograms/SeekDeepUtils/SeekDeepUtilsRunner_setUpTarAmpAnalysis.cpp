@@ -370,9 +370,9 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 			}
 		}
 		if (analysisSetup.pars_.techIsIllumina()) {
-			extractorCmdTemplate += "--fastq1 {INDEX_R1} --fastq2 /{INDEX_R2} ";
+			extractorCmdTemplate += "--fastq1 \"{INDEX_R1}\" --fastq2 \"{INDEX_R2}\" ";
 		} else {
-			extractorCmdTemplate += "--fastq {INDEX_InFile} ";
+			extractorCmdTemplate += "--fastq \"{INDEX_InFile}\" ";
 		}
 		std::string lenCutOffsTemplate ="--lenCutOffs info/ids/{TARS}_lenCutOffs.tab.txt ";
 		std::string idTemplate = "--id info/ids/{TARS}.id.txt ";
@@ -386,7 +386,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 						+ "if [ -f {TARGET}{MIDREP}.fastq  ]; then "
 						+ setUp.commands_.masterProgram_
 						+ " qluster "
-								"--fastq {TARGET}{MIDREP}.fastq "
+								"--fastq \"{TARGET}{MIDREP}.fastq\" "
 								"--alnInfoDir {TARGET}{MIDREP}_alnCache --overWriteDir "
 								"--additionalOut \"../popClustering/{TARGET}/locationByIndex/{INDEX}.tab.txt\" "
 								"--overWrite --dout {TARGET}{MIDREP}_qlusterOut ";
@@ -498,9 +498,9 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 			 }
 		}
 		if (analysisSetup.pars_.techIsIllumina()) {
-			extractorCmdTemplate += "--fastq1 {REP_R1} --fastq2 /{REP_R2} ";
+			extractorCmdTemplate += "--fastq1 \"{REP_R1}\" --fastq2 \"{REP_R2}\" ";
 		} else {
-			extractorCmdTemplate += "--fastq {REP_InFile} ";
+			extractorCmdTemplate += "--fastq \"{REP_InFile}\" ";
 		}
 
 		std::string lenCutOffsTemplate ="--lenCutOffs info/ids/{TARS}_lenCutOffs.tab.txt ";
@@ -513,11 +513,11 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 		auto extractionDirs = bib::files::make_path(
 				bfs::absolute(analysisSetup.dir_), "{REP}_extraction");
 
-		std::string qlusterCmdTemplate = "cd " + extractionDirs.string() + " && "
+		std::string qlusterCmdTemplate = "cd \"" + extractionDirs.string() + "\" && "
 				+ " if [ -f {TARGET}{MIDREP}.fastq  ]; then "
 										+ setUp.commands_.masterProgram_
 										+ " qluster "
-						"--fastq {TARGET}{MIDREP}.fastq "
+						"--fastq \"{TARGET}{MIDREP}.fastq\" "
 						"--alnInfoDir {TARGET}{MIDREP}_alnCache --overWriteDir "
 						"--additionalOut ../popClustering/locationByIndex/{TARGET}.tab.txt "
 						"--overWrite --dout {TARGET}{MIDREP}_qlusterOut ";
@@ -666,9 +666,9 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	}
 	VecStr processClusterCmds;
 	if (nullptr != analysisSetup.groupMetaData_) {
-		processClusterTemplate += " --groupingsFile "
+		processClusterTemplate += " --groupingsFile \""
 				+ bib::files::make_path(bfs::absolute(analysisSetup.infoDir_),
-						"groupMeta.tab.txt").string();
+						"groupMeta.tab.txt").string() + "\"";
 	}
 
 	auto popDir = bib::files::make_path(bfs::absolute(analysisSetup.dir_),
@@ -677,7 +677,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	for (const auto & tar : targets) {
 		std::stringstream processClustersCmdsStream;
 		processClustersCmdsStream
-				<< "cd " + bib::files::make_path(popDir, tar).string() + " && "
+				<< "cd \"" + bib::files::make_path(popDir, tar).string() + "\" && "
 						+ processClusterTemplate + " --experimentName " + tar;
 		auto refSeqFnp = bib::files::make_path(pars.outDir, "info/refs/" + tar + ".fasta");
 		if(bfs::exists(refSeqFnp)){
@@ -734,11 +734,11 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	startServerCmdFile << "" << std::endl;
 	startServerCmdFile << "if [[ $# -eq 2 ]]; then" << std::endl;
 	startServerCmdFile << "	nohup " << setUp.commands_.masterProgram_
-			<< " popClusteringViewer --verbose --configDir $(pwd)/serverConfigs --port $1 --name $2 &"
+			<< " popClusteringViewer --verbose --configDir \"$(pwd)/serverConfigs\" --port $1 --name $2 &"
 			<< std::endl;
 	startServerCmdFile << "else" << std::endl;
 	startServerCmdFile << "	nohup " << setUp.commands_.masterProgram_
-			<< " popClusteringViewer --verbose --configDir $(pwd)/serverConfigs & "
+			<< " popClusteringViewer --verbose --configDir \"$(pwd)/serverConfigs\" & "
 			<< std::endl;
 	startServerCmdFile << "fi" << std::endl;
 	//make file executable
@@ -757,6 +757,8 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	combineExtractionCmdOut << "SeekDeep rBind --recursive --depth 1 --contains processPairsCounts.tab.txt --delim tab --header --out reports/allProcessPairsCounts.tab.txt  --overWrite" << std::endl;
 	combineExtractionCmdOut << "SeekDeep rBind --recursive --depth 1 --contains top_mostCommonR1Starts_for_unrecognizedBarcodes.tab.txt --delim tab --header --out reports/allTop_mostCommonR1Starts_for_unrecognizedBarcodes.tab.txt  --overWrite" << std::endl;
 	combineExtractionCmdOut << "SeekDeep rBind --recursive --depth 1 --contains top_mostCommonR2Starts_for_unrecognizedBarcodes.tab.txt --delim tab --header --out reports/allTop_mostCommonR2Starts_for_unrecognizedBarcodes.tab.txt  --overWrite" << std::endl;
+	combineExtractionCmdOut << "SeekDeep rBind --recursive --depth 1 --contains top_mostCommonR1AndR2Starts_for_unrecognizedBarcodes.tab.txt --delim tab --header --out reports/allTop_mostCommonR1AndR2Starts_for_unrecognizedBarcodes.tab.txt  --overWrite" << std::endl;
+
 	chmod(combineExtractionCmdOpts.outFilename_.c_str(),
 			S_IWUSR | S_IRUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IEXEC | S_IXGRP);
 

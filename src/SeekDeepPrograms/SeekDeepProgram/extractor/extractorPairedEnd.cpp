@@ -499,6 +499,9 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 			PairedReadProcessor::ProcessorOutWriters processWriter;
 			processWriter.overhangsWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(bib::files::make_path(overHansDir, name + "_overhangs")));
 			processWriter.perfectOverlapCombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(bib::files::make_path(unfilteredByPairsProcessedDir, name + "_perfectOverlap")));
+
+			processWriter.r1AllInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(bib::files::make_path(unfilteredByPairsProcessedDir, name + "_r1AllInR2")));
+			processWriter.r2AllInR1CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(bib::files::make_path(unfilteredByPairsProcessedDir, name + "_r2AllInR1")));
 			if(PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP == bib::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
 				processWriter.notCombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genPairedOut(bib::files::make_path(unfilteredByPairsProcessedDir, name)));
 				processWriter.r1BeginsInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(bib::files::make_path(badDir, name + "_r1BeginsInR2.fastq")));
@@ -528,7 +531,7 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 	}
 
 	OutputStream outPairProcessOut(bib::files::make_path(setUp.pars_.directoryName_, "processPairsCounts.tab.txt"));
-	outPairProcessOut << "inputName\tName\ttarget\ttotal\tnotCombined\tperfectOverlapCombined\tr1BeginsInR2Combined\tr1EndsInR2Combined" << std::endl;;
+	outPairProcessOut << "inputName\tName\ttarget\ttotal\tnotCombined\tperfectOverlapCombined\tr1BeginsInR2Combined\tr1EndsInR2Combined\tr1AllInR2Combined\tr2AllInR1Combined" << std::endl;;
 	auto processedPairsKeys = bib::getVecOfMapKeys(resultsPerMidTarPair);
 	bib::sort(processedPairsKeys);
 
@@ -542,6 +545,8 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 				<< "\t" << getPercentageString(processedResults.second.perfectOverlapCombined, processedResults.second.total)
 				<< "\t" << getPercentageString(processedResults.second.r1BeginsInR2Combined, processedResults.second.total)
 				<< "\t" << getPercentageString(processedResults.second.r1EndsInR2Combined, processedResults.second.total)
+				<< "\t" << getPercentageString(processedResults.second.r1AllInR2Combined, processedResults.second.total)
+				<< "\t" << getPercentageString(processedResults.second.r2AllInR1Combined, processedResults.second.total)
 				<< std::endl;
 	}
 
@@ -842,7 +847,11 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 			auto outTable = getSeqPortionCounts(opts, 0, 20);
 			OutputStream countsOuts(outFilename);
 			uint32_t count = 0;
-			countsOuts << "inputName\tseq\tcount\tfractionOfUnrecognizedReads" << std::endl;
+			if(opts.isPairedIn()){
+				countsOuts << "inputName\tr1Seq\tr2Seq\tcount\tfractionOfUnrecognizedReads" << std::endl;
+			}else{
+				countsOuts << "inputName\tseq\tcount\tfractionOfUnrecognizedReads" << std::endl;
+			}
 			while(count < 10 && count < outTable.content_.size()){
 				countsOuts << seqName
 						<< "\t" << bib::conToStr(outTable.content_[count], "\t") << std::endl;
@@ -852,8 +861,13 @@ int SeekDeepRunner::extractorPairedEnd(const bib::progutils::CmdArgs & inputComm
 	};
 	auto unRecBarR1Opts = SeqIOOptions::genFastqIn(bib::files::make_path(setUp.pars_.directoryName_, "filteredOff/bad/unrecognizedBarcode_NO_MATCHING_R1.fastq"));
 	auto unRecBarR2Opts = SeqIOOptions::genFastqIn(bib::files::make_path(setUp.pars_.directoryName_, "filteredOff/bad/unrecognizedBarcode_NO_MATCHING_R2.fastq"));
+	auto unRecBarPaired = SeqIOOptions::genPairedIn(bib::files::make_path(setUp.pars_.directoryName_, "filteredOff/bad/unrecognizedBarcode_NO_MATCHING_R1.fastq"),
+			bib::files::make_path(setUp.pars_.directoryName_, "filteredOff/bad/unrecognizedBarcode_NO_MATCHING_R2.fastq"));
+
 	writeOutUnrecCounts(unRecBarR1Opts, bib::files::make_path(setUp.pars_.directoryName_, "top_mostCommonR1Starts_for_unrecognizedBarcodes.tab.txt"));
 	writeOutUnrecCounts(unRecBarR2Opts, bib::files::make_path(setUp.pars_.directoryName_, "top_mostCommonR2Starts_for_unrecognizedBarcodes.tab.txt"));
+	writeOutUnrecCounts(unRecBarPaired, bib::files::make_path(setUp.pars_.directoryName_, "top_mostCommonR1AndR2Starts_for_unrecognizedBarcodes.tab.txt"));
+
 	if(!pars.corePars_.keepUnfilteredReads){
 		bib::files::rmDirForce(unfilteredReadsDir);
 	}

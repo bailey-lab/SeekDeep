@@ -102,7 +102,7 @@ int SeekDeepServerRunner::popClusteringViewer(const bib::progutils::CmdArgs & in
 	auto settings = std::make_shared<restbed::Settings>();
 	settings->set_port(corePars.port_);
 	settings->set_default_header("Connection", "close");
-
+	settings->set_bind_address(corePars.bindAddress_);
 	restbed::Service service;
 	service.set_error_handler(errorHandler);
 	for(const auto & resource : resources){
