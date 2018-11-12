@@ -9,9 +9,9 @@ class genHelper:
     def generateCompfileFull(outFileName, externalDirLoc, cc, cxx, outName, installDirName, installDirLoc, neededLibs,ldFlags = "", cxxFlags = "", private =False):
         availableLibs = ["CPPITERTOOLS","CPPPROGUTILS","ZI_LIB","BOOST",
                          "R","BAMTOOLS","CPPCMS","MATHGL","ARMADILLO",
-                         "MLPACK","LIBLINEAR","CURL","GTKMM", "BIBSEQ",
-                          "BIBCPP", "SEEKDEEP", 
-                         "BIBSEQDEV", "SEEKDEEPDEV", "CATCH", "JSONCPP",
+                         "MLPACK","LIBLINEAR","CURL","GTKMM", "NJHSEQ",
+                          "NJHCPP", "SEEKDEEP", 
+                         "NJHSEQDEV", "SEEKDEEPDEV", "CATCH", "JSONCPP",
                           "TWOBIT", "SEQSERVER","NJHRINSIDE", "PSTREAMS",
                            "MONGOC", "MONGOCXX", "SHAREDMUTEX",
                            "MAGIC", "HTS", "RESTBED", "LIBPCA", "BOOST_FILESYSTEM", 

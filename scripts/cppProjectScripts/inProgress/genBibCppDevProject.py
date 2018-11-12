@@ -41,7 +41,7 @@ def addSetUpPyCompletes(dest, outFilename):
 
 def genMultiRingBashCompleteStr(programNames):
     ret =  """
-_bibCppTools()
+_njhCppTools()
 {
     local cur prev opts base
     COMPREPLY=()
@@ -74,7 +74,7 @@ _bibCppTools()
 }
 """
     for name in programNames:
-        ret += "complete -F _bibCppTools {programName}\n".format(programName = name)
+        ret += "complete -F _njhCppTools {programName}\n".format(programName = name)
     return ret
 
 def addMultiRingComletes(dest,programNames, outFilename):
@@ -83,7 +83,7 @@ def addMultiRingComletes(dest,programNames, outFilename):
         
 def genSingleCmdBashCompleteStr(programNames):
     ret =  """
-_singleBibCppTools()
+_singleNJHCppTools()
 {
     local cur prev opts base
     COMPREPLY=()
@@ -100,7 +100,7 @@ _singleBibCppTools()
 
 """
     for name in programNames:
-        ret += "complete -F _singleBibCppTools {programName}\n".format(programName = name)
+        ret += "complete -F _singleNJHCppTools {programName}\n".format(programName = name)
     return ret
 
 def addSingleCmdComletes(dest,programNames, outFilename):
@@ -136,7 +136,7 @@ def startCpp(nameStub, author):
 
 
 def genRing(runnerName,ringName, projNamespace, internalIncludes, externalIncludes, parentPath, dest, author, placeHolderFunc):
-    externalIncludes = ["bibcpp.h"] + externalIncludes
+    externalIncludes = ["njhcpp.h"] + externalIncludes
     if not parentPath.endswith("/"):
         parentPath += "/"
     ringDestName = os.path.join(dest, ringName)
@@ -164,7 +164,7 @@ def genRing(runnerName,ringName, projNamespace, internalIncludes, externalInclud
         defaultHeader += """
 namespace {projNamespace} {{
 
-class {name}SetUp : public bib::progutils::programSetUp {{
+class {name}SetUp : public njh::progutils::programSetUp {{
 
  public:
     using programSetUp::programSetUp; //include programSetUp's constructors
@@ -189,7 +189,7 @@ namespace {projNamespace} {{
 
 namespace {projNamespace} {{
 
-class {name}Runner : public bib::progutils::programRunner {{
+class {name}Runner : public njh::progutils::programRunner {{
  public:
   {name}Runner();
   
@@ -206,7 +206,7 @@ class {name}Runner : public bib::progutils::programRunner {{
 namespace {projNamespace} {{
 
 {name}Runner::{name}Runner()
-    : bib::progutils::programRunner({{addFunc("{placeHolderFunc}", {placeHolderFunc}, false)}},
+    : njh::progutils::programRunner({{addFunc("{placeHolderFunc}", {placeHolderFunc}, false)}},
                     "{runnerName}") {{}}
                     
 int {name}Runner::{placeHolderFunc}(std::map<std::string, std::string> inputCommands) {{
@@ -223,7 +223,7 @@ int {name}Runner::{placeHolderFunc}(std::map<std::string, std::string> inputComm
         f.write(infoHeader)
 
 def genOneRing(runnerName, ringName, projNamespace, rings, externalIncludes, parentPath, dest, author, placeHolderFunc):
-    externalIncludes = ["bibcpp.h"] + externalIncludes
+    externalIncludes = ["njhcpp.h"] + externalIncludes
     if not parentPath.endswith("/"):
         parentPath += "/"
     ringDestName = os.path.join(dest, ringName)
@@ -249,7 +249,7 @@ def genOneRing(runnerName, ringName, projNamespace, rings, externalIncludes, par
         defaultHeader += """
 namespace {projNamespace} {{
 
-class {name}SetUp : public bib::progutils::programSetUp {{
+class {name}SetUp : public njh::progutils::programSetUp {{
 
  public:
     using programSetUp::programSetUp; //include programSetUp's constructors
@@ -274,7 +274,7 @@ namespace {projNamespace} {{
 
 namespace {projNamespace} {{
 
-class {name}Runner : public bib::progutils::oneRing {{
+class {name}Runner : public njh::progutils::oneRing {{
  public:
   {name}Runner();
   
@@ -294,7 +294,7 @@ class {name}Runner : public bib::progutils::oneRing {{
 namespace {projNamespace} {{
 
 {name}Runner::{name}Runner()
-    : bib::progutils::oneRing({{"""
+    : njh::progutils::oneRing({{"""
 
         for ring in rings:
             infoHeader += "addRing(std::make_shared<{ring}>()),".format(ring = ring)
@@ -398,11 +398,11 @@ def genSingCmdMain(dest, projName):
         f.write("// main.cpp\n")
         f.write("\n")
         f.write("#include \""+ projName + ".h\"\n")
-        f.write("#include <bibcpp.h> \n")
+        f.write("#include <njhcpp.h> \n")
         f.write("\n")
         f.write("int main(int argc, char* argv[]){\n")
         mainContent = """
-    bib::progutils::programSetUp setUp(argc, argv);
+    njh::progutils::programSetUp setUp(argc, argv);
     std::string name = "World";
     setUp.setOption(name, "--name", "Name to say hello to", false);
     setUp.finishSetUp(std::cout);
@@ -493,17 +493,17 @@ def main():
     outname = args.projName[0]
     prefix = "./"
     installName = args.projName[0]
-    neededLibs = ["bibcppdev"]        
+    neededLibs = ["njhcppdev"]        
     if args.externalLoc:
         external = os.path.realpath(args.externalLoc[0])
     if args.neededLibs:
-        neededLibs = ["bibcppdev"] + args.neededLibs[0].split(",")
+        neededLibs = ["njhcppdev"] + args.neededLibs[0].split(",")
     genHelper.generateCompfileFull(os.path.join(projectOut, "compfile.mk"), external, CC, CXX, outname, installName, prefix, neededLibs)
     with open(os.path.join(projectOut, "configure.py"), "w") as configFile:
         if(args.neededLibs):
             configFile.write(genHelper.mkConfigFileStr(outname, ",".join(neededLibs)))
         else:
-            configFile.write(genHelper.mkConfigFileStr(outname, "bibcppdev"))
+            configFile.write(genHelper.mkConfigFileStr(outname, "njhcppdev"))
     os.chmod(os.path.join(projectOut, "configure.py"), stat.S_IXGRP | stat.S_IXOTH | stat.S_IXUSR | stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH | stat.S_IWUSR)
     exFrom = os.path.abspath(os.path.dirname(__file__))
     cpSetUpCmd = exFrom + "/copySetUpFiles.py -from " + exFrom +"/../../ -to " + projectOut

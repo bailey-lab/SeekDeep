@@ -24,7 +24,7 @@ class.*\};)
 
 #d = os.path.dirname(os.path.abspath(__file__))
 #d = os.path.join(d, "../")
-d = "/home/mjp//bib-cpp"
+d = "/home/mjp//njh-cpp"
 src_folders = glob.glob("{d}/src".format(d=d))
 
 for path in src_folders:
