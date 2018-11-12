@@ -28,21 +28,21 @@
 
 
 
-#include <bibcpp.h>
+#include <njhcpp.h>
 #include "SeekDeepPrograms/SeekDeepProgram/SeekDeepSetUp.hpp"
 
-namespace bibseq {
+namespace njhseq {
 
-class SeekDeepRunner : public bib::progutils::OneRing {
+class SeekDeepRunner : public njh::progutils::OneRing {
 
  public:
   SeekDeepRunner();
-  static int extractor(const bib::progutils::CmdArgs & inputCommands);
-  static int extractorPairedEnd(const bib::progutils::CmdArgs & inputCommands);
-  static int qluster(const bib::progutils::CmdArgs & inputCommands);
+  static int extractor(const njh::progutils::CmdArgs & inputCommands);
+  static int extractorPairedEnd(const njh::progutils::CmdArgs & inputCommands);
+  static int qluster(const njh::progutils::CmdArgs & inputCommands);
   //.cpp
-  static int processClusters(const bib::progutils::CmdArgs & inputCommands);
-  static int makeSampleDirectories(const bib::progutils::CmdArgs & inputCommands);
+  static int processClusters(const njh::progutils::CmdArgs & inputCommands);
+  static int makeSampleDirectories(const njh::progutils::CmdArgs & inputCommands);
 };
-}  // namespace bibseq
+}  // namespace njhseq
 

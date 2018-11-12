@@ -6,11 +6,11 @@
  *      Author: nick
  */
 
-#include <bibseq.h>
+#include <njhseq.h>
 #include "SeekDeep/objects/PrimersAndMids.hpp"
 
 
-namespace bibseq {
+namespace njhseq {
 
 struct extractBetweenSeqsPars{
 	MultiGenomeMapper::inputParameters pars;
@@ -29,7 +29,7 @@ struct extractBetweenSeqsPars{
 	std::string selectedGenomesStr = "";
 	bool writeOutAllSeqsFile = false;
 	bool removeRefAlignments = false;
-	bib::files::MkdirPar outputDirPars{"extractedRegions_TODAY"};
+	njh::files::MkdirPar outputDirPars{"extractedRegions_TODAY"};
 
 	void setUpCoreOptions(seqSetUp & setUp, bool needReadLength = false);
 
@@ -38,6 +38,6 @@ struct extractBetweenSeqsPars{
 void extractBetweenSeqs(const PrimersAndMids & ids,
 		const extractBetweenSeqsPars & extractPars);
 
-}  // namespace bibseq
+}  // namespace njhseq
 
 

@@ -28,15 +28,15 @@
 //
 #include <seqServer/apps/SeqApp.hpp>
 #include <seqServer/utils.h>
-#include <bibcpp.h>
+#include <njhcpp.h>
 #include "SeekDeep/server/PopClusProject.hpp"
 
 
 
-namespace bibseq {
+namespace njhseq {
 
 
-class pcv: public bibseq::SeqApp {
+class pcv: public njhseq::SeqApp {
 public:
 	pcv(const Json::Value & config);
 
@@ -122,7 +122,7 @@ private:
 	void getExtractionProfileDataHanlder(std::shared_ptr<restbed::Session> session);
 	void getExtractionStatsDataHanlder(std::shared_ptr<restbed::Session> session);
 
-	typedef bibseq::SeqApp super;
+	typedef njhseq::SeqApp super;
 	bfs::path configDir_;
 	bfs::path resourceDir_;
 
@@ -193,7 +193,7 @@ public:
 
 
 
-}  // namespace bibseq
+}  // namespace njhseq
 
 
 

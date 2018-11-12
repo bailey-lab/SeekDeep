@@ -29,56 +29,56 @@
 
 #include "pcv.hpp"
 
-namespace bibseq {
+namespace njhseq {
 
 
 
 pcv::pcv(const Json::Value & config) :
-		bibseq::SeqApp(config) {
+		njhseq::SeqApp(config) {
 	configDir_ = config["configDir"].asString();
 	resourceDir_ = config["resources"].asString();
 
 	jsFiles_->addFiles(
-			bib::files::gatherFiles(bib::files::make_path(resourceDir_, "pcv/js"),
+			njh::files::gatherFiles(njh::files::make_path(resourceDir_, "pcv/js"),
 					".js"));
 	cssFiles_->addFiles(
-			bib::files::gatherFiles(bib::files::make_path(resourceDir_, "pcv/css"),
+			njh::files::gatherFiles(njh::files::make_path(resourceDir_, "pcv/css"),
 					".css"));
 	loadInCollections();
 
-	addScripts(bib::files::make_path(resourceDir_, "pcv"));
+	addScripts(njh::files::make_path(resourceDir_, "pcv"));
 }
 
 
 void pcv::loadInCollections(){
 	auto mess = messFac_->genLogMessage(__PRETTY_FUNCTION__);
 
-	auto files = bib::files::listAllFiles(configDir_.string(), false, {std::regex{".*.config$"}});
+	auto files = njh::files::listAllFiles(configDir_.string(), false, {std::regex{".*.config$"}});
 	for(const auto & f : files){
-		if(bib::beginsWith(f.first.filename().string(), ".")){
+		if(njh::beginsWith(f.first.filename().string(), ".")){
 			continue;
 		}
 		if(!f.second){
-			Json::Value configJson = bib::json::parseFile(f.first.string());
-			bib::json::MemberChecker checker(configJson);
+			Json::Value configJson = njh::json::parseFile(f.first.string());
+			njh::json::MemberChecker checker(configJson);
 			checker.failMemberCheckThrow( { "shortName", "projectName", "mainDir" },
 					__PRETTY_FUNCTION__);
-			if (!bib::in(configJson["shortName"].asString(), collections_)) {
-				auto coreJsonFnp = bib::files::make_path(configJson["mainDir"],
+			if (!njh::in(configJson["shortName"].asString(), collections_)) {
+				auto coreJsonFnp = njh::files::make_path(configJson["mainDir"],
 						"coreInfo.json");
 				if (!bfs::exists(coreJsonFnp)) {
 					std::stringstream ss;
-					ss << __PRETTY_FUNCTION__ << ": Error, project " << bib::bashCT::bold
-							<< configJson["projectName"].asString() << bib::bashCT::reset
+					ss << __PRETTY_FUNCTION__ << ": Error, project " << njh::bashCT::bold
+							<< configJson["projectName"].asString() << njh::bashCT::reset
 							<< " configuration from " << f.first
 							<< " main directory doesn't contain coreInfo.json file" << "\n";
 					ss << coreJsonFnp << " doesn't exist" << "\n";
 					throw std::runtime_error { ss.str() };
 				}
-				Json::Value coreJson = bib::json::parseFile(coreJsonFnp.string());
+				Json::Value coreJson = njh::json::parseFile(coreJsonFnp.string());
 				if (0 == coreJson["popNames_"]["samples_"].size()) {
 					std::cerr << __PRETTY_FUNCTION__ << " folder "
-							<< bib::bashCT::boldRed(coreJson["masterOutputDir_"].asString())
+							<< njh::bashCT::boldRed(coreJson["masterOutputDir_"].asString())
 							<< " contains no data, not adding" << std::endl;
 				} else {
 					collections_.emplace(configJson["shortName"].asString(),
@@ -139,7 +139,7 @@ void pcv::extractionPageHanlder(std::shared_ptr<restbed::Session> session) {
 	auto mess = messFac_->genLogMessage(__PRETTY_FUNCTION__);
 	auto request = session->get_request();
 	std::string projectName = request->get_path_parameter("projectName");
-	if (bib::in(projectName, collections_)) {
+	if (njh::in(projectName, collections_)) {
 		auto body = genHtmlDoc(rootName_, pages_.at("extractionStats.js"));
 		const std::multimap<std::string, std::string> headers =
 				HeaderFactory::initiateTxtHtmlHeader(body);
@@ -148,7 +148,7 @@ void pcv::extractionPageHanlder(std::shared_ptr<restbed::Session> session) {
 		std::stringstream ss;
 		ss << __PRETTY_FUNCTION__ << ": error, no such project as " << projectName
 				<< ", options are "
-				<< bib::conToStr(bib::getVecOfMapKeys(collections_), ", ") << "\n";
+				<< njh::conToStr(njh::getVecOfMapKeys(collections_), ", ") << "\n";
 		ss << "Redirecting..." << "\n";
 		redirect(session, ss.str());
 	}
@@ -158,17 +158,17 @@ void pcv::getExtractionProfileDataHanlder(std::shared_ptr<restbed::Session> sess
 	auto mess = messFac_->genLogMessage(__PRETTY_FUNCTION__);
 	auto request = session->get_request();
 	std::string projectName = request->get_path_parameter("projectName");
-	if (bib::in(projectName, collections_)) {
+	if (njh::in(projectName, collections_)) {
 		Json::Value ret;
 		if(nullptr != collections_.at(projectName)->extractionProfileTab_){
 			auto tab = collections_.at(projectName)->extractionProfileTab_->get();
 			tab.trimElementsAtFirstOccurenceOf("(");
 			for(auto & row : tab.content_){
-				row[tab.getColPos("name")] = bib::pasteAsStr(row[tab.getColPos("extractionDir")], "_", row[tab.getColPos("name")]);
+				row[tab.getColPos("name")] = njh::pasteAsStr(row[tab.getColPos("extractionDir")], "_", row[tab.getColPos("name")]);
 			}
 			ret = tableToJsonByRow(tab,"name");
 		}
-		auto body = bib::json::writeAsOneLine(ret);
+		auto body = njh::json::writeAsOneLine(ret);
 		const std::multimap<std::string, std::string> headers =
 				HeaderFactory::initiateAppJsonHeader(body);
 		session->close(restbed::OK, body, headers);
@@ -176,7 +176,7 @@ void pcv::getExtractionProfileDataHanlder(std::shared_ptr<restbed::Session> sess
 		std::stringstream ss;
 		ss << __PRETTY_FUNCTION__ << ": error, no such project as "
 				<< projectName << ", options are "
-				<< bib::conToStr(bib::getVecOfMapKeys(collections_), ", ") << "\n";
+				<< njh::conToStr(njh::getVecOfMapKeys(collections_), ", ") << "\n";
 		ss << "Redirecting..." << "\n";
 		redirect(session, ss.str());
 	}
@@ -186,14 +186,14 @@ void pcv::getExtractionStatsDataHanlder(std::shared_ptr<restbed::Session> sessio
 	auto mess = messFac_->genLogMessage(__PRETTY_FUNCTION__);
 	auto request = session->get_request();
 	std::string projectName = request->get_path_parameter("projectName");
-	if (bib::in(projectName, collections_)) {
+	if (njh::in(projectName, collections_)) {
 		Json::Value ret;
 		if(nullptr != collections_.at(projectName)->extractionStatsTab_){
 			auto tab = collections_.at(projectName)->extractionStatsTab_->get();
 			tab.trimElementsAtFirstOccurenceOf("(");
 			ret = tableToJsonByRow(tab,"extractionDir");
 		}
-		auto body = bib::json::writeAsOneLine(ret);
+		auto body = njh::json::writeAsOneLine(ret);
 		const std::multimap<std::string, std::string> headers =
 				HeaderFactory::initiateAppJsonHeader(body);
 		session->close(restbed::OK, body, headers);
@@ -201,7 +201,7 @@ void pcv::getExtractionStatsDataHanlder(std::shared_ptr<restbed::Session> sessio
 		std::stringstream ss;
 		ss << __PRETTY_FUNCTION__ << ": error, no such project as "
 				<< projectName << ", options are "
-				<< bib::conToStr(bib::getVecOfMapKeys(collections_), ", ") << "\n";
+				<< njh::conToStr(njh::getVecOfMapKeys(collections_), ", ") << "\n";
 		ss << "Redirecting..." << "\n";
 		redirect(session, ss.str());
 	}
@@ -210,8 +210,8 @@ void pcv::getExtractionStatsDataHanlder(std::shared_ptr<restbed::Session> sessio
 void pcv::projectNamesHandler(std::shared_ptr<restbed::Session> session){
 	auto mess = messFac_->genLogMessage(__PRETTY_FUNCTION__);
 	Json::Value ret;
-	ret["projects"]= bib::json::toJson(getVectorOfMapKeys(collections_));
-	auto body = bib::json::writeAsOneLine(ret);
+	ret["projects"]= njh::json::toJson(getVectorOfMapKeys(collections_));
+	auto body = njh::json::writeAsOneLine(ret);
 	const std::multimap<std::string, std::string> headers =
 			HeaderFactory::initiateAppJsonHeader(body);
 	session->close(restbed::OK, body, headers);
@@ -241,7 +241,7 @@ void pcv::mainProjectPageHandler(
 	auto mess = messFac_->genLogMessage(__PRETTY_FUNCTION__);
 	auto request = session->get_request();
 	std::string projectName = request->get_path_parameter("projectName");
-	if (bib::in(projectName, collections_)) {
+	if (njh::in(projectName, collections_)) {
 		auto body = genHtmlDoc(rootName_, pages_.at("mainProjectPage.js"));
 		const std::multimap<std::string, std::string> headers =
 				HeaderFactory::initiateTxtHtmlHeader(body);
@@ -250,7 +250,7 @@ void pcv::mainProjectPageHandler(
 		std::stringstream ss;
 		ss << __PRETTY_FUNCTION__ << ": error, no such project as "
 				<< projectName << ", options are "
-				<< bib::conToStr(bib::getVecOfMapKeys(collections_)) << "\n";
+				<< njh::conToStr(njh::getVecOfMapKeys(collections_)) << "\n";
 		ss << "Redirecting..." << "\n";
 		redirect(session, ss.str());
 	}
@@ -263,7 +263,7 @@ void pcv::samplePageHandler(
 	std::string projectName = request->get_path_parameter("projectName");
 	std::string sampleName = request->get_path_parameter("sampleName");
 
-	if (bib::in(projectName, collections_)) {
+	if (njh::in(projectName, collections_)) {
 		if(collections_[projectName]->collection_->hasSample(sampleName)){
 			auto body = genHtmlDoc(rootName_, pages_.at("sampleMainPage.js"));
 			const std::multimap<std::string, std::string> headers =
@@ -273,7 +273,7 @@ void pcv::samplePageHandler(
 			std::stringstream ss;
 			ss << __PRETTY_FUNCTION__ << ": error, no such sample as "
 					<< sampleName << " " << "in project " << projectName << ", options are "
-					<< bib::conToStr(collections_[projectName]->collection_->passingSamples_, ", ") << "\n";
+					<< njh::conToStr(collections_[projectName]->collection_->passingSamples_, ", ") << "\n";
 			ss << "Redirecting..." << "\n";
 			redirect(session, ss.str());
 		}
@@ -281,7 +281,7 @@ void pcv::samplePageHandler(
 		std::stringstream ss;
 		ss << __PRETTY_FUNCTION__ << ": error, no such project as "
 				<< projectName << ", options are "
-				<< bib::conToStr(bib::getVecOfMapKeys(collections_), ", ") << "\n";
+				<< njh::conToStr(njh::getVecOfMapKeys(collections_), ", ") << "\n";
 		ss << "Redirecting..." << "\n";
 		redirect(session, ss.str());
 	}
@@ -294,9 +294,9 @@ void pcv::groupInfoPageHandler(
 	std::string projectName = request->get_path_parameter("projectName");
 	std::string groupName = request->get_path_parameter("groupName");
 
-	if (bib::in(projectName, collections_)) {
+	if (njh::in(projectName, collections_)) {
 		if(nullptr != collections_[projectName]->collection_->groupDataPaths_){
-			if (bib::in(groupName, collections_[projectName]->collection_->groupDataPaths_->allGroupPaths_)) {
+			if (njh::in(groupName, collections_[projectName]->collection_->groupDataPaths_->allGroupPaths_)) {
 				auto body = genHtmlDoc(rootName_, pages_.at("groupInfoPage.js"));
 				const std::multimap<std::string, std::string> headers =
 						HeaderFactory::initiateTxtHtmlHeader(body);
@@ -305,7 +305,7 @@ void pcv::groupInfoPageHandler(
 				std::stringstream ss;
 				ss << __PRETTY_FUNCTION__ << ": error, no such group as " << groupName
 						<< " " << "in project " << projectName << ", options are "
-						<< bib::conToStr(
+						<< njh::conToStr(
 								getVectorOfMapKeys(collections_[projectName]->collection_->groupDataPaths_->allGroupPaths_),
 								", ") << "\n";
 				ss << "Redirecting..." << "\n";
@@ -321,7 +321,7 @@ void pcv::groupInfoPageHandler(
 		std::stringstream ss;
 		ss << __PRETTY_FUNCTION__ << ": error, no such project as "
 				<< projectName << ", options are "
-				<< bib::conToStr(bib::getVecOfMapKeys(collections_), ", ") << "\n";
+				<< njh::conToStr(njh::getVecOfMapKeys(collections_), ", ") << "\n";
 		ss << "Redirecting..." << "\n";
 		redirect(session, ss.str());
 	}
@@ -349,15 +349,15 @@ void pcv::getGroupsPopInfosPostHandler(std::shared_ptr<restbed::Session> session
 	std::string projectName = request->get_path_parameter("projectName");
 	std::string groupName = request->get_path_parameter("groupName");
 	Json::Value ret;
-	if (bib::in(projectName, collections_)) {
+	if (njh::in(projectName, collections_)) {
 		if(nullptr != collections_[projectName]->collection_->groupDataPaths_){
-			if (bib::in(groupName, collections_[projectName]->collection_->groupDataPaths_->allGroupPaths_)) {
-				ret["groupNames"] = bib::json::toJson(collections_[projectName]->collection_->groupMetaData_->groupData_.at(groupName)->subGroupsLevels_);
+			if (njh::in(groupName, collections_[projectName]->collection_->groupDataPaths_->allGroupPaths_)) {
+				ret["groupNames"] = njh::json::toJson(collections_[projectName]->collection_->groupMetaData_->groupData_.at(groupName)->subGroupsLevels_);
 				ret["popInfo"] = tableToJsonByRow(collections_[projectName]->topGroupTabs_.at(groupName)->get(), "g_GroupName", VecStr{});
 			} else {
 				std::cerr << __PRETTY_FUNCTION__ << ": error, no such group as " << groupName
 						<< " " << "in project " << projectName << ", options are "
-						<< bib::conToStr(
+						<< njh::conToStr(
 								getVectorOfMapKeys(collections_[projectName]->collection_->groupDataPaths_->allGroupPaths_),
 								", ") << "\n";
 			}
@@ -367,10 +367,10 @@ void pcv::getGroupsPopInfosPostHandler(std::shared_ptr<restbed::Session> session
 	} else {
 		std::cerr << __PRETTY_FUNCTION__ << ": error, no such project as "
 				<< projectName << ", options are "
-				<< bib::conToStr(bib::getVecOfMapKeys(collections_), ", ") << "\n";
+				<< njh::conToStr(njh::getVecOfMapKeys(collections_), ", ") << "\n";
 	}
 
-	auto retBody = bib::json::writeAsOneLine(ret);
+	auto retBody = njh::json::writeAsOneLine(ret);
 	std::multimap<std::string, std::string> headers =
 			HeaderFactory::initiateAppJsonHeader(retBody);
 	headers.emplace("Connection", "close");
@@ -384,14 +384,14 @@ void pcv::getProjectNameHandler(std::shared_ptr<restbed::Session> session){
 	auto projectName = request->get_path_parameter("projectName");
 	Json::Value ret;
 	ret["projectName"] = "";
-	if (bib::in(projectName, collections_)) {
+	if (njh::in(projectName, collections_)) {
 		ret["projectName"] = collections_[projectName]->projectName_;
 	} else {
 		std::cerr << __PRETTY_FUNCTION__ << ": error, no such project as "
 				<< projectName << ", options are "
-				<< bib::conToStr(bib::getVecOfMapKeys(collections_)) << "\n";
+				<< njh::conToStr(njh::getVecOfMapKeys(collections_)) << "\n";
 	}
-	auto body = bib::json::writeAsOneLine(ret);
+	auto body = njh::json::writeAsOneLine(ret);
 	const std::multimap<std::string, std::string> headers =
 			HeaderFactory::initiateAppJsonHeader(body);
 	session->close(restbed::OK, body, headers);
@@ -404,15 +404,15 @@ void pcv::getSampleNamesHandler(
 	auto projectName = request->get_path_parameter("projectName");
 	Json::Value ret;
 	ret["samples"] = "";
-	if (bib::in(projectName, collections_)) {
+	if (njh::in(projectName, collections_)) {
 
-		ret["samples"] = bib::json::toJson(collections_[projectName]->collection_->passingSamples_);
+		ret["samples"] = njh::json::toJson(collections_[projectName]->collection_->passingSamples_);
 	} else {
 		std::cerr << __PRETTY_FUNCTION__ << ": error, no such project as "
 				<< projectName << ", options are "
-				<< bib::conToStr(bib::getVecOfMapKeys(collections_)) << "\n";
+				<< njh::conToStr(njh::getVecOfMapKeys(collections_)) << "\n";
 	}
-	auto body = bib::json::writeAsOneLine(ret);
+	auto body = njh::json::writeAsOneLine(ret);
 	const std::multimap<std::string, std::string> headers =
 			HeaderFactory::initiateAppJsonHeader(body);
 	session->close(restbed::OK, body, headers);
@@ -425,19 +425,19 @@ void pcv::getGroupNamesHandler(
 	auto projectName = request->get_path_parameter("projectName");
 	Json::Value ret;
 	ret["groups"] = "";
-	if (bib::in(projectName, collections_)) {
+	if (njh::in(projectName, collections_)) {
 		if (nullptr != collections_[projectName]->collection_->groupMetaData_) {
 			ret["groups"] =
-					bib::json::toJson(
+					njh::json::toJson(
 							getVectorOfMapKeys(
 									collections_[projectName]->collection_->groupMetaData_->groupData_));
 		}
 	} else {
 		std::cerr << __PRETTY_FUNCTION__ << ": error, no such project as "
 				<< projectName << ", options are "
-				<< bib::conToStr(bib::getVecOfMapKeys(collections_)) << "\n";
+				<< njh::conToStr(njh::getVecOfMapKeys(collections_)) << "\n";
 	}
-	auto body = bib::json::writeAsOneLine(ret);
+	auto body = njh::json::writeAsOneLine(ret);
 	const std::multimap<std::string, std::string> headers =
 			HeaderFactory::initiateAppJsonHeader(body);
 	session->close(restbed::OK, body, headers);
@@ -449,7 +449,7 @@ VecStr genColorsStrsForNamesMultiples(VecStr popNames){
 	auto popColors = getColorsForNames(popNames);
 	VecStr popColorsStrs;
 	auto keys = getVectorOfMapKeys(popColors);
-	bib::sort(keys);
+	njh::sort(keys);
 	for(const auto & pColorKey : keys){
 		popColorsStrs.emplace_back(popColors[pColorKey].getHexStr());
 	}
@@ -460,50 +460,50 @@ void pcv::getSampleInfoTabPostHandler(std::shared_ptr<restbed::Session> session,
 		const restbed::Bytes & body){
 	auto mess = messFac_->genLogMessage(__PRETTY_FUNCTION__);
 
-	const auto postData = bib::json::parse(std::string(body.begin(), body.end()));
-	bib::json::MemberChecker checker(postData);
+	const auto postData = njh::json::parse(std::string(body.begin(), body.end()));
+	njh::json::MemberChecker checker(postData);
 	Json::Value ret;
 	if (checker.failMemberCheck( { "sampNames" }, __PRETTY_FUNCTION__)) {
 		std::cerr << checker.message_.str() << std::endl;
 	} else {
 		auto request = session->get_request();
 		std::string projectName = request->get_path_parameter("projectName");
-		if (bib::in(projectName, collections_)) {
-			auto sampNames = bib::json::jsonArrayToVec<std::string>(postData["sampNames"], [](const Json::Value & val){ return val.asString();});
+		if (njh::in(projectName, collections_)) {
+			auto sampNames = njh::json::jsonArrayToVec<std::string>(postData["sampNames"], [](const Json::Value & val){ return val.asString();});
 			auto sampTable_ = collections_[projectName]->tabs_.sampInfo_->get();
 			auto containsSampName = [&sampNames](const std::string & str) {
-				return bib::in(str, sampNames);
+				return njh::in(str, sampNames);
 			};
 			auto trimedTab = sampTable_.extractByComp("s_Name", containsSampName);
 			std::string coiColName = "s_FinalClusterCnt";
-			if(bib::in(std::string("s_COI"), sampTable_.columnNames_)){
+			if(njh::in(std::string("s_COI"), sampTable_.columnNames_)){
 				coiColName = "s_COI";
 			}
 			VecStr visibleColumns = VecStr { "s_Sample",
 				"h_popUID", "h_SampCnt", "h_SampFrac", "s_ReadCntTotUsed",
 				coiColName, "c_clusterID", "c_AveragedFrac", "c_ReadCnt",
 				"c_RepCnt" };
-			if(bib::in(std::string("bestExpected"), sampTable_.columnNames_)){
+			if(njh::in(std::string("bestExpected"), sampTable_.columnNames_)){
 				visibleColumns.emplace_back("bestExpected");
 			}
 			ret = tableToJsonByRow(trimedTab, "s_Name", visibleColumns);
 
 			auto popNames = trimedTab.getColumn("h_popUID");
 			removeDuplicates(popNames);
-			bib::sort(popNames);
+			njh::sort(popNames);
 			auto popColorsStrs = genColorsStrsForNamesMultiples(popNames);
-			ret["popColors"] = bib::json::toJson(popColorsStrs);
-			ret["popUIDs"] = bib::json::toJson(popNames);
+			ret["popColors"] = njh::json::toJson(popColorsStrs);
+			ret["popUIDs"] = njh::json::toJson(popNames);
 		} else {
 			std::cerr << __PRETTY_FUNCTION__ << ": error, no such project as "
 					<< projectName << ", options are "
-					<< bib::conToStr(bib::getVecOfMapKeys(collections_)) << "\n";
+					<< njh::conToStr(njh::getVecOfMapKeys(collections_)) << "\n";
 		}
 	}
 
 
 
-	auto retBody = bib::json::writeAsOneLine(ret);
+	auto retBody = njh::json::writeAsOneLine(ret);
 	std::multimap<std::string, std::string> headers =
 			HeaderFactory::initiateAppJsonHeader(retBody);
 	headers.emplace("Connection", "close");
@@ -529,15 +529,15 @@ void pcv::getPopSeqsPostHandler(std::shared_ptr<restbed::Session> session,
 		const restbed::Bytes & body){
 	auto mess = messFac_->genLogMessage(__PRETTY_FUNCTION__);
 
-	const auto postData = bib::json::parse(std::string(body.begin(), body.end()));
-	bib::json::MemberChecker checker(postData);
+	const auto postData = njh::json::parse(std::string(body.begin(), body.end()));
+	njh::json::MemberChecker checker(postData);
 	Json::Value seqData;
 	if (checker.failMemberCheck( { "popUIDs" }, __PRETTY_FUNCTION__)) {
 		std::cerr << checker.message_.str() << std::endl;
 	} else {
 		auto request = session->get_request();
 		std::string projectName = request->get_path_parameter("projectName");
-		if (bib::in(projectName, collections_)) {
+		if (njh::in(projectName, collections_)) {
 			uint32_t sesUid = std::numeric_limits<uint32_t>::max();
 			//check to see if there is a session already started associated with this seq
 			if(!postData.isMember("sessionUID")){
@@ -545,28 +545,28 @@ void pcv::getPopSeqsPostHandler(std::shared_ptr<restbed::Session> session,
 			}else{
 				sesUid = postData["sessionUID"].asUInt();
 			}
-			auto popUIDs = bib::json::jsonArrayToVec<std::string>(postData["popUIDs"],
+			auto popUIDs = njh::json::jsonArrayToVec<std::string>(postData["popUIDs"],
 					[](const Json::Value & val) {return val.asString();});
 			seqsBySession_[sesUid]->cache_.at(projectName).reload();
 			seqsBySession_[sesUid]->cache_.at(projectName).toggleSeqs(
 					[&popUIDs](const readObject & seq) {
-						return bib::in(seq.seqBase_.getStubName(false), popUIDs);
+						return njh::in(seq.seqBase_.getStubName(false), popUIDs);
 			});
 			//make sure seqs aren't empty, viewer doesn't know how to handle that, if it isn't make sure to remove the placeholder seq if it is there
 			seqsBySession_[sesUid]->cache_.at(projectName).ensureNonEmptyReads();
 			seqData = seqsBySession_[sesUid]->getJson(projectName);
-			seqData["sessionUID"] = bib::json::toJson(sesUid);
+			seqData["sessionUID"] = njh::json::toJson(sesUid);
 
 		} else {
 			std::cerr << __PRETTY_FUNCTION__ << ": error, no such project as "
 					<< projectName << ", options are "
-					<< bib::conToStr(bib::getVecOfMapKeys(collections_)) << "\n";
+					<< njh::conToStr(njh::getVecOfMapKeys(collections_)) << "\n";
 		}
 	}
 	/**@todo check other headers for connection close
 	 *
 	 */
-	auto retBody = bib::json::writeAsOneLine(seqData);
+	auto retBody = njh::json::writeAsOneLine(seqData);
 	std::multimap<std::string, std::string> headers =
 			HeaderFactory::initiateAppJsonHeader(retBody);
 	headers.emplace("Connection", "close");
@@ -590,36 +590,36 @@ void pcv::getSampSeqsPostHandler(std::shared_ptr<restbed::Session> session,
 		const restbed::Bytes & body){
 	auto mess = messFac_->genLogMessage(__PRETTY_FUNCTION__);
 
-	const auto postData = bib::json::parse(std::string(body.begin(), body.end()));
-	bib::json::MemberChecker checker(postData);
+	const auto postData = njh::json::parse(std::string(body.begin(), body.end()));
+	njh::json::MemberChecker checker(postData);
 	Json::Value seqData;
 	if (checker.failMemberCheck( { "sampleName" }, __PRETTY_FUNCTION__)) {
 		std::cerr << checker.message_.str() << std::endl;
 	} else {
 		auto request = session->get_request();
 		std::string projectName = request->get_path_parameter("projectName");
-		if (bib::in(projectName, collections_)) {
+		if (njh::in(projectName, collections_)) {
 			auto sampleName = postData["sampleName"].asString();
 			if (collections_[projectName]->collection_->hasSample(sampleName)) {
 				uint32_t sesUid = startSeqCacheSession();
 				seqData = seqsBySession_[sesUid]->getJson(
 						projectName + "_" + sampleName);
-				seqData["sessionUID"] = bib::json::toJson(sesUid);
+				seqData["sessionUID"] = njh::json::toJson(sesUid);
 			} else {
 				std::cerr << __PRETTY_FUNCTION__ << ": error, no such sample as "
 						<< sampleName << " " << "in project " << projectName << ", options are "
-						<< bib::conToStr(collections_[projectName]->collection_->passingSamples_, ", ") << std::endl;
+						<< njh::conToStr(collections_[projectName]->collection_->passingSamples_, ", ") << std::endl;
 			}
 		} else {
 			std::cerr << __PRETTY_FUNCTION__ << ": error, no such project as "
 					<< projectName << ", options are "
-					<< bib::conToStr(bib::getVecOfMapKeys(collections_)) << std::endl;
+					<< njh::conToStr(njh::getVecOfMapKeys(collections_)) << std::endl;
 		}
 	}
 	/**@todo check other headers for connection close
 	 *
 	 */
-	auto retBody = bib::json::writeAsOneLine(seqData);
+	auto retBody = njh::json::writeAsOneLine(seqData);
 	std::multimap<std::string, std::string> headers =
 			HeaderFactory::initiateAppJsonHeader(retBody);
 	headers.emplace("Connection", "close");
@@ -645,22 +645,22 @@ void pcv::getPopInfoPostHandler(std::shared_ptr<restbed::Session> session,
 		const restbed::Bytes & body){
 	auto mess = messFac_->genLogMessage(__PRETTY_FUNCTION__);
 
-	const auto postData = bib::json::parse(std::string(body.begin(), body.end()));
-	bib::json::MemberChecker checker(postData);
+	const auto postData = njh::json::parse(std::string(body.begin(), body.end()));
+	njh::json::MemberChecker checker(postData);
 	Json::Value popInfo;
 	if (checker.failMemberCheck( { "popUIDs" }, __PRETTY_FUNCTION__)) {
 		std::cerr << checker.message_.str() << std::endl;
 	} else {
 		auto request = session->get_request();
 		std::string projectName = request->get_path_parameter("projectName");
-		if (bib::in(projectName, collections_)) {
+		if (njh::in(projectName, collections_)) {
 
-			auto popUIDs = bib::json::jsonArrayToVec<std::string>(postData["popUIDs"],
+			auto popUIDs = njh::json::jsonArrayToVec<std::string>(postData["popUIDs"],
 					[](const Json::Value & val) {return val.asString();});
 			auto trimedPopTab =
 					collections_[projectName]->tabs_.popInfo_->get().extractByComp(
 							"h_popUID",
-							[&popUIDs](const std::string & str) {return bib::in(str, popUIDs);});
+							[&popUIDs](const std::string & str) {return njh::in(str, popUIDs);});
 			popInfo = tableToJsonByRow(trimedPopTab, "h_popUID", VecStr { }, VecStr {
 					"p_TotalInputReadCnt", "p_TotalInputClusterCnt",
 					"p_TotalPopulationSampCnt", "p_TotalHaplotypes", "p_meanCoi",
@@ -668,13 +668,13 @@ void pcv::getPopInfoPostHandler(std::shared_ptr<restbed::Session> session,
 		} else {
 			std::cerr << __PRETTY_FUNCTION__ << ": error, no such project as "
 					<< projectName << ", options are "
-					<< bib::conToStr(bib::getVecOfMapKeys(collections_)) << "\n";
+					<< njh::conToStr(njh::getVecOfMapKeys(collections_)) << "\n";
 		}
 	}
 	/**@todo check other headers for connection close
 	 *
 	 */
-	auto retBody = bib::json::writeAsOneLine(popInfo);
+	auto retBody = njh::json::writeAsOneLine(popInfo);
 	std::multimap<std::string, std::string> headers =
 			HeaderFactory::initiateAppJsonHeader(retBody);
 	headers.emplace("Connection", "close");
@@ -685,38 +685,38 @@ void pcv::getHapIdTablePostHandler(std::shared_ptr<restbed::Session> session,
 		const restbed::Bytes & body){
 	auto mess = messFac_->genLogMessage(__PRETTY_FUNCTION__);
 
-	const auto postData = bib::json::parse(std::string(body.begin(), body.end()));
-	bib::json::MemberChecker checker(postData);
+	const auto postData = njh::json::parse(std::string(body.begin(), body.end()));
+	njh::json::MemberChecker checker(postData);
 	Json::Value ret;
 	if (checker.failMemberCheck( { "popUIDs", "samples" }, __PRETTY_FUNCTION__)) {
 		std::cerr << checker.message_.str() << std::endl;
 	} else {
 		auto request = session->get_request();
 		std::string projectName = request->get_path_parameter("projectName");
-		if (bib::in(projectName, collections_)) {
-			auto popUIDs = bib::json::jsonArrayToVec<std::string>(postData["popUIDs"],
+		if (njh::in(projectName, collections_)) {
+			auto popUIDs = njh::json::jsonArrayToVec<std::string>(postData["popUIDs"],
 					[](const Json::Value & val) {return val.asString();});
-			auto samples = bib::json::jsonArrayToVec<std::string>(postData["samples"],
+			auto samples = njh::json::jsonArrayToVec<std::string>(postData["samples"],
 					[](const Json::Value & val) {return val.asString();});
 			auto hapIdTab = collections_[projectName]->tabs_.hapIdTab_->get().getColumns(concatVecs(VecStr{"#PopUID"}, samples)).extractByComp(
 					"#PopUID",
-					[&popUIDs](const std::string & str) {return bib::in(str, popUIDs);});
+					[&popUIDs](const std::string & str) {return njh::in(str, popUIDs);});
 			auto trimedHapIdTab =
 					hapIdTab.extractByComp(
 							"#PopUID",
-							[&popUIDs](const std::string & str) {return bib::in(str, popUIDs);});
+							[&popUIDs](const std::string & str) {return njh::in(str, popUIDs);});
 			ret = tableToJsonByRow(trimedHapIdTab, "#PopUID");
 
 		} else {
 			std::cerr << __PRETTY_FUNCTION__ << ": error, no such project as "
 					<< projectName << ", options are "
-					<< bib::conToStr(bib::getVecOfMapKeys(collections_)) << "\n";
+					<< njh::conToStr(njh::getVecOfMapKeys(collections_)) << "\n";
 		}
 	}
 	/**@todo check other headers for connection close
 	 *
 	 */
-	auto retBody = bib::json::writeAsOneLine(ret);
+	auto retBody = njh::json::writeAsOneLine(ret);
 	std::multimap<std::string, std::string> headers =
 			HeaderFactory::initiateAppJsonHeader(retBody);
 	headers.emplace("Connection", "close");
@@ -932,10 +932,10 @@ void pcv::groupMainProjectPageHanlder(
 	std::string groupName = request->get_path_parameter("groupName");
 	std::string subGroupName = request->get_path_parameter("subGroupName");
 
-	if (bib::in(projectName, collections_)) {
+	if (njh::in(projectName, collections_)) {
 		if(nullptr != collections_[projectName]->collection_->groupDataPaths_){
-			if (bib::in(groupName, collections_[projectName]->collection_->groupDataPaths_->allGroupPaths_)) {
-				if(bib::in(subGroupName, collections_[projectName]->collection_->groupDataPaths_->allGroupPaths_.at(groupName).groupPaths_)){
+			if (njh::in(groupName, collections_[projectName]->collection_->groupDataPaths_->allGroupPaths_)) {
+				if(njh::in(subGroupName, collections_[projectName]->collection_->groupDataPaths_->allGroupPaths_.at(groupName).groupPaths_)){
 					auto body = genHtmlDoc(rootName_, pages_.at("groupMainPage.js"));
 					const std::multimap<std::string, std::string> headers =
 							HeaderFactory::initiateTxtHtmlHeader(body);
@@ -944,7 +944,7 @@ void pcv::groupMainProjectPageHanlder(
 					std::stringstream ss;
 					ss << __PRETTY_FUNCTION__ << ": error, no such sub group as " << subGroupName
 							<< " in group " << groupName << " in project " << projectName << ", options are "
-							<< bib::conToStr(
+							<< njh::conToStr(
 									getVectorOfMapKeys(collections_[projectName]->collection_->groupDataPaths_->allGroupPaths_.at(groupName).groupPaths_),
 									", ") << "\n";
 					ss << "Redirecting..." << "\n";
@@ -954,7 +954,7 @@ void pcv::groupMainProjectPageHanlder(
 				std::stringstream ss;
 				ss << __PRETTY_FUNCTION__ << ": error, no such group as " << groupName
 						<< " " << "in project " << projectName << ", options are "
-						<< bib::conToStr(
+						<< njh::conToStr(
 								getVectorOfMapKeys(collections_[projectName]->collection_->groupDataPaths_->allGroupPaths_),
 								", ") << "\n";
 				ss << "Redirecting..." << "\n";
@@ -970,7 +970,7 @@ void pcv::groupMainProjectPageHanlder(
 		std::stringstream ss;
 		ss << __PRETTY_FUNCTION__ << ": error, no such project as "
 				<< projectName << ", options are "
-				<< bib::conToStr(bib::getVecOfMapKeys(collections_), ", ") << "\n";
+				<< njh::conToStr(njh::getVecOfMapKeys(collections_), ", ") << "\n";
 		ss << "Redirecting..." << "\n";
 		redirect(session, ss.str());
 	}
@@ -985,21 +985,21 @@ void pcv::groupGetSampleNamesHanlder(
 	std::string subGroupName = request->get_path_parameter("subGroupName");
 
 	Json::Value ret;
-	if (bib::in(projectName, collections_)) {
+	if (njh::in(projectName, collections_)) {
 		if (nullptr != collections_[projectName]->collection_->groupDataPaths_) {
-			if (bib::in(groupName,
+			if (njh::in(groupName,
 					collections_[projectName]->collection_->groupDataPaths_->allGroupPaths_)) {
-				if (bib::in(subGroupName,
+				if (njh::in(subGroupName,
 						collections_[projectName]->collection_->groupDataPaths_->allGroupPaths_.at(
 								groupName).groupPaths_)) {
 					ret["groupSamples"] =
-							bib::json::toJson(
+							njh::json::toJson(
 									collections_[projectName]->collection_->groupDataPaths_->allGroupPaths_.at(groupName).groupPaths_.at(subGroupName).readInSampNames());
 				} else {
 					std::cerr << __PRETTY_FUNCTION__ << ": error, no such sub group as "
 							<< subGroupName << " in group " << groupName << " in project "
 							<< projectName << ", options are "
-							<< bib::conToStr(
+							<< njh::conToStr(
 									getVectorOfMapKeys(
 											collections_[projectName]->collection_->groupDataPaths_->allGroupPaths_.at(
 													groupName).groupPaths_), ", ") << "\n";
@@ -1008,7 +1008,7 @@ void pcv::groupGetSampleNamesHanlder(
 				std::cerr << __PRETTY_FUNCTION__ << ": error, no such group as "
 						<< groupName << " " << "in project " << projectName
 						<< ", options are "
-						<< bib::conToStr(
+						<< njh::conToStr(
 								getVectorOfMapKeys(
 										collections_[projectName]->collection_->groupDataPaths_->allGroupPaths_),
 								", ") << "\n";
@@ -1020,10 +1020,10 @@ void pcv::groupGetSampleNamesHanlder(
 	} else {
 		std::cerr << __PRETTY_FUNCTION__ << ": error, no such project as "
 				<< projectName << ", options are "
-				<< bib::conToStr(bib::getVecOfMapKeys(collections_), ", ") << "\n";
+				<< njh::conToStr(njh::getVecOfMapKeys(collections_), ", ") << "\n";
 	}
 
-	auto retBody = bib::json::writeAsOneLine(ret);
+	auto retBody = njh::json::writeAsOneLine(ret);
 	std::multimap<std::string, std::string> headers =
 			HeaderFactory::initiateAppJsonHeader(retBody);
 	headers.emplace("Connection", "close");
@@ -1038,52 +1038,52 @@ void pcv::groupGetSampleInfoTabPostHanlder(
 	std::string groupName = request->get_path_parameter("groupName");
 	std::string subGroupName = request->get_path_parameter("subGroupName");
 
-	const auto postData = bib::json::parse(std::string(body.begin(), body.end()));
-	bib::json::MemberChecker checker(postData);
+	const auto postData = njh::json::parse(std::string(body.begin(), body.end()));
+	njh::json::MemberChecker checker(postData);
 	Json::Value ret;
 	if (checker.failMemberCheck( { "sampNames" }, __PRETTY_FUNCTION__)) {
 		std::cerr << checker.message_.str() << std::endl;
 	} else {
-		if (bib::in(projectName, collections_)) {
+		if (njh::in(projectName, collections_)) {
 			if(nullptr != collections_[projectName]->collection_->groupDataPaths_){
-				if (bib::in(groupName, collections_[projectName]->collection_->groupDataPaths_->allGroupPaths_)) {
-					if(bib::in(subGroupName, collections_[projectName]->collection_->groupDataPaths_->allGroupPaths_.at(groupName).groupPaths_)){
-						auto sampNames = bib::json::jsonArrayToVec<std::string>(postData["sampNames"], [](const Json::Value & val){ return val.asString();});
+				if (njh::in(groupName, collections_[projectName]->collection_->groupDataPaths_->allGroupPaths_)) {
+					if(njh::in(subGroupName, collections_[projectName]->collection_->groupDataPaths_->allGroupPaths_.at(groupName).groupPaths_)){
+						auto sampNames = njh::json::jsonArrayToVec<std::string>(postData["sampNames"], [](const Json::Value & val){ return val.asString();});
 						auto sampTable_ = collections_[projectName]->subGroupTabs_.at(groupName).at(subGroupName).sampInfo_->get();
 						auto containsSampName = [&sampNames](const std::string & str) {
-							return bib::in(str, sampNames);
+							return njh::in(str, sampNames);
 						};
 						auto trimedTab = sampTable_.extractByComp("s_Name", containsSampName);
 						std::string coiColName = "s_FinalClusterCnt";
-						if(bib::in(std::string("s_COI"), sampTable_.columnNames_)){
+						if(njh::in(std::string("s_COI"), sampTable_.columnNames_)){
 							coiColName = "s_COI";
 						}
 						VecStr visibleColumns = VecStr { "s_Sample", "g_GroupName",
 							"h_popUID", "h_SampCnt", "h_SampFrac", "s_ReadCntTotUsed",
 							coiColName, "c_clusterID", "c_AveragedFrac", "c_ReadCnt",
 							"c_RepCnt" };
-						if(bib::in(std::string("bestExpected"), sampTable_.columnNames_)){
+						if(njh::in(std::string("bestExpected"), sampTable_.columnNames_)){
 							visibleColumns.emplace_back("bestExpected");
 						}
 						ret = tableToJsonByRow(trimedTab, "s_Name", visibleColumns);
 
 						auto popNames = trimedTab.getColumn("h_popUID");
 						removeDuplicates(popNames);
-						bib::sort(popNames);
+						njh::sort(popNames);
 						auto popColorsStrs = genColorsStrsForNamesMultiples(popNames);
-						ret["popColors"] = bib::json::toJson(popColorsStrs);
-						ret["popUIDs"] = bib::json::toJson(popNames);
+						ret["popColors"] = njh::json::toJson(popColorsStrs);
+						ret["popUIDs"] = njh::json::toJson(popNames);
 					}else{
 						std::cerr << __PRETTY_FUNCTION__ << ": error, no such sub group as " << subGroupName
 								<< " in group " << groupName << " in project " << projectName << ", options are "
-								<< bib::conToStr(
+								<< njh::conToStr(
 										getVectorOfMapKeys(collections_[projectName]->collection_->groupDataPaths_->allGroupPaths_.at(groupName).groupPaths_),
 										", ") << "\n";
 					}
 				} else {
 					std::cerr << __PRETTY_FUNCTION__ << ": error, no such group as " << groupName
 							<< " " << "in project " << projectName << ", options are "
-							<< bib::conToStr(
+							<< njh::conToStr(
 									getVectorOfMapKeys(collections_[projectName]->collection_->groupDataPaths_->allGroupPaths_),
 									", ") << "\n";
 				}
@@ -1093,12 +1093,12 @@ void pcv::groupGetSampleInfoTabPostHanlder(
 		} else {
 			std::cerr << __PRETTY_FUNCTION__ << ": error, no such project as "
 					<< projectName << ", options are "
-					<< bib::conToStr(bib::getVecOfMapKeys(collections_), ", ") << "\n";
+					<< njh::conToStr(njh::getVecOfMapKeys(collections_), ", ") << "\n";
 		}
 	}
 
 
-	auto retBody = bib::json::writeAsOneLine(ret);
+	auto retBody = njh::json::writeAsOneLine(ret);
 	std::multimap<std::string, std::string> headers =
 			HeaderFactory::initiateAppJsonHeader(retBody);
 	headers.emplace("Connection", "close");
@@ -1127,16 +1127,16 @@ void pcv::groupGetPopSeqsPostHanlder(
 	std::string groupName = request->get_path_parameter("groupName");
 	std::string subGroupName = request->get_path_parameter("subGroupName");
 
-	const auto postData = bib::json::parse(std::string(body.begin(), body.end()));
-	bib::json::MemberChecker checker(postData);
+	const auto postData = njh::json::parse(std::string(body.begin(), body.end()));
+	njh::json::MemberChecker checker(postData);
 	Json::Value ret;
 	if (checker.failMemberCheck( { "popUIDs" }, __PRETTY_FUNCTION__)) {
 		std::cerr << checker.message_.str() << std::endl;
 	} else {
-		if (bib::in(projectName, collections_)) {
+		if (njh::in(projectName, collections_)) {
 			if(nullptr != collections_[projectName]->collection_->groupDataPaths_){
-				if (bib::in(groupName, collections_[projectName]->collection_->groupDataPaths_->allGroupPaths_)) {
-					if(bib::in(subGroupName, collections_[projectName]->collection_->groupDataPaths_->allGroupPaths_.at(groupName).groupPaths_)){
+				if (njh::in(groupName, collections_[projectName]->collection_->groupDataPaths_->allGroupPaths_)) {
+					if(njh::in(subGroupName, collections_[projectName]->collection_->groupDataPaths_->allGroupPaths_.at(groupName).groupPaths_)){
 						uint32_t sesUid;
 						//check to see if there is a session already started associated with this seq
 						if(!postData.isMember("sessionUID")){
@@ -1144,13 +1144,13 @@ void pcv::groupGetPopSeqsPostHanlder(
 						}else{
 							sesUid = postData["sessionUID"].asUInt();
 						}
-						auto popUIDs = bib::json::jsonArrayToVec<std::string>(postData["popUIDs"],
+						auto popUIDs = njh::json::jsonArrayToVec<std::string>(postData["popUIDs"],
 								[](const Json::Value & val) {return val.asString();});
 						seqsBySession_[sesUid]->cache_.at(projectName).reload();
 						if (seqsBySession_[sesUid]->cache_.at(projectName).reads_->size()
 								!= popUIDs.size()) {
 							for (auto & seq : *seqsBySession_[sesUid]->cache_.at(projectName).reads_) {
-								if (bib::in(seq.seqBase_.getStubName(false), popUIDs)) {
+								if (njh::in(seq.seqBase_.getStubName(false), popUIDs)) {
 									seq.seqBase_.on_ = true;
 								} else {
 									seq.seqBase_.on_ = false;
@@ -1160,18 +1160,18 @@ void pcv::groupGetPopSeqsPostHanlder(
 						//make sure seqs aren't empty, viewer doesn't know how to handle that, if it isn't make sure to remove the placeholder seq if it is there
 						seqsBySession_[sesUid]->cache_.at(projectName).ensureNonEmptyReads();
 						ret = seqsBySession_[sesUid]->getJson(projectName);
-						ret["sessionUID"] = bib::json::toJson(sesUid);
+						ret["sessionUID"] = njh::json::toJson(sesUid);
 					}else{
 						std::cerr << __PRETTY_FUNCTION__ << ": error, no such sub group as " << subGroupName
 								<< " in group " << groupName << " in project " << projectName << ", options are "
-								<< bib::conToStr(
+								<< njh::conToStr(
 										getVectorOfMapKeys(collections_[projectName]->collection_->groupDataPaths_->allGroupPaths_.at(groupName).groupPaths_),
 										", ") << "\n";
 					}
 				} else {
 					std::cerr << __PRETTY_FUNCTION__ << ": error, no such group as " << groupName
 							<< " " << "in project " << projectName << ", options are "
-							<< bib::conToStr(
+							<< njh::conToStr(
 									getVectorOfMapKeys(collections_[projectName]->collection_->groupDataPaths_->allGroupPaths_),
 									", ") << "\n";
 				}
@@ -1181,11 +1181,11 @@ void pcv::groupGetPopSeqsPostHanlder(
 		} else {
 			std::cerr << __PRETTY_FUNCTION__ << ": error, no such project as "
 					<< projectName << ", options are "
-					<< bib::conToStr(bib::getVecOfMapKeys(collections_), ", ") << "\n";
+					<< njh::conToStr(njh::getVecOfMapKeys(collections_), ", ") << "\n";
 		}
 	}
 
-	auto retBody = bib::json::writeAsOneLine(ret);
+	auto retBody = njh::json::writeAsOneLine(ret);
 	std::multimap<std::string, std::string> headers =
 			HeaderFactory::initiateAppJsonHeader(retBody);
 	headers.emplace("Connection", "close");
@@ -1214,22 +1214,22 @@ void pcv::groupGetPopInfoPostHanlder(
 	std::string groupName = request->get_path_parameter("groupName");
 	std::string subGroupName = request->get_path_parameter("subGroupName");
 
-	const auto postData = bib::json::parse(std::string(body.begin(), body.end()));
-	bib::json::MemberChecker checker(postData);
+	const auto postData = njh::json::parse(std::string(body.begin(), body.end()));
+	njh::json::MemberChecker checker(postData);
 	Json::Value ret;
 	if (checker.failMemberCheck( { "popUIDs" }, __PRETTY_FUNCTION__)) {
 		std::cerr << checker.message_.str() << std::endl;
 	} else {
-		if (bib::in(projectName, collections_)) {
+		if (njh::in(projectName, collections_)) {
 			if(nullptr != collections_[projectName]->collection_->groupDataPaths_){
-				if (bib::in(groupName, collections_[projectName]->collection_->groupDataPaths_->allGroupPaths_)) {
-					if(bib::in(subGroupName, collections_[projectName]->collection_->groupDataPaths_->allGroupPaths_.at(groupName).groupPaths_)){
-						auto popUIDs = bib::json::jsonArrayToVec<std::string>(postData["popUIDs"],
+				if (njh::in(groupName, collections_[projectName]->collection_->groupDataPaths_->allGroupPaths_)) {
+					if(njh::in(subGroupName, collections_[projectName]->collection_->groupDataPaths_->allGroupPaths_.at(groupName).groupPaths_)){
+						auto popUIDs = njh::json::jsonArrayToVec<std::string>(postData["popUIDs"],
 								[](const Json::Value & val) {return val.asString();});
 						auto trimedPopTab =
 								collections_[projectName]->subGroupTabs_.at(groupName).at(subGroupName).popInfo_->get().extractByComp(
 										"h_popUID",
-										[&popUIDs](const std::string & str) {return bib::in(str, popUIDs);});
+										[&popUIDs](const std::string & str) {return njh::in(str, popUIDs);});
 						ret = tableToJsonByRow(trimedPopTab, "h_popUID", VecStr { }, VecStr {
 								"p_TotalInputReadCnt", "g_GroupName","g_hapsFoundOnlyInThisGroup",
 								"p_TotalUniqueHaplotypes", "p_TotalInputClusterCnt",
@@ -1238,14 +1238,14 @@ void pcv::groupGetPopInfoPostHanlder(
 					}else{
 						std::cerr << __PRETTY_FUNCTION__ << ": error, no such sub group as " << subGroupName
 								<< " in group " << groupName << " in project " << projectName << ", options are "
-								<< bib::conToStr(
+								<< njh::conToStr(
 										getVectorOfMapKeys(collections_[projectName]->collection_->groupDataPaths_->allGroupPaths_.at(groupName).groupPaths_),
 										", ") << "\n";
 					}
 				} else {
 					std::cerr << __PRETTY_FUNCTION__ << ": error, no such group as " << groupName
 							<< " " << "in project " << projectName << ", options are "
-							<< bib::conToStr(
+							<< njh::conToStr(
 									getVectorOfMapKeys(collections_[projectName]->collection_->groupDataPaths_->allGroupPaths_),
 									", ") << "\n";
 				}
@@ -1255,11 +1255,11 @@ void pcv::groupGetPopInfoPostHanlder(
 		} else {
 			std::cerr << __PRETTY_FUNCTION__ << ": error, no such project as "
 					<< projectName << ", options are "
-					<< bib::conToStr(bib::getVecOfMapKeys(collections_), ", ") << "\n";
+					<< njh::conToStr(njh::getVecOfMapKeys(collections_), ", ") << "\n";
 		}
 	}
 
-	auto retBody = bib::json::writeAsOneLine(ret);
+	auto retBody = njh::json::writeAsOneLine(ret);
 	std::multimap<std::string, std::string> headers =
 			HeaderFactory::initiateAppJsonHeader(retBody);
 	headers.emplace("Connection", "close");
@@ -1274,39 +1274,39 @@ void pcv::groupGetHapIdTablePostHanlder(
 	std::string groupName = request->get_path_parameter("groupName");
 	std::string subGroupName = request->get_path_parameter("subGroupName");
 
-	const auto postData = bib::json::parse(std::string(body.begin(), body.end()));
-	bib::json::MemberChecker checker(postData);
+	const auto postData = njh::json::parse(std::string(body.begin(), body.end()));
+	njh::json::MemberChecker checker(postData);
 	Json::Value ret;
 	if (checker.failMemberCheck( { "popUIDs", "samples" }, __PRETTY_FUNCTION__)) {
 		std::cerr << checker.message_.str() << std::endl;
 	} else {
-		if (bib::in(projectName, collections_)) {
+		if (njh::in(projectName, collections_)) {
 			if(nullptr != collections_[projectName]->collection_->groupDataPaths_){
-				if (bib::in(groupName, collections_[projectName]->collection_->groupDataPaths_->allGroupPaths_)) {
-					if(bib::in(subGroupName, collections_[projectName]->collection_->groupDataPaths_->allGroupPaths_.at(groupName).groupPaths_)){
-						auto popUIDs = bib::json::jsonArrayToVec<std::string>(postData["popUIDs"],
+				if (njh::in(groupName, collections_[projectName]->collection_->groupDataPaths_->allGroupPaths_)) {
+					if(njh::in(subGroupName, collections_[projectName]->collection_->groupDataPaths_->allGroupPaths_.at(groupName).groupPaths_)){
+						auto popUIDs = njh::json::jsonArrayToVec<std::string>(postData["popUIDs"],
 								[](const Json::Value & val) {return val.asString();});
-						auto samples = bib::json::jsonArrayToVec<std::string>(postData["samples"],
+						auto samples = njh::json::jsonArrayToVec<std::string>(postData["samples"],
 								[](const Json::Value & val) {return val.asString();});
 						auto hapIdTab = collections_[projectName]->subGroupTabs_.at(groupName).at(subGroupName).hapIdTab_->get().getColumns(concatVecs(VecStr{"#PopUID"}, samples)).extractByComp(
 								"#PopUID",
-								[&popUIDs](const std::string & str) {return bib::in(str, popUIDs);});
+								[&popUIDs](const std::string & str) {return njh::in(str, popUIDs);});
 
 						auto trimedHapIdTab = hapIdTab.extractByComp(
 										"#PopUID",
-										[&popUIDs](const std::string & str) {return bib::in(str, popUIDs);});
+										[&popUIDs](const std::string & str) {return njh::in(str, popUIDs);});
 						ret = tableToJsonByRow(trimedHapIdTab, "#PopUID");
 					}else{
 						std::cerr << __PRETTY_FUNCTION__ << ": error, no such sub group as " << subGroupName
 								<< " in group " << groupName << " in project " << projectName << ", options are "
-								<< bib::conToStr(
+								<< njh::conToStr(
 										getVectorOfMapKeys(collections_[projectName]->collection_->groupDataPaths_->allGroupPaths_.at(groupName).groupPaths_),
 										", ") << "\n";
 					}
 				} else {
 					std::cerr << __PRETTY_FUNCTION__ << ": error, no such group as " << groupName
 							<< " " << "in project " << projectName << ", options are "
-							<< bib::conToStr(
+							<< njh::conToStr(
 									getVectorOfMapKeys(collections_[projectName]->collection_->groupDataPaths_->allGroupPaths_),
 									", ") << "\n";
 				}
@@ -1316,11 +1316,11 @@ void pcv::groupGetHapIdTablePostHanlder(
 		} else {
 			std::cerr << __PRETTY_FUNCTION__ << ": error, no such project as "
 					<< projectName << ", options are "
-					<< bib::conToStr(bib::getVecOfMapKeys(collections_), ", ") << "\n";
+					<< njh::conToStr(njh::getVecOfMapKeys(collections_), ", ") << "\n";
 		}
 	}
 
-	auto retBody = bib::json::writeAsOneLine(ret);
+	auto retBody = njh::json::writeAsOneLine(ret);
 	std::multimap<std::string, std::string> headers =
 			HeaderFactory::initiateAppJsonHeader(retBody);
 	headers.emplace("Connection", "close");
@@ -1530,5 +1530,5 @@ VecStr pcv::requiredOptions() const {
 			"resources" });
 }
 
-}  // namespace bibseq
+}  // namespace njhseq
 

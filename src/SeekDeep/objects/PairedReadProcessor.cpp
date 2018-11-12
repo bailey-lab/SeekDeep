@@ -27,7 +27,7 @@
 
 #include "PairedReadProcessor.hpp"
 
-namespace bibseq {
+namespace njhseq {
 
 
 PairedReadProcessor::PairedReadProcessor(ProcessParams params):params_(params){
@@ -175,25 +175,25 @@ Json::Value PairedReadProcessor::ProcessedResultsCounts::toJson() const{
 
 	outVal["total"] = total;
 	if(nullptr != perfectOverlapCombinedOpts){
-		outVal["perfectOverlapCombinedOpts"] = bib::json::toJson(perfectOverlapCombinedOpts);
+		outVal["perfectOverlapCombinedOpts"] = njh::json::toJson(perfectOverlapCombinedOpts);
 	}
 	if(nullptr != r1EndsInR2CombinedOpts){
-		outVal["r1EndsInR2CombinedOpts"] = bib::json::toJson(r1EndsInR2CombinedOpts);
+		outVal["r1EndsInR2CombinedOpts"] = njh::json::toJson(r1EndsInR2CombinedOpts);
 	}
 	if(nullptr != r1BeginsInR2CombinedOpts){
-		outVal["r1BeginsInR2CombinedOpts"] = bib::json::toJson(r1BeginsInR2CombinedOpts);
+		outVal["r1BeginsInR2CombinedOpts"] = njh::json::toJson(r1BeginsInR2CombinedOpts);
 	}
 	if(nullptr != r1AllInR2CombinedOpts){
-		outVal["r1AllInR2CombinedOpts"] = bib::json::toJson(r1AllInR2CombinedOpts);
+		outVal["r1AllInR2CombinedOpts"] = njh::json::toJson(r1AllInR2CombinedOpts);
 	}
 	if(nullptr != r2AllInR1CombinedOpts){
-		outVal["r2AllInR1CombinedOpts"] = bib::json::toJson(r2AllInR1CombinedOpts);
+		outVal["r2AllInR1CombinedOpts"] = njh::json::toJson(r2AllInR1CombinedOpts);
 	}
 	if(nullptr != notCombinedOpts){
-		outVal["notCombinedOpts"] = bib::json::toJson(notCombinedOpts);
+		outVal["notCombinedOpts"] = njh::json::toJson(notCombinedOpts);
 	}
 	if(nullptr != overhangsOpts){
-		outVal["overhangsOpts"] = bib::json::toJson(overhangsOpts);
+		outVal["overhangsOpts"] = njh::json::toJson(overhangsOpts);
 	}
 	return outVal;
 }
@@ -459,7 +459,7 @@ PairedReadProcessor::ProcessedPairRes PairedReadProcessor::processPairedEnd(
 			//failure
 //			writers.notCombinedWriter->openWrite(seq);
 //			++res.overhangFail;
-			OutOptions tempFileOpts(bib::files::findNonexitantFile(bfs::path("temp.fastq")));
+			OutOptions tempFileOpts(njh::files::findNonexitantFile(bfs::path("temp.fastq")));
 			OutputStream tempFile(tempFileOpts);
 
 			alignerObj.alignObjectA_.seqBase_.outPutFastq(tempFile);
@@ -538,4 +538,4 @@ bool PairedReadProcessor::processPairedEnd(
 }
 
 
-}  // namespace bibseq
+}  // namespace njhseq

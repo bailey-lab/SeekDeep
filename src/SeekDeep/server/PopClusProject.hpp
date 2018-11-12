@@ -27,11 +27,11 @@
 //
 #include <seqServer/apps/SeqApp.hpp>
 #include <seqServer/utils.h>
-#include <bibcpp.h>
+#include <njhcpp.h>
 
 
 
-namespace bibseq {
+namespace njhseq {
 
 /**@brief struct to hold a pointer to table caches for sample and population information
  *
@@ -79,7 +79,7 @@ public:
 
 };
 
-}  // namespace bibseq
+}  // namespace njhseq
 
 
 

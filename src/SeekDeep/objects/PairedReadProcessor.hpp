@@ -25,8 +25,8 @@
 // You should have received a copy of the GNU General Public License
 // along with SeekDeep.  If not, see <http://www.gnu.org/licenses/>.
 //
-#include <bibseq.h>
-namespace bibseq {
+#include <njhseq.h>
+namespace njhseq {
 
 class PairedReadProcessor{
 public:
@@ -184,7 +184,7 @@ public:
 };
 
 
-}  // namespace bibseq
+}  // namespace njhseq
 
 
 

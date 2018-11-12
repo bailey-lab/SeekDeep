@@ -28,10 +28,10 @@
 // along with SeekDeep.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-#include <bibseq.h>
+#include <njhseq.h>
 #include "SeekDeep/objects/PrimersAndMids.hpp"
 
-namespace bibseq {
+namespace njhseq {
 
 class TarAmpAnalysisSetup {
 public:
@@ -195,7 +195,7 @@ public:
 };
 
 
-}  // namespace bibseq
+}  // namespace njhseq
 
 
 

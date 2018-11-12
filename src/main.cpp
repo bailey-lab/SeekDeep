@@ -29,7 +29,7 @@
 
 int main(int argc, char* argv[]) {
 	try {
-		bibseq::SeekDeepRunner seqRunner;
+		njhseq::SeekDeepRunner seqRunner;
 		return seqRunner.run(argc, argv);
 	} catch (std::exception & e) {
 		std::cerr << e.what() << std::endl;

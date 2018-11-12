@@ -29,20 +29,20 @@
 #include "SeekDeep/server.h"
 #include "SeekDeep/objects.h"
 
-namespace bibseq {
+namespace njhseq {
 
-class SeekDeepUtilsRunner : public bib::progutils::ProgramRunner {
+class SeekDeepUtilsRunner : public njh::progutils::ProgramRunner {
  public:
   SeekDeepUtilsRunner();
   
-  static int dryRunQualityFiltering(const bib::progutils::CmdArgs & inputCommands);
-	static int runMultipleCommands(const bib::progutils::CmdArgs & inputCommands);
+  static int dryRunQualityFiltering(const njh::progutils::CmdArgs & inputCommands);
+	static int runMultipleCommands(const njh::progutils::CmdArgs & inputCommands);
 
-	static int setupTarAmpAnalysis(const bib::progutils::CmdArgs & inputCommands);
-	static int replaceUnderscores(const bib::progutils::CmdArgs & inputCommands);
+	static int setupTarAmpAnalysis(const njh::progutils::CmdArgs & inputCommands);
+	static int replaceUnderscores(const njh::progutils::CmdArgs & inputCommands);
 
-	static int genTargetInfoFromGenomes(const bib::progutils::CmdArgs & inputCommands);
+	static int genTargetInfoFromGenomes(const njh::progutils::CmdArgs & inputCommands);
 
 };
 
-} // namespace bibseq
+} // namespace njhseq

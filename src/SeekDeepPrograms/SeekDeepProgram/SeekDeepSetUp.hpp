@@ -23,12 +23,12 @@
 // You should have received a copy of the GNU General Public License
 // along with SeekDeep.  If not, see <http://www.gnu.org/licenses/>.
 //
-#include <bibseq.h>
-#include <bibseq/programUtils/seqSetUp.hpp>
+#include <njhseq.h>
+#include <njhseq/programUtils/seqSetUp.hpp>
 
 #include "SeekDeep.h"
 
-namespace bibseq {
+namespace njhseq {
 
 
 
@@ -44,6 +44,6 @@ class SeekDeepSetUp : public seqSetUp {
 	void setUpMakeSampleDirectories(makeSampleDirectoriesPars & pars);
 
 };
-}  // namespace bibseq
+}  // namespace njhseq
 
 

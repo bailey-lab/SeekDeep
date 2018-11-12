@@ -25,14 +25,14 @@
 //  Created by Nicholas Hathaway on 8/11/13.
 //
 #include "SeekDeepRunner.hpp"
-#include <bibcpp.h>
+#include <njhcpp.h>
 #include <SeekDeepPrograms/SeekDeepServerRunner.h>
 #include "SeekDeepPrograms/SeekDeepUtils.h"
 
-namespace bibseq {
+namespace njhseq {
 
 SeekDeepRunner::SeekDeepRunner() :
-		bib::progutils::OneRing(
+		njh::progutils::OneRing(
 				{ addRing<SeekDeepUtilsRunner>(),
 					addRing<SeekDeepServerRunner>()
 				},
@@ -48,4 +48,4 @@ SeekDeepRunner::SeekDeepRunner() :
 
 //
 
-}  // namespace bibseq
+}  // namespace njhseq

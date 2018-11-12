@@ -26,11 +26,11 @@
 // You should have received a copy of the GNU General Public License
 // along with SeekDeep.  If not, see <http://www.gnu.org/licenses/>.
 //
-#include <bibseq.h>
+#include <njhseq.h>
 
 #include "SeekDeep/objects/PairedReadProcessor.hpp"
 
-namespace bibseq {
+namespace njhseq {
 
 class PrimersAndMids {
 public:
@@ -142,5 +142,5 @@ public:
 
 };
 
-}  // namespace bibseq
+}  // namespace njhseq
 

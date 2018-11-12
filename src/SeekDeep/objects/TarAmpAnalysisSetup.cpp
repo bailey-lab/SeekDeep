@@ -28,12 +28,12 @@
 #include "TarAmpAnalysisSetup.hpp"
 
 
-namespace bibseq {
+namespace njhseq {
 
 
 
 bool TarAmpAnalysisSetup::TarAmpPars::checkForStitcher(VecStr & warnings) const {
-	if (!bib::sys::hasSysCommand(stitcherCmd)) {
+	if (!njh::sys::hasSysCommand(stitcherCmd)) {
 		std::stringstream ss;
 		ss << __PRETTY_FUNCTION__ << ": error, need to have " << stitcherCmd
 				<< " in path" << "\n";
@@ -44,7 +44,7 @@ bool TarAmpAnalysisSetup::TarAmpPars::checkForStitcher(VecStr & warnings) const 
 }
 
 bool TarAmpAnalysisSetup::TarAmpPars::checkForZcat(VecStr & warnings) const {
-	if (!bib::sys::hasSysCommand(zcatCmd)) {
+	if (!njh::sys::hasSysCommand(zcatCmd)) {
 		std::stringstream ss;
 		ss << __PRETTY_FUNCTION__ << ": error, need to have " << zcatCmd
 				<< " in path" << "\n";
@@ -59,7 +59,7 @@ bool TarAmpAnalysisSetup::TarAmpPars::checkForOutDir(VecStr & warnings) const {
 	if (bfs::exists(outDir)) {
 		std::stringstream ss;
 		ss << __PRETTY_FUNCTION__ << ": error, out directory " << "\""
-				<< bib::bashCT::boldRed(outDir.string()) << "\"" << " already exists"
+				<< njh::bashCT::boldRed(outDir.string()) << "\"" << " already exists"
 				<< ", must remove by hand will not overwrite\n";
 		warnings.emplace_back(ss.str());
 		return false;
@@ -71,7 +71,7 @@ bool TarAmpAnalysisSetup::TarAmpPars::checkIfFnpExists(const bfs::path & fnp,
 		VecStr & warnings) {
 	if (!bfs::exists(fnp)) {
 		std::stringstream ss;
-		ss << bib::bashCT::boldRed(fnp.string()) << " doesn't exist" << "\n";
+		ss << njh::bashCT::boldRed(fnp.string()) << " doesn't exist" << "\n";
 		warnings.emplace_back(ss.str());
 		return false;
 	}
@@ -126,7 +126,7 @@ bool TarAmpAnalysisSetup::TarAmpPars::checkForOptionalFnpPars(VecStr & warnings)
 		status = status && checkIfFnpExists(refSeqsDir, warnings);
 		if(bfs::exists(refSeqsDir) && !bfs::is_directory(refSeqsDir)){
 			std::stringstream ss;
-			ss << bib::bashCT::boldRed(refSeqsDir.string()) << " is not a directory, the ref seqs directory should be, well, a directory" << "\n";
+			ss << njh::bashCT::boldRed(refSeqsDir.string()) << " is not a directory, the ref seqs directory should be, well, a directory" << "\n";
 			warnings.emplace_back(ss.str());
 			status = false;
 		}
@@ -146,14 +146,14 @@ bool TarAmpAnalysisSetup::TarAmpPars::checkForOptionalFnpPars(VecStr & warnings)
 TarAmpAnalysisSetup::TarAmpAnalysisSetup(const TarAmpPars & pars) :
 		pars_(pars) {
 	dir_ = pars.outDir;
-	bib::files::makeDir(bib::files::MkdirPar(dir_.string()));
-	infoDir_ = bib::files::makeDir(dir_.string(), bib::files::MkdirPar("info"));
-	logsDir_ = bib::files::makeDir(dir_.string(), bib::files::MkdirPar("logs"));
-	idsDir_ = bib::files::makeDir(infoDir_.string(), bib::files::MkdirPar("ids"));
-	refsDir_ = bib::files::makeDir(infoDir_.string(), bib::files::MkdirPar("refs"));
-	reportsDir_ = bib::files::makeDir(dir_.string(),
-			bib::files::MkdirPar("reports"));
-	serverConfigsDir_ = bib::files::makeDir(dir_.string(), bib::files::MkdirPar("serverConfigs"));
+	njh::files::makeDir(njh::files::MkdirPar(dir_.string()));
+	infoDir_ = njh::files::makeDir(dir_.string(), njh::files::MkdirPar("info"));
+	logsDir_ = njh::files::makeDir(dir_.string(), njh::files::MkdirPar("logs"));
+	idsDir_ = njh::files::makeDir(infoDir_.string(), njh::files::MkdirPar("ids"));
+	refsDir_ = njh::files::makeDir(infoDir_.string(), njh::files::MkdirPar("refs"));
+	reportsDir_ = njh::files::makeDir(dir_.string(),
+			njh::files::MkdirPar("reports"));
+	serverConfigsDir_ = njh::files::makeDir(dir_.string(), njh::files::MkdirPar("serverConfigs"));
 
 	//add ids and primers
 	idsMids_ = std::make_unique<PrimersAndMids>(pars_.idFile);
@@ -172,12 +172,12 @@ TarAmpAnalysisSetup::TarAmpAnalysisSetup(const TarAmpPars & pars) :
 		if("" == pars_.targetsToIndexFnp){
 			table indexToTargetsTab(VecStr{"index", "	targets"});
 			for(const auto & indexToTar : indexToTars_){
-				indexToTargetsTab.addRow(indexToTar.first, bib::conToStr(indexToTar.second, ","));
+				indexToTargetsTab.addRow(indexToTar.first, njh::conToStr(indexToTar.second, ","));
 			}
-			OutputStream indexToTargetsOut(OutOptions(bib::files::make_path(infoDir_, "indexToTargets.tab.txt")));
+			OutputStream indexToTargetsOut(OutOptions(njh::files::make_path(infoDir_, "indexToTargets.tab.txt")));
 			indexToTargetsTab.outPutContents(indexToTargetsOut, "\t");
 		}else{
-			bfs::copy(pars_.targetsToIndexFnp, bib::files::make_path(infoDir_, "indexToTargets.tab.txt"));
+			bfs::copy(pars_.targetsToIndexFnp, njh::files::make_path(infoDir_, "indexToTargets.tab.txt"));
 		}
 	}
 
@@ -204,7 +204,7 @@ TarAmpAnalysisSetup::TarAmpAnalysisSetup(const TarAmpPars & pars) :
 	if("" != pars.groupMeta){
 		addGroupingMetaData(pars.groupMeta);
 		bfs::copy(groupMetaData_->groupingsFile_,
-				bib::files::make_path(infoDir_, "groupMeta.tab.txt"));
+				njh::files::make_path(infoDir_, "groupMeta.tab.txt"));
 	}
 	//add ref seqs if provided
 	if("" != pars.refSeqsDir){
@@ -231,7 +231,7 @@ TarAmpAnalysisSetup::TarAmpAnalysisSetup(const TarAmpPars & pars) :
 		ss << __PRETTY_FUNCTION__
 				<< ": error, target names shouldn't have underscores in them (this makes downstream patern matching and such easier) replace with -" << "\n";
 		ss << "The following targets should be renamed" << "\n";
-		ss << bib::conToStr(failedTargets, ", ") << "\n";
+		ss << njh::conToStr(failedTargets, ", ") << "\n";
 		throw std::runtime_error { ss.str() };
 	}
 
@@ -253,7 +253,7 @@ void TarAmpAnalysisSetup::addIndexToTargetsNames(
 			auto tars = tokenizeString(row[targetsToIndexTab.getColPos("targets")],
 					",");
 			auto index = row[targetsToIndexTab.getColPos("index")];
-			if (bib::in(index, indexToTars_)) {
+			if (njh::in(index, indexToTars_)) {
 				std::stringstream ss;
 				ss << __PRETTY_FUNCTION__ << ": error already have targets for index: "
 						<< index << "\n";
@@ -261,14 +261,14 @@ void TarAmpAnalysisSetup::addIndexToTargetsNames(
 						<< "\n";
 				throw std::runtime_error { ss.str() };
 			}
-			bib::sort(tars);
+			njh::sort(tars);
 			indexToTars_[index] = tars;
 			tarsSet.insert(tars.begin(), tars.end());
 		}
 		auto indexes = getIndexes();
 		VecStr missingIndex;
 		for (const auto & index : indexes) {
-			if (!bib::in(index, indexToTars_)) {
+			if (!njh::in(index, indexToTars_)) {
 				missingIndex.emplace_back(index);
 			}
 		}
@@ -277,9 +277,9 @@ void TarAmpAnalysisSetup::addIndexToTargetsNames(
 			ss << __PRETTY_FUNCTION__
 					<< ": error, missing the following index from the index to targets file "
 					<< targetsToIndexFnp << "\n";
-			ss << "Targets: " << bib::conToStr(missingIndex, ", ") << "\n";
+			ss << "Targets: " << njh::conToStr(missingIndex, ", ") << "\n";
 			ss << "Indexes Read In: "
-					<< bib::conToStr(bib::getVecOfMapKeys(indexToTars_), ", ") << "\n";
+					<< njh::conToStr(njh::getVecOfMapKeys(indexToTars_), ", ") << "\n";
 			throw std::runtime_error { ss.str() };
 		}
 	}
@@ -294,7 +294,7 @@ TarAmpAnalysisSetup::Sample::Sample(const std::string & name) :
 }
 
 void TarAmpAnalysisSetup::Sample::addRep(const std::string & rep) {
-	if (bib::in(rep, reps_)) {
+	if (njh::in(rep, reps_)) {
 		std::stringstream ss;
 		ss << __PRETTY_FUNCTION__ << " error, sample " << name_
 				<< " already has rep name " << rep << "\n";
@@ -324,7 +324,7 @@ void TarAmpAnalysisSetup::Samples::addSample(const std::string & sample) {
 	if (hasSample(sample)) {
 		std::stringstream ss;
 		ss << __PRETTY_FUNCTION__ << " error, already have " << sample << " for " << target_ << "\n";
-		ss << "With input: " << bib::conToStr(samples_.at(sample).reps_ , ", ")<< "\n";
+		ss << "With input: " << njh::conToStr(samples_.at(sample).reps_ , ", ")<< "\n";
 		throw std::runtime_error { ss.str() };
 	}
 	samples_.emplace(sample, Sample{sample});
@@ -336,7 +336,7 @@ void TarAmpAnalysisSetup::Samples::addSample(const std::string & sample, const V
 }
 
 VecStr TarAmpAnalysisSetup::Samples::getSamples() const {
-	return bib::getVecOfMapKeys(samples_);
+	return njh::getVecOfMapKeys(samples_);
 }
 
 std::vector<std::string> TarAmpAnalysisSetup::Samples::getReps() const {
@@ -367,29 +367,29 @@ std::vector<std::string> TarAmpAnalysisSetup::getReps() const {
 
 void TarAmpAnalysisSetup::addGroupingMetaData(const bfs::path & groupingsFileFnp) {
 	groupMetaData_ = std::make_unique<MultipleGroupMetaData>(
-			bib::files::normalize(groupingsFileFnp), getSamples());
+			njh::files::normalize(groupingsFileFnp), getSamples());
 }
 
 void TarAmpAnalysisSetup::addGroupingsFile()const{
 	if(nullptr != groupMetaData_){
-		bfs::copy(groupMetaData_->groupingsFile_, bib::files::make_path(infoDir_, "groupingMetaData.tab.txt"));
+		bfs::copy(groupMetaData_->groupingsFile_, njh::files::make_path(infoDir_, "groupingMetaData.tab.txt"));
 	}
 }
 
 void TarAmpAnalysisSetup::writeSampleNamesFile() const {
 	std::ofstream sampleNamesFile;
 	openTextFile(sampleNamesFile,
-			OutOptions(bib::files::make_path(infoDir_, "sampNames").string(),
+			OutOptions(njh::files::make_path(infoDir_, "sampNames").string(),
 					".tab.txt"));
 	auto keys = getVectorOfMapKeys(samples_);
-	bib::sort(keys);
+	njh::sort(keys);
 	for (const auto & tarKey : keys) {
-		auto sampKeys = bib::getVecOfMapKeys(samples_.at(tarKey).samples_);
-		bib::sort(sampKeys);
+		auto sampKeys = njh::getVecOfMapKeys(samples_.at(tarKey).samples_);
+		njh::sort(sampKeys);
 		for (const auto & sampKey : sampKeys) {
 			sampleNamesFile << tarKey << "\t" << sampKey;
 			for (auto rep : samples_.at(tarKey).samples_.at(sampKey).reps_) {
-				if (!bib::beginsWith(rep, "MID")) {
+				if (!njh::beginsWith(rep, "MID")) {
 					rep = "MID" + rep;
 				}
 				sampleNamesFile << "\t" << rep;
@@ -408,12 +408,12 @@ VecStr TarAmpAnalysisSetup::getTargets() const {
 		}
 		return VecStr{tarsSet.begin(), tarsSet.end()};
 	}else{
-		return bib::getVecOfMapKeys(samples_);
+		return njh::getVecOfMapKeys(samples_);
 	}
 }
 
 VecStr TarAmpAnalysisSetup::getIndexes() const {
-	return bib::getVecOfMapKeys(samples_);
+	return njh::getVecOfMapKeys(samples_);
 }
 
 
@@ -434,7 +434,7 @@ void TarAmpAnalysisSetup::addSamplesNames(const bfs::path & samplesNamesFnp){
 		if(row.size() < 3){
 			std::stringstream ss;
 			ss << __PRETTY_FUNCTION__ << ": error each row should have at least 3 columns, not " << row.size() << " for row \n";
-			ss << "Row Number(1 based pos): " << rowCount << " - " << bib::conToStr(row, "\t") << "\n";
+			ss << "Row Number(1 based pos): " << rowCount << " - " << njh::conToStr(row, "\t") << "\n";
 			warnings.emplace_back(ss.str());
 			continue;
 		}
@@ -443,7 +443,7 @@ void TarAmpAnalysisSetup::addSamplesNames(const bfs::path & samplesNamesFnp){
 			if(colPos < 2 && row[colPos].empty()){
 				std::stringstream ss;
 				ss << __PRETTY_FUNCTION__ << ": error column " << colPos << " can't be an empty string" << "\n";
-				ss << "Row Number(1 based pos): " << rowCount << " - " << bib::conToStr(row, "\t") << "\n";
+				ss << "Row Number(1 based pos): " << rowCount << " - " << njh::conToStr(row, "\t") << "\n";
 				warnings.emplace_back(ss.str());
 				continue;
 			}
@@ -474,7 +474,7 @@ void TarAmpAnalysisSetup::addSamplesNames(const bfs::path & samplesNamesFnp){
 			for(const auto & rep : reps){
 				if(!std::regex_match(rep, match, pat)){
 					errorStream << "Error for " << sample << " in " << target << "rep name needs begins with MID and end with a number" << "\n";
-					errorStream << "Failed: " << bib::bashCT::red << rep << bib::bashCT::reset << "\n";
+					errorStream << "Failed: " << njh::bashCT::red << rep << njh::bashCT::reset << "\n";
 					failed = true;
 				}
 			}
@@ -485,7 +485,7 @@ void TarAmpAnalysisSetup::addSamplesNames(const bfs::path & samplesNamesFnp){
 					continue;
 				}
 				for (const auto & samp : tar.second.samples_) {
-					if (bib::in(rep, samp.second.reps_)) {
+					if (njh::in(rep, samp.second.reps_)) {
 						errorStream << __PRETTY_FUNCTION__ << " : Error for " << sample << " in " << target << ", already have " << rep
 								<< " in " << samp.first << "\n";
 					}
@@ -506,14 +506,14 @@ void TarAmpAnalysisSetup::addSamplesNames(const bfs::path & samplesNamesFnp){
 
 void TarAmpAnalysisSetup::addRefSeqs(const bfs::path & refSeqsDir){
 	/**@todo add ref seq functions and checks*/
-	auto fastaFiles = bib::files::listAllFiles(refSeqsDir.string(), false, {
+	auto fastaFiles = njh::files::listAllFiles(refSeqsDir.string(), false, {
 			std::regex { R"(.*\.fasta$)" } });
 	VecStr found;
 	auto tars = getTargets();
 	for (const auto & ff : fastaFiles) {
 		auto tarName = bfs::basename(ff.first);
 		found.emplace_back(tarName);
-		if (!bib::in(tarName, tars)) {
+		if (!njh::in(tarName, tars)) {
 			forRefSeqs_.notMatching_.emplace_back(tarName);
 		} else {
 			auto inOpts = SeqIOOptions::genFastaIn(ff.first.string(), false);
@@ -527,7 +527,7 @@ void TarAmpAnalysisSetup::addRefSeqs(const bfs::path & refSeqsDir){
 		}
 	}
 	for (const auto & tar : tars) {
-		if (!bib::in(tar, found)) {
+		if (!njh::in(tar, found)) {
 			forRefSeqs_.missing_.emplace_back(tar);
 		}
 	}
@@ -538,12 +538,12 @@ void TarAmpAnalysisSetup::addLenCutOffs(const bfs::path & lenCutOffsFnp){
 	auto multipleLenCutOffs = PrimersAndMids::readInLenCutOffs(lenCutOffsFnp);
 	auto targets = getTargets();
 	for(const auto & cutOff : multipleLenCutOffs){
-		if(!bib::in(cutOff.first, targets)){
+		if(!njh::in(cutOff.first, targets)){
 			forLenCutOffs_.notMatching_.emplace_back(cutOff.first);
 		}
 	}
 	for (const auto & tar : idsMids_->getTargets()) {
-		if (!bib::in(tar, multipleLenCutOffs)) {
+		if (!njh::in(tar, multipleLenCutOffs)) {
 			forLenCutOffs_.missing_.emplace_back(tar);
 		} else {
 			idsMids_->targets_.at(tar).addLenCutOff(
@@ -574,8 +574,8 @@ std::vector<VecStr> TarAmpAnalysisSetup::getTarCombos() const{
 
 	std::vector<VecStr> tarCombos;
 	for (auto & sampTars : targetsForReps) {
-		bib::sort(sampTars.second);
-		if (!bib::in(sampTars.second, tarCombos)) {
+		njh::sort(sampTars.second);
+		if (!njh::in(sampTars.second, tarCombos)) {
 			tarCombos.emplace_back(sampTars.second);
 		}
 	}
@@ -587,35 +587,35 @@ void TarAmpAnalysisSetup::writeOutIdFiles() const{
 	std::vector<VecStr> tarCombos = getTarCombos();
 
 	for (const auto & tarCombo : tarCombos) {
-		auto collapse = bib::conToStr(tarCombo, "_");
+		auto collapse = njh::conToStr(tarCombo, "_");
 		auto refs = idsMids_->getRefSeqs(tarCombo);
 		auto lens = idsMids_->genLenCutOffs(tarCombo);
 		auto overlapStatuses = idsMids_->genOverlapStatuses(tarCombo);
 
 		if (!lens.empty()) {
 			auto lensOutOpts = TableIOOpts::genTabFileOut(
-					bib::files::make_path(idsDir_,
+					njh::files::make_path(idsDir_,
 							collapse + "_lenCutOffs.tab.txt"));
 			lens.outPutContents(lensOutOpts);
 		}
 
 		if (!overlapStatuses.empty()) {
 			auto overlapStatusesOpts = TableIOOpts::genTabFileOut(
-					bib::files::make_path(idsDir_,
+					njh::files::make_path(idsDir_,
 							collapse + "_overlapStatus.tab.txt"));
 			overlapStatuses.outPutContents(overlapStatusesOpts);
 		}
 
 		idsMids_->writeIdFile(
 				OutOptions(
-						bib::files::make_path(idsDir_, collapse + ".id.txt")),
+						njh::files::make_path(idsDir_, collapse + ".id.txt")),
 				tarCombo);
 	}
 	for(const auto & tar : idsMids_->targets_){
 		if(!tar.second.refs_.empty()){
 			SeqOutput::write(tar.second.refs_,
 					SeqIOOptions::genFastaOut(
-							bib::files::make_path(refsDir_, tar.first)));
+							njh::files::make_path(refsDir_, tar.first)));
 		}
 	}
 
@@ -624,7 +624,7 @@ void TarAmpAnalysisSetup::writeOutIdFiles() const{
 VecStr TarAmpAnalysisSetup::getExpectantInputNames()const{
 	VecStr ret;
 	if(pars_.byIndex){
-		ret = bib::getVecOfMapKeys(samples_);
+		ret = njh::getVecOfMapKeys(samples_);
 	}else{
 		ret = getReps();
 	}
@@ -635,22 +635,22 @@ VecStr TarAmpAnalysisSetup::getExpectantInputNames()const{
 void TarAmpAnalysisSetup::setUpPopClusteringDirs(bool verbose) const {
 	auto tars = getTargets();
 	if (pars_.byIndex) {
-		auto topPopDir = bib::files::makeDir(dir_.string(),
-				bib::files::MkdirPar("popClustering"));
+		auto topPopDir = njh::files::makeDir(dir_.string(),
+				njh::files::MkdirPar("popClustering"));
 		for (const auto & tar : tars) {
 			setUpSampleDirs(
-					bib::files::make_path(infoDir_, "sampNames.tab.txt").string(),
-					bib::files::make_path(topPopDir, tar).string(), false, verbose);
+					njh::files::make_path(infoDir_, "sampNames.tab.txt").string(),
+					njh::files::make_path(topPopDir, tar).string(), false, verbose);
 		}
 	} else {
 		setUpSampleDirs(
-							bib::files::make_path(infoDir_, "sampNames.tab.txt").string(),
-							bib::files::make_path(dir_, "popClustering").string(), true, verbose);
+							njh::files::make_path(infoDir_, "sampNames.tab.txt").string(),
+							njh::files::make_path(dir_, "popClustering").string(), true, verbose);
 	}
 }
 
 
 
 
-}  // namespace bibseq
+}  // namespace njhseq
 

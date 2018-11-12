@@ -20,8 +20,8 @@
 //
 //
 #include "SeekDeepSetUp.hpp"
-#include <bibcpp/bashUtils.h>
-namespace bibseq {
+#include <njhcpp/bashUtils.h>
+namespace njhseq {
 
 
 
@@ -32,4 +32,4 @@ namespace bibseq {
 
 
 
-}  // namespace bibseq
+}  // namespace njhseq

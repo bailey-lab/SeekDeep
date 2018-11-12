@@ -25,12 +25,12 @@
 #include "SeekDeepUtilsRunner.hpp"
 #include "SeekDeep/utils.h"
 
-#include <bibseq/ProgramRunners.h>
+#include <njhseq/ProgramRunners.h>
 
-namespace bibseq {
+namespace njhseq {
 
 SeekDeepUtilsRunner::SeekDeepUtilsRunner() :
-		bib::progutils::ProgramRunner(
+		njh::progutils::ProgramRunner(
 				{ addFunc("dryRunQualityFiltering", dryRunQualityFiltering, false),
 					addFunc("runMultipleCommands",    runMultipleCommands, false),
 					addFunc("setupTarAmpAnalysis", setupTarAmpAnalysis, false),
@@ -43,7 +43,7 @@ SeekDeepUtilsRunner::SeekDeepUtilsRunner() :
 
 //
 
-int SeekDeepUtilsRunner::genTargetInfoFromGenomes(const bib::progutils::CmdArgs & inputCommands) {
+int SeekDeepUtilsRunner::genTargetInfoFromGenomes(const njh::progutils::CmdArgs & inputCommands) {
 	extractBetweenSeqsPars pars;
 
 	seqSetUp setUp(inputCommands);
@@ -69,24 +69,24 @@ int SeekDeepUtilsRunner::genTargetInfoFromGenomes(const bib::progutils::CmdArgs 
 	setUp.startARunLog(pars.outputDirPars.dirName_.string());
 
 
-	auto forSeekDeepDir = bib::files::make_path(pars.outputDirPars.dirName_, "forSeekDeep");
+	auto forSeekDeepDir = njh::files::make_path(pars.outputDirPars.dirName_, "forSeekDeep");
 
-	bib::files::makeDir(bib::files::MkdirPar{forSeekDeepDir});
-	auto refSeqsDir = bib::files::make_path(forSeekDeepDir, "refSeqs");
-	bib::files::makeDir(bib::files::MkdirPar{refSeqsDir});
-	OutOptions lenCutOffsOpts(bib::files::make_path(forSeekDeepDir, "lenCutOffs.txt"));
+	njh::files::makeDir(njh::files::MkdirPar{forSeekDeepDir});
+	auto refSeqsDir = njh::files::make_path(forSeekDeepDir, "refSeqs");
+	njh::files::makeDir(njh::files::MkdirPar{refSeqsDir});
+	OutOptions lenCutOffsOpts(njh::files::make_path(forSeekDeepDir, "lenCutOffs.txt"));
 	OutputStream lenCutOffsOut(lenCutOffsOpts);
 	lenCutOffsOut << "target\tminlen\tmaxlen" << "\n";
 
-	OutOptions overlapStatusOpts(bib::files::make_path(forSeekDeepDir, "overlapStatuses.txt"));
+	OutOptions overlapStatusOpts(njh::files::make_path(forSeekDeepDir, "overlapStatuses.txt"));
 	OutputStream overlapStatusOut(overlapStatusOpts);
 	overlapStatusOut << "target\tstatus" << "\n";
 
 
 	for(const auto & tar : ids.getTargets()){
-		auto primersRemovedFnp = bib::files::make_path(pars.outputDirPars.dirName_, tar, tar + "_primersRemoved.fasta");
-		auto extractedSeqsFnp = bib::files::make_path(pars.outputDirPars.dirName_, tar, tar + ".fasta");
-		auto primersRemovedFinalFnp = bib::files::make_path(refSeqsDir, tar + ".fasta");
+		auto primersRemovedFnp = njh::files::make_path(pars.outputDirPars.dirName_, tar, tar + "_primersRemoved.fasta");
+		auto extractedSeqsFnp = njh::files::make_path(pars.outputDirPars.dirName_, tar, tar + ".fasta");
+		auto primersRemovedFinalFnp = njh::files::make_path(refSeqsDir, tar + ".fasta");
 		if(bfs::exists(primersRemovedFnp)){
 			{
 				auto finalSeqOpts = SeqIOOptions::genFastaInOut(primersRemovedFnp, primersRemovedFinalFnp);
@@ -134,7 +134,7 @@ int SeekDeepUtilsRunner::genTargetInfoFromGenomes(const bib::progutils::CmdArgs 
 
 
 int SeekDeepUtilsRunner::dryRunQualityFiltering(
-		const bib::progutils::CmdArgs & inputCommands) {
+		const njh::progutils::CmdArgs & inputCommands) {
 	seqSetUp setUp(inputCommands);
 	setUp.processDefaultReader(true);
 	std::string qualWindow;
@@ -181,14 +181,14 @@ int SeekDeepUtilsRunner::dryRunQualityFiltering(
 	}
 	std::cout << std::endl;
 	std::cout << std::endl;
-	std::cout << bib::bashCT::boldBlack("Sliding Quality Window") << std::endl;
+	std::cout << njh::bashCT::boldBlack("Sliding Quality Window") << std::endl;
 	std::cout << "Window Size: " << qualityWindowLength << ", Window Step: "
 			<< qualityWindowStep << ", Window Thresdhold: " << qualityWindowThres
 			<< std::endl;
 	std::cout << "FailedWindow: " << getPercentageString(failedQualWindow, count)
 			<< std::endl;
 	std::cout << std::endl;
-	std::cout << bib::bashCT::boldBlack("Quality Fraction above cut off")
+	std::cout << njh::bashCT::boldBlack("Quality Fraction above cut off")
 			<< std::endl;
 	std::cout << "Q" << qualCheck << ">" << qualCheckCutOff << std::endl;
 	std::cout << "FailedCheck: " << getPercentageString(failedQualCheck, count)
@@ -200,7 +200,7 @@ int SeekDeepUtilsRunner::dryRunQualityFiltering(
 }
 
 
-inline std::vector<bib::sys::RunOutput> runCmdsThreadedQueue(
+inline std::vector<njh::sys::RunOutput> runCmdsThreadedQueue(
 		const std::vector<std::string> & cmds, uint32_t numThreads, bool verbose,
 		bool debug) {
 	if (debug) {
@@ -212,12 +212,12 @@ inline std::vector<bib::sys::RunOutput> runCmdsThreadedQueue(
 
 	std::mutex allOutputsMut;
 	std::mutex coutMut;
-	std::vector<bib::sys::RunOutput> ret;
-	bib::concurrent::LockableQueue<std::string> cmdsQueue(cmds);
+	std::vector<njh::sys::RunOutput> ret;
+	njh::concurrent::LockableQueue<std::string> cmdsQueue(cmds);
 	auto runCmds = [&coutMut, &allOutputsMut, &ret, &verbose,&cmdsQueue]() {
 		std::string cmd = "";
 		uint32_t cmdNum = 0;
-		std::vector<bib::sys::RunOutput> currentRets;
+		std::vector<njh::sys::RunOutput> currentRets;
 		bool run = cmdsQueue.getVal(cmd);
 		while(run) {
 //		while(cmdsQueue.getVal(cmd)) {
@@ -225,10 +225,10 @@ inline std::vector<bib::sys::RunOutput> runCmdsThreadedQueue(
 //			OutOptions opts(bfs::path{toks[0]});
 //			opts.overWriteFile_ = true;
 //			OutputStream out(opts);
-//			sleep(bib::StrToNumConverter::stoToNum<uint32_t>(toks[1]));
-//			auto currentOut = bib::sys::run(std::vector<std::string> {cmd});
+//			sleep(njh::StrToNumConverter::stoToNum<uint32_t>(toks[1]));
+//			auto currentOut = njh::sys::run(std::vector<std::string> {cmd});
 //			if(0 == cmdNum) {
-//				auto currentOut = bib::sys::run(std::vector<std::string> {"sleep 1"});
+//				auto currentOut = njh::sys::run(std::vector<std::string> {"sleep 1"});
 //			}
 			if(verbose) {
 				std::lock_guard<std::mutex> lock(coutMut);
@@ -236,7 +236,7 @@ inline std::vector<bib::sys::RunOutput> runCmdsThreadedQueue(
 				std::cout << "Thread: " << tId << std::endl;
 				std::cout << "\tRunning: " << cmd << std::endl;
 			}
-			auto currentOut = bib::sys::run(std::vector<std::string> {cmd});
+			auto currentOut = njh::sys::run(std::vector<std::string> {cmd});
 			if(verbose) {
 				auto tId = std::this_thread::get_id();
 				std::cout << "\tThread: " << tId << std::endl;
@@ -264,13 +264,13 @@ inline std::vector<bib::sys::RunOutput> runCmdsThreadedQueue(
 	for (uint32_t t = 0; t < numThreads; ++t) {
 		threads.emplace_back(std::thread(runCmds));
 	}
-	bib::concurrent::joinAllThreads(threads);
+	njh::concurrent::joinAllThreads(threads);
 	return ret;
 }
 
 
 int SeekDeepUtilsRunner::runMultipleCommands(
-		const bib::progutils::CmdArgs & inputCommands) {
+		const njh::progutils::CmdArgs & inputCommands) {
 	std::string filename = "";
 	std::string logFile = "";
 	uint32_t numThreads = 1;
@@ -321,31 +321,31 @@ int SeekDeepUtilsRunner::runMultipleCommands(
 	std::ifstream inFile(filename);
 	if (!inFile) {
 		std::stringstream ss;
-		ss << bib::bashCT::bold << "Error in opening "
-				<< bib::bashCT::boldRed(filename) << std::endl;
+		ss << njh::bashCT::bold << "Error in opening "
+				<< njh::bashCT::boldRed(filename) << std::endl;
 		throw std::runtime_error { ss.str() };
 	}
 	std::string cmd;
 	VecStr cmds;
 	std::string line;
 	if (raw) {
-		while (bib::files::crossPlatGetline(inFile, line)) {
-			if ("" == line || allWhiteSpaceStr(line) || bib::beginsWith(line, "#")) {
+		while (njh::files::crossPlatGetline(inFile, line)) {
+			if ("" == line || allWhiteSpaceStr(line) || njh::beginsWith(line, "#")) {
 				continue;
 			}
 			cmds.emplace_back(line);
 		}
 	} else {
 		std::map<std::string, VecStr> replacements;
-		while (bib::files::crossPlatGetline(inFile, line)) {
-			if ("" == line || allWhiteSpaceStr(line) || bib::beginsWith(line, "#")) {
+		while (njh::files::crossPlatGetline(inFile, line)) {
+			if ("" == line || allWhiteSpaceStr(line) || njh::beginsWith(line, "#")) {
 				continue;
 			}
 			auto colonPos = line.find(":");
 
 			if (std::string::npos == colonPos) {
 				std::stringstream ss;
-				ss << "Error in processing line: " << bib::bashCT::boldRed(line)
+				ss << "Error in processing line: " << njh::bashCT::boldRed(line)
 						<< std::endl;
 				ss << "Need at least one colon" << std::endl;
 				throw std::runtime_error { ss.str() };
@@ -369,13 +369,13 @@ int SeekDeepUtilsRunner::runMultipleCommands(
 		for (const auto & r : replacements) {
 			if (cmds.empty()) {
 				for (const auto & subR : r.second) {
-					cmds.emplace_back(bib::replaceString(cmd, r.first, subR));
+					cmds.emplace_back(njh::replaceString(cmd, r.first, subR));
 				}
 			} else {
 				VecStr newCmds;
 				for (const auto & c : cmds) {
 					for (const auto & subR : r.second) {
-						newCmds.emplace_back(bib::replaceString(c, r.first, subR));
+						newCmds.emplace_back(njh::replaceString(c, r.first, subR));
 					}
 				}
 				cmds = newCmds;
@@ -391,7 +391,7 @@ int SeekDeepUtilsRunner::runMultipleCommands(
 	Json::Value allLog;
 
 	allLog["totalTime"] = setUp.timer_.totalTime();
-	allLog["cmdsfile"] = bib::json::toJson(bfs::absolute(filename));
+	allLog["cmdsfile"] = njh::json::toJson(bfs::absolute(filename));
 	auto & cmdsLog = allLog["cmdsLog"];
 	for (const auto & out : allRunOutputs) {
 		cmdsLog.append(out.toJson());
@@ -404,7 +404,7 @@ int SeekDeepUtilsRunner::runMultipleCommands(
 }
 
 int SeekDeepUtilsRunner::replaceUnderscores(
-		const bib::progutils::CmdArgs & inputCommands) {
+		const njh::progutils::CmdArgs & inputCommands) {
 	/**@todo add ability to search up to a pattern to replace
 	 *  on rather than just number of underscores*/
 
@@ -427,7 +427,7 @@ int SeekDeepUtilsRunner::replaceUnderscores(
 			"What to replace the underscores with");
 	setUp.finishSetUp(std::cout);
 
-	auto files = bib::files::listAllFiles(dir.string(), false, {
+	auto files = njh::files::listAllFiles(dir.string(), false, {
 			std::regex { pat } });
 
 	std::map<bfs::path, bfs::path> renameKey;
@@ -447,14 +447,14 @@ int SeekDeepUtilsRunner::replaceUnderscores(
 						replacement.end());
 				++count;
 			}
-			auto outPath = bib::files::make_path(parDir, bName);
+			auto outPath = njh::files::make_path(parDir, bName);
 			renameKey[f.first] = outPath;
 		}
 	}
 	if (setUp.pars_.debug_) {
 		for (const auto & rk : renameKey) {
-			std::cout << bib::bashCT::green << rk.first << bib::bashCT::reset
-					<< " -> " << bib::bashCT::blue << rk.second << bib::bashCT::reset
+			std::cout << njh::bashCT::green << rk.first << njh::bashCT::reset
+					<< " -> " << njh::bashCT::blue << rk.second << njh::bashCT::reset
 					<< std::endl;
 		}
 		return 0;
@@ -482,13 +482,13 @@ table getStitchReport(const Json::Value & logs) {
 		std::unordered_map<std::string, std::string> output;
 		bool log = false;
 		std::string line = "";
-		while (bib::files::crossPlatGetline(ss, line)) {
+		while (njh::files::crossPlatGetline(ss, line)) {
 			if (std::string::npos != line.find("Writing histogram files") && log) {
 				break;
 			}
 			if (log) {
 				if (std::string::npos != line.find(":")) {
-					line = bib::replaceString(line, "[FLASH]", "");
+					line = njh::replaceString(line, "[FLASH]", "");
 					line.erase(std::remove_if(line.begin(), line.end(), isspace),
 							line.end());
 					auto toks = tokenizeString(line, ":");
@@ -510,7 +510,7 @@ table getStitchReport(const Json::Value & logs) {
 		VecStr headers = { "Totalpairs", "Combinedpairs", "Uncombinedpairs",
 				"Percentcombined" };
 		for (const auto & head : headers) {
-			if (!bib::in(head, output)) {
+			if (!njh::in(head, output)) {
 				std::stringstream ss;
 				ss << __PRETTY_FUNCTION__
 						<< ": Error in processing stitch output for sample: "
@@ -521,7 +521,7 @@ table getStitchReport(const Json::Value & logs) {
 		}
 		flashOutTab.addRow(samp["name"].asString(), output["Totalpairs"],
 				output["Combinedpairs"], output["Uncombinedpairs"],
-				bib::replaceString(output["Percentcombined"], "%", ""));
+				njh::replaceString(output["Percentcombined"], "%", ""));
 	}
 	return flashOutTab;
 }
@@ -531,4 +531,4 @@ table getStitchReport(const Json::Value & logs) {
 
 //
 
-}// namespace bibseq
+}// namespace njhseq

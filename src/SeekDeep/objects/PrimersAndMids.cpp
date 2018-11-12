@@ -26,7 +26,7 @@
 //
 #include "PrimersAndMids.hpp"
 
-namespace bibseq {
+namespace njhseq {
 
 PrimersAndMids::Target::lenCutOffs::lenCutOffs(uint32_t minLen, uint32_t maxLen,
 		bool mark) :
@@ -83,17 +83,17 @@ PrimersAndMids::PrimersAndMids(const bfs::path & idFileFnp) : idFile_(idFileFnp)
 	if (!bfs::exists(idFile_)) {
 		std::stringstream ss;
 		ss << __PRETTY_FUNCTION__ << ": error, "
-				<< bib::bashCT::boldRed(idFile_.string()) << " doesn't exist\n";
+				<< njh::bashCT::boldRed(idFile_.string()) << " doesn't exist\n";
 		throw std::runtime_error { ss.str() };
 	}
-	auto firstLine = bib::files::getFirstLine(idFileFnp);
-	bib::strToLower(firstLine);
-	if (!bib::beginsWith(firstLine, "gene")
-			&& !bib::beginsWith(firstLine, "target")
-				&& !bib::beginsWith(firstLine, "id")) {
+	auto firstLine = njh::files::getFirstLine(idFileFnp);
+	njh::strToLower(firstLine);
+	if (!njh::beginsWith(firstLine, "gene")
+			&& !njh::beginsWith(firstLine, "target")
+				&& !njh::beginsWith(firstLine, "id")) {
 		std::stringstream ss;
 		ss << __PRETTY_FUNCTION__ << ": error the id file "
-				<< bib::bashCT::boldRed(idFile_.string())
+				<< njh::bashCT::boldRed(idFile_.string())
 				<< " should start with either target, gene, or id (case insensitive)\n";
 		ss << "line: " << firstLine << "\n";
 		throw std::runtime_error { ss.str() };
@@ -102,9 +102,9 @@ PrimersAndMids::PrimersAndMids(const bfs::path & idFileFnp) : idFile_(idFileFnp)
 	bool readingMids = false;
 	InputStream idFile{InOptions{idFileFnp}};
 	std::string line = "";
-	while (bib::files::crossPlatGetline(idFile, line)) {
-		auto lowerLine = bib::strToLowerRet(line);
-		auto lowerLineToks = bib::tokenizeString(lowerLine, "whitespace");
+	while (njh::files::crossPlatGetline(idFile, line)) {
+		auto lowerLine = njh::strToLowerRet(line);
+		auto lowerLineToks = njh::tokenizeString(lowerLine, "whitespace");
 
 		if (lowerLineToks.size() > 1 &&
 				("gene" == lowerLineToks[0]
@@ -115,22 +115,22 @@ PrimersAndMids::PrimersAndMids(const bfs::path & idFileFnp) : idFile_(idFileFnp)
 			readingPrimers = false;
 			readingMids = true;
 		} else if (readingPrimers) {
-			auto toks = bib::tokenizeString(line, "whitespace");
+			auto toks = njh::tokenizeString(line, "whitespace");
 			if (3 != toks.size()) {
 				std::stringstream ss;
 				ss << __PRETTY_FUNCTION__ << ": error in id file "
-						<< bib::bashCT::boldRed(idFile_.string())
+						<< njh::bashCT::boldRed(idFile_.string())
 						<< " primer line should contain 3 items not " << toks.size() << "\n";
 				ss << "line: " << line << "\n";
 				throw std::runtime_error { ss.str() };
 			}
 			addTarget(toks[0], toks[1], toks[2]);
 		} else if (readingMids) {
-			auto toks = bib::tokenizeString(line, "whitespace");
+			auto toks = njh::tokenizeString(line, "whitespace");
 			if (2 != toks.size() && 3 != toks.size() ) {
 				std::stringstream ss;
 				ss << __PRETTY_FUNCTION__ << ": error in id file "
-						<< bib::bashCT::boldRed(idFile_.string())
+						<< njh::bashCT::boldRed(idFile_.string())
 						<< " barcode line should contain 2 or 3 items not " << toks.size()
 						<< "\n";
 				ss << "line: " << line << "\n";
@@ -151,14 +151,14 @@ bool PrimersAndMids::hasTarget(const std::string & target) const {
 }
 
 VecStr PrimersAndMids::getTargets() const {
-	auto ret = bib::getVecOfMapKeys(targets_);
-	bib::sort(ret);
+	auto ret = njh::getVecOfMapKeys(targets_);
+	njh::sort(ret);
 	return ret;
 }
 
 VecStr PrimersAndMids::getMids() const {
-	auto ret = bib::getVecOfMapKeys(mids_);
-	bib::sort(ret);
+	auto ret = njh::getVecOfMapKeys(mids_);
+	njh::sort(ret);
 	return ret;
 }
 
@@ -171,7 +171,7 @@ void PrimersAndMids::addTarget(const std::string & primerName,
 	if (hasTarget(primerName)) {
 		std::stringstream ss;
 		ss << __PRETTY_FUNCTION__ << ": error, already have "
-				<< bib::bashCT::boldRed(primerName) << "\n";
+				<< njh::bashCT::boldRed(primerName) << "\n";
 		throw std::runtime_error { ss.str() };
 	}
 	targets_.emplace(primerName, Target(primerName, forPrimer, revPrimer));
@@ -182,7 +182,7 @@ void PrimersAndMids::addMid(const std::string & midNmae,
 	if (hasMid(midNmae)) {
 		std::stringstream ss;
 		ss << __PRETTY_FUNCTION__ << ": error, already have "
-				<< bib::bashCT::boldRed(midNmae) << "\n";
+				<< njh::bashCT::boldRed(midNmae) << "\n";
 		throw std::runtime_error { ss.str() };
 	}
 	mids_.emplace(midNmae, MidDeterminator::MID(midNmae, barcode));
@@ -193,7 +193,7 @@ void PrimersAndMids::addMid(const std::string & midNmae,
 	if (hasMid(midNmae)) {
 		std::stringstream ss;
 		ss << __PRETTY_FUNCTION__ << ": error, already have "
-				<< bib::bashCT::boldRed(midNmae) << "\n";
+				<< njh::bashCT::boldRed(midNmae) << "\n";
 		throw std::runtime_error { ss.str() };
 	}
 	mids_.emplace(midNmae, MidDeterminator::MID(midNmae, forBarcode, revBarcode));
@@ -234,7 +234,7 @@ void PrimersAndMids::writeIdFile(const OutOptions & outOpts) const {
 	openTextFile(idFileOut, outOpts);
 	idFileOut << "target\tforward\treverse\n";
 	auto pKeys = getTargets();
-	bib::sort(pKeys);
+	njh::sort(pKeys);
 	for (const auto & pKey : pKeys) {
 		idFileOut << pKey << "\t" << targets_.at(pKey).info_.forwardPrimer_ << "\t"
 				<< targets_.at(pKey).info_.reversePrimer_ << "\n";
@@ -242,7 +242,7 @@ void PrimersAndMids::writeIdFile(const OutOptions & outOpts) const {
 	if (containsMids()) {
 		idFileOut << "id\tbarcode\n";
 		auto mKeys = getMids();
-		bib::sort(mKeys);
+		njh::sort(mKeys);
 		for (const auto & mKey : mKeys) {
 			idFileOut << mKey
 					<< "\t" << (nullptr != mids_.at(mKey).forwardBar_ ? mids_.at(mKey).forwardBar_->bar_->motifOriginal_: "")
@@ -257,9 +257,9 @@ void PrimersAndMids::writeIdFile(const OutOptions & outOpts,
 	openTextFile(idFileOut, outOpts);
 	idFileOut << "target\tforward\treverse\n";
 	auto pKeys = getTargets();
-	bib::sort(pKeys);
+	njh::sort(pKeys);
 	for (const auto & pKey : pKeys) {
-		if (bib::in(pKey, targets)) {
+		if (njh::in(pKey, targets)) {
 			idFileOut << pKey << "\t" << targets_.at(pKey).info_.forwardPrimer_
 					<< "\t" << targets_.at(pKey).info_.reversePrimer_ << "\n";
 		}
@@ -267,7 +267,7 @@ void PrimersAndMids::writeIdFile(const OutOptions & outOpts,
 	if (containsMids()) {
 		idFileOut << "id\tbarcode\n";
 		auto mKeys = getMids();
-		bib::sort(mKeys);
+		njh::sort(mKeys);
 		for (const auto & mKey : mKeys) {
 			idFileOut << mKey
 					<< "\t" << (nullptr != mids_.at(mKey).forwardBar_ ? mids_.at(mKey).forwardBar_->bar_->motifOriginal_: "")
@@ -334,8 +334,8 @@ void PrimersAndMids::checkMidNamesThrow() const {
 	std::smatch match;
 	for (const auto & mid : mids_) {
 		if(!std::regex_match(mid.second.name_, match, pat)){
-			ss << "MID names need to begin with MID and end with a number: failed " << bib::bashCT::red
-				<< mid.second.name_ << bib::bashCT::reset << "\n";
+			ss << "MID names need to begin with MID and end with a number: failed " << njh::bashCT::red
+				<< mid.second.name_ << njh::bashCT::reset << "\n";
 			failed = true;
 		}
 	}
@@ -348,7 +348,7 @@ void PrimersAndMids::checkMidNamesThrow() const {
 std::map<std::string, PrimersAndMids::Target::lenCutOffs> PrimersAndMids::readInLenCutOffs(const bfs::path & lenCutOffsFnp){
 	std::map<std::string, PrimersAndMids::Target::lenCutOffs> ret;
 	table lenCutTab = table(lenCutOffsFnp.string(), "whitespace", true);
-	bib::for_each(lenCutTab.columnNames_,
+	njh::for_each(lenCutTab.columnNames_,
 			[](std::string & str) {stringToLower(str);});
 	lenCutTab.setColNamePositions();
 	lenCutTab.checkForColumnsThrow(VecStr{"target", "minlen", "maxlen"}, __PRETTY_FUNCTION__);
@@ -422,20 +422,20 @@ void PrimersAndMids::addLenCutOffs(const bfs::path & lenCutOffsFnp){
 
 	std::map<std::string, PrimersAndMids::Target::lenCutOffs> ret;
 	table lenCutTab = table(lenCutOffsFnp, "whitespace", true);
-	bib::for_each(lenCutTab.columnNames_,
+	njh::for_each(lenCutTab.columnNames_,
 			[](std::string & str) {stringToLower(str);});
 	lenCutTab.setColNamePositions();
 	lenCutTab.checkForColumnsThrow(VecStr{"target", "minlen", "maxlen"}, __PRETTY_FUNCTION__);
 	for (const auto & row : lenCutTab.content_) {
-		if (!bib::in(row[lenCutTab.getColPos("target")], targets_)) {
+		if (!njh::in(row[lenCutTab.getColPos("target")], targets_)) {
 			failedOverlapStatusProcessing = true;
 			errorStream << __PRETTY_FUNCTION__ << ", error found "
 					<< row[lenCutTab.getColPos("target")]
 					<< " but it isn't a listed target in " << idFile_ << "\n";
 			errorStream << "options are: "
-					<< bib::conToStr(getVectorOfMapKeys(targets_), ", ") << "\n";
+					<< njh::conToStr(getVectorOfMapKeys(targets_), ", ") << "\n";
 		}
-		if (bib::in(row[lenCutTab.getColPos("target")], ret)) {
+		if (njh::in(row[lenCutTab.getColPos("target")], ret)) {
 			failedOverlapStatusProcessing = true;
 			errorStream << __PRETTY_FUNCTION__ << ", error already have "
 					<< row[lenCutTab.getColPos("target")] << " in table" << "\n";
@@ -447,7 +447,7 @@ void PrimersAndMids::addLenCutOffs(const bfs::path & lenCutOffsFnp){
 	}
 
 	for (const auto & tar : getTargets()) {
-		if (!bib::in(tar, ret)) {
+		if (!njh::in(tar, ret)) {
 			std::cerr << __PRETTY_FUNCTION__
 					<< ", warning, didn't indicate len cuts for " << tar
 					<< " cut offs will be automatically determined based on median read length for reads found for target"
@@ -468,48 +468,48 @@ void PrimersAndMids::addLenCutOffs(const bfs::path & lenCutOffsFnp){
 void PrimersAndMids::addOverLapStatuses(const bfs::path & overlapStatuses){
 	table overlapStatusTab(overlapStatuses, "whitespace", true);
 	std::unordered_map<std::string, PairedReadProcessor::ReadPairOverLapStatus> targetStatus;
-	bib::for_each(overlapStatusTab.columnNames_,
+	njh::for_each(overlapStatusTab.columnNames_,
 			[](std::string & str) {stringToLower(str);});
 	overlapStatusTab.setColNamePositions();
 	overlapStatusTab.checkForColumnsThrow(VecStr{"target", "status"}, __PRETTY_FUNCTION__);
 	bool failedOverlapStatusProcessing = false;
 	std::stringstream errorStream;
 	for (const auto & row : overlapStatusTab.content_) {
-		if (!bib::in(row[overlapStatusTab.getColPos("target")], targets_)) {
+		if (!njh::in(row[overlapStatusTab.getColPos("target")], targets_)) {
 			failedOverlapStatusProcessing = true;
 			errorStream << __PRETTY_FUNCTION__ << ", error found "
 					<< row[overlapStatusTab.getColPos("target")]
 					<< " but it isn't a listed target in " << idFile_ << "\n";
 			errorStream << "options are: "
-					<< bib::conToStr(getVectorOfMapKeys(targets_), ", ") << "\n";
-		}else 	if (bib::in(row[overlapStatusTab.getColPos("target")], targetStatus)) {
+					<< njh::conToStr(getVectorOfMapKeys(targets_), ", ") << "\n";
+		}else 	if (njh::in(row[overlapStatusTab.getColPos("target")], targetStatus)) {
 			failedOverlapStatusProcessing = true;
 			errorStream << __PRETTY_FUNCTION__ << ", error already have "
 					<< row[overlapStatusTab.getColPos("target")] << " in table" << "\n";
 		} else {
 			if ("NOOVERLAP"
-					== bib::strToUpperRet(row[overlapStatusTab.getColPos("status")])) {
+					== njh::strToUpperRet(row[overlapStatusTab.getColPos("status")])) {
 				targetStatus[row[overlapStatusTab.getColPos("target")]] =
 						PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP;
 			} else if ("R1BEGINSINR2"
-					== bib::strToUpperRet(row[overlapStatusTab.getColPos("status")])) {
+					== njh::strToUpperRet(row[overlapStatusTab.getColPos("status")])) {
 				targetStatus[row[overlapStatusTab.getColPos("target")]] =
 						PairedReadProcessor::ReadPairOverLapStatus::R1BEGINSINR2;
 			} else if ("R1ENDSINR2"
-					== bib::strToUpperRet(row[overlapStatusTab.getColPos("status")])) {
+					== njh::strToUpperRet(row[overlapStatusTab.getColPos("status")])) {
 				targetStatus[row[overlapStatusTab.getColPos("target")]] =
 						PairedReadProcessor::ReadPairOverLapStatus::R1ENDSINR2;
 			} else {
 				failedOverlapStatusProcessing = true;
 				errorStream << __PRETTY_FUNCTION__
 						<< ", error status should be NOOVERLAP, R1StartsInR2, or R1EndsInR2, not "
-						<< bib::strToUpperRet(row[overlapStatusTab.getColPos("status")])
+						<< njh::strToUpperRet(row[overlapStatusTab.getColPos("status")])
 						<< "\n";
 			}
 		}
 	}
 	for(const auto & tar : getTargets()){
-		if(!bib::in(tar, targetStatus)){
+		if(!njh::in(tar, targetStatus)){
 			failedOverlapStatusProcessing = true;
 			errorStream << __PRETTY_FUNCTION__  << ", error, didn't indicate overlap status for " << tar << "\n";
 		}
@@ -530,7 +530,7 @@ void PrimersAndMids::setRefSeqsKInfos(uint32_t klen, bool setRevComp){
 }
 
 void PrimersAndMids::addRefSeqs(const bfs::path & refSeqsDir){
-	auto fastaFiles = bib::files::listAllFiles(refSeqsDir.string(), false, {
+	auto fastaFiles = njh::files::listAllFiles(refSeqsDir.string(), false, {
 			std::regex { R"(.*\.fasta$)" } });
 	VecStr found;
 	auto tars = getTargets();
@@ -540,11 +540,11 @@ void PrimersAndMids::addRefSeqs(const bfs::path & refSeqsDir){
 	for (const auto & ff : fastaFiles) {
 		auto tarName = bfs::basename(ff.first);
 		found.emplace_back(tarName);
-		if (!bib::in(tarName, targets_)) {
+		if (!njh::in(tarName, targets_)) {
 			foundOtherRefSeqs = true;
 			errorStream << __PRETTY_FUNCTION__ << ", error found " << tarName << " but it isn't a listed target in " << idFile_ << "\n";
-			errorStream << "options are: " << bib::conToStr(getVectorOfMapKeys(targets_), ", ") << "\n";
-		} else if (bib::in(tarName, alreadyAdded)) {
+			errorStream << "options are: " << njh::conToStr(getVectorOfMapKeys(targets_), ", ") << "\n";
+		} else if (njh::in(tarName, alreadyAdded)) {
 			foundOtherRefSeqs = true;
 			errorStream << __PRETTY_FUNCTION__ << ", error already have " << tarName << " in table" << "\n";
 		} else {
@@ -559,7 +559,7 @@ void PrimersAndMids::addRefSeqs(const bfs::path & refSeqsDir){
 		}
 	}
 	for (const auto & tar : tars) {
-		if (!bib::in(tar, found)) {
+		if (!njh::in(tar, found)) {
 			std::cerr << __PRETTY_FUNCTION__
 					<< ", warning, didn't find any ref sequences for " << tar
 					<< " when loading sequences for others though" << "\n";
@@ -581,4 +581,4 @@ void PrimersAndMids::addDefaultLengthCutOffs(uint32_t minLength, uint32_t maxLen
 }
 
 
-}  // namespace bibseq
+}  // namespace njhseq

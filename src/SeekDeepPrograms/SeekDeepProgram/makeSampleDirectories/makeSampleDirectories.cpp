@@ -27,17 +27,17 @@
 #include "SeekDeepPrograms/SeekDeepProgram/SeekDeepRunner.hpp"
 
 
-namespace bibseq {
+namespace njhseq {
 
-int SeekDeepRunner::makeSampleDirectories(const bib::progutils::CmdArgs & inputCommands) {
+int SeekDeepRunner::makeSampleDirectories(const njh::progutils::CmdArgs & inputCommands) {
 	SeekDeepSetUp setUp(inputCommands);
 	makeSampleDirectoriesPars pars;
 
 	setUp.setUpMakeSampleDirectories(pars);
 	setUpSampleDirs(pars.sampleNameFilename.string(), setUp.pars_.directoryName_, pars.separatedDirs);
-	auto inputInfoDirPath = bib::files::make_path(setUp.pars_.directoryName_, "inputInfo");
-	bib::files::makeDir(bib::files::MkdirPar(inputInfoDirPath.string()));
-	bfs::copy(pars.sampleNameFilename, bib::files::make_path(inputInfoDirPath, "inputSampleNames.tab.txt"));
+	auto inputInfoDirPath = njh::files::make_path(setUp.pars_.directoryName_, "inputInfo");
+	njh::files::makeDir(njh::files::MkdirPar(inputInfoDirPath.string()));
+	bfs::copy(pars.sampleNameFilename, njh::files::make_path(inputInfoDirPath, "inputSampleNames.tab.txt"));
 	setUp.startARunLog(setUp.pars_.directoryName_);
 	if(setUp.pars_.verbose_){
 		setUp.logRunTime(std::cout);
@@ -45,4 +45,4 @@ int SeekDeepRunner::makeSampleDirectories(const bib::progutils::CmdArgs & inputC
 	return 0;
 }
 
-}  // namespace bibseq
+}  // namespace njhseq

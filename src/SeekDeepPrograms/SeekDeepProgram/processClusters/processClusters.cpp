@@ -28,7 +28,7 @@
 
 
 
-namespace bibseq {
+namespace njhseq {
 
 
 std::unordered_map<std::string, double> processCustomCutOffs(const bfs::path & customCutOffsFnp, const VecStr & allSamples, double defaultFracCutOff){
@@ -39,13 +39,13 @@ std::unordered_map<std::string, double> processCustomCutOffs(const bfs::path & c
 		for (const auto & rowPos : iter::range(customCutOffsTab.content_.size())) {
 			ret[customCutOffsTab.content_[rowPos][customCutOffsTab.getColPos(
 					"sample")]] =
-					bib::lexical_cast<double>(
+					njh::lexical_cast<double>(
 							customCutOffsTab.content_[rowPos][customCutOffsTab.getColPos(
 									"cutOff")]);
 		}
 	}
 	for(const auto & samp : allSamples){
-		if(!bib::in(samp, ret)){
+		if(!njh::in(samp, ret)){
 			ret[samp] = defaultFracCutOff;
 		}
 	}
@@ -55,7 +55,7 @@ std::unordered_map<std::string, double> processCustomCutOffs(const bfs::path & c
 
 
 
-int SeekDeepRunner::processClusters(const bib::progutils::CmdArgs & inputCommands) {
+int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommands) {
 	// parameters
 	SeekDeepSetUp setUp(inputCommands);
 	processClustersPars pars;
@@ -66,22 +66,22 @@ int SeekDeepRunner::processClusters(const bib::progutils::CmdArgs & inputCommand
 	setUp.writeParametersFile(setUp.pars_.directoryName_ + "parametersUsed.txt",
 			false, false);
 	//write clustering parameters
-	auto parsDir = bib::files::makeDir(setUp.pars_.directoryName_, bib::files::MkdirPar("pars"));
+	auto parsDir = njh::files::makeDir(setUp.pars_.directoryName_, njh::files::MkdirPar("pars"));
 	std::ofstream parsOutFile;
-	openTextFile(parsOutFile, OutOptions(bib::files::make_path(parsDir, "pars.tab.txt")));
+	openTextFile(parsOutFile, OutOptions(njh::files::make_path(parsDir, "pars.tab.txt")));
 	pars.iteratorMap.writePars(parsOutFile);
 	std::ofstream popParsOutFile;
-	openTextFile(popParsOutFile, OutOptions(bib::files::make_path(parsDir, "popPars.tab.txt")));
+	openTextFile(popParsOutFile, OutOptions(njh::files::make_path(parsDir, "popPars.tab.txt")));
 	pars.popIteratorMap.writePars(popParsOutFile);
 
 
 	//read in the files in the corresponding sample directories
-	auto analysisFiles = bib::files::listAllFiles(pars.masterDir, true,
+	auto analysisFiles = njh::files::listAllFiles(pars.masterDir, true,
 			{ std::regex { "^" + setUp.pars_.ioOptions_.firstName_.string() + "$" } }, 3);
 
 	std::set<std::string> samplesDirsSet;
 	for (const auto & af : analysisFiles) {
-		auto fileToks = bib::tokenizeString(bfs::relative(af.first, pars.masterDir).string(), "/");
+		auto fileToks = njh::tokenizeString(bfs::relative(af.first, pars.masterDir).string(), "/");
 		if (3 != fileToks.size()) {
 			std::stringstream ss;
 			ss << "File path should be three levels deep, not " << fileToks.size()
@@ -148,8 +148,8 @@ int SeekDeepRunner::processClusters(const bib::progutils::CmdArgs & inputCommand
 	std::unordered_map<std::string, double> customCutOffsMap = processCustomCutOffs(pars.customCutOffs, samplesDirs, pars.fracCutoff);
 
 	{
-		bib::concurrent::LockableQueue<std::string> sampleQueue(samplesDirs);
-		bibseq::concurrent::AlignerPool alnPool(alignerObj, pars.numThreads);
+		njh::concurrent::LockableQueue<std::string> sampleQueue(samplesDirs);
+		njhseq::concurrent::AlignerPool alnPool(alignerObj, pars.numThreads);
 		alnPool.initAligners();
 		alnPool.outAlnDir_ = setUp.pars_.outAlnInfoDirName_;
 
@@ -269,14 +269,14 @@ int SeekDeepRunner::processClusters(const bib::progutils::CmdArgs & inputCommand
 		sampColl.dumpSample(sampleName);
 	}
 	if(setUp.pars_.verbose_){
-		std::cout << bib::bashCT::boldGreen("Pop Clustering") << std::endl;
+		std::cout << njh::bashCT::boldGreen("Pop Clustering") << std::endl;
 	}
 	if(!pars.noPopulation){
 		sampColl.doPopulationClustering(sampColl.createPopInput(),
 				alignerObj, collapserObj, pars.popIteratorMap);
 	}
 	if(setUp.pars_.verbose_){
-		std::cout << bib::bashCT::boldRed("Done Pop Clustering") << std::endl;
+		std::cout << njh::bashCT::boldRed("Done Pop Clustering") << std::endl;
 	}
 	if ("" != pars.previousPopFilename && !pars.noPopulation) {
 		sampColl.renamePopWithSeqs(getSeqs<readObject>(pars.previousPopFilename), pars.previousPopErrors);
@@ -287,18 +287,18 @@ int SeekDeepRunner::processClusters(const bib::progutils::CmdArgs & inputCommand
 	}
 
 	sampColl.printSampleCollapseInfo(
-			bib::files::make_path(sampColl.masterOutputDir_,
+			njh::files::make_path(sampColl.masterOutputDir_,
 					"selectedClustersInfo.tab.txt"));
 
 	sampColl.symlinkInSampleFinals();
 	sampColl.outputRepAgreementInfo();
 	if(!pars.noPopulation){
 		table hapIdTab = sampColl.genHapIdTable();
-		hapIdTab.outPutContents(TableIOOpts::genTabFileOut(bib::files::make_path(sampColl.masterOutputDir_,
+		hapIdTab.outPutContents(TableIOOpts::genTabFileOut(njh::files::make_path(sampColl.masterOutputDir_,
 				"hapIdTable.tab.txt"), true));
 		auto popSeqsPerSamp = sampColl.genOutPopSeqsPerSample();
 		sampColl.dumpPopulation();
-		SeqOutput::write(popSeqsPerSamp, SeqIOOptions::genFastqOut(bib::files::make_path(sampColl.masterOutputDir_, "population", "popSeqsWithMetaWtihSampleName")));
+		SeqOutput::write(popSeqsPerSamp, SeqIOOptions::genFastqOut(njh::files::make_path(sampColl.masterOutputDir_, "population", "popSeqsWithMetaWtihSampleName")));
 	}
 	if("" != pars.groupingsFile){
 		sampColl.createGroupInfoFiles();
@@ -309,9 +309,9 @@ int SeekDeepRunner::processClusters(const bib::progutils::CmdArgs & inputCommand
 	//collect extraction dirs
 	std::set<bfs::path> extractionDirs;
 	for(const auto & file : analysisFiles){
-		auto metaDataJsonFnp = bib::files::make_path(file.first.parent_path(), "metaData.json");
+		auto metaDataJsonFnp = njh::files::make_path(file.first.parent_path(), "metaData.json");
 		if(bfs::exists(metaDataJsonFnp)){
-			auto metaJson = bib::json::parseFile(metaDataJsonFnp.string());
+			auto metaJson = njh::json::parseFile(metaDataJsonFnp.string());
 			if(metaJson.isMember("extractionDir")){
 				extractionDirs.emplace(metaJson["extractionDir"].asString());
 			}
@@ -319,13 +319,13 @@ int SeekDeepRunner::processClusters(const bib::progutils::CmdArgs & inputCommand
 	}
 	if(setUp.pars_.verbose_){
 		std::cout << "Extraction Dirs" << std::endl;
-		std::cout << bib::conToStr(extractionDirs, "\n") << std::endl;
+		std::cout << njh::conToStr(extractionDirs, "\n") << std::endl;
 	}
 	table profileTab;
 	table statsTab;
 	for(const auto & extractDir : extractionDirs){
-		auto profileFnp = bib::files::make_path(extractDir, "extractionProfile.tab.txt");
-		auto statsFnp = bib::files::make_path(extractDir, "extractionStats.tab.txt");
+		auto profileFnp = njh::files::make_path(extractDir, "extractionProfile.tab.txt");
+		auto statsFnp = njh::files::make_path(extractDir, "extractionStats.tab.txt");
 		if(bfs::exists(profileFnp)){
 			table currentProfileTab(profileFnp.string(), "\t", true);
 			auto oldColumnNames = currentProfileTab.columnNames_;
@@ -350,14 +350,14 @@ int SeekDeepRunner::processClusters(const bib::progutils::CmdArgs & inputCommand
 		}
 	}
 
-	auto extractionOutputDir = bib::files::make_path(setUp.pars_.directoryName_,
+	auto extractionOutputDir = njh::files::make_path(setUp.pars_.directoryName_,
 			"extractionInfo");
-	bib::files::makeDirP(bib::files::MkdirPar(extractionOutputDir.string()));
+	njh::files::makeDirP(njh::files::MkdirPar(extractionOutputDir.string()));
 	if (!profileTab.empty()) {
 		profileTab.sortTable("extractionDir", false);
 		auto profileTabOpts =
 				TableIOOpts::genTabFileOut(
-						bib::files::make_path(extractionOutputDir,
+						njh::files::make_path(extractionOutputDir,
 								"extractionProfile.tab.txt").string(), true);
 		profileTabOpts.out_.overWriteFile_ = true;
 		profileTab.outPutContents(profileTabOpts);
@@ -365,7 +365,7 @@ int SeekDeepRunner::processClusters(const bib::progutils::CmdArgs & inputCommand
 	if (!statsTab.empty()) {
 		auto statsTabOpts =
 				TableIOOpts::genTabFileOut(
-						bib::files::make_path(extractionOutputDir,
+						njh::files::make_path(extractionOutputDir,
 								"extractionStats.tab.txt").string(), true);
 		statsTabOpts.out_.overWriteFile_ = true;
 		statsTab.sortTable("extractionDir", false);
@@ -384,4 +384,4 @@ int SeekDeepRunner::processClusters(const bib::progutils::CmdArgs & inputCommand
 	return 0;
 }
 
-}  // namespace bibseq
+}  // namespace njhseq

@@ -26,9 +26,9 @@
 // along with SeekDeep.  If not, see <http://www.gnu.org/licenses/>.
 //
 #include "SeekDeepPrograms/SeekDeepProgram/SeekDeepSetUp.hpp"
-#include <bibcpp/bashUtils.h>
+#include <njhcpp/bashUtils.h>
 
-namespace bibseq {
+namespace njhseq {
 
 void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 	// parse the command line options
@@ -106,7 +106,7 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 
 	setOption(pars.runsRequired, "--runsRequired", "Number of PCR runs Required for a haplotype to be kept", false, "Filtering");
 	setOption(pars.experimentName, "--experimentName", "Name given to the final population haplotypes", false, "Population");
-	if (bib::containsSubString(pars.experimentName, ".")) {
+	if (njh::containsSubString(pars.experimentName, ".")) {
 		addWarning("Error in populationCollapse::populationCollapse, populationName can't contain '.', "
 						+ pars.experimentName);
 		failed_ = true;
@@ -180,10 +180,10 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 				<< std::endl;
 		std::cout << "Final results are named with the name of the Sample Directories"
 				<< std::endl;
-		std::cout << bib::bashCT::bold << "Output Files:" << bib::bashCT::reset
+		std::cout << njh::bashCT::bold << "Output Files:" << njh::bashCT::reset
 				<< std::endl;
 		std::cout
-				<< "selectedClustersInfo.tab.txt: This contains the final haplotype information and replicate comparison results, it is a very large table, consult the SeekDeep (http://bib2.umassmed.edu/~hathawan/SeekDeep.html) website for details on what each column means"
+				<< "selectedClustersInfo.tab.txt: This contains the final haplotype information and replicate comparison results, it is a very large table, consult the SeekDeep (http://njh2.umassmed.edu/~hathawan/SeekDeep.html) website for details on what each column means"
 				<< std::endl;
 		std::cout << "allClustersInfo.tab.txt: " << std::endl;
 		std::cout << "dotFiles: " << std::endl;
@@ -259,4 +259,4 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 }
 
 
-}  // namespace bibseq
+}  // namespace njhseq

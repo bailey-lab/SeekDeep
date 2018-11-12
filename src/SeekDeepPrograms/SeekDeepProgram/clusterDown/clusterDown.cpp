@@ -26,11 +26,11 @@
 //
 #include "SeekDeepPrograms/SeekDeepProgram/SeekDeepRunner.hpp"
 
-namespace bibseq {
+namespace njhseq {
 
 
 
-int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
+int SeekDeepRunner::qluster(const njh::progutils::CmdArgs & inputCommands) {
 	SeekDeepSetUp setUp(inputCommands);
 	// parameters
 	clusterDownPars pars;
@@ -43,13 +43,13 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 			true);
 	//add some meta data about file and analysis paths so latter trace back an happen
 	Json::Value metaData;
-	auto analysisDirPath = bib::files::bfs::canonical(setUp.pars_.directoryName_);
-	metaData["analysisDirPath"] = bib::json::toJson(analysisDirPath.string());
-	auto fullPathToInput = bib::files::bfs::canonical(setUp.pars_.ioOptions_.firstName_);
-	metaData["inputFile"] = bib::json::toJson(fullPathToInput);
-	metaData["extractionDir"] = bib::json::toJson(fullPathToInput.parent_path());
+	auto analysisDirPath = njh::files::bfs::canonical(setUp.pars_.directoryName_);
+	metaData["analysisDirPath"] = njh::json::toJson(analysisDirPath.string());
+	auto fullPathToInput = njh::files::bfs::canonical(setUp.pars_.ioOptions_.firstName_);
+	metaData["inputFile"] = njh::json::toJson(fullPathToInput);
+	metaData["extractionDir"] = njh::json::toJson(fullPathToInput.parent_path());
 	if("" != setUp.pars_.ioOptions_.secondName_){
-		metaData["inputFile2"] = bib::json::toJson(bib::files::bfs::canonical(setUp.pars_.ioOptions_.secondName_));
+		metaData["inputFile2"] = njh::json::toJson(njh::files::bfs::canonical(setUp.pars_.ioOptions_.secondName_));
 	}
 	// print out the parameters read in
 	if (setUp.pars_.colOpts_.nucCompBinOpts_.useNucComp_ && setUp.pars_.verbose_) {
@@ -61,13 +61,13 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 
 	//write out clustering parameters
 
-	std::string parDir = bib::files::makeDir(setUp.pars_.directoryName_, bib::files::MkdirPar("pars")).string();
+	std::string parDir = njh::files::makeDir(setUp.pars_.directoryName_, njh::files::MkdirPar("pars")).string();
 	std::ofstream parsOutFile;
-	openTextFile(parsOutFile, OutOptions(bib::files::join(parDir, "pars.txt")));
+	openTextFile(parsOutFile, OutOptions(njh::files::join(parDir, "pars.txt")));
 	pars.iteratorMap.writePars(parsOutFile);
 	if("" != pars.binParameters){
 		std::ofstream binParsOutFile;
-		openTextFile(binParsOutFile, OutOptions(bib::files::join(parDir, "binPars.txt")));
+		openTextFile(binParsOutFile, OutOptions(njh::files::join(parDir, "binPars.txt")));
 		pars.binIteratorMap.writePars(binParsOutFile);
 	}
 
@@ -161,10 +161,10 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 			setUp.pars_.colOpts_.alignOpts_.countEndGaps_,
 			setUp.pars_.colOpts_.iTOpts_.weighHomopolyer_);
 	if (setUp.pars_.verbose_ && !pars.onPerId) {
-		std::cout << bib::bashCT::bold << "Primary Qual: "
+		std::cout << njh::bashCT::bold << "Primary Qual: "
 				<< alignerObj.qScorePars_.primaryQual_ << std::endl;
 		std::cout << "Secondary Qual: " << alignerObj.qScorePars_.secondaryQual_
-				<< bib::bashCT::reset << std::endl;
+				<< njh::bashCT::reset << std::endl;
 	}
 	if (setUp.pars_.debug_) {
 		std::ofstream scoreArrayFile;
@@ -240,7 +240,7 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 			if (containsCompReads) {
 				uint32_t currentCompAmount = 0;
 				for(const auto & read : clus.reads_){
-					if(bib::containsSubString(read->seqBase_.name_, "_Comp")){
+					if(njh::containsSubString(read->seqBase_.name_, "_Comp")){
 						currentCompAmount+= read->seqBase_.cnt_;
 					}
 				}
@@ -340,10 +340,10 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 		std::string additionalOutDir = findAdditonalOutLocation(
 				pars.additionalOutLocationFile, setUp.pars_.ioOptions_.firstName_.string());
 		if (additionalOutDir == "") {
-			std::cerr << bib::bashCT::red << bib::bashCT::bold;
+			std::cerr << njh::bashCT::red << njh::bashCT::bold;
 			std::cerr << "No additional out directory found for: "
 					<< setUp.pars_.ioOptions_.firstName_ << std::endl;
-			std::cerr << bib::bashCT::reset;
+			std::cerr << njh::bashCT::reset;
 			std::cerr << processFileNameForID(setUp.pars_.ioOptions_.firstName_.string())<< std::endl;
 			std::cerr << "Options:" << std::endl;
 			table inTab(pars.additionalOutLocationFile, "\t");
@@ -351,7 +351,7 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 		  for (const auto& fIter : inTab.content_) {
 		    additionalOutNames[makeIDNameComparable(fIter[0])] = fIter[1];
 		  }
-		  std::cerr << bib::conToStr(bib::getVecOfMapKeys(additionalOutNames)) << std::endl;
+		  std::cerr << njh::conToStr(njh::getVecOfMapKeys(additionalOutNames)) << std::endl;
 		} else {
 			SeqOutput::write(clusters, SeqIOOptions(additionalOutDir + setUp.pars_.ioOptions_.out_.outFilename_.string(),
 					setUp.pars_.ioOptions_.outFormat_,setUp.pars_.ioOptions_.out_));
@@ -368,8 +368,8 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 					setUp.pars_.ioOptions_.outFormat_,setUp.pars_.ioOptions_.out_));
 	if(pars.writeOutFinalInternalSnps){
 		setUp.rLog_.logCurrentTime("Calling internal snps");
-		std::string snpDir = bib::files::makeDir(setUp.pars_.directoryName_,
-				bib::files::MkdirPar("internalSnpInfo", false)).string();
+		std::string snpDir = njh::files::makeDir(setUp.pars_.directoryName_,
+				njh::files::MkdirPar("internalSnpInfo", false)).string();
 		for (const auto & readPos : iter::range(clusters.size())) {
 			std::unordered_map<uint32_t,
 					std::unordered_map<char, std::vector<baseReadObject>>>mismatches;
@@ -411,8 +411,8 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 	}
 	if (pars.createMinTree) {
 		setUp.rLog_.logCurrentTime("Creating minimum spanning trees");
-		std::string minTreeDirname = bib::files::makeDir(setUp.pars_.directoryName_,
-				bib::files::MkdirPar("minTree", false)).string();
+		std::string minTreeDirname = njh::files::makeDir(setUp.pars_.directoryName_,
+				njh::files::MkdirPar("minTree", false)).string();
 		auto clusSplit = readVecSplitter::splitVectorOnReadFraction(clusters,
 				0.005);
 		std::vector<readObject> tempReads;
@@ -435,26 +435,26 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 		if(setUp.pars_.debug_){
 			std::cout << maxEvents.toJson() << std::endl;
 		}
-		auto treeData = graph.toD3Json(bib::color("#000000"), nameColors);
+		auto treeData = graph.toD3Json(njh::color("#000000"), nameColors);
 		std::ofstream outJson(minTreeDirname + "tree.json");
 		std::ofstream outHtml(minTreeDirname + "tree.html");
 		outJson << treeData;
 		auto outHtmlStr = genHtmlStrForPsuedoMintree("tree.json",
-				"http://bib8.umassmed.edu/~hathawan/js/psuedoMinTreeWithIndels.js");
+				"http://njh8.umassmed.edu/~hathawan/js/psuedoMinTreeWithIndels.js");
 		outHtml << outHtmlStr;
 	}
 
 
 
 	if (pars.writeOutInitalSeqs) {
-		std::string clusterDirectoryName = bib::files::makeDir(setUp.pars_.directoryName_,
-				bib::files::MkdirPar("clusters", false)).string();
+		std::string clusterDirectoryName = njh::files::makeDir(setUp.pars_.directoryName_,
+				njh::files::MkdirPar("clusters", false)).string();
 		/*
 		 * 	clusterVec::allWriteClustersInDir(clusters, clusterDirectoryName,
 		 setUp.pars_.ioOptions_);
 		 */
 		SeqIOOptions clustersIoOpts(
-				bib::files::make_path(clusterDirectoryName, "initialClusters"),
+				njh::files::make_path(clusterDirectoryName, "initialClusters"),
 				setUp.pars_.ioOptions_.outFormat_);
 		SeqOutput subClusterWriter(clustersIoOpts);
 		subClusterWriter.openOut();
@@ -480,11 +480,11 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 		}
 		std::string allInputReadsDir;
 		if(pars.writeOutInitalSeqs){
-			allInputReadsDir = bib::files::makeDir(setUp.pars_.directoryName_,
-					bib::files::MkdirPar("allInputReadsForEachCluster", false)).string();
+			allInputReadsDir = njh::files::makeDir(setUp.pars_.directoryName_,
+					njh::files::MkdirPar("allInputReadsForEachCluster", false)).string();
 		}
 		SeqIOOptions clustersIoOpts(
-				bib::files::make_path(allInputReadsDir, "allInitialReads"),
+				njh::files::make_path(allInputReadsDir, "allInitialReads"),
 				setUp.pars_.ioOptions_.outFormat_);
 		SeqOutput subClusterWriter(clustersIoOpts);
 		if(pars.writeOutInitalSeqs){
@@ -498,7 +498,7 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 			for (const auto & seq : clus.reads_) {
 				auto input = readVec::getReadByName(identicalClusters, seq->seqBase_.name_);
 				for( auto & inputRead : input.reads_){
-					if (bib::containsSubString(inputRead->seqBase_.name_, "_Comp")) {
+					if (njh::containsSubString(inputRead->seqBase_.name_, "_Comp")) {
 						currentCompAmount += inputRead->seqBase_.cnt_;
 					}
 					if(pars.writeOutInitalSeqs){
@@ -547,4 +547,4 @@ int SeekDeepRunner::qluster(const bib::progutils::CmdArgs & inputCommands) {
 
 
 
-}  // namespace bib
+}  // namespace njh

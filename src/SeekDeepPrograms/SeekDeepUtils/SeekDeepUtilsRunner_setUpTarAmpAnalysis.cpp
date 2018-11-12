@@ -7,16 +7,16 @@
 
 #include "SeekDeepUtilsRunner.hpp"
 
-#include <bibseq/ProgramRunners.h>
+#include <njhseq/ProgramRunners.h>
 
-namespace bibseq {
+namespace njhseq {
 
 
 
 
 
 int SeekDeepUtilsRunner::setupTarAmpAnalysis(
-		const bib::progutils::CmdArgs & inputCommands) {
+		const njh::progutils::CmdArgs & inputCommands) {
 	VecStr acceptableTechs{"454", "IonTorrent", "Illumina", "Illumina-SingleEnd"};
 
 	TarAmpAnalysisSetup::TarAmpPars pars;
@@ -25,20 +25,20 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	setUp.processDebug();
 	pars.debug = setUp.pars_.debug_;
 	setUp.setOption(pars.technology, "--technology",
-			"Sequencing Technology (should be " + bib::conToStrEndSpecial(acceptableTechs, ", ", " or ") + ")",
+			"Sequencing Technology (should be " + njh::conToStrEndSpecial(acceptableTechs, ", ", " or ") + ")",
 			false, "Technology");
-	bib::for_each(acceptableTechs, [](std::string & tech){
+	njh::for_each(acceptableTechs, [](std::string & tech){
 		stringToLower(tech);
 	});
 	stringToLower(pars.technology);
 
 
-	if (!bib::in(pars.technology, acceptableTechs)) {
+	if (!njh::in(pars.technology, acceptableTechs)) {
 		setUp.failed_ = true;
 		std::stringstream ss;
 		ss
 				<< "Error in setting technology, should be "
-				<< bib::conToStrEndSpecial(acceptableTechs, ", ", " or ")
+				<< njh::conToStrEndSpecial(acceptableTechs, ", ", " or ")
 				<< " not "
 				<< pars.technology << "\n";
 		setUp.addWarning(ss.str());
@@ -113,20 +113,20 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	std::stringstream errorOutput;
 
 	TarAmpAnalysisSetup analysisSetup(pars);
-	setUp.startARunLog(bib::appendAsNeededRet(analysisSetup.dir_.string(), "/"));
+	setUp.startARunLog(njh::appendAsNeededRet(analysisSetup.dir_.string(), "/"));
 	auto targets = analysisSetup.idsMids_->getTargets();
 	auto sampNamesTargets = analysisSetup.getTargets();
-	bib::sort(targets);
-	bib::sort(sampNamesTargets);
+	njh::sort(targets);
+	njh::sort(sampNamesTargets);
 	VecStr idMissingTargets;
 	VecStr sampNamesTargetsTarMissing;
 	for (const auto & tar : sampNamesTargets) {
-		if (!bib::in(tar, targets)) {
+		if (!njh::in(tar, targets)) {
 			idMissingTargets.emplace_back(tar);
 		}
 	}
 	for (const auto & tar : targets) {
-		if (!bib::in(tar, sampNamesTargets)) {
+		if (!njh::in(tar, sampNamesTargets)) {
 			sampNamesTargetsTarMissing.emplace_back(tar);
 		}
 	}
@@ -136,8 +136,8 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 		ss << __PRETTY_FUNCTION__
 				<< ": error, missing the following targets from the id file "
 				<< pars.idFile << "\n";
-		ss << "Targets: " << bib::conToStr(idMissingTargets, ", ") << "\n";
-		ss << "AvailableTargets: " << bib::conToStr(targets, ", ") << "\n";
+		ss << "Targets: " << njh::conToStr(idMissingTargets, ", ") << "\n";
+		ss << "AvailableTargets: " << njh::conToStr(targets, ", ") << "\n";
 		throw std::runtime_error { ss.str() };
 	}
 
@@ -147,8 +147,8 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 				<< ": warning, missing the following targets from the sample name file"
 				<< pars.samplesNamesFnp << "\n";
 		errorOutput << "Targets: "
-				<< bib::conToStr(sampNamesTargetsTarMissing, ", ") << "\n";
-		errorOutput << "AvailableTargets: " << bib::conToStr(sampNamesTargets, ", ")
+				<< njh::conToStr(sampNamesTargetsTarMissing, ", ") << "\n";
+		errorOutput << "AvailableTargets: " << njh::conToStr(sampNamesTargets, ", ")
 				<< "\n";
 	}
 
@@ -196,7 +196,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 				errorOutput << "\tTarget: " << tar << "\n";
 			}
 			errorOutput << "\tOptions are: "
-					<< bib::conToStr(analysisSetup.getTargets(), ", ") << "\n";
+					<< njh::conToStr(analysisSetup.getTargets(), ", ") << "\n";
 		}
 	}
 
@@ -219,14 +219,14 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 				errorOutput << "\tTarget: " << tar << "\n";
 			}
 			errorOutput << "\tOptions are: "
-					<< bib::conToStr(analysisSetup.getTargets(), ", ") << "\n";
+					<< njh::conToStr(analysisSetup.getTargets(), ", ") << "\n";
 		}
 	}
 
 	//now write id files
 	analysisSetup.writeOutIdFiles();
 
-	auto files = bib::files::listAllFiles(pars.inputDir.string(), false, {
+	auto files = njh::files::listAllFiles(pars.inputDir.string(), false, {
 			std::regex { analysisSetup.pars_.inputFilePat } });
 	if (setUp.pars_.debug_) {
 		std::cout << "Files: " << std::endl;
@@ -235,7 +235,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	auto expectedSamples = analysisSetup.getExpectantInputNames();
 	if(setUp.pars_.debug_){
 		std::cout << "Expected samples: " << std::endl;
-		std::cout << bib::conToStr(expectedSamples, "\n") << std::endl;
+		std::cout << njh::conToStr(expectedSamples, "\n") << std::endl;
 	}
 	VecStr unrecognizedInput;
 	VecStr sampleFilesFound;
@@ -253,14 +253,14 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 		rpOrganizer.processFiles(files);
 		readsByPairs = rpOrganizer.processReadPairs();
 		auto keys = getVectorOfMapKeys(readsByPairs);
-		bib::sort(keys);
+		njh::sort(keys);
 		sampleFilesFound = keys;
 		if(setUp.pars_.debug_){
 			std::cout << "Samples found: " << std::endl;
-			std::cout << bib::conToStr(keys, "\n") << std::endl;
+			std::cout << njh::conToStr(keys, "\n") << std::endl;
 		}
 		for(const auto & expected : expectedSamples){
-			if(!bib::in(expected, sampleFilesFound)){
+			if(!njh::in(expected, sampleFilesFound)){
 				sampleFilesNotFound.emplace_back(expected);
 			}
 		}
@@ -299,7 +299,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 		// add to inputPassed
 		// just checking for possible compression with file ending, might consider changing to libmagic or something to make sure
 		bool compressed = false;
-		if (bib::endsWith(analysisSetup.pars_.inputFilePat, ".gz")) {
+		if (njh::endsWith(analysisSetup.pars_.inputFilePat, ".gz")) {
 			compressed = true;
 		}
 		for (const auto & file : files) {
@@ -307,20 +307,20 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 			if (compressed) {
 				fNameNoExt.replace_extension("");
 			}
-			if (bib::in(fNameNoExt.string(), expectedSamples)) {
+			if (njh::in(fNameNoExt.string(), expectedSamples)) {
 				filesByPossibleName[fNameNoExt.string()] = file.first;
 			} else {
 				unrecognizedInput.emplace_back(file.first.string());
 			}
 		}
-		auto keys = bib::getVecOfMapKeys(filesByPossibleName);
-		bib::sort(keys);
+		auto keys = njh::getVecOfMapKeys(filesByPossibleName);
+		njh::sort(keys);
 		sampleFilesFound = keys;
 		VecStr samplesNotFound;
 		//std::cout <<"expectedSamples.size(): " << expectedSamples.size() << std::endl;
 		for (const auto & expected : expectedSamples) {
-			if (!bib::in(expected, keys)
-					&& !bib::in(bib::replaceString(expected, "MID", ""),
+			if (!njh::in(expected, keys)
+					&& !njh::in(njh::replaceString(expected, "MID", ""),
 							keys)) {
 				samplesNotFound.emplace_back(expected);
 			}
@@ -338,7 +338,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 
 
 	OutOptions wrningsOpts(
-			bib::files::make_path(analysisSetup.dir_, "WARNINGS_PLEASE_READ.txt"));
+			njh::files::make_path(analysisSetup.dir_, "WARNINGS_PLEASE_READ.txt"));
 	if (foundErrors) {
 		std::ofstream outWarnings;
 		openTextFile(outWarnings, wrningsOpts);
@@ -353,7 +353,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	if (analysisSetup.pars_.byIndex) {
 		if(setUp.pars_.debug_){
 			std::cout << "Samples:" << std::endl;
-			std::cout << bib::conToStr(getVectorOfMapKeys(analysisSetup.samples_), "\n") << std::endl;
+			std::cout << njh::conToStr(getVectorOfMapKeys(analysisSetup.samples_), "\n") << std::endl;
 		}
 
 
@@ -379,7 +379,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 		std::string overLapStatusTemplate = "--overlapStatusFnp info/ids/{TARS}_overlapStatus.tab.txt ";
 		std::string refSeqsDir = "--compareSeq info/refs/ ";
 		//qluster cmds;
-		auto extractionDirs = bib::files::make_path(
+		auto extractionDirs = njh::files::make_path(
 				bfs::absolute(analysisSetup.dir_), "{INDEX}_extraction");
 		std::string qlusterCmdTemplate =
 				"cd \"" + extractionDirs.string() + "\" && "
@@ -403,20 +403,20 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 			printVector(indexes);
 		}
 		for (const auto & index : indexes) {
-			//if (bib::in(index, inputPassed)) {
+			//if (njh::in(index, inputPassed)) {
 			if (true) {
 
-				auto tarsNames = bib::conToStr(analysisSetup.indexToTars_[index], "_");
+				auto tarsNames = njh::conToStr(analysisSetup.indexToTars_[index], "_");
 				auto cmds = VecStr { extractorCmdTemplate, idTemplate };
 				if (bfs::exists(
-						bib::files::make_path(analysisSetup.idsDir_,
+						njh::files::make_path(analysisSetup.idsDir_,
 								tarsNames + "_lenCutOffs.tab.txt"))) {
 					cmds.emplace_back(lenCutOffsTemplate);
 				}
 				bool anyRefs = false;
 				for (const auto & tar : analysisSetup.indexToTars_[index]) {
 					if (bfs::exists(
-							bib::files::make_path(analysisSetup.refsDir_, tar + ".fasta"))) {
+							njh::files::make_path(analysisSetup.refsDir_, tar + ".fasta"))) {
 						anyRefs = true;
 						break;
 					}
@@ -431,35 +431,35 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 				if(pars.techIsIllumina()){
 					cmds.emplace_back(overLapStatusTemplate);
 				}
-				auto currentExtractCmd = bib::conToStr(cmds, " ");
-				currentExtractCmd = bib::replaceString(currentExtractCmd, "{INDEX}",
+				auto currentExtractCmd = njh::conToStr(cmds, " ");
+				currentExtractCmd = njh::replaceString(currentExtractCmd, "{INDEX}",
 						index);
 				if(pars.techIsIllumina()){
 					//INDEX_R1, INDEX_R2
 					auto searchForPairs = readsByPairs.find(index);
 					if(searchForPairs != readsByPairs.end()){
-						currentExtractCmd = bib::replaceString(currentExtractCmd, "{INDEX_R1}",
+						currentExtractCmd = njh::replaceString(currentExtractCmd, "{INDEX_R1}",
 								bfs::absolute(searchForPairs->second.first.front()).string() );
-						currentExtractCmd = bib::replaceString(currentExtractCmd, "{INDEX_R2}",
+						currentExtractCmd = njh::replaceString(currentExtractCmd, "{INDEX_R2}",
 								bfs::absolute(searchForPairs->second.second.front()).string() );
 					}else{
 						std::stringstream ss;
 						ss << __PRETTY_FUNCTION__ << ", error index: " << index << " was not found in readsByPairs" << "\n";
-						ss << "Options: " << bib::conToStr(bib::getVecOfMapKeys(readsByPairs), ", ");
+						ss << "Options: " << njh::conToStr(njh::getVecOfMapKeys(readsByPairs), ", ");
 					}
 				}else{
 					//INDEX_InFile
 					auto searchForFile = filesByPossibleName.find(index);
 					if(searchForFile != filesByPossibleName.end()){
-						currentExtractCmd = bib::replaceString(currentExtractCmd, "{INDEX_InFile}",
+						currentExtractCmd = njh::replaceString(currentExtractCmd, "{INDEX_InFile}",
 								bfs::absolute(searchForFile->second).string());
 					}else{
 						std::stringstream ss;
 						ss << __PRETTY_FUNCTION__ << ", error index: " << index << " was not found in filesByPossibleName" << "\n";
-						ss << "Options: " << bib::conToStr(bib::getVecOfMapKeys(filesByPossibleName), ", ");
+						ss << "Options: " << njh::conToStr(njh::getVecOfMapKeys(filesByPossibleName), ", ");
 					}
 				}
-				currentExtractCmd = bib::replaceString(currentExtractCmd, "{TARS}",
+				currentExtractCmd = njh::replaceString(currentExtractCmd, "{TARS}",
 						tarsNames);
 				extractorCmds.emplace_back(currentExtractCmd);
 				for (const auto & mid : analysisSetup.idsMids_->getMids()) {
@@ -471,11 +471,11 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 						}
 						currentQlusterCmdTemplate += "; fi";
 
-						currentQlusterCmdTemplate = bib::replaceString(
+						currentQlusterCmdTemplate = njh::replaceString(
 								currentQlusterCmdTemplate, "{INDEX}", index);
-						currentQlusterCmdTemplate = bib::replaceString(
+						currentQlusterCmdTemplate = njh::replaceString(
 								currentQlusterCmdTemplate, "{TARGET}", tar);
-						currentQlusterCmdTemplate = bib::replaceString(
+						currentQlusterCmdTemplate = njh::replaceString(
 								currentQlusterCmdTemplate, "{MIDREP}", mid);
 						qlusterCmds.emplace_back(currentQlusterCmdTemplate);
 					}
@@ -510,7 +510,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 
 		std::string sampleNameTemplate = "--sampleName {REP}";
 		//qluster cmds;
-		auto extractionDirs = bib::files::make_path(
+		auto extractionDirs = njh::files::make_path(
 				bfs::absolute(analysisSetup.dir_), "{REP}_extraction");
 
 		std::string qlusterCmdTemplate = "cd \"" + extractionDirs.string() + "\" && "
@@ -530,10 +530,10 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 		}
 		if(setUp.pars_.debug_){
 			std::cout << "Sample Files Found: " << std::endl;
-			std::cout << bib::conToStr(sampleFilesFound, "\n") << std::endl;
+			std::cout << njh::conToStr(sampleFilesFound, "\n") << std::endl;
 
 			std::cout << "Targets:" << std::endl;
-			std::cout << bib::conToStr(getVectorOfMapKeys(analysisSetup.samples_), "\n") << std::endl;
+			std::cout << njh::conToStr(getVectorOfMapKeys(analysisSetup.samples_), "\n") << std::endl;
 		}
 
 		std::unordered_map<std::string, VecStr> targetsForReps;
@@ -543,32 +543,32 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 			}
 		}
 		for (auto & rep : targetsForReps) {
-			bib::sort(rep.second);
+			njh::sort(rep.second);
 			if(setUp.pars_.debug_){
 				std::cout << "Sample: " << rep.first << std::endl;
-				std::cout << "\t" << bib::conToStr(rep.second, ", ") << std::endl;
+				std::cout << "\t" << njh::conToStr(rep.second, ", ") << std::endl;
 			}
 		}
 
 		for (const auto & rep : targetsForReps) {
-			if (bib::in(rep.first, sampleFilesFound)
-					|| bib::in(bib::replaceString(rep.first, "MID", ""), sampleFilesFound)) {
+			if (njh::in(rep.first, sampleFilesFound)
+					|| njh::in(njh::replaceString(rep.first, "MID", ""), sampleFilesFound)) {
 				std::string fName = rep.first;
-//				if (!bib::in(rep.first, samplesExtracted)) {
-//					fName = bib::replaceString(rep.first, "MID", "");
+//				if (!njh::in(rep.first, samplesExtracted)) {
+//					fName = njh::replaceString(rep.first, "MID", "");
 //				}
 
 				std::string sampName = rep.first;
-				if (!bib::beginsWith(rep.first, "MID")) {
+				if (!njh::beginsWith(rep.first, "MID")) {
 					sampName = "MID" + rep.first;
 				}
 
-				auto tarsNames = bib::conToStr(rep.second, "_");
-				auto currentSampTemp = bib::replaceString(sampleNameTemplate, "{REP}",
+				auto tarsNames = njh::conToStr(rep.second, "_");
+				auto currentSampTemp = njh::replaceString(sampleNameTemplate, "{REP}",
 						sampName);
 				auto cmds = VecStr { extractorCmdTemplate, idTemplate, currentSampTemp };
 				if (bfs::exists(
-						bib::files::make_path(analysisSetup.idsDir_,
+						njh::files::make_path(analysisSetup.idsDir_,
 								tarsNames + "_lenCutOffs.tab.txt"))) {
 					cmds.emplace_back(lenCutOffsTemplate);
 				}
@@ -579,7 +579,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 				bool anyRefs = false;
 				for (const auto & tar : rep.second) {
 					if (bfs::exists(
-							bib::files::make_path(analysisSetup.refsDir_, tar + ".fasta"))) {
+							njh::files::make_path(analysisSetup.refsDir_, tar + ".fasta"))) {
 						anyRefs = true;
 						break;
 					}
@@ -593,35 +593,35 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 				}
 
 
-				auto currentExtractCmd = bib::conToStr(cmds, " ");
-				currentExtractCmd = bib::replaceString(currentExtractCmd, "{REP}",
+				auto currentExtractCmd = njh::conToStr(cmds, " ");
+				currentExtractCmd = njh::replaceString(currentExtractCmd, "{REP}",
 						fName);
 				if(pars.techIsIllumina()){
 					//INDEX_R1, INDEX_R2
 					auto searchForPairs = readsByPairs.find(fName);
 					if(searchForPairs != readsByPairs.end()){
-						currentExtractCmd = bib::replaceString(currentExtractCmd, "{REP_R1}",
+						currentExtractCmd = njh::replaceString(currentExtractCmd, "{REP_R1}",
 								bfs::absolute(searchForPairs->second.first.front()).string() );
-						currentExtractCmd = bib::replaceString(currentExtractCmd, "{REP_R2}",
+						currentExtractCmd = njh::replaceString(currentExtractCmd, "{REP_R2}",
 								bfs::absolute(searchForPairs->second.second.front()).string() );
 					}else{
 						std::stringstream ss;
 						ss << __PRETTY_FUNCTION__ << ", error REP: " << fName << " was not found in readsByPairs" << "\n";
-						ss << "Options: " << bib::conToStr(bib::getVecOfMapKeys(readsByPairs), ", ");
+						ss << "Options: " << njh::conToStr(njh::getVecOfMapKeys(readsByPairs), ", ");
 					}
 				}else{
 					//INDEX_InFile
 					auto searchForFile = filesByPossibleName.find(fName);
 					if(searchForFile != filesByPossibleName.end()){
-						currentExtractCmd = bib::replaceString(currentExtractCmd, "{REP_InFile}",
+						currentExtractCmd = njh::replaceString(currentExtractCmd, "{REP_InFile}",
 								bfs::absolute(searchForFile->second).string());
 					}else{
 						std::stringstream ss;
 						ss << __PRETTY_FUNCTION__ << ", error REP: " << fName << " was not found in filesByPossibleName" << "\n";
-						ss << "Options: " << bib::conToStr(bib::getVecOfMapKeys(filesByPossibleName), ", ");
+						ss << "Options: " << njh::conToStr(njh::getVecOfMapKeys(filesByPossibleName), ", ");
 					}
 				}
-				currentExtractCmd = bib::replaceString(currentExtractCmd, "{TARS}",
+				currentExtractCmd = njh::replaceString(currentExtractCmd, "{TARS}",
 						tarsNames);
 				extractorCmds.emplace_back(currentExtractCmd);
 
@@ -632,11 +632,11 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 								+ analysisSetup.pars_.extraQlusterCmds;
 					}
 					currentQlusterCmdTemplate += "; fi";
-					currentQlusterCmdTemplate = bib::replaceString(
+					currentQlusterCmdTemplate = njh::replaceString(
 							currentQlusterCmdTemplate, "{REP}", fName);
-					currentQlusterCmdTemplate = bib::replaceString(
+					currentQlusterCmdTemplate = njh::replaceString(
 							currentQlusterCmdTemplate, "{MIDREP}", sampName);
-					currentQlusterCmdTemplate = bib::replaceString(
+					currentQlusterCmdTemplate = njh::replaceString(
 							currentQlusterCmdTemplate, "{TARGET}", tar);
 					qlusterCmds.emplace_back(currentQlusterCmdTemplate);
 				}
@@ -645,13 +645,13 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	}
 
 	OutOptions extractorCmdsOpts(
-			bib::files::make_path(analysisSetup.dir_, "extractorCmds.txt"));
+			njh::files::make_path(analysisSetup.dir_, "extractorCmds.txt"));
 	std::ofstream extractorCmdsFile;
 	openTextFile(extractorCmdsFile, extractorCmdsOpts);
 	printVector(extractorCmds, "\n", extractorCmdsFile);
 
 	OutOptions qlusterCmdsOpts(
-			bib::files::make_path(analysisSetup.dir_, "qlusterCmds.txt"));
+			njh::files::make_path(analysisSetup.dir_, "qlusterCmds.txt"));
 	std::ofstream qlusterCmdsFile;
 	openTextFile(qlusterCmdsFile, qlusterCmdsOpts);
 	printVector(qlusterCmds, "\n", qlusterCmdsFile);
@@ -667,19 +667,19 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	VecStr processClusterCmds;
 	if (nullptr != analysisSetup.groupMetaData_) {
 		processClusterTemplate += " --groupingsFile \""
-				+ bib::files::make_path(bfs::absolute(analysisSetup.infoDir_),
+				+ njh::files::make_path(bfs::absolute(analysisSetup.infoDir_),
 						"groupMeta.tab.txt").string() + "\"";
 	}
 
-	auto popDir = bib::files::make_path(bfs::absolute(analysisSetup.dir_),
+	auto popDir = njh::files::make_path(bfs::absolute(analysisSetup.dir_),
 			"popClustering");
 
 	for (const auto & tar : targets) {
 		std::stringstream processClustersCmdsStream;
 		processClustersCmdsStream
-				<< "cd \"" + bib::files::make_path(popDir, tar).string() + "\" && "
+				<< "cd \"" + njh::files::make_path(popDir, tar).string() + "\" && "
 						+ processClusterTemplate + " --experimentName " + tar;
-		auto refSeqFnp = bib::files::make_path(pars.outDir, "info/refs/" + tar + ".fasta");
+		auto refSeqFnp = njh::files::make_path(pars.outDir, "info/refs/" + tar + ".fasta");
 		if(bfs::exists(refSeqFnp)){
 			processClustersCmdsStream << " --ref " << bfs::absolute(refSeqFnp);
 		}
@@ -687,7 +687,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 
 	}
 	OutOptions processClusterCmdsOpts(
-			bib::files::make_path(analysisSetup.dir_, "processClusterCmds.txt"));
+			njh::files::make_path(analysisSetup.dir_, "processClusterCmds.txt"));
 	std::ofstream processClusterCmdsFile;
 	openTextFile(processClusterCmdsFile, processClusterCmdsOpts);
 	printVector(processClusterCmds, "\n", processClusterCmdsFile);
@@ -700,19 +700,19 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	VecStr genConfigCmds;
 	for (const auto & tar : targets) {
 		genConfigCmds.emplace_back(
-				bib::replaceString(
+				njh::replaceString(
 						genConfigTemplate + " --mainDir popClustering/{TARGET}/analysis",
 						"{TARGET}", tar));
 	}
 	OutOptions genConfigCmdsOpts(
-			bib::files::make_path(analysisSetup.dir_, "genConfigCmds.txt"));
+			njh::files::make_path(analysisSetup.dir_, "genConfigCmds.txt"));
 	std::ofstream genConfigCmdsFile;
 	openTextFile(genConfigCmdsFile, genConfigCmdsOpts);
 	printVector(genConfigCmds, "\n", genConfigCmdsFile);
 
 	//start server config
 	OutOptions startServerCmdOpts(
-			bib::files::make_path(analysisSetup.dir_, "startServerCmd.sh"));
+			njh::files::make_path(analysisSetup.dir_, "startServerCmd.sh"));
 	std::ofstream startServerCmdFile;
 	openTextFile(startServerCmdFile, startServerCmdOpts);
 	startServerCmdFile << "#!/usr/bin/env bash" << std::endl;
@@ -747,7 +747,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 
 	//combining extraction counts
 	OutOptions combineExtractionCmdOpts(
-			bib::files::make_path(analysisSetup.dir_, "combineExtractionCountsCmd.sh"));
+			njh::files::make_path(analysisSetup.dir_, "combineExtractionCountsCmd.sh"));
 	OutputStream combineExtractionCmdOut(combineExtractionCmdOpts);
 	combineExtractionCmdOut << "#!/usr/bin/env bash" << std::endl;
 	combineExtractionCmdOut << "SeekDeep rBind --recursive --depth 1 --contains allPrimerCounts.tab.txt --delim tab --header --out reports/allAllPrimerCounts.tab.txt  --overWrite" << std::endl;
@@ -764,7 +764,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 
 	//run file analysis file
 	OutOptions runAnalysisOpts(
-			bib::files::make_path(analysisSetup.dir_, "runAnalysis.sh"));
+			njh::files::make_path(analysisSetup.dir_, "runAnalysis.sh"));
 	std::ofstream runAnalysisFile;
 	openTextFile(runAnalysisFile, runAnalysisOpts);
 	runAnalysisFile << "#!/usr/bin/env bash" << std::endl;
@@ -799,15 +799,15 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 			S_IWUSR | S_IRUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IEXEC | S_IXGRP);
 
 	if (foundErrors) {
-		std::cerr << bib::bashCT::flashing << bib::bashCT::red << bib::bashCT::bold
-				<< "ERRORS FOUND!!" << bib::bashCT::reset << std::endl;
+		std::cerr << njh::bashCT::flashing << njh::bashCT::red << njh::bashCT::bold
+				<< "ERRORS FOUND!!" << njh::bashCT::reset << std::endl;
 		std::cerr << "Read Warnings in "
-				<< bib::bashCT::boldRed(wrningsOpts.outFilename_.string()) << std::endl;
+				<< njh::bashCT::boldRed(wrningsOpts.outFilename_.string()) << std::endl;
 	}
 
 	return 0;
 }
 
 
-}  // namespace bibseq
+}  // namespace njhseq
 

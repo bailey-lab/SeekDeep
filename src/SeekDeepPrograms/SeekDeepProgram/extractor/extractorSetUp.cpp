@@ -26,9 +26,9 @@
 // along with SeekDeep.  If not, see <http://www.gnu.org/licenses/>.
 //
 #include "SeekDeepPrograms/SeekDeepProgram/SeekDeepSetUp.hpp"
-#include <bibcpp/bashUtils.h>
+#include <njhcpp/bashUtils.h>
 
-namespace bibseq {
+namespace njhseq {
 
 
 void SeekDeepSetUp::setUpExtractorPairedEnd(ExtractorPairedEndPars & pars) {
@@ -98,7 +98,7 @@ void SeekDeepSetUp::setUpExtractorPairedEnd(ExtractorPairedEndPars & pars) {
 		std::cout << "\tid	barcode" << std::endl;
 		std::cout << "\tMID01\t	ACGAGTGCGT" << std::endl;
 		std::cout << "\tMID02	\tACGCTCGACA" << std::endl;
-		std::cout << bib::bashCT::bold << "Output Files:" << bib::bashCT::reset
+		std::cout << njh::bashCT::bold << "Output Files:" << njh::bashCT::reset
 				<< std::endl;
 		std::cout
 				<< "extractionProfile.tab.txt: This breaks down the filtering per final extraction sequence file"
@@ -248,7 +248,7 @@ void SeekDeepSetUp::setUpExtractor(extractorPars & pars) {
 		std::cout << "\tid	barcode" << std::endl;
 		std::cout << "\tMID01\t	ACGAGTGCGT" << std::endl;
 		std::cout << "\tMID02	\tACGCTCGACA" << std::endl;
-		std::cout << bib::bashCT::bold << "Output Files:" << bib::bashCT::reset
+		std::cout << njh::bashCT::bold << "Output Files:" << njh::bashCT::reset
 				<< std::endl;
 		std::cout
 				<< "extractionProfile.tab.txt: This breaks down the filtering per final extraction sequence file"
@@ -267,6 +267,6 @@ void SeekDeepSetUp::setUpExtractor(extractorPars & pars) {
 	finishSetUp(std::cout);
 }
 
-}  // namespace bibseq
+}  // namespace njhseq
 
 

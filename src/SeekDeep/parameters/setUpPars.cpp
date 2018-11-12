@@ -29,7 +29,7 @@
 
 #include "setUpPars.hpp"
 
-namespace bibseq {
+namespace njhseq {
 
 void CoreExtractorPars::setCorePars(seqSetUp & setUp){
 	bool primerToUpperCase = false;
@@ -126,4 +126,4 @@ ExtractorPairedEndPars::ExtractorPairedEndPars(){
 
 }
 
-}  // namespace bibseq
+}  // namespace njhseq

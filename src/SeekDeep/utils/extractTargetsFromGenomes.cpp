@@ -8,7 +8,7 @@
 
 #include "extractTargetsFromGenomes.hpp"
 
-namespace bibseq {
+namespace njhseq {
 
 void extractBetweenSeqsPars::setUpCoreOptions(seqSetUp & setUp, bool needReadLength){
 
@@ -33,14 +33,14 @@ void extractBetweenSeqsPars::setUpCoreOptions(seqSetUp & setUp, bool needReadLen
 
 void extractBetweenSeqs(const PrimersAndMids & ids,
 		const extractBetweenSeqsPars & extractPars){
-	bib::concurrent::LockableQueue<std::string> targetsQueue(getVectorOfMapKeys(ids.targets_));
+	njh::concurrent::LockableQueue<std::string> targetsQueue(getVectorOfMapKeys(ids.targets_));
 
 	std::unique_ptr<MultiGenomeMapper> gMapper;
 	//check for existence of genome directory
-	bib::files::checkExistenceThrow(extractPars.pars.genomeDir_, __PRETTY_FUNCTION__);
+	njh::files::checkExistenceThrow(extractPars.pars.genomeDir_, __PRETTY_FUNCTION__);
 
 	//make output directory
-	bib::files::makeDir(extractPars.outputDirPars);
+	njh::files::makeDir(extractPars.outputDirPars);
 	bfs::path outputDir = extractPars.outputDirPars.dirName_;
 
 	//set up genome mapper;
@@ -65,7 +65,7 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 
 
 
-	auto alignToGenome = [](bib::concurrent::LockableQueue<bfs::path> & genomesQuque,
+	auto alignToGenome = [](njh::concurrent::LockableQueue<bfs::path> & genomesQuque,
 			const bfs::path & forwardFnp,
 			const bfs::path & reverseFnp,
 			const bfs::path & alignDir){
@@ -74,13 +74,13 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 			{
 				BioCmdsUtils bioRunner;
 				auto seqOpts = SeqIOOptions::genFastaIn(forwardFnp, false);
-				seqOpts.out_.outFilename_ = bib::files::make_path(alignDir, bfs::basename(genomeFnp) + "_" + bfs::basename(forwardFnp) + ".sorted.bam");
+				seqOpts.out_.outFilename_ = njh::files::make_path(alignDir, bfs::basename(genomeFnp) + "_" + bfs::basename(forwardFnp) + ".sorted.bam");
 				bioRunner.bowtie2Align(seqOpts, genomeFnp	, "-D 20 -R 3 -N 1 -L 15 -i S,1,0.5 -a --end-to-end");
 			}
 			{
 				BioCmdsUtils bioRunner;
 				auto seqOpts = SeqIOOptions::genFastaIn(reverseFnp, false);
-				seqOpts.out_.outFilename_ = bib::files::make_path(alignDir, bfs::basename(genomeFnp) + "_" + bfs::basename(reverseFnp) + ".sorted.bam");
+				seqOpts.out_.outFilename_ = njh::files::make_path(alignDir, bfs::basename(genomeFnp) + "_" + bfs::basename(reverseFnp) + ".sorted.bam");
 				bioRunner.bowtie2Align(seqOpts, genomeFnp, "-D 20 -R 3 -N 1 -L 15 -i S,1,0.5 -a --end-to-end"	);
 			}
 		}
@@ -96,10 +96,10 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 				std::string target;
 				while(targetsQueue.getVal(target)) {
 					const auto & primerInfo = ids.pDeterminator_->primers_.at(target);
-					auto primerDirectory = bib::files::makeDir(outputDir, bib::files::MkdirPar(primerInfo.primerPairName_));
-					auto bedDirectory = bib::files::makeDir(primerDirectory, bib::files::MkdirPar("genomeLocations"));
-					auto forwardOpts = SeqIOOptions::genFastaOut(bib::files::make_path(primerDirectory, "forwardPrimer"));
-					auto reverseOpts = SeqIOOptions::genFastaOut(bib::files::make_path(primerDirectory, "reversePrimer"));
+					auto primerDirectory = njh::files::makeDir(outputDir, njh::files::MkdirPar(primerInfo.primerPairName_));
+					auto bedDirectory = njh::files::makeDir(primerDirectory, njh::files::MkdirPar("genomeLocations"));
+					auto forwardOpts = SeqIOOptions::genFastaOut(njh::files::make_path(primerDirectory, "forwardPrimer"));
+					auto reverseOpts = SeqIOOptions::genFastaOut(njh::files::make_path(primerDirectory, "reversePrimer"));
 					auto forDegens = createDegenStrs(primerInfo.forwardPrimerInfo_.seq_);
 					auto revDegens = createDegenStrs(primerInfo.reversePrimerInfoForDir_.seq_);
 					//
@@ -117,9 +117,9 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 					}
 					SeqOutput::write(forSeqs, forwardOpts);
 					SeqOutput::write(revSeqs, reverseOpts);
-					auto refAlignmentDir = bib::files::makeDir(primerDirectory,bib::files::MkdirPar{ "refAlignments"});
+					auto refAlignmentDir = njh::files::makeDir(primerDirectory,njh::files::MkdirPar{ "refAlignments"});
 					std::vector<std::thread> threads;
-					bib::concurrent::LockableQueue<bfs::path> genomesQueue(gMapper->getGenomeFnps());
+					njh::concurrent::LockableQueue<bfs::path> genomesQueue(gMapper->getGenomeFnps());
 					auto forOutFnp = forwardOpts.out_.outName();
 					auto revOutFnp = reverseOpts.out_.outName() ;
 					for(uint32_t t = 0; t < gMapper->pars_.numThreads_; ++t){
@@ -143,9 +143,9 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 					}
 					std::unordered_map<std::string, std::vector<GenomeExtractResult>> genomeExtracts;
 					for(const auto & genome : gMapper->genomes_) {
-						auto forBamFnp = bib::files::make_path(refAlignmentDir,
+						auto forBamFnp = njh::files::make_path(refAlignmentDir,
 								bfs::basename(genome.second->fnp_) + "_" + bfs::basename(forwardOpts.out_.outName()) + ".sorted.bam");
-						auto revBamFnp = bib::files::make_path(refAlignmentDir,
+						auto revBamFnp = njh::files::make_path(refAlignmentDir,
 														bfs::basename(genome.second->fnp_) + "_" + bfs::basename(reverseOpts.out_.outName()) + ".sorted.bam");
 						auto forResults = gatherMapResults(forBamFnp, genome.second->fnpTwoBit_, allowableErrors);
 						auto revResults = gatherMapResults(revBamFnp, genome.second->fnpTwoBit_, allowableErrors);
@@ -168,7 +168,7 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 							continue;
 						}
 						genomeExtractionsResults[genome.first].extractCounts_ = genome.second.size();
-						OutputStream bedOut{OutOptions(bib::files::make_path(bedDirectory, genome.first + ".bed"))};
+						OutputStream bedOut{OutOptions(njh::files::make_path(bedDirectory, genome.first + ".bed"))};
 						uint32_t extractionCount = 0;
 						for(auto & extract : genome.second){
 							extract.setRegion();
@@ -224,36 +224,36 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 					}
 
 					if(!allSeqs.empty()){
-						auto fullSeqOpts = SeqIOOptions::genFastaOut(bib::files::make_path(primerDirectory, "all_" + primerInfo.primerPairName_ +".fasta"));
+						auto fullSeqOpts = SeqIOOptions::genFastaOut(njh::files::make_path(primerDirectory, "all_" + primerInfo.primerPairName_ +".fasta"));
 						SeqOutput::write(allSeqs, fullSeqOpts);
 					}
 					if(!allSeqsTrimmedSeqs.empty()){
-						auto innerSeqOpts = SeqIOOptions::genFastaOut(bib::files::make_path(primerDirectory, "all_" + primerInfo.primerPairName_ +"_primersRemoved.fasta"));
+						auto innerSeqOpts = SeqIOOptions::genFastaOut(njh::files::make_path(primerDirectory, "all_" + primerInfo.primerPairName_ +"_primersRemoved.fasta"));
 						SeqOutput::write(allSeqsTrimmedSeqs, innerSeqOpts);
 					}
 
 					if(!refSeqs.empty()){
-						auto fullSeqOpts = SeqIOOptions::genFastaOut(bib::files::make_path(primerDirectory, primerInfo.primerPairName_ +".fasta"));
+						auto fullSeqOpts = SeqIOOptions::genFastaOut(njh::files::make_path(primerDirectory, primerInfo.primerPairName_ +".fasta"));
 						SeqOutput::write(refSeqs, fullSeqOpts);
 					}
 					if(!refTrimmedSeqs.empty()){
-						auto innerSeqOpts = SeqIOOptions::genFastaOut(bib::files::make_path(primerDirectory, primerInfo.primerPairName_ +"_primersRemoved.fasta"));
+						auto innerSeqOpts = SeqIOOptions::genFastaOut(njh::files::make_path(primerDirectory, primerInfo.primerPairName_ +"_primersRemoved.fasta"));
 						SeqOutput::write(refTrimmedSeqs, innerSeqOpts);
 					}
 
 					table performanceTab(VecStr{"genome", "forwardPrimerHits", "reversePrimerHits", "extractionCounts"});
 					auto genomeKeys = getVectorOfMapKeys(genomeExtractionsResults);
-					bib::sort(genomeKeys);
+					njh::sort(genomeKeys);
 					for(const auto & genomeKey : genomeKeys){
 						performanceTab.addRow(genomeKey,
 								genomeExtractionsResults[genomeKey].forwardHits_,
 								genomeExtractionsResults[genomeKey].reverseHits_,
 								genomeExtractionsResults[genomeKey].extractCounts_);
 					}
-					auto perTabOpts = TableIOOpts::genTabFileOut(bib::files::make_path(primerDirectory, "extractionCounts"),true);
+					auto perTabOpts = TableIOOpts::genTabFileOut(njh::files::make_path(primerDirectory, "extractionCounts"),true);
 					performanceTab.outPutContents(perTabOpts);
 					if(extractPars.removeRefAlignments){
-						bib::files::rmDirForce(refAlignmentDir);
+						njh::files::rmDirForce(refAlignmentDir);
 					}
 				}
 			};
@@ -265,14 +265,14 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 	for(auto & t : threads){
 		t.join();
 	}
-	auto locationsCombined = bib::files::make_path(outputDir, "locationsByGenome");
-	bib::files::makeDir(bib::files::MkdirPar{locationsCombined});
+	auto locationsCombined = njh::files::make_path(outputDir, "locationsByGenome");
+	njh::files::makeDir(njh::files::MkdirPar{locationsCombined});
 
 	for(const auto & genome : gMapper->genomes_){
-		auto genomeBedOpts = bib::files::make_path(locationsCombined, genome.first + ".bed");
+		auto genomeBedOpts = njh::files::make_path(locationsCombined, genome.first + ".bed");
 		std::vector<std::shared_ptr<Bed6RecordCore>> allRegions;
 		for(const auto & tar : ids.targets_){
-			auto bedForTarFnp = bib::files::make_path(outputDir, tar.first, "genomeLocations", genome.first + ".bed");
+			auto bedForTarFnp = njh::files::make_path(outputDir, tar.first, "genomeLocations", genome.first + ".bed");
 			if(bfs::exists(bedForTarFnp)){
 				auto locs = getBeds(bedForTarFnp);
 				addOtherVec(allRegions, locs);
@@ -291,7 +291,7 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 					if(reg->extraFields_.empty()){
 						continue;
 					}
-					auto geneToks = bib::tokenizeString(reg->extraFields_.back(), "],[");
+					auto geneToks = njh::tokenizeString(reg->extraFields_.back(), "],[");
 					if(geneToks.size() > 1){
 						geneToks.front().append("]");
 						for(const auto pos : iter::range<uint32_t>(1, geneToks.size() - 1)){
@@ -303,7 +303,7 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 					for(const auto & geneTok : geneToks){
 						MetaDataInName geneMeta(geneTok);
 						TwoBit::TwoBitFile tReader(genome.second->fnpTwoBit_);
-						auto infos = bib::mapAt(genes, geneMeta.getMeta("ID"))->generateGeneSeqInfo(tReader, false);
+						auto infos = njh::mapAt(genes, geneMeta.getMeta("ID"))->generateGeneSeqInfo(tReader, false);
 						for(const auto & info : infos){
 							auto posInfos = info.second->getInfosByGDNAPos();
 
@@ -325,7 +325,7 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 				}
 			}
 			OutputStream genomeBedOut(genomeBedOpts);
-			bib::sort(allRegions, [](
+			njh::sort(allRegions, [](
 					const std::shared_ptr<Bed3RecordCore> & bed1,
 					const std::shared_ptr<Bed3RecordCore> & bed2
 					){
@@ -343,4 +343,4 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 }
 
 
-}  // namespace bibseq
+}  // namespace njhseq

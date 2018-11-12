@@ -30,16 +30,16 @@
 #include "SeekDeep/server.h"
 
 
-namespace bibseq {
+namespace njhseq {
 
-class SeekDeepServerRunner : public bib::progutils::ProgramRunner {
+class SeekDeepServerRunner : public njh::progutils::ProgramRunner {
  public:
   SeekDeepServerRunner();
   
-  static int genProjectConfig(const bib::progutils::CmdArgs & inputCommands);
-  static int popClusteringViewer(const bib::progutils::CmdArgs & inputCommands);
+  static int genProjectConfig(const njh::progutils::CmdArgs & inputCommands);
+  static int popClusteringViewer(const njh::progutils::CmdArgs & inputCommands);
 
 
 };
 
-} // namespace bibseq
+} // namespace njhseq

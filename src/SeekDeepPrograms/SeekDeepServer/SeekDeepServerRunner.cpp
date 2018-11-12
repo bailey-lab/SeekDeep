@@ -27,10 +27,10 @@
 
 #include <seqServer/apps/pars.h>
     
-namespace bibseq {
+namespace njhseq {
 
 SeekDeepServerRunner::SeekDeepServerRunner()
-    : bib::progutils::ProgramRunner(
+    : njh::progutils::ProgramRunner(
     		{
 				addFunc("genProjectConfig", genProjectConfig, false),
 				addFunc("popClusteringViewer", popClusteringViewer, false)
@@ -52,13 +52,13 @@ void errorHandler(const int statusCode, const std::exception& exception,
 }
 
 
-int SeekDeepServerRunner::popClusteringViewer(const bib::progutils::CmdArgs & inputCommands){
-	bibseq::seqSetUp setUp(inputCommands);
+int SeekDeepServerRunner::popClusteringViewer(const njh::progutils::CmdArgs & inputCommands){
+	njhseq::seqSetUp setUp(inputCommands);
 	SeqAppCorePars corePars;
 	corePars.port_ = 9881;
 	corePars.name_ = "pcv";
 	bfs::path configDir = "";
-	bfs::path resourceDirName = bib::files::make_path(SeekDeep_INSTALLDIR, "etc/serverResources").string();
+	bfs::path resourceDirName = njh::files::make_path(SeekDeep_INSTALLDIR, "etc/serverResources").string();
 	setUp.setOption(resourceDirName, "-resourceDirName",
 			"Name of the resource Directory where the js and html is located",
 			!bfs::exists(resourceDirName));
@@ -69,8 +69,8 @@ int SeekDeepServerRunner::popClusteringViewer(const bib::progutils::CmdArgs & in
 	setUp.processVerbose();
 	corePars.setCoreOptions(setUp);
 	setUp.finishSetUp(std::cout);
-	resourceDirName = bib::appendAsNeededRet(resourceDirName.string(), "/");
-	configDir = bib::appendAsNeededRet(configDir.string(), "/");
+	resourceDirName = njh::appendAsNeededRet(resourceDirName.string(), "/");
+	configDir = njh::appendAsNeededRet(configDir.string(), "/");
 
 	VecStr warnings;
 	if(!bfs::exists(resourceDirName)){
@@ -84,13 +84,13 @@ int SeekDeepServerRunner::popClusteringViewer(const bib::progutils::CmdArgs & in
 		warnings.emplace_back(ss.str());
 	}
 	if(!warnings.empty()){
-		throw std::runtime_error{bib::conToStr(warnings, "\n")};
+		throw std::runtime_error{njh::conToStr(warnings, "\n")};
 	}
   //
   Json::Value appConfig;
   corePars.addCoreOpts(appConfig);
-  appConfig["configDir"] = bib::json::toJson(configDir);
-  appConfig["resources"] = bib::json::toJson(resourceDirName);
+  appConfig["configDir"] = njh::json::toJson(configDir);
+  appConfig["resources"] = njh::json::toJson(resourceDirName);
   if(setUp.pars_.verbose_){
   	std::cout << corePars.getAddress() << std::endl;
   }
@@ -120,8 +120,8 @@ int SeekDeepServerRunner::popClusteringViewer(const bib::progutils::CmdArgs & in
 
 
 int SeekDeepServerRunner::genProjectConfig(
-		const bib::progutils::CmdArgs & inputCommands) {
-	bibseq::seqSetUp setUp(inputCommands);
+		const njh::progutils::CmdArgs & inputCommands) {
+	njhseq::seqSetUp setUp(inputCommands);
 	std::string mainDir = "";
 	std::string projectName = "";
 	std::string shortName = "";
@@ -134,20 +134,20 @@ int SeekDeepServerRunner::genProjectConfig(
 	}
 	setUp.setOption(mainDir, "--mainDir", "Name of the Master Result Directory created by SeekDeep processClusters",
 			true);
-	bib::appendAsNeeded(mainDir, "/");
+	njh::appendAsNeeded(mainDir, "/");
 	OutOptions outOpts(shortName, ".config");
 	setUp.processWritingOptions(outOpts);
 	setUp.finishSetUp(std::cout);
 	//
 	Json::Value config;
-	config["mainDir"] = bib::appendAsNeededRet(
-			bib::files::normalize(mainDir).string(), "/");
+	config["mainDir"] = njh::appendAsNeededRet(
+			njh::files::normalize(mainDir).string(), "/");
 	config["shortName"] = shortName;
 	config["projectName"] = projectName;
 	config["debug"] = debug;
 	std::ofstream outFile;
 	std::ostream out(
-			bib::files::determineOutBuf(outFile, outOpts.outFilename_,
+			njh::files::determineOutBuf(outFile, outOpts.outFilename_,
 					outOpts.outExtention_, outOpts.overWriteFile_, outOpts.append_,
 					outOpts.exitOnFailureToWrite_));
 	out << config << std::endl;
@@ -155,4 +155,4 @@ int SeekDeepServerRunner::genProjectConfig(
 }
 
 
-} // namespace bibseq
+} // namespace njhseq
