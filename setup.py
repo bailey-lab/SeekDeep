@@ -325,12 +325,14 @@ class Packages():
             self.packages_["sharedmutex"] = self.__sharedMutex()
         if "bhtsne" in libsNeeded:
             self.packages_["bhtsne"] = self.__bhtsne()
+        if "elucidator" in libsNeeded:
+            self.packages_["elucidator"] = self.__elucidator()
+        if "mipwrangler" in libsNeeded:
+            self.packages_["mipwrangler"] = self.__MIPWrangler()
         #developer, private repos
         if self.args.private:
-          if "elucidator" in libsNeeded:
-              self.packages_["elucidator"] = self.__elucidator()
-          if "mipwrangler" in libsNeeded:
-              self.packages_["mipwrangler"] = self.__MIPWrangler()
+          if "elucidator-lab" in libsNeeded:
+              self.packages_["elucidator-lab"] = self.__elucidatorlab()
         '''
         
         self.packages_["mlpack"] = self.__mlpack()
@@ -1263,7 +1265,30 @@ class Packages():
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
                 pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
         return pack
-    
+      
+    def __elucidatorlab(self):
+        url = "git@github.com:nickjhathaway/elucidator-lab.git"
+        name = "elucidator-lab"
+        buildCmd = self.__njhProjectBuildCmd()
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v2.3.3")
+        pack.njhProject_ = True
+        if self.args.noInternet:
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                pack = pickle.load(inputPkl)
+                pack.defaultBuildCmd_ = buildCmd
+        elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                    pack = pickle.load(inputPkl)
+                    pack.defaultBuildCmd_ = buildCmd
+        else:
+            refs = pack.getGitRefs(url)
+            for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
+                pack.addVersion(url, ref)
+            Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
+                pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
+        return pack
+          
     def __elucidator(self):
         url = "git@github.com:nickjhathaway/elucidator.git"
         name = "elucidator"
@@ -1780,11 +1805,12 @@ class Setup:
                        "curl": self.curl,
                        "bhtsne": self.bhtsne,
                        "lapack": self.lapack,
-                       "atlas": self.atlas
+                       "atlas": self.atlas, 
+                       "mipwrangler": self.mipwrangler,
+                       "elucidator": self.elucidator
                        }
         if self.args.private:
-          self.setUps["mipwrangler"] = self.MIPWrangler;
-          self.setUps["elucidator"] = self.elucidator;
+          self.setUps["elucidator-lab"] = self.elucidatorlab;
         ''' 
         "mlpack": self.mlpack,
         "liblinear": self.liblinear,
@@ -2282,9 +2308,16 @@ class Setup:
         
     def seqserver(self, version):
         self.__defaultNJHBuild("seqserver", version)
-    
+        
+        
+    def mipwrangler(self, version):
+        self.__defaultNJHBuild("mipwrangler", version)
+            
     def elucidator(self, version):
         self.__defaultNJHBuild("elucidator", version)
+    
+    def elucidatorlab(self, version):
+        self.__defaultNJHBuild("elucidator-lab", version)
         
     def bhtsne(self, version):
         self.__defaultNJHBuild("bhtsne", version)   
