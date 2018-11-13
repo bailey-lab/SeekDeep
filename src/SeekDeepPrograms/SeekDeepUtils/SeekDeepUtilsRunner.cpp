@@ -461,7 +461,7 @@ int SeekDeepUtilsRunner::replaceUnderscores(
 	}
 	for (const auto & rk : renameKey) {
 		if (keepOriginals) {
-			bfs::copy(rk.first, rk.second);
+			bfs::copy_file(rk.first, rk.second);
 		} else {
 			bfs::rename(rk.first, rk.second);
 		}

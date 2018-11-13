@@ -177,7 +177,7 @@ TarAmpAnalysisSetup::TarAmpAnalysisSetup(const TarAmpPars & pars) :
 			OutputStream indexToTargetsOut(OutOptions(njh::files::make_path(infoDir_, "indexToTargets.tab.txt")));
 			indexToTargetsTab.outPutContents(indexToTargetsOut, "\t");
 		}else{
-			bfs::copy(pars_.targetsToIndexFnp, njh::files::make_path(infoDir_, "indexToTargets.tab.txt"));
+			bfs::copy_file(pars_.targetsToIndexFnp, njh::files::make_path(infoDir_, "indexToTargets.tab.txt"));
 		}
 	}
 
@@ -203,7 +203,7 @@ TarAmpAnalysisSetup::TarAmpAnalysisSetup(const TarAmpPars & pars) :
 	//add meta data if available
 	if("" != pars.groupMeta){
 		addGroupingMetaData(pars.groupMeta);
-		bfs::copy(groupMetaData_->groupingsFile_,
+		bfs::copy_file(groupMetaData_->groupingsFile_,
 				njh::files::make_path(infoDir_, "groupMeta.tab.txt"));
 	}
 	//add ref seqs if provided
@@ -372,7 +372,7 @@ void TarAmpAnalysisSetup::addGroupingMetaData(const bfs::path & groupingsFileFnp
 
 void TarAmpAnalysisSetup::addGroupingsFile()const{
 	if(nullptr != groupMetaData_){
-		bfs::copy(groupMetaData_->groupingsFile_, njh::files::make_path(infoDir_, "groupingMetaData.tab.txt"));
+		bfs::copy_file(groupMetaData_->groupingsFile_, njh::files::make_path(infoDir_, "groupingMetaData.tab.txt"));
 	}
 }
 
