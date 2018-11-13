@@ -331,8 +331,8 @@ class Packages():
             self.packages_["mipwrangler"] = self.__MIPWrangler()
         #developer, private repos
         if self.args.private:
-          if "elucidator-lab" in libsNeeded:
-              self.packages_["elucidator-lab"] = self.__elucidatorlab()
+            if "elucidatorlab" in libsNeeded:
+                self.packages_["elucidatorlab"] = self.__elucidatorlab()
         '''
         
         self.packages_["mlpack"] = self.__mlpack()
@@ -1267,8 +1267,8 @@ class Packages():
         return pack
       
     def __elucidatorlab(self):
-        url = "git@github.com:nickjhathaway/elucidator-lab.git"
-        name = "elucidator-lab"
+        url = "git@github.com:nickjhathaway/elucidatorlab.git"
+        name = "elucidatorlab"
         buildCmd = self.__njhProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v2.3.3")
         pack.njhProject_ = True
@@ -1290,7 +1290,7 @@ class Packages():
         return pack
           
     def __elucidator(self):
-        url = "git@github.com:nickjhathaway/elucidator.git"
+        url = "https://github.com/nickjhathaway/elucidator.git"
         name = "elucidator"
         buildCmd = self.__njhProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v2.3.3")
@@ -1338,7 +1338,7 @@ class Packages():
         return pack
     
     def __MIPWrangler(self):
-        url = "git@github.com:bailey-lab/MIPWrangler.git"
+        url = "https://github.com/bailey-lab/MIPWrangler.git"
         name = "MIPWrangler"
         buildCmd = self.__njhProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "develop")
@@ -1810,7 +1810,7 @@ class Setup:
                        "elucidator": self.elucidator
                        }
         if self.args.private:
-          self.setUps["elucidator-lab"] = self.elucidatorlab;
+          self.setUps["elucidatorlab"] = self.elucidatorlab;
         ''' 
         "mlpack": self.mlpack,
         "liblinear": self.liblinear,
@@ -1955,6 +1955,7 @@ class Setup:
             print(CT.boldGreen(name + ":" + version), "found at " + CT.boldBlue(bPath.local_dir))
         else:
             print(CT.boldGreen(name + ":" + version), CT.boldRed("NOT"), "found; building...")
+            print("Not found @", bPath.local_dir)
             try:
                 self.setUps[name](version)
                 self.installed.append(LibNameVer(name, version))
@@ -2317,7 +2318,7 @@ class Setup:
         self.__defaultNJHBuild("elucidator", version)
     
     def elucidatorlab(self, version):
-        self.__defaultNJHBuild("elucidator-lab", version)
+        self.__defaultNJHBuild("elucidatorlab", version)
         
     def bhtsne(self, version):
         self.__defaultNJHBuild("bhtsne", version)   
