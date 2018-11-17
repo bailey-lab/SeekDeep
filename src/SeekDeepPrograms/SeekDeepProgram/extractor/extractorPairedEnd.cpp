@@ -31,9 +31,9 @@ namespace njhseq {
 int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputCommands) {
 	SeekDeepSetUp setUp(inputCommands);
 	ExtractorPairedEndPars pars;
-
+	std::cout << "pars.corePars_.sampleName: " << pars.corePars_.sampleName << std::endl;
 	setUp.setUpExtractorPairedEnd(pars);
-
+	std::cout << "pars.corePars_.sampleName: " << pars.corePars_.sampleName << std::endl;
 	// run log
 	setUp.startARunLog(setUp.pars_.directoryName_);
 	// parameter file
@@ -473,12 +473,16 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 	processingPairsAligner.qScorePars_.qualThresWindow_ = 0;
 	std::unordered_map<std::string, std::vector<uint32_t>> lengthsPerStitchedTarget;
 	std::unordered_map<std::string, std::pair<std::string, PairedReadProcessor::ProcessedResultsCounts>> resultsPerMidTarPair;
+
 	for(const auto & extractedMid : primersInMids){
 		for(const auto & extractedPrimer : extractedMid.second){
 			std::string name = extractedPrimer + extractedMid.first;
 			if(!ids.containsMids() && "" != pars.corePars_.sampleName){
 				name = extractedPrimer + pars.corePars_.sampleName;
+			}else if(!ids.containsMids() && "all" == extractedMid.first){
+				name = extractedPrimer;
 			}
+
 			SeqIOOptions currentPairOpts;
 			if(setUp.pars_.ioOptions_.inFormat_ == SeqIOOptions::inFormats::FASTQPAIREDGZ){
 				currentPairOpts = SeqIOOptions::genPairedInGz(
@@ -567,6 +571,8 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 			std::string name = extractedPrimer + extractedMid.first;
 			if(!ids.containsMids() && "" != pars.corePars_.sampleName){
 				name = extractedPrimer + pars.corePars_.sampleName;
+			}else if(!ids.containsMids() && "all" == extractedMid.first){
+				name = extractedPrimer;
 			}
 			if(PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP == njh::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
 				if(setUp.pars_.verbose_ && setUp.pars_.debug_){
@@ -723,13 +729,14 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 	std::unordered_map<std::string, uint32_t> goodFinal;
 
 	std::set<std::string> allNames;
-	//std::cout << __PRETTY_FUNCTION__ << " " << __LINE__ << std::endl;
 
 	for(const auto & extractedMid : primersInMids){
 		for(const auto & extractedPrimer : extractedMid.second){
 			std::string name = extractedPrimer + extractedMid.first;
 			if(!ids.containsMids() && "" != pars.corePars_.sampleName){
 				name = extractedPrimer + pars.corePars_.sampleName;
+			}else if(!ids.containsMids() && "all" == extractedMid.first){
+				name = extractedPrimer;
 			}
 			if(PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP == njh::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
 				if(setUp.pars_.verbose_&& setUp.pars_.debug_){
