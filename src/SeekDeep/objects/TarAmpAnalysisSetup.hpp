@@ -28,10 +28,10 @@
 // along with SeekDeep.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-#include <bibseq.h>
+#include <njhseq.h>
 #include "SeekDeep/objects/PrimersAndMids.hpp"
 
-namespace bibseq {
+namespace njhseq {
 
 class TarAmpAnalysisSetup {
 public:
@@ -90,9 +90,10 @@ public:
 
 		static bool checkIfFnpExists(const bfs::path & fnp, VecStr & warnings);
 
-		bool techIs454()const;
-		bool techIsIllumina()const;
-		bool techIsIonTorrent()const;
+		bool techIs454() const;
+		bool techIsIllumina() const;
+		bool techIsIlluminaSingleEnd() const;
+		bool techIsIonTorrent() const;
 /*
  * pars.technology != "454" && pars.technology != "iontorrent" && pars.technology != "illumina"
  */
@@ -194,7 +195,7 @@ public:
 };
 
 
-}  // namespace bibseq
+}  // namespace njhseq
 
 
 

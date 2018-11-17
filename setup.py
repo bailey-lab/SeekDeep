@@ -152,7 +152,7 @@ class CPPLibPackage():
         if "git" != libType and "file" != libType and "git-headeronly" != libType:
             raise Exception("libType should be 'git', 'git-headeronly', or 'file', not " + str(libType))
         self.libType_ = libType #should be git, git-headeronly, or file
-        self.bibProject_ = False
+        self.njhProject_ = False
     
     def addVersion(self, url, verName, depends=[]):
         verName = verName.replace("/", "__")
@@ -308,11 +308,11 @@ class Packages():
             self.packages_["zlib-ng"] = self.__zlibng()
         if "openblas" in libsNeeded:
             self.packages_["openblas"] = self.__openblas()
-        #bib setup
-        if "bibseq" in libsNeeded:
-            self.packages_["bibseq"] = self.__bibseq()
-        if "bibcpp" in libsNeeded:
-            self.packages_["bibcpp"] = self.__bibcpp()
+        #njh setup
+        if "njhseq" in libsNeeded:
+            self.packages_["njhseq"] = self.__njhseq()
+        if "njhcpp" in libsNeeded:
+            self.packages_["njhcpp"] = self.__njhcpp()
         if "seekdeep" in libsNeeded:
             self.packages_["seekdeep"] = self.__SeekDeep()
         if "seqserver" in libsNeeded:
@@ -325,12 +325,14 @@ class Packages():
             self.packages_["sharedmutex"] = self.__sharedMutex()
         if "bhtsne" in libsNeeded:
             self.packages_["bhtsne"] = self.__bhtsne()
+        if "elucidator" in libsNeeded:
+            self.packages_["elucidator"] = self.__elucidator()
+        if "mipwrangler" in libsNeeded:
+            self.packages_["mipwrangler"] = self.__MIPWrangler()
         #developer, private repos
         if self.args.private:
-          if "elucidator" in libsNeeded:
-              self.packages_["elucidator"] = self.__elucidator()
-          if "mipwrangler" in libsNeeded:
-              self.packages_["mipwrangler"] = self.__MIPWrangler()
+            if "elucidatorlab" in libsNeeded:
+                self.packages_["elucidatorlab"] = self.__elucidatorlab()
         '''
         
         self.packages_["mlpack"] = self.__mlpack()
@@ -608,7 +610,7 @@ class Packages():
         name = "libpca"
         #the version will get overridden by setting pack.defaultBuildCmd_ latter, but the dependency check needs to install it first
         armPack = self.__armadillo()
-        buildCmd = """CC={CC} CXX={CXX} ./configure --prefix {local_dir} && make -j {num_cores} install"""
+        buildCmd = """CC={CC} CXX={CXX} autoreconf -f -i &&  ./configure --prefix {local_dir} && make -j {num_cores} install"""
         defaultArmVer = "8.200.0"
         url = "https://github.com/nickjhathaway/libpca.git"
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "1.3.3")
@@ -626,7 +628,7 @@ class Packages():
                 pack.addVersion(url, ref, [LibNameVer("armadillo", defaultArmVer)] )
                 armLdFlags = armPack.versions_[defaultArmVer].getLdFlags(self.dirMaster_.install_dir)
                 armIncFlags = armPack.versions_[defaultArmVer].getIncludeFlags(self.dirMaster_.install_dir)
-                pack.versions_[ref].cmd_ = "CC={CC} CXX={CXX} LDFLAGS=\"" + armLdFlags + "\" CXXFLAGS=\"" + armIncFlags + "\" ./configure --prefix {local_dir}  && make -j {num_cores} install"
+                pack.versions_[ref].cmd_ = "CC={CC} CXX={CXX} LDFLAGS=\"" + armLdFlags + "\" CXXFLAGS=\"" + armIncFlags + "\" autoreconf -f -i &&  " + "CC={CC} CXX={CXX} LDFLAGS=\"" + armLdFlags + "\" CXXFLAGS=\"" + armIncFlags +  "\" ./configure  --prefix {local_dir}  && make -j {num_cores} install"
                 pack.versions_[ref].cmd_ = " ".join(pack.versions_[ref].cmd_.split())
                 pack.versions_[ref] .altLibName_ = "pca" 
             Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
@@ -1115,7 +1117,7 @@ class Packages():
         name = "cppprogutils"
         buildCmd = ""
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly", "v2.0.0")
-        #pack.bibProject_ = True
+        #pack.njhProject_ = True
         if self.args.noInternet:
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
                 pack = pickle.load(inputPkl)
@@ -1135,12 +1137,12 @@ class Packages():
                 pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
         return pack
     
-    def __bibseq(self):
-        url = "https://github.com/bailey-lab/bibseq.git"
-        name = "bibseq"
-        buildCmd = self.__bibProjectBuildCmd()
+    def __njhseq(self):
+        url = "https://github.com/nickjhathaway/njhseq.git"
+        name = "njhseq"
+        buildCmd = self.__njhProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v2.3.0")
-        pack.bibProject_ = True
+        pack.njhProject_ = True
         if self.args.noInternet:
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
                 pack = pickle.load(inputPkl)
@@ -1175,9 +1177,9 @@ class Packages():
     def __twobit(self):
         url = "https://github.com/weng-lab/TwoBit.git"
         name = "TwoBit"
-        buildCmd = self.__bibProjectBuildCmd()
+        buildCmd = self.__njhProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v2.0.1")
-        pack.bibProject_ = True
+        pack.njhProject_ = True
         if self.args.noInternet:
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
                 pack = pickle.load(inputPkl)
@@ -1198,9 +1200,9 @@ class Packages():
     def __sharedMutex(self):
         url = "https://github.com/nickjhathaway/cpp_shared_mutex.git"
         name = "sharedMutex"
-        buildCmd = self.__bibProjectBuildCmd()
+        buildCmd = self.__njhProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v0.3")
-        pack.bibProject_ = True
+        pack.njhProject_ = True
         if self.args.noInternet:
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
                 pack = pickle.load(inputPkl)
@@ -1221,9 +1223,9 @@ class Packages():
     def __bhtsne(self):
         url = "git@github.com:umass-bib/bhtsne.git"
         name = "bhtsne"
-        buildCmd = self.__bibProjectBuildCmd()
+        buildCmd = self.__njhProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v0.3")
-        pack.bibProject_ = True
+        pack.njhProject_ = True
         if self.args.noInternet:
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
                 pack = pickle.load(inputPkl)
@@ -1244,9 +1246,9 @@ class Packages():
     def __SeekDeep(self):
         url = "https://github.com/bailey-lab/SeekDeep.git"
         name = "SeekDeep"
-        buildCmd = self.__bibProjectBuildCmd()
+        buildCmd = self.__njhProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v2.3.3")
-        pack.bibProject_ = True
+        pack.njhProject_ = True
         if self.args.noInternet:
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
                 pack = pickle.load(inputPkl)
@@ -1263,13 +1265,36 @@ class Packages():
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
                 pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
         return pack
-    
-    def __elucidator(self):
-        url = "git@github.com:nickjhathaway/elucidator.git"
-        name = "elucidator"
-        buildCmd = self.__bibProjectBuildCmd()
+      
+    def __elucidatorlab(self):
+        url = "git@github.com:nickjhathaway/elucidatorlab.git"
+        name = "elucidatorlab"
+        buildCmd = self.__njhProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v2.3.3")
-        pack.bibProject_ = True
+        pack.njhProject_ = True
+        if self.args.noInternet:
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                pack = pickle.load(inputPkl)
+                pack.defaultBuildCmd_ = buildCmd
+        elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                    pack = pickle.load(inputPkl)
+                    pack.defaultBuildCmd_ = buildCmd
+        else:
+            refs = pack.getGitRefs(url)
+            for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
+                pack.addVersion(url, ref)
+            Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
+                pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
+        return pack
+          
+    def __elucidator(self):
+        url = "https://github.com/nickjhathaway/elucidator.git"
+        name = "elucidator"
+        buildCmd = self.__njhProjectBuildCmd()
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v2.3.3")
+        pack.njhProject_ = True
         if self.args.noInternet:
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
                 pack = pickle.load(inputPkl)
@@ -1292,9 +1317,9 @@ class Packages():
     def __seqserver(self):
         url = "https://github.com/nickjhathaway/seqServer.git"
         name = "seqServer"
-        buildCmd = self.__bibProjectBuildCmd()
+        buildCmd = self.__njhProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v1.3.1")
-        pack.bibProject_ = True
+        pack.njhProject_ = True
         if self.args.noInternet:
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
                 pack = pickle.load(inputPkl)
@@ -1313,11 +1338,11 @@ class Packages():
         return pack
     
     def __MIPWrangler(self):
-        url = "git@github.com:bailey-lab/MIPWrangler.git"
+        url = "https://github.com/bailey-lab/MIPWrangler.git"
         name = "MIPWrangler"
-        buildCmd = self.__bibProjectBuildCmd()
+        buildCmd = self.__njhProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "develop")
-        pack.bibProject_ = True
+        pack.njhProject_ = True
         if self.args.noInternet:
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
                 pack = pickle.load(inputPkl)
@@ -1338,9 +1363,9 @@ class Packages():
     def __njhRInside(self):
         url = "https://github.com/nickjhathaway/njhRInside.git"
         name = "njhRInside"
-        buildCmd = self.__bibProjectBuildCmd()
+        buildCmd = self.__njhProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "1.1.1")
-        pack.bibProject_ = True
+        pack.njhProject_ = True
         if self.args.noInternet:
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
                 pack = pickle.load(inputPkl)
@@ -1358,12 +1383,12 @@ class Packages():
                 pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
         return pack
     
-    def __bibcpp(self):
-        url = "https://github.com/umass-bib/bibcpp.git"
-        name = "bibcpp"
-        buildCmd = self.__bibProjectBuildCmd()
+    def __njhcpp(self):
+        url = "https://github.com/nickjhathaway/njhcpp.git"
+        name = "njhcpp"
+        buildCmd = self.__njhProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v2.3.0")
-        pack.bibProject_ = True
+        pack.njhProject_ = True
         if self.args.noInternet:
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
                 pack = pickle.load(inputPkl)
@@ -1396,7 +1421,7 @@ class Packages():
             #print gccJamLoc
             #print gccJamOutLoc
             installNameToolCmd  = """ 
-            && install_name_tool -change $(otool -L {local_dir}/lib/libboost_filesystem.dylib | egrep -o "\\S.*libboost_system.dylib") {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_filesystem.dylib
+            && install_name_tool -change $(otool -L {local_dir}/lib/libboost_filesystem.dylib | egrep -o "\\S+libboost_system.dylib") {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_filesystem.dylib
             && install_name_tool -id {local_dir}/lib/libboost_filesystem.dylib {local_dir}/lib/libboost_filesystem.dylib
             && install_name_tool -id {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_system.dylib
             """
@@ -1404,8 +1429,7 @@ class Packages():
             if Utils.isMac():
                 buildCmd = """./bootstrap.sh --with-toolset=clang --prefix={local_dir} --with-libraries=""" + boostLibs + """
                   &&  ./b2 -d 0  toolset=clang cxxflags=\"-stdlib=libc++ -std=c++14\" linkflags=\"-stdlib=libc++\" -j {num_cores} install 
-                  &&  install_name_tool -change libboost_system.dylib {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_filesystem.dylib
-                  """
+                  """ + installNameToolCmd
             else:
                 buildCmd = """ln -s $(for x in $(which -a {CC}); do echo $(realpath $x); done | egrep clang | head -1) clang && PATH=$(realpath .):$PATH && ln -s $(for x in $(which -a {CXX}); do echo $(realpath $x); done | egrep clang | head -1) clang++ && ./bootstrap.sh --with-toolset=clang --prefix={local_dir}  --with-libraries=""" + boostLibs + """ &&  ./b2 -d 0 toolset=clang cxxflags=\"-std=c++14\" -j {num_cores} install && rm clang && rm clang++"""
         elif "g++" in self.args.CXX:
@@ -1459,16 +1483,15 @@ class Packages():
             #print gccJamLoc
             #print gccJamOutLoc
             installNameToolCmd  = """ 
-            && install_name_tool -change $(otool -L {local_dir}/lib/libboost_filesystem.dylib | egrep -o "\\S.*libboost_system.dylib") {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_filesystem.dylib
+            && install_name_tool -change $(otool -L {local_dir}/lib/libboost_filesystem.dylib | egrep -o "\\S+libboost_system.dylib") {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_filesystem.dylib
             && install_name_tool -id {local_dir}/lib/libboost_filesystem.dylib {local_dir}/lib/libboost_filesystem.dylib
             && install_name_tool -id {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_system.dylib
             """
         if self.args.clang:
             if Utils.isMac():
                 buildCmd = """./bootstrap.sh --with-toolset=clang --prefix={local_dir} --with-libraries=""" + boostLibs + """
-                  &&  ./b2 -d 0  toolset=clang cxxflags=\"-stdlib=libc++ -std=c++14\" linkflags=\"-stdlib=libc++\" -j {num_cores} install 
-                  &&  install_name_tool -change libboost_system.dylib {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_filesystem.dylib
-                  """
+                  &&  ./b2 -d 0 toolset=clang cxxflags=\"-stdlib=libc++ -std=c++14\" linkflags=\"-stdlib=libc++\" -j {num_cores} install 
+                  """ + installNameToolCmd
             else:
                 buildCmd = """ln -s $(for x in $(which -a {CC}); do echo $(realpath $x); done | egrep clang | head -1) clang && PATH=$(realpath .):$PATH && ln -s $(for x in $(which -a {CXX}); do echo $(realpath $x); done | egrep clang | head -1) clang++ && ./bootstrap.sh --with-toolset=clang --prefix={local_dir}  --with-libraries=""" + boostLibs + """ &&  ./b2 -d 0 toolset=clang cxxflags=\"-std=c++14\" -j {num_cores} install && rm clang && rm clang++"""
         elif "g++" in self.args.CXX:
@@ -1553,8 +1576,8 @@ class Packages():
                             continue
                         else:
                             raise Exception("Package " + packVer.name + " already in " + filename + " but with a different version, present: " + packsInFile[packVer.name] + ", adding: " + packVer.version)
-                    #if bib project, add the flags of it's dependencies
-                    if pack.bibProject_:
+                    #if njh project, add the flags of it's dependencies
+                    if pack.njhProject_:
                         cmd = "./setup.py --compfile compfile.mk --numCores 1 --append --outMakefile {makefileCommon}".format(makefileCommon = os.path.abspath(filename))
                         buildSubDir = pack.getBuildSubDir(packVer.version)
                         Utils.run_in_dir(cmd, buildSubDir)
@@ -1584,8 +1607,8 @@ class Packages():
                 f.flush()
                 for packVer in packVers:
                     pack = self.package(packVer.name)
-                    #if bib project, add the flags of it's dependencies
-                    if pack.bibProject_:
+                    #if njh project, add the flags of it's dependencies
+                    if pack.njhProject_:
                             cmd = "./setup.py --compfile compfile.mk --numCores 1 --append --outMakefile {makefileCommon}".format(makefileCommon = os.path.abspath(filename))
                             buildSubDir = pack.getBuildSubDir(packVer.version)
                             Utils.run_in_dir(cmd, buildSubDir)
@@ -1644,7 +1667,7 @@ class Packages():
             ret = ret + "-headerpad_max_install_names" 
         return ret
 
-    def __bibProjectBuildCmdOld(self):
+    def __njhProjectBuildCmdOld(self):
         cmd = """
         ./configure.py -CC {CC} -CXX {CXX} -externalLibDir {external} -prefix {localTop} 
         && ./setup.py --compfile compfile.mk --numCores {num_cores}
@@ -1652,7 +1675,7 @@ class Packages():
         cmd = " ".join(cmd.split())
         return cmd
     
-    def __bibProjectBuildCmd(self):
+    def __njhProjectBuildCmd(self):
         cmd = """
          ./configure.py -CC {CC} -CXX {CXX} -externalLibDir {external} -prefix $(dirname {local_dir}) """
         if self.args.noInternet:
@@ -1746,9 +1769,9 @@ class Setup:
                        "cppcms": self.cppcms,
                        "armadillo": self.armadillo,
                        "libpca": self.libpca,
-                       "bibseq": self.bibseq,
+                       "njhseq": self.njhseq,
                        "seekdeep": self.SeekDeep,
-                       "bibcpp": self.bibcpp,
+                       "njhcpp": self.njhcpp,
                        "seqserver": self.seqserver,
                        "njhrinside": self.njhRInside,
                        "jsoncpp": self.jsoncpp,
@@ -1780,11 +1803,12 @@ class Setup:
                        "curl": self.curl,
                        "bhtsne": self.bhtsne,
                        "lapack": self.lapack,
-                       "atlas": self.atlas
+                       "atlas": self.atlas, 
+                       "mipwrangler": self.mipwrangler,
+                       "elucidator": self.elucidator
                        }
         if self.args.private:
-          self.setUps["mipwrangler"] = self.MIPWrangler;
-          self.setUps["elucidator"] = self.elucidator;
+          self.setUps["elucidatorlab"] = self.elucidatorlab;
         ''' 
         "mlpack": self.mlpack,
         "liblinear": self.liblinear,
@@ -1929,6 +1953,7 @@ class Setup:
             print(CT.boldGreen(name + ":" + version), "found at " + CT.boldBlue(bPath.local_dir))
         else:
             print(CT.boldGreen(name + ":" + version), CT.boldRed("NOT"), "found; building...")
+            print("Not found @", bPath.local_dir)
             try:
                 self.setUps[name](version)
                 self.installed.append(LibNameVer(name, version))
@@ -2134,7 +2159,7 @@ class Setup:
                 Utils.fixDyLibOnMac(libPath)
         Utils.ensureLibDirectoryPresent(bPaths.local_dir)
             
-    def __defaultBibBuild(self, package, version):
+    def __defaultNJHBuild(self, package, version):
         if "develop" == version or "release" in version or "master" == version:
             self.__defaultBuild(package, version, False)
         else:
@@ -2161,8 +2186,8 @@ class Setup:
                     os.symlink(bFileFull, os.path.join(masterBinDir, bFile))
             
         
-    def updateBibProjects(self, bibProjects):
-        inLibs = bibProjects.split(",")
+    def updateNJHProjects(self, njhProjects):
+        inLibs = njhProjects.split(",")
         for lib in inLibs:
             if ":" not in lib.lower():
                 raise Exception("Need to give version for " + lib)
@@ -2263,40 +2288,47 @@ class Setup:
         self.__defaultBuild("r", version)
 
     def bamtools(self, version):
-        self.__defaultBibBuild("bamtools", version)
+        self.__defaultNJHBuild("bamtools", version)
 
-    def bibcpp(self, version):
-        self.__defaultBibBuild("bibcpp", version)
+    def njhcpp(self, version):
+        self.__defaultNJHBuild("njhcpp", version)
 
-    def bibseq(self, version):
-        self.__defaultBibBuild("bibseq", version)
+    def njhseq(self, version):
+        self.__defaultNJHBuild("njhseq", version)
         
     def twobit(self, version):
-        self.__defaultBibBuild("twobit", version)
+        self.__defaultNJHBuild("twobit", version)
                 
     def sharedMutex(self, version):
-        self.__defaultBibBuild("sharedmutex", version)
+        self.__defaultNJHBuild("sharedmutex", version)
             
     def SeekDeep(self, version):
-        self.__defaultBibBuild("seekdeep", version)
+        self.__defaultNJHBuild("seekdeep", version)
         
     def seqserver(self, version):
-        self.__defaultBibBuild("seqserver", version)
-    
+        self.__defaultNJHBuild("seqserver", version)
+        
+        
+    def mipwrangler(self, version):
+        self.__defaultNJHBuild("mipwrangler", version)
+            
     def elucidator(self, version):
-        self.__defaultBibBuild("elucidator", version)
+        self.__defaultNJHBuild("elucidator", version)
+    
+    def elucidatorlab(self, version):
+        self.__defaultNJHBuild("elucidatorlab", version)
         
     def bhtsne(self, version):
-        self.__defaultBibBuild("bhtsne", version)   
+        self.__defaultNJHBuild("bhtsne", version)   
          
     def MIPWrangler(self, version):
-        self.__defaultBibBuild("mipwrangler", version)
+        self.__defaultNJHBuild("mipwrangler", version)
         
     def njhRInside(self, version):
-        self.__defaultBibBuild("njhrinside", version)
+        self.__defaultNJHBuild("njhrinside", version)
         
     def cppprogutils(self, version):
-        self.__defaultBibBuild("cppprogutils", version)
+        self.__defaultNJHBuild("cppprogutils", version)
     
     def jsoncpp(self, version):
         self.__defaultBuild("jsoncpp", version)
@@ -2415,7 +2447,7 @@ class Setup:
             packVer = pack.versions_[setUpNeeded.version]
             downloadDir = os.path.join(self.dirMaster_.ext_tars, pack.name_)
             Utils.mkdir(downloadDir)
-            if pack.bibProject_:
+            if pack.njhProject_:
                 downloadCmd = "./configure.py -CC {CC} -CXX {CXX} -externalLibDir {external} && ./setup.py --compfile compfile.mk --justDownload".format(external = Utils.shellquote(self.dirMaster_.base_dir), num_cores=self.num_cores(), CC=self.CC, CXX=self.CXX)
                 Utils.mkdir(topTempDir)
                 packVer = pack.versions_[setUpNeeded.version]
@@ -2429,7 +2461,7 @@ class Setup:
                     archiveCmd = "git archive --prefix={name}/ -o {downloadDir}/{version}.tar.gz HEAD".format(name = pack.name_, downloadDir = downloadDir, version = setUpNeeded.version)
                     Utils.run_in_dir(archiveCmd, tempDir)
                 shutil.rmtree(tempDir)
-            if pack.bibProject_ and ("develop" == setUpNeeded.version or "master" == setUpNeeded.version or "release" in setUpNeeded.version):
+            if pack.njhProject_ and ("develop" == setUpNeeded.version or "master" == setUpNeeded.version or "release" in setUpNeeded.version):
                 pass
             else:
                 url = packVer.getDownloadUrl()
@@ -2512,7 +2544,7 @@ class SetupRunner:
         parser.add_argument('--printLibs', action = "store_true", help="Print Available Libs")
         parser.add_argument('--printGitRefs', action = "store_true", help="Print Git branhes and tags for git projects")
         parser.add_argument('--forceUpdate', action = "store_true", help="Remove already installed libs and re-install")
-        parser.add_argument('--updateBibProjects', type = str, help="Remove already installed libs and re-install")
+        parser.add_argument('--updateNJHProjects', type = str, help="Remove already installed libs and re-install")
         parser.add_argument('--CC', type=str, nargs=1)
         parser.add_argument('--CXX', type=str, nargs=1)
         parser.add_argument('--instRPackageName',type=str, nargs=1)
@@ -2559,8 +2591,8 @@ class SetupRunner:
             s.setupPackages("r")
             s.installRPackageSource( s.packages_.packages_["r"].defaultVersion_, args.instRPackageSource[0])
             return 0
-        if args.updateBibProjects:
-            s.updateBibProjects(args.updateBibProjects)
+        if args.updateNJHProjects:
+            s.updateNJHProjects(args.updateNJHProjects)
             return 0
         
         if args.clean:

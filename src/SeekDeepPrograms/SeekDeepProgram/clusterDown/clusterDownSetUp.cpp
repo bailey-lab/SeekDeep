@@ -27,9 +27,9 @@
 //
 //
 #include "SeekDeepPrograms/SeekDeepProgram/SeekDeepSetUp.hpp"
-#include <bibcpp/bashUtils.h>
+#include <njhcpp/bashUtils.h>
 
-namespace bibseq {
+namespace njhseq {
 
 void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 	// input file info
@@ -43,7 +43,7 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 				"in a parameters file" << std::endl;
 		tempOut << "Commands, order not necessary and case insensitive"
 				<< std::endl;
-		tempOut << bib::bashCT::bold << "Required commands" << bib::bashCT::reset
+		tempOut << njh::bashCT::bold << "Required commands" << njh::bashCT::reset
 				<< std::endl;
 		// std::cout << cleanOut(tempOut.str(), width_, indent_);
 		// tempOut.str(std::string());
@@ -95,7 +95,7 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 		tempOut
 				<< "Here, four iteration where clusters were clustered at first .99 percent identity and then .98"
 				<< std::endl;
-		tempOut << bib::bashCT::bold << "Optional commands" << bib::bashCT::reset
+		tempOut << njh::bashCT::bold << "Optional commands" << njh::bashCT::reset
 				<< std::endl;
 		tempOut << "--dout [option]: Name of an output directory, will default "
 				"to the stub name plus the date" << std::endl;
@@ -114,24 +114,24 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 				"a homopolymer run and set all the quality to this average, "
 				"mainly used with Ion Torrent reads due to the very low "
 				"quality of the last base in a long homopolymer run" << std::endl;
-		tempOut << bib::bashCT::bold << "Additional Processing options"
-				<< bib::bashCT::reset << std::endl;
+		tempOut << njh::bashCT::bold << "Additional Processing options"
+				<< njh::bashCT::reset << std::endl;
 		tempOut << "--markChimeras : Have the program mark possible chimeras "
 				"before outputting" << std::endl;
 		tempOut << "--parFreqs [option] : The minimum frequency multiplier "
 				"reads must have in order to be considered to be a possible "
 				"parent of a chimera or for sequences to be collapsed on gaps "
 				"in tandem repeats, defaults to 2" << std::endl;
-		tempOut << bib::bashCT::bold << "Technology Specific flags"
-				<< bib::bashCT::reset << std::endl;
+		tempOut << njh::bashCT::bold << "Technology Specific flags"
+				<< njh::bashCT::reset << std::endl;
 		tempOut
 				<< "--useCompPerCutOff: This turns on filtering off clustering that have reads that only come from one direction, only should be used if reads were extracted in both direction like in ion torrent"
 				<< std::endl;
 		tempOut
 				<< "--ionTorrent : This turns on several of the previously mentioned flags as they are beneficial for ion torrent data, turns on --qualTrim,--adjustHomopolyerRuns, and --useCompPerCutOff"
 				<< std::endl;
-		tempOut << bib::bashCT::bold << "Percent Identity Falgs"
-				<< bib::bashCT::reset << std::endl;
+		tempOut << njh::bashCT::bold << "Percent Identity Falgs"
+				<< njh::bashCT::reset << std::endl;
 		tempOut
 				<< "--onPerId: cluster on percent identity rather than specific errors"
 				<< std::endl;
@@ -148,7 +148,7 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 						"--qualThres 25,20" << std::endl;
 		std::cout << cleanOut(tempOut.str(), width_, indent_);
 		tempOut.str(std::string());
-		tempOut << bib::bashCT::bold << "Output Files:" << bib::bashCT::reset
+		tempOut << njh::bashCT::bold << "Output Files:" << njh::bashCT::reset
 				<< std::endl;
 		tempOut
 				<< "outputDirectory/output.fastq: This is the final clusters with their consensus sequence, the sequences are named so that the suffix _t[NUM] where NUM is the number of reads that fell into that cluster"
@@ -371,5 +371,5 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 	finishSetUp(std::cout);
 }
 
-}   // namespace bibseq
+}   // namespace njhseq
 

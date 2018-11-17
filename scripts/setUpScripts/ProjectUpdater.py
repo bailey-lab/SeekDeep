@@ -19,7 +19,7 @@ class ProjectUpdater():
         self.projectDir = os.path.abspath(projectDir)
         self.setupFrom = os.path.abspath(setupFrom)
     
-    def remakeBibseqProject(self, subProjectDir):
+    def remakeNJHseqProject(self, subProjectDir):
         makeCmd = ""
         cmd =   """
                 if [ -f .git ]; then git pull; fi
@@ -34,7 +34,7 @@ class ProjectUpdater():
         cmd = " ".join(cmd.split())
         Utils.run_in_dir(cmd, subProjectDir)
     
-    def remakeBibseqProjects(self, dirs):
+    def remakeNJHseqProjects(self, dirs):
         """
             Remake dirs in the project directory
         """
@@ -45,7 +45,7 @@ class ProjectUpdater():
             dir = os.path.join(self.projectDir, dir)
             if os.path.exists(dir):
                 try:
-                    self.remakeBibseqProject(dir)
+                    self.remakeNJHseqProject(dir)
                     installed.append(dir)
                 except Exception as inst:
                     print(inst)

@@ -26,17 +26,19 @@
 // You should have received a copy of the GNU General Public License
 // along with SeekDeep.  If not, see <http://www.gnu.org/licenses/>.
 //
-#include <bibseq.h>
+#include <njhseq.h>
 
 #include "SeekDeep/objects/PairedReadProcessor.hpp"
 
-namespace bibseq {
+namespace njhseq {
 
 class PrimersAndMids {
 public:
 
 	struct InitPars{
-
+		InitPars(){
+			mPars_.allowableErrors_ = 1;
+		}
 		bfs::path idFile_;
 
 		bfs::path lenCutOffFilename_ = "";
@@ -45,8 +47,7 @@ public:
 	  uint32_t compKmerLen_ = 5;
 	  double compKmerSimCutOff_ = 0.50;
 
-	  uint32_t barcodeErrors_ = 0;
-	  bool midEndsRevComp_ = false;
+	  MidDeterminator::MidDeterminePars mPars_;
 
 	  bfs::path overlapStatusFnp_ = "";
 	  bool noOverlapProcessForNoOverlapStatusTargets_ = false;
@@ -67,7 +68,7 @@ public:
 		std::vector<seqInfo> refs_;
 		std::vector<kmerInfo> refKInfos_;
 
-		std::unique_ptr<lenCutOffs> lenCuts_;
+		std::shared_ptr<lenCutOffs> lenCuts_;
 
 		void addLenCutOff(uint32_t minLen, uint32_t maxLen, bool mark = true);
 
@@ -81,20 +82,22 @@ public:
 	};
 
 	PrimersAndMids(const bfs::path & idFileFnp);
+	PrimersAndMids(const std::unordered_map<std::string, Target> & targets);
+
 
 	void checkIfMIdsOrPrimersReadInThrow(const std::string & funcName) const;
 
 	const bfs::path idFile_;
 
 	std::unordered_map<std::string, Target> targets_;
-	std::unordered_map<std::string, MidDeterminator::MidInfo> mids_;
+	std::unordered_map<std::string, MidDeterminator::MID> mids_;
 
 	std::unique_ptr<MidDeterminator> mDeterminator_;
 	std::unique_ptr<PrimerDeterminator> pDeterminator_;
 
 	void initAllAddLenCutsRefs(const InitPars & pars);
 
-	void initMidDeterminator();
+	void initMidDeterminator(const MidDeterminator::MidDeterminePars & midSearchPars);
 	void initPrimerDeterminator();
 
 	bool hasTarget(const std::string & target) const;
@@ -108,6 +111,7 @@ public:
 			const std::string & revPrimer);
 
 	void addMid(const std::string & midNmae, const std::string & barcode);
+	void addMid(const std::string & midNmae, const std::string & forBarcode, const std::string & revBarcode);
 
 	bool hasMultipleTargets() const;
 
@@ -138,5 +142,5 @@ public:
 
 };
 
-}  // namespace bibseq
+}  // namespace njhseq
 

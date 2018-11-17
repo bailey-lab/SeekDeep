@@ -22,9 +22,9 @@
 //
 //
 #include "SeekDeepPrograms/SeekDeepProgram/SeekDeepSetUp.hpp"
-#include <bibcpp/bashUtils.h>
+#include <njhcpp/bashUtils.h>
 
-namespace bibseq {
+namespace njhseq {
 
 void SeekDeepSetUp::setUpMakeSampleDirectories(
 		makeSampleDirectoriesPars & pars) {
@@ -83,14 +83,14 @@ void SeekDeepSetUp::setUpMakeSampleDirectories(
 			"If the directory already exists over write it");
 	if (!failed_) {
 		std::string newDirectoryName = "./"
-				+ bib::replaceString(bib::replaceString(pars_.directoryName_, "./", ""), "TODAY",
+				+ njh::replaceString(njh::replaceString(pars_.directoryName_, "./", ""), "TODAY",
 						getCurrentDate()) + "/";
-		pars_.directoryName_ = bib::files::makeDir("./",
-				bib::files::MkdirPar(bib::replaceString(pars_.directoryName_, "./", ""),
+		pars_.directoryName_ = njh::files::makeDir("./",
+				njh::files::MkdirPar(njh::replaceString(pars_.directoryName_, "./", ""),
 						pars_.overWriteDir_)).string();
 	}
 	finishSetUp(std::cout);
 }
 
-}  // namespace bibseq
+}  // namespace njhseq
 

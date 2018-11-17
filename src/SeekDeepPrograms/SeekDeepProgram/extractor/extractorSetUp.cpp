@@ -26,9 +26,9 @@
 // along with SeekDeep.  If not, see <http://www.gnu.org/licenses/>.
 //
 #include "SeekDeepPrograms/SeekDeepProgram/SeekDeepSetUp.hpp"
-#include <bibcpp/bashUtils.h>
+#include <njhcpp/bashUtils.h>
 
-namespace bibseq {
+namespace njhseq {
 
 
 void SeekDeepSetUp::setUpExtractorPairedEnd(ExtractorPairedEndPars & pars) {
@@ -62,9 +62,9 @@ void SeekDeepSetUp::setUpExtractorPairedEnd(ExtractorPairedEndPars & pars) {
 			"The minimal amount of over lap in pair processing", false, "Post-Processing-PairProcessing");
 	setOption(pars.pairProcessorParams_.writeOverHangs_, "--writeOverHangs",
 			"Write out the overhang for sequences that have read through", false, "Post-Processing-PairProcessing");
-	setOption(pars.r1Trim_, "--r1Trim",
+	setOption(pars.pairProcessorParams_.r1Trim_, "--r1Trim",
 			"Remove this many sequences off of the end of r1 reads", false, "Post Processing");
-	setOption(pars.r2Trim_, "--r2Trim",
+	setOption(pars.pairProcessorParams_.r2Trim_, "--r2Trim",
 			"Remove this many sequences off of the end of r2 reads", false, "Post Processing");
 	setOption(pars.corePars_.primIdsPars.overlapStatusFnp_, "--overlapStatusFnp",
 			"A file with two columns, target,status; status column should contain 1 of 3 values (capitalization doesn't matter): r1BegOverR2End,r1EndOverR2Beg,NoOverlap. r1BegOverR2End=target size < read length (causes read through),r1EndOverR2Beg= target size > read length less than 2 x read length, NoOverlap=target size > 2 x read length", true, "Post Processing");
@@ -98,7 +98,7 @@ void SeekDeepSetUp::setUpExtractorPairedEnd(ExtractorPairedEndPars & pars) {
 		std::cout << "\tid	barcode" << std::endl;
 		std::cout << "\tMID01\t	ACGAGTGCGT" << std::endl;
 		std::cout << "\tMID02	\tACGCTCGACA" << std::endl;
-		std::cout << bib::bashCT::bold << "Output Files:" << bib::bashCT::reset
+		std::cout << njh::bashCT::bold << "Output Files:" << njh::bashCT::reset
 				<< std::endl;
 		std::cout
 				<< "extractionProfile.tab.txt: This breaks down the filtering per final extraction sequence file"
@@ -129,8 +129,41 @@ void SeekDeepSetUp::setUpExtractor(extractorPars & pars) {
 
 	processVerbose();
 	processDebug();
+	setOption(pars.illumina, "--illumina", "If input reads are from Illumina",false, "Technology");
+	if(pars.illumina){
+		pars.corePars_.qPars_.checkingQFrac_ = true;
+
+		pars.corePars_.pDetPars.allowable_.hqMismatches_ = 2;
+		pars.corePars_.pDetPars.allowable_.lqMismatches_ = 5;
+		pars.corePars_.pDetPars.allowable_.distances_.query_.coverage_ = 1;
+		pars.corePars_.pDetPars.allowable_.largeBaseIndel_ = 0.99;
+		pars.corePars_.pDetPars.allowable_.oneBaseIndel_ = 0.5;
+		pars.corePars_.pDetPars.allowable_.twoBaseIndel_ = 0.5;
+
+	}
+
 	//core
 	pars.corePars_.setCorePars(*this);
+	setOption(pars.corePars_.noReversePrimer_, "--noReversePrimer", "Don't check for reverse primer");
+
+	//copy over the regular determined primers to the back end primers
+	pars.corePars_.backEndpDetPars.primerWithin_ = pars.corePars_.pDetPars.primerWithin_;
+	pars.corePars_.backEndpDetPars.primerToLowerCase_ = pars.corePars_.pDetPars.primerToLowerCase_ ;
+
+	pars.corePars_.backEndpDetPars.allowable_.hqMismatches_ = pars.corePars_.pDetPars.allowable_.hqMismatches_;
+	pars.corePars_.backEndpDetPars.allowable_.lqMismatches_ = pars.corePars_.pDetPars.allowable_.lqMismatches_;
+	pars.corePars_.backEndpDetPars.allowable_.distances_.query_.coverage_ = pars.corePars_.pDetPars.allowable_.distances_.query_.coverage_;
+	pars.corePars_.backEndpDetPars.allowable_.largeBaseIndel_ = pars.corePars_.pDetPars.allowable_.largeBaseIndel_;
+	pars.corePars_.backEndpDetPars.allowable_.oneBaseIndel_ = pars.corePars_.pDetPars.allowable_.oneBaseIndel_;
+	pars.corePars_.backEndpDetPars.allowable_.twoBaseIndel_ = pars.corePars_.pDetPars.allowable_.twoBaseIndel_;
+	setOption(pars.corePars_.pDetPars.primerWithin_, "--frontEndPrimerWithinStart",
+			"By default the primer or barcodes are searched at the very beginning of seq, use this flag to extended the search, should be kept low to cut down on false positives, this is for the front primer",
+			false, "Primers");
+	setOption(pars.corePars_.backEndpDetPars.primerWithin_, "--backEndPrimerWithinStart",
+			"By default the primer or barcodes are searched at the very beginning of seq, use this flag to extended the search, should be kept low to cut down on false positives, this is for the back primer",
+			false, "Primers");
+
+
 
 	//fPrimerErrors.largeBaseIndel_ = .99;
 //	setOption(pars.noReversePrimer, "--noReverse",
@@ -152,11 +185,7 @@ void SeekDeepSetUp::setUpExtractor(extractorPars & pars) {
 
 	processAlnInfoInput();
 
-	setOption(pars.illumina, "--illumina", "If input reads are from Illumina",false, "Technology");
-	if(pars.illumina){
-		pars.corePars_.qPars_.checkingQFrac_= true;
-		/**@todo fiddle with primer check errors allowed*/
-	}
+
 	processReadInNames(VecStr{"--fasta", "--fastagz", "--fastq", "--fastqgz"},true);
 	bool mustMakeDirectory = true;
 	processDirectoryOutputName(mustMakeDirectory);
@@ -177,6 +206,7 @@ void SeekDeepSetUp::setUpExtractor(extractorPars & pars) {
 	setOption(pars.qualWindowTrim, "--qualWindowTrim", "Trim To Qual Window", false, "Post Processing");
 	pars.trimAtQual = setOption(pars.trimAtQualCutOff, "--trimAtQual", "Trim Reads at first occurrence of quality score", false, "Post Processing");
 
+	setOption(pars.trimToMaxLength, "--trimToMaxLength", "Trim sequences to max expected length to improve primer determination for mixed target datasets");
 	pars_.gapInfo_.gapOpen_ = 5;
 	pars_.gapInfo_.gapExtend_ = 1;
 	pars_.gap_ = "5,1";
@@ -218,7 +248,7 @@ void SeekDeepSetUp::setUpExtractor(extractorPars & pars) {
 		std::cout << "\tid	barcode" << std::endl;
 		std::cout << "\tMID01\t	ACGAGTGCGT" << std::endl;
 		std::cout << "\tMID02	\tACGCTCGACA" << std::endl;
-		std::cout << bib::bashCT::bold << "Output Files:" << bib::bashCT::reset
+		std::cout << njh::bashCT::bold << "Output Files:" << njh::bashCT::reset
 				<< std::endl;
 		std::cout
 				<< "extractionProfile.tab.txt: This breaks down the filtering per final extraction sequence file"
@@ -237,6 +267,6 @@ void SeekDeepSetUp::setUpExtractor(extractorPars & pars) {
 	finishSetUp(std::cout);
 }
 
-}  // namespace bibseq
+}  // namespace njhseq
 
 

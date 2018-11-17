@@ -27,10 +27,10 @@
 //
 
 
-#include <bibseq.h>
+#include <njhseq.h>
 
 
-namespace bibseq {
+namespace njhseq {
 
 
 
@@ -47,4 +47,4 @@ public:
 };
 
 
-}  // namespace bibseq
+}  // namespace njhseq

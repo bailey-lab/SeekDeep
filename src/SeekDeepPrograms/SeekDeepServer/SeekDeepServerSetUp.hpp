@@ -26,16 +26,16 @@
 // along with SeekDeep.  If not, see <http://www.gnu.org/licenses/>.
 //
 //
-#include <bibseq.h>
-#include <bibseq/programUtils/seqSetUp.hpp>
-#include <bibcpp.h>
-namespace bibseq {
+#include <njhseq.h>
+#include <njhseq/programUtils/seqSetUp.hpp>
+#include <njhcpp.h>
+namespace njhseq {
 
 class SeekDeepServerSetUp : public seqSetUp {
 
  public:
     using seqSetUp::seqSetUp;
 };
-} // namespace bibseq
+} // namespace njhseq
 
 

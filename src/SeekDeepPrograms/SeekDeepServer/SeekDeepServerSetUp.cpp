@@ -26,6 +26,6 @@
 #include "../SeekDeepServer/SeekDeepServerSetUp.hpp"
     
     
-namespace bibseq {
+namespace njhseq {
 
-} // namespace bibseq
+} // namespace njhseq

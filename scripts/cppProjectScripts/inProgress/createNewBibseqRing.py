@@ -58,26 +58,26 @@ def main():
     with open(os.path.join(name,name + "SetUp.hpp"), "w") as f:
         defaultHeader = startHeader(name + "SetUp.hpp", args.author)
         defaultHeader += """
-#include <bibseq.h>
-#include <bibseq/programUtils/seqSetUp.hpp>
-#include <bibcpp.h>
-namespace bibseq {{
+#include <njhseq.h>
+#include <njhseq/programUtils/seqSetUp.hpp>
+#include <njhcpp.h>
+namespace njhseq {{
 
 class {name}SetUp : public seqSetUp {{
 
  public:
     using seqSetUp::seqSetUp;
 }};
-}} // namespace bibseq
+}} // namespace njhseq
 """.format(name =name)
         f.write(defaultHeader)
     #create setUp cpp
     with open(os.path.join(name,name + "SetUp.cpp"), "w") as f:
         infoHeader = startCpp(name + "SetUp", args.author)
         infoHeader +="""
-namespace bibseq {
+namespace njhseq {
 
-} // namespace bibseq
+} // namespace njhseq
 """
         f.write(infoHeader)
     #create runner header
@@ -86,26 +86,26 @@ namespace bibseq {
         infoHeader +="""
 #include "{name}SetUp.hpp"
 
-namespace bibseq {{
+namespace njhseq {{
 
-class {name}Runner : public bib::progutils::programRunner {{
+class {name}Runner : public njh::progutils::programRunner {{
  public:
   {name}Runner();
   
   static int placeHolder(MapStrStr inputCommands);
 
 }};
-}} // namespace bibseq
+}} // namespace njhseq
 """.format(name = name)
         f.write(infoHeader)
     #create runner cpp
     with open(os.path.join(name,name + "Runner.cpp"), "w") as f:
         infoHeader = startCpp(name + "Runner", args.author)
         infoHeader +="""
-namespace bibseq {{
+namespace njhseq {{
 
 {name}Runner::{name}Runner()
-    : bib::progutils::programRunner({{addFunc("placeHolder", placeHolder, false)}},
+    : njh::progutils::programRunner({{addFunc("placeHolder", placeHolder, false)}},
                     "{name}") {{}}
                     
 int {name}Runner::placeHolder(MapStrStr inputCommands) {{
@@ -114,7 +114,7 @@ int {name}Runner::placeHolder(MapStrStr inputCommands) {{
   return 0;
 }}
                     
-}} // namespace bibseq
+}} // namespace njhseq
 """.format(name = name)
         f.write(infoHeader)
     

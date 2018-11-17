@@ -25,8 +25,8 @@
 // You should have received a copy of the GNU General Public License
 // along with SeekDeep.  If not, see <http://www.gnu.org/licenses/>.
 //
-#include <bibseq.h>
-namespace bibseq {
+#include <njhseq.h>
+namespace njhseq {
 
 class PairedReadProcessor{
 public:
@@ -42,6 +42,9 @@ public:
 		NOOVERLAP,
 		R1BEGINSINR2,
 		R1ENDSINR2,
+		R1ALLINR2,
+		R2ALLINR1,
+		PERFECTOVERLAP,
 		NONE
 	};
 
@@ -50,11 +53,40 @@ public:
 			case ReadPairOverLapStatus::NOOVERLAP:
 				return "NOOVERLAP";
 				break;
+			case ReadPairOverLapStatus::PERFECTOVERLAP:
+				return "PERFECTOVERLAP";
+				break;
 			case ReadPairOverLapStatus::R1BEGINSINR2:
 				return "R1BEGINSINR2";
 				break;
 			case ReadPairOverLapStatus::R1ENDSINR2:
 				return "R1ENDSINR2";
+				break;
+			case ReadPairOverLapStatus::R1ALLINR2:
+				return "R1ALLINR2";
+				break;
+			case ReadPairOverLapStatus::R2ALLINR1:
+				return "R2ALLINR1";
+				break;
+			default:
+				return "NOTHANDLED";//shouldn't be getting here
+				break;
+		}
+	}
+
+	static std::string getAlignOverlapEndStr(const AlignOverlapEnd  status){
+		switch (status) {
+			case AlignOverlapEnd::NOOVERHANG:
+				return "NOOVERHANG";
+				break;
+			case AlignOverlapEnd::R1OVERHANG:
+				return "R1OVERHANG";
+				break;
+			case AlignOverlapEnd::R2OVERHANG:
+				return "R2OVERHANG";
+				break;
+			case AlignOverlapEnd::UNHANDLEED:
+				return "UNHANDLEED";
 				break;
 			default:
 				return "NOTHANDLED";//shouldn't be getting here
@@ -90,6 +122,8 @@ public:
 		std::unique_ptr<SeqOutput> perfectOverlapCombinedWriter;//(perfectOverlapCombinedOpts);
 		std::unique_ptr<SeqOutput> r1EndsInR2CombinedWriter;//(r1EndsInR2CombinedOpts);
 		std::unique_ptr<SeqOutput> r1BeginsInR2CombinedWriter;//(r1BeginsInR2CombinedOpts);
+		std::unique_ptr<SeqOutput> r1AllInR2CombinedWriter;//();
+		std::unique_ptr<SeqOutput> r2AllInR1CombinedWriter;//();
 		std::unique_ptr<SeqOutput> notCombinedWriter;//(notCombinedOpts);
 		std::unique_ptr<SeqOutput> overhangsWriter;//(overhangsOpts);
 
@@ -98,17 +132,21 @@ public:
 
 	};
 
-	struct ProcessedResults {
+	struct ProcessedResultsCounts {
 		uint32_t overlapFail = 0;
 		uint32_t overhangFail = 0;
 		uint32_t perfectOverlapCombined = 0;
 		uint32_t r1EndsInR2Combined = 0;
 		uint32_t r1BeginsInR2Combined = 0;
+		uint32_t r1AllInR2Combined = 0;
+		uint32_t r2AllInR1Combined = 0;
 		uint32_t total = 0;
 
 		std::shared_ptr<SeqIOOptions> perfectOverlapCombinedOpts;
 		std::shared_ptr<SeqIOOptions> r1EndsInR2CombinedOpts;
 		std::shared_ptr<SeqIOOptions> r1BeginsInR2CombinedOpts;
+		std::shared_ptr<SeqIOOptions> r1AllInR2CombinedOpts;
+		std::shared_ptr<SeqIOOptions> r2AllInR1CombinedOpts;
 		std::shared_ptr<SeqIOOptions> notCombinedOpts;
 		std::shared_ptr<SeqIOOptions> overhangsOpts;
 
@@ -119,22 +157,34 @@ public:
 	std::function<void(uint32_t, const seqInfo&,const seqInfo&,std::string&,std::vector<uint32_t>&,aligner&)> addToConsensus;
 
 
-	ProcessedResults processPairedEnd(
+	ProcessedResultsCounts processPairedEnd(
 			SeqInput & reader,
 			ProcessorOutWriters & writers,
 			aligner & alignerObj);
+
+	struct ProcessedPairRes{
+		std::shared_ptr<seqInfo> combinedSeq_;
+		std::shared_ptr<seqInfo> r1Overhang_;
+		std::shared_ptr<seqInfo> r2Overhang_;
+		ReadPairOverLapStatus status_ {ReadPairOverLapStatus::NONE};
+	};
+
+	ProcessedPairRes processPairedEnd(
+			PairedRead & seq,
+			ProcessedResultsCounts & counts,
+			aligner & alignerObj) const;
 
 	bool processPairedEnd(
 			SeqInput & reader,
 			PairedRead & seq,
 			ProcessorOutWriters & writers,
 			aligner & alignerObj,
-			ProcessedResults & res);
+			ProcessedResultsCounts & res);
 
 };
 
 
-}  // namespace bibseq
+}  // namespace njhseq
 
 
 

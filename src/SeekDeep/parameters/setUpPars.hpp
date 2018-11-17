@@ -26,11 +26,11 @@
 // You should have received a copy of the GNU General Public License
 // along with SeekDeep.  If not, see <http://www.gnu.org/licenses/>.
 //
-#include <bibseq.h>
+#include <njhseq.h>
 #include "SeekDeep/objects/PairedReadProcessor.hpp"
 #include "SeekDeep/objects/PrimersAndMids.hpp"
 
-namespace bibseq {
+namespace njhseq {
 
 struct CoreExtractorPars{
 	std::string idFileDelim = "whitespace";
@@ -42,9 +42,13 @@ struct CoreExtractorPars{
   uint32_t numberOfNs = 1;
 
 
-  MidDeterminator::MidDeterminePars mDetPars;
+
   PrimerDeterminator::PrimerDeterminatorPars pDetPars;
+  PrimerDeterminator::PrimerDeterminatorPars backEndpDetPars;
+
   bool noPrimers_{false};
+  bool noReversePrimer_{false};
+
   PrimersAndMids::InitPars primIdsPars;
 
   std::string sampleName = "";
@@ -76,6 +80,8 @@ struct extractorPars{
 	bool trimAtQual = false;
 	bool qualWindowTrim = false;
 
+	bool trimToMaxLength = false;
+
 };
 
 
@@ -86,8 +92,7 @@ struct ExtractorPairedEndPars{
 	CoreExtractorPars corePars_;
 
 
-  uint32_t r1Trim_ = 1;
-  uint32_t r2Trim_ = 1;
+
 
   PairedReadProcessor::ProcessParams pairProcessorParams_;
 
@@ -149,7 +154,6 @@ struct processClustersPars {
   std::string parameters = "";
   std::string binParameters = "";
 
-  uint32_t clusterCutOff = 1;
   bool extra = false;
   double fracCutoff = 0.005;
   uint32_t runsRequired = 0;
@@ -191,7 +195,7 @@ struct processClustersPars {
 	uint32_t hqMismatches = 0;
 	uint32_t stopAfter = 100;
 
-	uint32_t sampleMinTotalReadCutOff = 0;
+	collapse::SampleCollapseCollection::PreFilteringCutOffs preFiltCutOffs;
 
 };
 
@@ -202,7 +206,7 @@ struct makeSampleDirectoriesPars{
 };
 
 
-}  // namespace bibseq
+}  // namespace njhseq
 
 
 

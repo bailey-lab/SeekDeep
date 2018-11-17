@@ -28,7 +28,7 @@
 #include "ReadPairsOrganizer.hpp"
 
 
-namespace bibseq {
+namespace njhseq {
 
 ReadPairsOrganizer::ReadPairsOrganizer(const VecStr & expectedSamples) :
 		expectedSamples_(expectedSamples) {
@@ -58,8 +58,8 @@ void ReadPairsOrganizer::processFiles(const std::map<bfs::path, bool> & files) {
 		}
 		std::string sampName = filename.substr(0, underPos);
 
-		if (bib::in(sampName, expectedSamples_)
-				|| bib::in("MID" + sampName, expectedSamples_)) {
+		if (njh::in(sampName, expectedSamples_)
+				|| njh::in("MID" + sampName, expectedSamples_)) {
 			readPairs_[sampName].emplace_back(f.first.string());
 		} else {
 			readPairsUnrecognized_[sampName].emplace_back(f.first.string());
@@ -121,14 +121,14 @@ std::unordered_map<std::string, std::pair<VecStr, VecStr>> ReadPairsOrganizer::p
 		if(reads.second.first.size() != reads.second.second.size()){
 			std::stringstream ss;
 			ss << __PRETTY_FUNCTION__ << ": Error, read paired file numbers for " << reads.first << " don't match up \n";
-			ss << "R1 file number: " << reads.second.first.size() << ", files: " << bib::conToStr(reads.second.first, ", ") << "\n";
-			ss << "R2 file number: " << reads.second.second.size() << ", files: " << bib::conToStr(reads.second.second, ", ") << "\n";
+			ss << "R1 file number: " << reads.second.first.size() << ", files: " << njh::conToStr(reads.second.first, ", ") << "\n";
+			ss << "R2 file number: " << reads.second.second.size() << ", files: " << njh::conToStr(reads.second.second, ", ") << "\n";
 			throw std::runtime_error{ss.str()};
 		}
 		std::vector<size_t> needToErrase;
 		//sort
-		bib::sort(reads.second.first);
-		bib::sort(reads.second.second);
+		njh::sort(reads.second.first);
+		njh::sort(reads.second.second);
 		for(const auto pos : iter::range(reads.second.first.size())){
 
 			auto lastUnderPos1 = reads.second.first[pos].rfind("_");
@@ -188,4 +188,4 @@ std::unordered_map<std::string, std::pair<VecStr, VecStr>> ReadPairsOrganizer::p
 }
 
 
-}  // namespace bibseq
+}  // namespace njhseq
