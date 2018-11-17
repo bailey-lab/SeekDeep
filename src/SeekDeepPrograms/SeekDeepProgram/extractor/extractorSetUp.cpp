@@ -52,7 +52,7 @@ void SeekDeepSetUp::setUpExtractorPairedEnd(ExtractorPairedEndPars & pars) {
 
 	//paired end specific stuff
 	pars.pairProcessorParams_.verbose_ = pars_.verbose_;
-	setOption(pars.corePars_.primIdsPars.noOverlapProcessForNoOverlapStatusTargets_, "--noOverlapProcessForNoOverlapStatusTargets_", "noOverlapProcessForNoOverlapStatusTargets",
+	setOption(pars.corePars_.primIdsPars.noOverlapProcessForNoOverlapStatusTargets_, "--noOverlapProcessForNoOverlapStatusTargets,--noOverlapProcessForNoOverlapStatusTargets_", "By default, indicating NoOverlap in overlap status file assumes anything that does overlap isn't wanted, even just simple de-multiplexing is wanted without stitching you use this flag to skip this",
 			false, "Post-Processing-PairProcessing");
 	setOption(pars.pairProcessorParams_.errorAllowed_, "--overLapErrorAllowed",
 			"The amount of error to allow in the overlap processing", false, "Post-Processing-PairProcessing");
