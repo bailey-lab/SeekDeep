@@ -46,7 +46,7 @@ make
 
 # Bash Completion  
 
-SeekDeep tends to have long flags so that they don't use their meaning but it's somewhat annoying to type them out so bash completion has been added.  Put the content of the file at bashCompletion/SeekDeep into a file ~/.bash_completion and it will be source on your next login or use the bellow command while in the SeekDeep directory  
+SeekDeep tends to have long flags so that they can be clear what they do but it's somewhat annoying to type them out so bash completion has been added.  Put the content of the file at bashCompletion/SeekDeep into a file ~/.bash_completion and it will be source on your next login or use the bellow command while in the SeekDeep directory  
 
 ```bash
 ./setup.py --addBashCompletion  
