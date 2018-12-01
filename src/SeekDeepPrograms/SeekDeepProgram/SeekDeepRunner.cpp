@@ -43,7 +43,7 @@ SeekDeepRunner::SeekDeepRunner() :
 						addFunc("qluster", qluster, false),
 						addFunc("clusterDown",qluster, true),
 						addFunc("makeSampleDirectories", makeSampleDirectories, false)
-				}, "SeekDeep", "2", "6", "2") {
+				}, "SeekDeep", "2", "6", "3-dev") {
 }
 
 //
