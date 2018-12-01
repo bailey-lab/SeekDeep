@@ -2021,8 +2021,7 @@ class Setup:
                     print("failed to pull from {url} with {cmd}".format(url=bPath.url, cmd = pCmd))
                     sys.exit(1)
             else:
-                print("cloning from {url}".format(url=bPath.url))
-                cCmd = "git clone -b " + packVer.nameVer_.version.replace("__", "/") + " {url} {d} && if [ -f .gitmodules ]; then git submodule init && git submodule update; fi ".format(url=bPath.url, d=bPath.build_sub_dir)
+                cCmd = "git clone -b " + packVer.nameVer_.version.replace("__", "/") + " {url} {d} ".format(url=bPath.url, d=bPath.build_sub_dir)
                 submoduleCmd = "if [ -f .gitmodules ]; then git submodule init && git submodule update; fi"
                 try:
                     Utils.run(cCmd)
@@ -2053,7 +2052,6 @@ class Setup:
                     print("failed to pull from {url}".format(url=bPath.url))
                     sys.exit(1)
             else:
-                print("cloning from {url}".format(url=bPath.url))
                 cCmd = "git clone {url} {d}".format(url=bPath.url, d=bPath.build_sub_dir)
                 tagCmd = "git checkout {tag} && if [ -f .gitmodules ]; then git submodule init && git submodule update; fi ".format(tag=packVer.nameVer_.version)
                 try:
@@ -2086,7 +2084,6 @@ class Setup:
             untaredDir = os.listdir(os.path.dirname(bPath.local_dir))[0]
             os.rename(os.path.join(os.path.dirname(bPath.local_dir), untaredDir), bPath.local_dir)
         else:
-            print("cloning from {url}".format(url=bPath.url))
             cCmd = "git clone -b {branch} {url} {d}".format(branch = packVer.nameVer_.version.replace("__", "/"),url=bPath.url, d=bPath.local_dir)
             submoduleCmd = "if [ -f .gitmodules ]; then git submodule init && git submodule update; fi"
             try:
@@ -2307,7 +2304,6 @@ class Setup:
         
     def seqserver(self, version):
         self.__defaultNJHBuild("seqserver", version)
-        
         
     def mipwrangler(self, version):
         self.__defaultNJHBuild("mipwrangler", version)
