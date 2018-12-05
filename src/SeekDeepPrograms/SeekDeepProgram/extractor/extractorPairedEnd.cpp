@@ -31,9 +31,9 @@ namespace njhseq {
 int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputCommands) {
 	SeekDeepSetUp setUp(inputCommands);
 	ExtractorPairedEndPars pars;
-	std::cout << "pars.corePars_.sampleName: " << pars.corePars_.sampleName << std::endl;
+	//std::cout << "pars.corePars_.sampleName: " << pars.corePars_.sampleName << std::endl;
 	setUp.setUpExtractorPairedEnd(pars);
-	std::cout << "pars.corePars_.sampleName: " << pars.corePars_.sampleName << std::endl;
+	//std::cout << "pars.corePars_.sampleName: " << pars.corePars_.sampleName << std::endl;
 	// run log
 	setUp.startARunLog(setUp.pars_.directoryName_);
 	// parameter file
