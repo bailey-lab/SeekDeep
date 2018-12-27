@@ -62,7 +62,10 @@ void CoreExtractorPars::setCorePars(seqSetUp & setUp){
 	setUp.setOption(primIdsPars.mPars_.checkComplement_, "--checkRevComplementForMids", "Check the Reverse Complement of the Seqs As Well For MIDs", false, "Complement");
 
 	setUp.setOption(pDetPars.primerWithin_, "--primerWithinStart",
-			"By default the primer or barcodes are searched at the very beginning of seq, use this flag to extended the search, should be kept low to cut down on false positives",
+			"By default the primers are searched at the very beginning of seq, use this flag to extended the search, should be kept low to cut down on false positives",
+			false, "Primers");
+	setUp.setOption(pDetPars.primerStart_, "--primerSearchStart",
+			"By default the primers are searched at the very beginning of seq, use this flag to start the search here",
 			false, "Primers");
 	if (setUp.setOption(primIdsPars.idFile_, "--id", "The name of the ID file", true, "ID File")) {
 		if (!bfs::exists(primIdsPars.idFile_)) {
