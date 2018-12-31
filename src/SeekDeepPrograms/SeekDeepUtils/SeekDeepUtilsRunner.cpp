@@ -392,6 +392,8 @@ int SeekDeepUtilsRunner::runMultipleCommands(
 
 	allLog["totalTime"] = setUp.timer_.totalTime();
 	allLog["cmdsfile"] = njh::json::toJson(bfs::absolute(filename));
+	allLog["numThreads"] = njh::json::toJson(numThreads);
+
 	auto & cmdsLog = allLog["cmdsLog"];
 	for (const auto & out : allRunOutputs) {
 		cmdsLog.append(out.toJson());

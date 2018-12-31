@@ -774,11 +774,24 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 			<< "##except start the server which is done by running ./startServerCmd.sh"
 			<< std::endl;
 	runAnalysisFile << "" << std::endl;
-	runAnalysisFile << "numThreads=1" << std::endl;
+	runAnalysisFile << "numThreads=" << pars.numThreads << std::endl;
 	runAnalysisFile << "" << std::endl;
 	runAnalysisFile << "if [[ $# -eq 1 ]]; then" << std::endl;
 	runAnalysisFile << "	numThreads=$1" << std::endl;
-	runAnalysisFile << "fi" << std::endl;
+	runAnalysisFile << "fi\n" << std::endl;
+	runAnalysisFile << R"(if [[ $# -gt 1 ]]; then
+  echo "Illegal number of parameters, should either be no agruments or a number to indicate the number of threads"
+  echo "Examples:"
+  echo "Example 1"
+  echo "Run with the default number of threads, which was set when running setupTarAmpAnalysis"
+  echo "./runAnalysis.sh"
+  echo ""
+  echo "Example 2"
+  echo "Run with 7 threads"
+  echo "./runAnalysis.sh 7"
+  exit
+fi)" << std::endl;
+
 	runAnalysisFile << "" << std::endl;
 	runAnalysisFile << "" << setUp.commands_.masterProgram_
 			<< " runMultipleCommands --cmdFile extractorCmds.txt      --numThreads $numThreads --raw"
