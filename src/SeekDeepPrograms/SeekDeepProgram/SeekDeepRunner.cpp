@@ -40,8 +40,8 @@ SeekDeepRunner::SeekDeepRunner() :
 						addFunc("extractor", extractor, false),
 						addFunc("extractorPairedEnd", extractorPairedEnd, false),
 						addFunc("processClusters", processClusters,false),
-						addFunc("qluster", qluster, false),
-						addFunc("clusterDown",qluster, true),
+						addFunc("qluster", clusterDown, false),
+						addFunc("clusterDown",clusterDown, true),
 						addFunc("makeSampleDirectories", makeSampleDirectories, false)
 				}, "SeekDeep", "2", "6", "3-dev") {
 }

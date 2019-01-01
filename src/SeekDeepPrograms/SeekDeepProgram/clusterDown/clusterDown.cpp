@@ -30,7 +30,7 @@ namespace njhseq {
 
 
 
-int SeekDeepRunner::qluster(const njh::progutils::CmdArgs & inputCommands) {
+int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 	SeekDeepSetUp setUp(inputCommands);
 	// parameters
 	clusterDownPars pars;
