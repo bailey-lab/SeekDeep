@@ -30,6 +30,7 @@
 
 #include <njhseq.h>
 #include "SeekDeep/objects/PrimersAndMids.hpp"
+#include "SeekDeep/objects/PairedReadProcessor.hpp"
 
 namespace njhseq {
 
@@ -56,30 +57,15 @@ public:
 		std::string inputFilePat = ".*.fastq.gz";
 
 		//Illumina specific
-		//paired end specific
-//		uint32_t maxOverlap = 250;
-		uint32_t r1Trim = std::numeric_limits<uint32_t>::max();
-		uint32_t r2Trim = std::numeric_limits<uint32_t>::max();
-		//
-		bool noQualTrim = false;
+
+
 
 		std::string extraExtractorCmds = "";
 		std::string extraQlusterCmds = "";
 		std::string extraProcessClusterCmds = "";
 
-		std::string stitcherCmd= "flash";
-#if defined( __APPLE__ ) || defined( __APPLE_CC__ ) || defined( macintosh ) || defined( __MACH__ )
-		//apple zcat is stupid and requires files end with .Z because why not
-		//using brew install gnutls instead
-		std::string zcatCmd = "gzcat";
-#else
-		std::string zcatCmd = "zcat";
-#endif
-
 
 		//checks
-		bool checkForStitcher(VecStr & warnings) const;
-		bool checkForZcat(VecStr & warnings) const;
 
 		bool checkForOutDir(VecStr & warnings) const;
 

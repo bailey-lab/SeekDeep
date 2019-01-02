@@ -32,27 +32,6 @@ namespace njhseq {
 
 
 
-bool TarAmpAnalysisSetup::TarAmpPars::checkForStitcher(VecStr & warnings) const {
-	if (!njh::sys::hasSysCommand(stitcherCmd)) {
-		std::stringstream ss;
-		ss << __PRETTY_FUNCTION__ << ": error, need to have " << stitcherCmd
-				<< " in path" << "\n";
-		warnings.emplace_back(ss.str());
-		return false;
-	}
-	return true;
-}
-
-bool TarAmpAnalysisSetup::TarAmpPars::checkForZcat(VecStr & warnings) const {
-	if (!njh::sys::hasSysCommand(zcatCmd)) {
-		std::stringstream ss;
-		ss << __PRETTY_FUNCTION__ << ": error, need to have " << zcatCmd
-				<< " in path" << "\n";
-		warnings.emplace_back(ss.str());
-		return false;
-	}
-	return true;
-}
 
 
 bool TarAmpAnalysisSetup::TarAmpPars::checkForOutDir(VecStr & warnings) const {

@@ -67,10 +67,6 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	setUp.setOption(pars.extraProcessClusterCmds, "--extraProcessClusterCmds",
 			"Extra process clusters cmds to add to the defaults", false, "Extra Commands");
 
-	setUp.setOption(pars.noQualTrim, "--noQualTrim", "No Quality Trim", false, "Pre Processing");
-
-	setUp.setOption(pars.r1Trim, "--r1Trim", "Trim R1 Reads to this length", false, "Pre Processing");
-	setUp.setOption(pars.r2Trim, "--r2Trim", "Trim R2 Reads to this length", false, "Pre Processing");
 
 	setUp.setOption(pars.groupMeta, "--groupMeta", "Group Metadata", false, "Meta");
 

@@ -76,8 +76,7 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 	reader.openIn();
 	auto reads = reader.readAllReads<readObject>();
 	setUp.rLog_.logCurrentTime("Various filtering and little modifications");
-	auto splitOnSize = readVecSplitter::splitVectorBellowLength(reads,
-			pars.smallReadSize);
+	auto splitOnSize = readVecSplitter::splitVectorBellowLength(reads, pars.smallReadSize);
 	reads = splitOnSize.first;
 	if (!splitOnSize.second.empty()) {
 		SeqOutput::write(splitOnSize.second,SeqIOOptions(setUp.pars_.directoryName_ + "smallReads",
@@ -132,8 +131,7 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 	if (setUp.pars_.ioOptions_.processed_) {
 		clusters = baseCluster::convertVectorToClusterVector<cluster>(reads);
 	} else {
-		identicalClusters = clusterCollapser::collapseIdenticalReads(reads,
-				pars.qualRep);
+		identicalClusters = clusterCollapser::collapseIdenticalReads(reads, pars.qualRep);
 		for (const auto & read : identicalClusters) {
 			clusters.push_back(cluster(read.seqBase_));
 		}
