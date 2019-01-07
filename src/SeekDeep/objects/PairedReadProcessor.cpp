@@ -486,20 +486,31 @@ bool PairedReadProcessor::processPairedEnd(
 		ProcessorOutWriters & writers,
 		aligner & alignerObj,
 		ProcessedResultsCounts & res){
-//  uncomment for debugging
-//	OutOptions tempOutOpts(bfs::path("temp.fastq"));
-//	tempOutOpts.append_ = true;
-//	OutputStream tempOut(tempOutOpts);
+//  uncomment for debugging R1ENDSINR2
+//	OutOptions tempOutR1BEGINSINR2Opts(bfs::path("temp_R1BEGINSINR2.fastq"));
+//	tempOutR1BEGINSINR2Opts.append_ = true;
+//	OutputStream tempOutR1BEGINSINR2(tempOutR1BEGINSINR2Opts);
+//
+//	OutOptions tempOutR1ENDSINR2Opts(bfs::path("temp_R1ENDSINR2.fastq"));
+//	tempOutR1ENDSINR2Opts.append_ = true;
+//	OutputStream tempOutR1ENDSINR2(tempOutR1ENDSINR2Opts);
+
 	if(reader.readNextRead(seq)){
 		++res.total;
 		if(res.total % 25000 == 0 && params_.verbose_){
 			std::cout << res.total << std::endl;
 		}
-		auto processedPairResults = processPairedEnd(seq,res, alignerObj);
+		auto processedPairResults = processPairedEnd(seq, res, alignerObj);
 //    uncomment for debugging
+//		if(ReadPairOverLapStatus::R1BEGINSINR2 == processedPairResults.status_ ){
+//			alignerObj.alignObjectA_.seqBase_.outPutFastq(tempOutR1BEGINSINR2);
+//			alignerObj.alignObjectB_.seqBase_.outPutFastq(tempOutR1BEGINSINR2);
+//		}
+//		if(ReadPairOverLapStatus::R1ENDSINR2 == processedPairResults.status_ ){
+//			alignerObj.alignObjectA_.seqBase_.outPutFastq(tempOutR1ENDSINR2);
+//			alignerObj.alignObjectB_.seqBase_.outPutFastq(tempOutR1ENDSINR2);
+//		}
 
-//		alignerObj.alignObjectA_.seqBase_.outPutFastq(tempOut);
-//		alignerObj.alignObjectB_.seqBase_.outPutFastq(tempOut);
 
 		std::stringstream errorStream;
 		std::stringstream errorStream2;
@@ -516,6 +527,9 @@ bool PairedReadProcessor::processPairedEnd(
 				break;
 			case ReadPairOverLapStatus::R1BEGINSINR2:
 				writers.r1BeginsInR2CombinedWriter->openWrite(processedPairResults.combinedSeq_);
+				if(params_.writeOverHangs_){
+					writers.overhangsWriter->openWrite(PairedRead(*processedPairResults.r1Overhang_, *processedPairResults.r2Overhang_, false));
+				}
 				break;
 			case ReadPairOverLapStatus::R1ENDSINR2:
 				writers.r1EndsInR2CombinedWriter->openWrite(processedPairResults.combinedSeq_);
