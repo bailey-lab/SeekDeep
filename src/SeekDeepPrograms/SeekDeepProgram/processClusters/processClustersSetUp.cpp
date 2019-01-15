@@ -133,7 +133,7 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 
 	setOption(pars.collapseLowFreqOneOffs, "--excludeLowFreqOneOffs",
 			"Collapse any haplotypes that are low frequency compared to another haplotype (determined by lowFreqMultiplier) and only differs by 1 base", false, "Filtering");
-	setOption(pars.lowFreqMultiplier, "--lowFreqMultiplier",
+	setOption(pars.lowFreqMultiplier, "--oneOffLowFreqMultiplier",
 			"Low Freq Multiplier used for --excludeLowFreqOneOffs, considered low frequency if haplotype frac is less than its fraction times this number than the other haplotype", false, "Filtering");
 
 	setOption(pars.rescueExcludedChimericHaplotypes, "--rescueExcludedChimericHaplotypes", "Rescue Excluded chimeric Haplotypes if they appear as a major haplotype in another sample");
