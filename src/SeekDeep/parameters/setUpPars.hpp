@@ -150,6 +150,7 @@ struct processClustersPars {
   comparison previousPopErrors;
 
   uint32_t numThreads = 1;
+  bool writeOutAllInfoFile = false;
 
   std::string parameters = "";
   std::string binParameters = "";
@@ -195,6 +196,9 @@ struct processClustersPars {
 	bool strictErrorsSetHq1 = false;
 	uint32_t hqMismatches = 0;
 	uint32_t stopAfter = 100;
+
+	bool rescueExcludedOneOffLowFreqHaplotypes = false;
+	bool rescueExcludedChimericHaplotypes = false;
 
 	bool removeCommonlyLowFreqHaplotypes_ = false;      //
 	double lowFreqHaplotypeFracCutOff_ = 0.01; //remove haplotypes that on average appear below this fraction (0.01 == 1%)

@@ -131,10 +131,13 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 	setOption(pars.controlSamples, "--controlSamples", "Samples that shouldn't be included in frequency filtering calcs", false, "Filtering");
 
 
-	setOption(pars.collapseLowFreqOneOffs, "--collapseLowFreqOneOffs",
+	setOption(pars.collapseLowFreqOneOffs, "--excludeLowFreqOneOffs",
 			"Collapse any haplotypes that are low frequency compared to another haplotype (determined by lowFreqMultiplier) and only differs by 1 base", false, "Filtering");
 	setOption(pars.lowFreqMultiplier, "--lowFreqMultiplier",
-			"Low Freq Multiplier used for --collapseLowFreqOneOffs, considered low frequency if haplotype frac is less than its fraction times this number than the other haplotype", false, "Filtering");
+			"Low Freq Multiplier used for --excludeLowFreqOneOffs, considered low frequency if haplotype frac is less than its fraction times this number than the other haplotype", false, "Filtering");
+
+	setOption(pars.rescueExcludedChimericHaplotypes, "--rescueExcludedChimericHaplotypes", "Rescue Excluded chimeric Haplotypes if they appear as a major haplotype in another sample");
+	setOption(pars.rescueExcludedOneOffLowFreqHaplotypes, "--rescueExcludedOneOffLowFreqHaplotypes", "Rescue Excluded chimeric Haplotypes if they appear as a major haplotype in another sample");
 
 	setOption(pars.fracCutoff, "--fracCutOff",
 			"Final cluster Fraction Cut off", false, "Filtering");
@@ -157,6 +160,8 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 	setOption(pars_.chiOpts_.parentFreqs_, "--parFreqs", "Chimeric Parent Frequency multiplier cutoff", false, "Chimeras");
 
 	setOption(pars.numThreads, "--numThreads", "Number of threads to use");
+	setOption(pars.writeOutAllInfoFile, "--writeOutAllInfoFile", "Write Out All Info File that contains information on all clusters including excluded ones");
+
 	setOption(pars_.colOpts_.clusOpts_.converge_, "--converge", "Keep clustering at each iteration until there is no more collapsing, could increase run time significantly", false, "Clustering");
 	//setOption(pars.plotRepAgreement, "--plotRepAgreement", "Plot Rep Agreement");
 	processAlignerDefualts();
