@@ -233,36 +233,20 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 				std::cout << clus.seqBase_.name_ << " : " << clus.expectsString << std::endl;
 			}
 		}
-		if (!pars.keepChimeras) {
-			//now exclude all marked chimeras, currently this will also remark chimeras unnecessarily
-			sampColl.sampleCollapses_.at(sampleName)->excludeChimeras(false, pars.chiCutOff);
-		}
 
+
+		sampColl.sampleCollapses_.at(sampleName)->markChimeras(pars.chiCutOff);
 		sampColl.excludeOnFrac(sampleName, customCutOffsMap, pars.fracExcludeOnlyInFinalAverageFrac);
 
 		if(pars.collapseLowFreqOneOffs){
-			sampColl.sampleCollapses_.at(sampleName)->collapseLowFreqOneOffs(pars.lowFreqMultiplier, alignerObj, collapserObj);
-			if (!expectedSeqs.empty()) {
-				sampColl.sampleCollapses_.at(sampleName)->excluded_.checkAgainstExpected(
-						expectedSeqs, alignerObj, false);
-				sampColl.sampleCollapses_.at(sampleName)->collapsed_.checkAgainstExpected(
-						expectedSeqs, alignerObj, false);
-				if(setUp.pars_.debug_){
-					std::cout << "sample: " << sampleName << std::endl;
-				}
-				for(const auto & clus : sampColl.sampleCollapses_.at(sampleName)->collapsed_.clusters_){
-					if(setUp.pars_.debug_){
-						std::cout << clus.seqBase_.name_ << " : " << clus.expectsString << std::endl;
-					}
-					if("" ==  clus.expectsString ){
-						std::stringstream ss;
-						ss << __PRETTY_FUNCTION__ << ": Error, expects string is blank" << std::endl;
-						ss << clus.seqBase_.name_ << std::endl;
-						throw std::runtime_error{ss.str()};
-					}
-				}
-			}
+			sampColl.sampleCollapses_.at(sampleName)->excludeLowFreqOneOffs(true, pars.lowFreqMultiplier, alignerObj);
 		}
+
+		if (!pars.keepChimeras) {
+			//now exclude all marked chimeras, currently this will also remark chimeras unnecessarily
+			sampColl.sampleCollapses_.at(sampleName)->excludeChimerasNoReMark(true);
+		}
+
 		std::string sortBy = "fraction";
 		sampColl.sampleCollapses_.at(sampleName)->renameClusters(sortBy);
 
@@ -274,7 +258,18 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 	if(!pars.noPopulation){
 		sampColl.doPopulationClustering(sampColl.createPopInput(),
 				alignerObj, collapserObj, pars.popIteratorMap);
+		if(pars.removeCommonlyLowFreqHaplotypes_){
+			while(sampColl.filterCommonlyLowFreqHaps(pars.lowFreqHaplotypeFracCutOff_)){
+				//if excluded run pop clustering again
+				sampColl.doPopulationClustering(sampColl.createPopInput(),
+						alignerObj, collapserObj, pars.popIteratorMap);
+			}
+		}
 	}
+
+
+
+
 	if(setUp.pars_.verbose_){
 		std::cout << njh::bashCT::boldRed("Done Pop Clustering") << std::endl;
 	}

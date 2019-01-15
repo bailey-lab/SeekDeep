@@ -70,52 +70,133 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 		openTextFile(binParsOutFile, OutOptions(njh::files::join(parDir, "binPars.txt")));
 		pars.binIteratorMap.writePars(binParsOutFile);
 	}
-
-	// read in the sequences
-	SeqInput reader(setUp.pars_.ioOptions_);
-	reader.openIn();
-	auto reads = reader.readAllReads<readObject>();
-	setUp.rLog_.logCurrentTime("Various filtering and little modifications");
-	auto splitOnSize = readVecSplitter::splitVectorBellowLength(reads, pars.smallReadSize);
-	reads = splitOnSize.first;
-	if (!splitOnSize.second.empty()) {
-		SeqOutput::write(splitOnSize.second,SeqIOOptions(setUp.pars_.directoryName_ + "smallReads",
-				setUp.pars_.ioOptions_.outFormat_,setUp.pars_.ioOptions_.out_));
-	}
-	if (setUp.pars_.colOpts_.iTOpts_.removeLowQualityBases_) {
-		readVec::allRemoveLowQualityBases(reads, setUp.pars_.colOpts_.iTOpts_.lowQualityBaseTrim_);
-	}
-	if (setUp.pars_.colOpts_.iTOpts_.adjustHomopolyerRuns_) {
-		readVec::allAdjustHomopolymerRunsQualities(reads);
-	}
 	bool containsCompReads = false;
 	int compCount = 0;
-	readVec::getCountOfReadNameContaining(reads, "_Comp", compCount);
+	// read in the sequences
+	setUp.rLog_.logCurrentTime("Various filtering and little modifications");
+	SeqInput reader(setUp.pars_.ioOptions_);
+	reader.openIn();
+	std::vector<cluster> clusters;
+	uint32_t counter = 0;
+	std::unordered_map<uint32_t, std::vector<uint64_t>> filepositions;
+	std::unordered_map<std::string, uint32_t> clusterNameToFilePosKey;
+	{
+		SeqIOOptions smallSeqOpts(setUp.pars_.directoryName_ + "smallReads",
+						setUp.pars_.ioOptions_.outFormat_,setUp.pars_.ioOptions_.out_);
+		SeqOutput smallWriter(smallSeqOpts);
+		seqInfo seq;
+		uint64_t fPos = reader.tellgPri();
+		while(reader.readNextRead(seq)){
+			++counter;
+			if(len(seq) <= pars.smallReadSize){
+				smallWriter.openWrite(seq);
+			}else{
+				if (setUp.pars_.colOpts_.iTOpts_.removeLowQualityBases_) {
+					seq.removeLowQualityBases(setUp.pars_.colOpts_.iTOpts_.lowQualityBaseTrim_);
+				}
+				if (setUp.pars_.colOpts_.iTOpts_.adjustHomopolyerRuns_) {
+					seq.adjustHomopolymerRunQualities();
+				}
+				if(std::string::npos != seq.name_.find("_Comp")){
+					++compCount;
+				}
+			  readVec::handelLowerCaseBases(seq, setUp.pars_.ioOptions_.lowerCaseBases_);
+			  if (setUp.pars_.ioOptions_.removeGaps_) {
+			    seq.removeGaps();
+			  }
+			  bool found = false;
+			  for(const auto & clusPos : iter::range(clusters.size())){
+			  	if(seq.seq_ == clusters[clusPos].seqBase_.seq_){
+			  		clusters[clusPos].seqBase_.cnt_ += seq.cnt_;
+			  		clusters[clusPos].firstReadCount_ += seq.cnt_;
+			  		found = true;
+			  		filepositions[clusPos].emplace_back(fPos);
+			  		break;
+			  	}
+			  }
+			  if(!found){
+		  		filepositions[clusters.size()].emplace_back(fPos);
+			  	clusters.emplace_back(seq);
+			  }
+			}
+			fPos = reader.tellgPri();
+		}
+		reader.reOpenIn();
+		//now calculate the qualities if fastq
+		for(const auto & fPositions : filepositions){
+			if(setUp.pars_.ioOptions_.inFormat_ != SeqIOOptions::inFormats::FASTA && setUp.pars_.ioOptions_.inFormat_ != SeqIOOptions::inFormats::FASTAGZ){
+				//first iterator over the files positions for the seq and read in their qualities
+				std::vector<std::vector<uint32_t>> qualities(clusters[fPositions.first].seqBase_.qual_.size());
+				for(const auto seqPos : fPositions.second){
+					reader.seekgPri(seqPos);
+					reader.readNextRead(seq);
+					if (setUp.pars_.colOpts_.iTOpts_.removeLowQualityBases_) {
+						seq.removeLowQualityBases(setUp.pars_.colOpts_.iTOpts_.lowQualityBaseTrim_);
+					}
+					if (setUp.pars_.colOpts_.iTOpts_.adjustHomopolyerRuns_) {
+						seq.adjustHomopolymerRunQualities();
+					}
+					if(std::string::npos != seq.name_.find("_Comp")){
+						++compCount;
+					}
+				  readVec::handelLowerCaseBases(seq, setUp.pars_.ioOptions_.lowerCaseBases_);
+				  if (setUp.pars_.ioOptions_.removeGaps_) {
+				    seq.removeGaps();
+				  }
+
+					for(const auto i : iter::range(seq.qual_.size())){
+						qualities[i].emplace_back(seq.qual_[i]);
+					}
+				}
+
+				//calculate qualities
+		    if (pars.qualRep == "worst") {
+		    	clusters[fPositions.first].seqBase_.qual_.clear();
+				  for (const auto i : iter::range(clusters[fPositions.first].seqBase_.seq_.size())) {
+				  	clusters[fPositions.first].seqBase_.qual_.push_back(vectorMinimum(qualities[i]));
+				  }
+		    } else if (pars.qualRep == "median") {
+		    	clusters[fPositions.first].seqBase_.qual_.clear();
+				  for (const auto i : iter::range(clusters[fPositions.first].seqBase_.seq_.size())) {
+				  	clusters[fPositions.first].seqBase_.qual_.push_back(vectorMedianRef(qualities[i]));
+				  }
+		    } else if (pars.qualRep == "average") {
+		    	clusters[fPositions.first].seqBase_.qual_.clear();
+				  for (const auto i : iter::range(clusters[fPositions.first].seqBase_.seq_.size())) {
+				  	clusters[fPositions.first].seqBase_.qual_.push_back(vectorMean(qualities[i]));
+				  }
+		    } else if (pars.qualRep == "bestQual") {
+		    	clusters[fPositions.first].seqBase_.qual_.clear();
+				  for (const auto i : iter::range(clusters[fPositions.first].seqBase_.seq_.size())) {
+				  	clusters[fPositions.first].seqBase_.qual_.push_back(vectorMaximum(qualities[i]));
+				  }
+		    } else {
+		    	std::stringstream ss;
+		      ss << __PRETTY_FUNCTION__ << ' '<< "Unrecognized qualRep: " << pars.qualRep << std::endl;
+		      ss << "Needs to be median, average, bestQual, or worst"
+		                << std::endl;
+		      throw std::runtime_error{ss.str()};
+		    }
+			}
+			clusters[fPositions.first].averageErrorRate = clusters[fPositions.first].getAverageErrorRate();
+			clusters[fPositions.first].updateName();
+			clusters[fPositions.first].reads_.front()->averageErrorRate = clusters[fPositions.first].getAverageErrorRate();
+			clusters[fPositions.first].reads_.front()->seqBase_ = clusters[fPositions.first].seqBase_;
+			clusterNameToFilePosKey[clusters[fPositions.first].seqBase_.name_] = fPositions.first;
+		}
+	}
+	if(!pars.writeOutInitalSeqs){
+		filepositions.clear();
+		clusterNameToFilePosKey.clear();
+	}
+
 	if (compCount > 0) {
 		containsCompReads = true;
 	}
 
-	readVecSorter::sortReadVector(reads, pars.sortBy);
-	// get the count of reads read in and the max length so far
-	int counter = readVec::getTotalReadCount(reads);
 	uint64_t maxSize = 0;
-	readVec::getMaxLength(reads, maxSize);
-	std::vector<readObject> refSequences;
-	if (setUp.pars_.refIoOptions_.firstName_ != "") {
-		refSequences = SeqInput::getReferenceSeq(setUp.pars_.refIoOptions_, maxSize);
-	}
-	maxSize = maxSize * 2;
-	// calculate the runCutoff if necessary
-	processRunCutoff(setUp.pars_.colOpts_.kmerOpts_.runCutOff_, setUp.pars_.colOpts_.kmerOpts_.runCutOffString_,
-			readVec::getTotalReadCount(reads));
-	if (setUp.pars_.verbose_ && !pars.onPerId) {
-		std::cout << "Kmer Low Frequency Error Cut off Is: " << setUp.pars_.colOpts_.kmerOpts_.runCutOff_
-				<< std::endl;
-	}
+	readVec::getMaxLength(clusters, maxSize);
 
-	// read in the parameters from the parameters file
-	setUp.rLog_ << "Parameters used" << "\n";
-	pars.iteratorMap.writePars(setUp.rLog_.runLogFile_);
 	if (setUp.pars_.verbose_) {
 		std::cout << "Reading clusters from " << setUp.pars_.ioOptions_.firstName_ << " "
 				<< ("" == setUp.pars_.ioOptions_.secondName_ ? "": setUp.pars_.ioOptions_.secondName_.string()) << std::endl;
@@ -125,24 +206,34 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 			<< setUp.pars_.ioOptions_.secondName_ << "\n";
 	setUp.rLog_ << "Read in " << counter << " reads" << "\n";
 	setUp.rLog_.logCurrentTime("Collapsing to unique sequences");
-	// create cluster vector
-	std::vector<identicalCluster> identicalClusters;
-	std::vector<cluster> clusters;
-	if (setUp.pars_.ioOptions_.processed_) {
-		clusters = baseCluster::convertVectorToClusterVector<cluster>(reads);
-	} else {
-		identicalClusters = clusterCollapser::collapseIdenticalReads(reads, pars.qualRep);
-		for (const auto & read : identicalClusters) {
-			clusters.push_back(cluster(read.seqBase_));
-		}
-		//clusters = baseCluster::convertVectorToClusterVector<cluster>(identicalClusters);
-	}
+
+
 
 	if (setUp.pars_.verbose_) {
 		std::cout << "Unique clusters numbers: " << clusters.size() << std::endl;
 	}
 	setUp.rLog_ << "Unique clusters numbers: " << clusters.size() << "\n";
 	std::sort(clusters.begin(), clusters.end());
+
+	std::vector<readObject> refSequences;
+	if (setUp.pars_.refIoOptions_.firstName_ != "") {
+		refSequences = SeqInput::getReferenceSeq(setUp.pars_.refIoOptions_, maxSize);
+	}
+	maxSize = maxSize * 2;
+	// calculate the runCutoff if necessary
+	processRunCutoff(setUp.pars_.colOpts_.kmerOpts_.runCutOff_, setUp.pars_.colOpts_.kmerOpts_.runCutOffString_,
+			readVec::getTotalReadCount(clusters));
+	if (setUp.pars_.verbose_ && !pars.onPerId) {
+		std::cout << "Kmer Low Frequency Error Cut off Is: " << setUp.pars_.colOpts_.kmerOpts_.runCutOff_
+				<< std::endl;
+	}
+
+	// read in the parameters from the parameters file
+	setUp.rLog_ << "Parameters used" << "\n";
+	pars.iteratorMap.writePars(setUp.rLog_.runLogFile_);
+
+
+
 	//readVecSorter::sortReadVector(clusters, sortBy);
 	setUp.rLog_.logCurrentTime("Indexing kmers");
 	KmerMaps kMaps = indexKmers(clusters,
@@ -469,7 +560,7 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 
 
 
-	if (!setUp.pars_.ioOptions_.processed_) {
+	if (pars.writeOutInitalSeqs) {
 		std::ofstream compStats;
 		if (containsCompReads) {
 			openTextFile(compStats, setUp.pars_.directoryName_ + "compStats.tab.txt",
@@ -488,21 +579,36 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 		if(pars.writeOutInitalSeqs){
 			subClusterWriter.openOut();
 		}
-
+		SeqInput reader(setUp.pars_.ioOptions_);
+		reader.openIn();
+		seqInfo inSeq;
 		for (const auto& clus : clusters) {
 			MetaDataInName clusMeta;
 			clusMeta.addMeta("clusterName", clus.seqBase_.name_);
 			uint32_t currentCompAmount = 0;
 			for (const auto & seq : clus.reads_) {
-				auto input = readVec::getReadByName(identicalClusters, seq->seqBase_.name_);
-				for( auto & inputRead : input.reads_){
-					if (njh::containsSubString(inputRead->seqBase_.name_, "_Comp")) {
-						currentCompAmount += inputRead->seqBase_.cnt_;
+				for (const auto seqPos : filepositions[clusterNameToFilePosKey[seq->seqBase_.name_]]) {
+					reader.seekgPri(seqPos);
+					reader.readNextRead(inSeq);
+					if (setUp.pars_.colOpts_.iTOpts_.removeLowQualityBases_) {
+						inSeq.removeLowQualityBases(setUp.pars_.colOpts_.iTOpts_.lowQualityBaseTrim_);
 					}
-					if(pars.writeOutInitalSeqs){
-						seqInfo subClusCopy = inputRead->seqBase_;
-						clusMeta.resetMetaInName(subClusCopy.name_);
-						subClusterWriter.write(subClusCopy);
+					if (setUp.pars_.colOpts_.iTOpts_.adjustHomopolyerRuns_) {
+						inSeq.adjustHomopolymerRunQualities();
+					}
+					if(std::string::npos != inSeq.name_.find("_Comp")){
+						++compCount;
+					}
+				  readVec::handelLowerCaseBases(inSeq, setUp.pars_.ioOptions_.lowerCaseBases_);
+				  if (setUp.pars_.ioOptions_.removeGaps_) {
+				    inSeq.removeGaps();
+				  }
+					if (njh::containsSubString(inSeq.name_, "_Comp")) {
+						currentCompAmount += inSeq.cnt_;
+					}
+					if (pars.writeOutInitalSeqs) {
+						clusMeta.resetMetaInName(inSeq.name_);
+						subClusterWriter.write(inSeq);
 					}
 				}
 			}
@@ -522,7 +628,7 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 				".tab.txt", false, true);
 		singletonsInfoFile << "readCnt\treadFrac\n";
 		singletonsInfoFile << singletons.size() << "\t"
-				<< singletons.size() / static_cast<double>(reads.size())
+				<< singletons.size() / static_cast<double>(counter)
 				<< std::endl;
 	}
 

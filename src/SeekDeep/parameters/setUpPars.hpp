@@ -154,6 +154,7 @@ struct processClustersPars {
   std::string parameters = "";
   std::string binParameters = "";
 
+  VecStr controlSamples;
   bool extra = false;
   double fracCutoff = 0.005;
   uint32_t runsRequired = 0;
@@ -194,6 +195,13 @@ struct processClustersPars {
 	bool strictErrorsSetHq1 = false;
 	uint32_t hqMismatches = 0;
 	uint32_t stopAfter = 100;
+
+	bool removeCommonlyLowFreqHaplotypes_ = false;      //
+	double lowFreqHaplotypeFracCutOff_ = 0.01; //remove haplotypes that on average appear below this fraction (0.01 == 1%)
+
+
+
+	VecStr excludeControlSamples_; //controls that shouldn't be included in frequency and population level cut offs
 
 	collapse::SampleCollapseCollection::PreFilteringCutOffs preFiltCutOffs;
 

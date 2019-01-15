@@ -115,6 +115,11 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 	setOption(pars.fracExcludeOnlyInFinalAverageFrac, "--fracExcludeOnlyInFinalAverageFrac", "By default fraction exclusion is done per rep, use fracExcludeOnlyInFinalAverageFrac to exclude only on the final averaged frac", false, "Filtering");
 
 
+	setOption(pars.removeCommonlyLowFreqHaplotypes_, "--excludeCommonlyLowFreqHaplotypes", "Remove Commonly Low Freq Haplotypes", false, "Filtering");
+	setOption(pars.lowFreqHaplotypeFracCutOff_, "--lowFreqHaplotypeFracCutOff", "Low Freq Haplotype Frac Cut Off", false, "Filtering");
+
+
+
 	setOption(pars.noTrees, "--noTrees", "Don't generate html difference trees");
 	processDirectoryOutputName("clusters_" + getCurrentDate(), true);
 
@@ -122,6 +127,8 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 	processRefFilename();
 	setOption(pars.noPopulation, "--noPopulation",
 			"Don't do Population Clustering", false, "Population");
+
+	setOption(pars.controlSamples, "--controlSamples", "Samples that shouldn't be included in frequency filtering calcs", false, "Filtering");
 
 
 	setOption(pars.collapseLowFreqOneOffs, "--collapseLowFreqOneOffs",

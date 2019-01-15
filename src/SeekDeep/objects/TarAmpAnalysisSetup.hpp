@@ -49,6 +49,7 @@ public:
 		bool byIndex = false;
 
 		bool debug = false;
+		bool noGuessSampNames = false;
 
 		uint32_t numThreads = 1;
 

@@ -84,6 +84,9 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	setUp.setOption(pars.inputFilePat, "--inputFilePat",
 			"The input file pattern in the input directory to work on", false, "Input");
 
+	setUp.setOption(pars.noGuessSampNames, "--noGuessSampNames",
+			"Don't guess the sample names from the raw fastq directory input", false, "Input");
+
 	setUp.finishSetUp(std::cout);
 
 	VecStr warnings;
@@ -243,9 +246,8 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	std::unordered_map<std::string, std::pair<VecStr, VecStr>> readsByPairs ;
 	std::unordered_map<std::string, bfs::path> filesByPossibleName;
 	ReadPairsOrganizer rpOrganizer(expectedSamples);
-
+	rpOrganizer.doNotGuessSampleNames_ = pars.noGuessSampNames;
 	if (analysisSetup.pars_.techIsIllumina()) {
-
 		rpOrganizer.processFiles(files);
 		readsByPairs = rpOrganizer.processReadPairs();
 		auto keys = getVectorOfMapKeys(readsByPairs);

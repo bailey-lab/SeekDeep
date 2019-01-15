@@ -39,11 +39,14 @@ public:
 	ReadPairsOrganizer(const VecStr & expectedSamples);
 
 	VecStr expectedSamples_;
+	bool doNotGuessSampleNames_{false};
+	std::regex illuminaPat_{"(.*?)((_S[0-9]+)?_(R[12])(_[0-9]+)?\\.fastq(\\.gz)?)"};
+
 	std::unordered_map<std::string, VecStr> readPairs_;
 	std::unordered_map<std::string, VecStr> readPairsUnrecognized_;
 
 	void processFiles(const std::map<bfs::path, bool> & files);
-	std::unordered_map<std::string, std::pair<VecStr, VecStr>> processReadPairs() ;
+	std::unordered_map<std::string, std::pair<VecStr, VecStr>> processReadPairs();
 };
 
 

@@ -292,6 +292,14 @@ PairedReadProcessor::ProcessedPairRes PairedReadProcessor::processPairedEnd(
 	//std::cout << __PRETTY_FUNCTION__ << " " << __LINE__ <<  std::endl;
 	alignerObj.profileAlignment(seq.seqBase_, seq.mateSeqBase_, false, true, true);
 	//std::cout << __PRETTY_FUNCTION__ << " " << __LINE__ <<  std::endl;
+//	std::cout << "alignerObj.comp_.distances_.eventBasedIdentityHq_: " << alignerObj.comp_.distances_.eventBasedIdentityHq_<< std::endl;
+//	std::cout << "alignerObj.comp_.distances_.basesInAln_: " << alignerObj.comp_.distances_.basesInAln_ << std::endl;
+//	std::cout << "alignerObj.comp_.hqMismatches_: " << alignerObj.comp_.hqMismatches_ << std::endl;
+//
+//	OutOptions tempOutR1BEGINSINR2Opts(bfs::path("temp_failedOverLap.fastq"));
+//	tempOutR1BEGINSINR2Opts.append_ = true;
+//	OutputStream tempOutR1BEGINSINR2(tempOutR1BEGINSINR2Opts);
+//
 
 	if( alignerObj.comp_.distances_.eventBasedIdentityHq_ >= percentId &&
 			alignerObj.comp_.distances_.basesInAln_ >= params_.minOverlap_ &&
@@ -476,9 +484,12 @@ PairedReadProcessor::ProcessedPairRes PairedReadProcessor::processPairedEnd(
 		//writers.notCombinedWriter->openWrite(seq);
 		ret.status_ = ReadPairOverLapStatus::NOOVERLAP;
 		ret.combinedSeq_ = nullptr; //not really needed as it should default construct to nullptr anyways
+//		alignerObj.alignObjectA_.seqBase_.outPutFastq(tempOutR1BEGINSINR2);
+//		alignerObj.alignObjectB_.seqBase_.outPutFastq(tempOutR1BEGINSINR2);
 	}
 	return ret;
 }
+
 
 bool PairedReadProcessor::processPairedEnd(
 		SeqInput & reader,
