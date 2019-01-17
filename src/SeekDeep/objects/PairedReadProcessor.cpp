@@ -299,7 +299,7 @@ PairedReadProcessor::ProcessedPairRes PairedReadProcessor::processPairedEnd(
 //	OutOptions tempOutR1BEGINSINR2Opts(bfs::path("temp_failedOverLap.fastq"));
 //	tempOutR1BEGINSINR2Opts.append_ = true;
 //	OutputStream tempOutR1BEGINSINR2(tempOutR1BEGINSINR2Opts);
-//
+
 
 	if( alignerObj.comp_.distances_.eventBasedIdentityHq_ >= percentId &&
 			alignerObj.comp_.distances_.basesInAln_ >= params_.minOverlap_ &&

@@ -464,8 +464,8 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 	//now post processing
 	PairedReadProcessor pairProcessor(pars.pairProcessorParams_);
 	auto alnGapPars = gapScoringParameters(
-			setUp.pars_.gapInfo_.gapOpen_,
-			setUp.pars_.gapInfo_.gapExtend_,
+			10,
+			1,
 			0,0,
 			0,0);
 	auto pairedProcessingScoring = substituteMatrix::createScoreMatrix(2, -2, true, true, true);
