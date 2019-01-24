@@ -30,6 +30,9 @@
 
 namespace njhseq {
 
+std::regex ReadPairsOrganizer::illuminaPat_{"(.*?)((_S[0-9]+)?(_L[0-9]+)?_(R[12])(_[0-9]+)?\\.fastq(\\.gz)?)"};
+
+
 ReadPairsOrganizer::ReadPairsOrganizer(const VecStr & expectedSamples) :
 		expectedSamples_(expectedSamples) {
 

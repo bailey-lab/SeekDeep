@@ -49,6 +49,5 @@ public:
 	std::unordered_map<std::string, std::pair<VecStr, VecStr>> processReadPairs();
 };
 
-std::regex ReadPairsOrganizer::illuminaPat_{"(.*?)((_S[0-9]+)?(_L[0-9]+)?_(R[12])(_[0-9]+)?\\.fastq(\\.gz)?)"};
 
 }  // namespace njhseq
