@@ -138,6 +138,7 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 
 	setOption(pars.rescueExcludedChimericHaplotypes, "--rescueExcludedChimericHaplotypes", "Rescue Excluded chimeric Haplotypes if they appear as a major haplotype in another sample");
 	setOption(pars.rescueExcludedOneOffLowFreqHaplotypes, "--rescueExcludedOneOffLowFreqHaplotypes", "Rescue Excluded chimeric Haplotypes if they appear as a major haplotype in another sample");
+	setOption(pars.rescueMatchingExpected, "--rescueMatchingExpected", "Rescue Haplotypes that match expected sequences if they have been read using --ref");
 
 	setOption(pars.fracCutoff, "--fracCutOff",
 			"Final cluster Fraction Cut off", false, "Filtering");
