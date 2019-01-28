@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 if [ $# -ne 1 ]; then
-	echo "Need to supply number of CPUs to use, e.g. ./upgrade.sh 7"
+	echo "Need to supply number of CPUs to use, e.g. ./upgradeDevelop.sh 7"
 	exit
 fi
 
