@@ -341,6 +341,16 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 			}
 		}// end resuce operations for chimeria and low freq haplotypes
 
+
+
+		if(pars.removeCommonlyLowFreqHaplotypes_){
+			while(sampColl.excludeCommonlyLowFreqHaps(pars.lowFreqHaplotypeFracCutOff_)){
+				//if excluded run pop clustering again
+				sampColl.doPopulationClustering(sampColl.createPopInput(),
+						alignerObj, collapserObj, pars.popIteratorMap);
+			}
+		}
+
 		if(pars.rescueMatchingExpected && !expectedSeqs.empty()){
 			bool rescuedHaplotypes = false;
 			for(const auto & sampleName : samplesDirs){
@@ -355,25 +365,31 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 						std::set<std::string> otherExcludedCriteria;
 						bool chimeriaExcludedRescue = false;
 						bool oneOffExcludedRescue = false;
+						bool commonlyLowExcludedRescue = false;
 						for(const auto & excMeta : excludedMeta.meta_){
 							if(njh::beginsWith(excMeta.first, "Exclude") ){
 								bool other = true;
-								if(pars.rescueExcludedChimericHaplotypes && "ExcludeIsChimeric" == excMeta.first){
+								if("ExcludeIsChimeric" == excMeta.first){
 									chimeriaExcludedRescue = true;
 									other = false;
 								}
-								if(pars.rescueExcludedOneOffLowFreqHaplotypes && "ExcludeFailedLowFreqOneOff" == excMeta.first){
+
+								if("ExcludeFailedLowFreqOneOff" == excMeta.first){
 									oneOffExcludedRescue = true;
 									other = false;
 								}
+								if("ExcludeFailedFracCutOff" == excMeta.first){
+									commonlyLowExcludedRescue = true;
+									other = false;
+								}
+
 								if(other){
 									otherExcludedCriteria.emplace(excMeta.first);
 								}
 							}
 						}
 						//check if it should be considered for resuce
-						//std::cout << excluded.seqBase_.name_ << " consider for rescue: " << njh::colorBool((chimeriaExcludedRescue || oneOffExcludedRescue) && otherExcludedCriteria.empty()) << std::endl;
-						if((chimeriaExcludedRescue || oneOffExcludedRescue) && otherExcludedCriteria.empty()){
+						if((chimeriaExcludedRescue || oneOffExcludedRescue || commonlyLowExcludedRescue) && otherExcludedCriteria.empty()){
 							//see if it matches a major haplotype
 							bool rescue = false;
 							for(const auto & expectedHap : expectedSeqs){
@@ -413,15 +429,7 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 				sampColl.doPopulationClustering(sampColl.createPopInput(),
 						alignerObj, collapserObj, pars.popIteratorMap);
 			}
-		}
-
-		if(pars.removeCommonlyLowFreqHaplotypes_){
-			while(sampColl.excludeCommonlyLowFreqHaps(pars.lowFreqHaplotypeFracCutOff_)){
-				//if excluded run pop clustering again
-				sampColl.doPopulationClustering(sampColl.createPopInput(),
-						alignerObj, collapserObj, pars.popIteratorMap);
-			}
-		}
+		} //end resue of matching expected
 	}
 
 
