@@ -408,7 +408,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 				auto cmds = VecStr { extractorCmdTemplate, idTemplate };
 				if (bfs::exists(
 						njh::files::make_path(analysisSetup.idsDir_,
-								tarsNames + "_lenCutOffs.tab.txt"))) {
+								analysisSetup.tarsToTargetSubSets_[tarsNames] + "_lenCutOffs.tab.txt"))) {
 					cmds.emplace_back(lenCutOffsTemplate);
 				}
 				bool anyRefs = false;
@@ -567,7 +567,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 				auto cmds = VecStr { extractorCmdTemplate, idTemplate, currentSampTemp };
 				if (bfs::exists(
 						njh::files::make_path(analysisSetup.idsDir_,
-								tarsNames + "_lenCutOffs.tab.txt"))) {
+								analysisSetup.tarsToTargetSubSets_[tarsNames] + "_lenCutOffs.tab.txt"))) {
 					cmds.emplace_back(lenCutOffsTemplate);
 				}
 				if ("" != analysisSetup.pars_.extraExtractorCmds) {
