@@ -64,8 +64,7 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 	}
 
 
-
-	auto alignToGenome = [](njh::concurrent::LockableQueue<bfs::path> & genomesQuque,
+	auto alignToGenome = [&extractPars](njh::concurrent::LockableQueue<bfs::path> & genomesQuque,
 			const bfs::path & forwardFnp,
 			const bfs::path & reverseFnp,
 			const bfs::path & alignDir){
@@ -73,12 +72,14 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 		while(genomesQuque.getVal(genomeFnp)){
 			{
 				BioCmdsUtils bioRunner;
+				bioRunner.verbose_ = extractPars.verbose_;
 				auto seqOpts = SeqIOOptions::genFastaIn(forwardFnp, false);
 				seqOpts.out_.outFilename_ = njh::files::make_path(alignDir, bfs::basename(genomeFnp) + "_" + bfs::basename(forwardFnp) + ".sorted.bam");
 				bioRunner.bowtie2Align(seqOpts, genomeFnp	, "-D 20 -R 3 -N 1 -L 15 -i S,1,0.5 -a --end-to-end");
 			}
 			{
 				BioCmdsUtils bioRunner;
+				bioRunner.verbose_ = extractPars.verbose_;
 				auto seqOpts = SeqIOOptions::genFastaIn(reverseFnp, false);
 				seqOpts.out_.outFilename_ = njh::files::make_path(alignDir, bfs::basename(genomeFnp) + "_" + bfs::basename(reverseFnp) + ".sorted.bam");
 				bioRunner.bowtie2Align(seqOpts, genomeFnp, "-D 20 -R 3 -N 1 -L 15 -i S,1,0.5 -a --end-to-end"	);

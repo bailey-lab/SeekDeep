@@ -143,6 +143,7 @@ public:
 	std::unique_ptr<PrimersAndMids> idsMids_;
 
 	std::unordered_map<std::string, VecStr> indexToTars_;
+	std::unordered_map<std::string, std::string> tarsToTargetSubSets_;
 
 	TargetsInfoAgreement forRefSeqs_;
 	TargetsInfoAgreement forLenCutOffs_;
@@ -171,7 +172,7 @@ public:
 	void addOverlapStatus(const bfs::path & overlapStatusFnp);
 
 
-	void writeOutIdFiles() const;
+	void writeOutIdFiles();
 
 	std::vector<VecStr> getTarCombos() const;
 

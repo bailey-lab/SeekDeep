@@ -74,7 +74,27 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 	int compCount = 0;
 	// read in the sequences
 	setUp.rLog_.logCurrentTime("Various filtering and little modifications");
-	SeqInput reader(setUp.pars_.ioOptions_);
+	auto inputOpts = setUp.pars_.ioOptions_;
+	bfs::path tempOutFnp;
+	if(setUp.pars_.ioOptions_.inFormat_ == SeqIOOptions::inFormats::FASTAGZ ||
+		 setUp.pars_.ioOptions_.inFormat_ == SeqIOOptions::inFormats::FASTQGZ){
+		if (setUp.pars_.ioOptions_.inFormat_ == SeqIOOptions::inFormats::FASTAGZ) {
+			inputOpts.inFormat_ = SeqIOOptions::inFormats::FASTA;
+			tempOutFnp =njh::files::make_path(setUp.pars_.directoryName_, "tempinput.fasta");
+		} else if (setUp.pars_.ioOptions_.inFormat_ == SeqIOOptions::inFormats::FASTQGZ) {
+			inputOpts.inFormat_ = SeqIOOptions::inFormats::FASTQ;
+			tempOutFnp =njh::files::make_path(setUp.pars_.directoryName_, "tempinput.fastq");
+		}
+		OutputStream tempOut(tempOutFnp);
+		InputStream in(setUp.pars_.ioOptions_.firstName_);
+		std::string line;
+		while(njh::files::crossPlatGetline(in, line)){
+			tempOut << line << "\n";
+		}
+		inputOpts.firstName_ = tempOutFnp;
+	}
+
+	SeqInput reader(inputOpts);
 	reader.openIn();
 	std::vector<cluster> clusters;
 	uint32_t counter = 0;
@@ -121,6 +141,7 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 			}
 			fPos = reader.tellgPri();
 		}
+
 		reader.reOpenIn();
 		//now calculate the qualities if fastq
 		for(const auto & fPositions : filepositions){
@@ -426,8 +447,12 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 				<< toks.back() << std::endl;
 	}
 	if (pars.additionalOut) {
+		auto fnp = setUp.pars_.ioOptions_.firstName_.filename().string();
+		if(njh::endsWith(fnp, ".gz")){
+			fnp = fnp.substr(0, fnp.rfind(".gz"));
+		}
 		std::string additionalOutDir = findAdditonalOutLocation(
-				pars.additionalOutLocationFile, setUp.pars_.ioOptions_.firstName_.string());
+				pars.additionalOutLocationFile, fnp);
 		if (additionalOutDir == "") {
 			std::cerr << njh::bashCT::red << njh::bashCT::bold;
 			std::cerr << "No additional out directory found for: "
@@ -636,6 +661,10 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 		setUp.rLog_.logCurrentTime("Writing previous alignments");
 		alignerObj.alnHolder_.write(setUp.pars_.outAlnInfoDirName_, setUp.pars_.verbose_);
 	}
+	if(bfs::exists(tempOutFnp)){
+		bfs::remove(tempOutFnp);
+	}
+
 	//log number of alignments done
 	setUp.rLog_ << "Number of Alignments Done: "
 			<< alignerObj.numberOfAlingmentsDone_ << "\n";

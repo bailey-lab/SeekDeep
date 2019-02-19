@@ -368,9 +368,9 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 			}
 		}
 		if (analysisSetup.pars_.techIsIllumina()) {
-			extractorCmdTemplate += "--fastq1 \"{INDEX_R1}\" --fastq2 \"{INDEX_R2}\" ";
+			extractorCmdTemplate += "--fastq1gz \"{INDEX_R1}\" --fastq2gz \"{INDEX_R2}\" ";
 		} else {
-			extractorCmdTemplate += "--fastq \"{INDEX_InFile}\" ";
+			extractorCmdTemplate += "--fastqgz \"{INDEX_InFile}\" ";
 		}
 		std::string lenCutOffsTemplate ="--lenCutOffs info/ids/{TARS}_lenCutOffs.tab.txt ";
 		std::string idTemplate = "--id info/ids/{TARS}.id.txt ";
@@ -381,10 +381,10 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 				bfs::absolute(analysisSetup.dir_), "{INDEX}_extraction");
 		std::string qlusterCmdTemplate =
 				"cd \"" + extractionDirs.string() + "\" && "
-						+ "if [ -f {TARGET}{MIDREP}.fastq  ]; then "
+						+ "if [ -f {TARGET}{MIDREP}.fastq.gz  ]; then "
 						+ setUp.commands_.masterProgram_
 						+ " qluster "
-								"--fastq \"{TARGET}{MIDREP}.fastq\" "
+								"--fastqgz \"{TARGET}{MIDREP}.fastq\" "
 								"--alnInfoDir {TARGET}{MIDREP}_alnCache --overWriteDir "
 								"--additionalOut \"../popClustering/{TARGET}/locationByIndex/{INDEX}.tab.txt\" "
 								"--overWrite --dout {TARGET}{MIDREP}_qlusterOut ";
@@ -458,7 +458,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 					}
 				}
 				currentExtractCmd = njh::replaceString(currentExtractCmd, "{TARS}",
-						tarsNames);
+						analysisSetup.tarsToTargetSubSets_[tarsNames]);
 				extractorCmds.emplace_back(currentExtractCmd);
 				for (const auto & mid : analysisSetup.idsMids_->getMids()) {
 					for (const auto & tar : analysisSetup.indexToTars_[index]) {
@@ -496,9 +496,9 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 			 }
 		}
 		if (analysisSetup.pars_.techIsIllumina()) {
-			extractorCmdTemplate += "--fastq1 \"{REP_R1}\" --fastq2 \"{REP_R2}\" ";
+			extractorCmdTemplate += "--fastq1gz \"{REP_R1}\" --fastq2gz \"{REP_R2}\" ";
 		} else {
-			extractorCmdTemplate += "--fastq \"{REP_InFile}\" ";
+			extractorCmdTemplate += "--fastqgz \"{REP_InFile}\" ";
 		}
 
 		std::string lenCutOffsTemplate ="--lenCutOffs info/ids/{TARS}_lenCutOffs.tab.txt ";
@@ -512,10 +512,10 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 				bfs::absolute(analysisSetup.dir_), "{REP}_extraction");
 
 		std::string qlusterCmdTemplate = "cd \"" + extractionDirs.string() + "\" && "
-				+ " if [ -f {TARGET}{MIDREP}.fastq  ]; then "
+				+ " if [ -f {TARGET}{MIDREP}.fastq.gz  ]; then "
 										+ setUp.commands_.masterProgram_
 										+ " qluster "
-						"--fastq \"{TARGET}{MIDREP}.fastq\" "
+						"--fastqgz \"{TARGET}{MIDREP}.fastq\" "
 						"--alnInfoDir {TARGET}{MIDREP}_alnCache --overWriteDir "
 						"--additionalOut ../popClustering/locationByIndex/{TARGET}.tab.txt "
 						"--overWrite --dout {TARGET}{MIDREP}_qlusterOut ";
@@ -620,7 +620,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 					}
 				}
 				currentExtractCmd = njh::replaceString(currentExtractCmd, "{TARS}",
-						tarsNames);
+						analysisSetup.tarsToTargetSubSets_[tarsNames]);
 				extractorCmds.emplace_back(currentExtractCmd);
 
 				for (const auto & tar : rep.second) {
@@ -658,7 +658,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	std::string processClusterTemplate =
 			setUp.commands_.masterProgram_
 					+ " processClusters "
-							"--alnInfoDir alnCache --strictErrors --dout analysis --fastq output.fastq --overWriteDir";
+							"--alnInfoDir alnCache --strictErrors --dout analysis --fastqgz output.fastq.gz --overWriteDir";
 	if ("" != analysisSetup.pars_.extraProcessClusterCmds) {
 		processClusterTemplate += " " + analysisSetup.pars_.extraProcessClusterCmds;
 	}

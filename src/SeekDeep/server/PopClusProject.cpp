@@ -83,17 +83,28 @@ PopClusProject::PopClusProject(const Json::Value & configJson) :
 
 
 void PopClusProject::registerSeqFiles(SeqCache & cache) {
+	auto getSeqFormat = [](const bfs::path & seqFnp){
+		auto ret = njh::files::getExtension(seqFnp);
+		if("gz" == ret){
+			if (njh::endsWith(seqFnp.string(), ".fasta.gz")) {
+				ret = ".fasta.gz";
+			} else if (njh::endsWith(seqFnp.string(), ".fastq.gz")) {
+				ret = ".fastq.gz";
+			}
+		}
+		return ret;
+	};
 	auto popHapFile = collection_->getPopFinalHapsPath().string();
 	cache.updateAddCache(shortName_,
 			SeqIOOptions(popHapFile,
-					SeqIOOptions::getInFormat(njh::files::getExtension(popHapFile)),
+					SeqIOOptions::getInFormat(getSeqFormat(popHapFile)),
 					true));
 	for(const auto & samp : collection_->popNames_.samples_){
 		auto sampHapFile = collection_->getSampleFinalHapsPath(samp).string();
 		if(bfs::exists(sampHapFile)){
 			cache.updateAddCache(shortName_ + "_" + samp,
 					SeqIOOptions(sampHapFile,
-							SeqIOOptions::getInFormat(njh::files::getExtension(sampHapFile)),
+							SeqIOOptions::getInFormat(getSeqFormat(sampHapFile)),
 							true));
 		}
 	}

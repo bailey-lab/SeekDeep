@@ -154,6 +154,7 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 				std::cout << "Inserting: " << unRecName << std::endl;
 			}
 			readerOuts.addReader(unRecName, midOpts);
+			std::cout << "midOpts.outFormat_: " << SeqIOOptions::getOutFormat(midOpts.outFormat_) << std::endl;
 		}
 	}
 
@@ -501,23 +502,43 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 			}
 			OutOptions currentOutOpts(njh::files::make_path(unfilteredByPairsProcessedDir, name));
 			PairedReadProcessor::ProcessorOutWriters processWriter;
-			processWriter.overhangsWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(njh::files::make_path(overHansDir, name + "_overhangs")));
-			processWriter.perfectOverlapCombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(njh::files::make_path(unfilteredByPairsProcessedDir, name + "_perfectOverlap")));
+			if(SeqIOOptions::inFormats::FASTQPAIREDGZ == setUp.pars_.ioOptions_.inFormat_){
+				processWriter.overhangsWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOutGz(njh::files::make_path(overHansDir, name + "_overhangs")));
+				processWriter.perfectOverlapCombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOutGz(njh::files::make_path(unfilteredByPairsProcessedDir, name + "_perfectOverlap")));
+				processWriter.r1AllInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOutGz(njh::files::make_path(unfilteredByPairsProcessedDir, name + "_r1AllInR2")));
+				processWriter.r2AllInR1CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOutGz(njh::files::make_path(unfilteredByPairsProcessedDir, name + "_r2AllInR1")));
+				if(PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP == njh::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
+					processWriter.notCombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genPairedOutGz(njh::files::make_path(unfilteredByPairsProcessedDir, name)));
+					processWriter.r1BeginsInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOutGz(njh::files::make_path(badDir, name + "_r1BeginsInR2.fastq")));
+					processWriter.r1EndsInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOutGz(njh::files::make_path(badDir, name + "_r1EndsInR2.fastq")));
+				} else if(PairedReadProcessor::ReadPairOverLapStatus::R1BEGINSINR2 == njh::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
+					processWriter.r1BeginsInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOutGz(njh::files::make_path(unfilteredByPairsProcessedDir, name + "")));
+					processWriter.notCombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genPairedOutGz(njh::files::make_path(badDir, name + "_notCombined")));
+					processWriter.r1EndsInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOutGz(njh::files::make_path(badDir, name + "_r1EndsInR2.fastq")));
+				} else if(PairedReadProcessor::ReadPairOverLapStatus::R1ENDSINR2 == njh::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
+					processWriter.r1EndsInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOutGz(njh::files::make_path(unfilteredByPairsProcessedDir, name + "")));
+					processWriter.notCombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genPairedOutGz(njh::files::make_path(badDir, name + "_notCombined")));
+					processWriter.r1BeginsInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOutGz(njh::files::make_path(badDir, name + "_r1BeginsInR2.fastq")));
+				}
+			}else{
+				processWriter.overhangsWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(njh::files::make_path(overHansDir, name + "_overhangs")));
+				processWriter.perfectOverlapCombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(njh::files::make_path(unfilteredByPairsProcessedDir, name + "_perfectOverlap")));
 
-			processWriter.r1AllInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(njh::files::make_path(unfilteredByPairsProcessedDir, name + "_r1AllInR2")));
-			processWriter.r2AllInR1CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(njh::files::make_path(unfilteredByPairsProcessedDir, name + "_r2AllInR1")));
-			if(PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP == njh::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
-				processWriter.notCombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genPairedOut(njh::files::make_path(unfilteredByPairsProcessedDir, name)));
-				processWriter.r1BeginsInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(njh::files::make_path(badDir, name + "_r1BeginsInR2.fastq")));
-				processWriter.r1EndsInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(njh::files::make_path(badDir, name + "_r1EndsInR2.fastq")));
-			}else if(PairedReadProcessor::ReadPairOverLapStatus::R1BEGINSINR2 == njh::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
-				processWriter.r1BeginsInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(njh::files::make_path(unfilteredByPairsProcessedDir, name + "")));
-				processWriter.notCombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genPairedOut(njh::files::make_path(badDir, name + "_notCombined")));
-				processWriter.r1EndsInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(njh::files::make_path(badDir, name + "_r1EndsInR2.fastq")));
-			}else if(PairedReadProcessor::ReadPairOverLapStatus::R1ENDSINR2 == njh::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
-				processWriter.r1EndsInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(njh::files::make_path(unfilteredByPairsProcessedDir, name + "")));
-				processWriter.notCombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genPairedOut(njh::files::make_path(badDir, name + "_notCombined")));
-				processWriter.r1BeginsInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(njh::files::make_path(badDir, name + "_r1BeginsInR2.fastq")));
+				processWriter.r1AllInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(njh::files::make_path(unfilteredByPairsProcessedDir, name + "_r1AllInR2")));
+				processWriter.r2AllInR1CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(njh::files::make_path(unfilteredByPairsProcessedDir, name + "_r2AllInR1")));
+				if(PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP == njh::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
+					processWriter.notCombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genPairedOut(njh::files::make_path(unfilteredByPairsProcessedDir, name)));
+					processWriter.r1BeginsInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(njh::files::make_path(badDir, name + "_r1BeginsInR2.fastq")));
+					processWriter.r1EndsInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(njh::files::make_path(badDir, name + "_r1EndsInR2.fastq")));
+				}else if(PairedReadProcessor::ReadPairOverLapStatus::R1BEGINSINR2 == njh::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
+					processWriter.r1BeginsInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(njh::files::make_path(unfilteredByPairsProcessedDir, name + "")));
+					processWriter.notCombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genPairedOut(njh::files::make_path(badDir, name + "_notCombined")));
+					processWriter.r1EndsInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(njh::files::make_path(badDir, name + "_r1EndsInR2.fastq")));
+				}else if(PairedReadProcessor::ReadPairOverLapStatus::R1ENDSINR2 == njh::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
+					processWriter.r1EndsInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(njh::files::make_path(unfilteredByPairsProcessedDir, name + "")));
+					processWriter.notCombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genPairedOut(njh::files::make_path(badDir, name + "_notCombined")));
+					processWriter.r1BeginsInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(njh::files::make_path(badDir, name + "_r1BeginsInR2.fastq")));
+				}
 			}
 
 			currentPairOpts.revComplMate_ = true;
@@ -592,10 +613,20 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 				//get seq options for expected pair status
 				SeqIOOptions filterSeqOpts = *resultsPerMidTarPair[name].second.notCombinedOpts;
 				SeqInput processedReader(filterSeqOpts);
-				auto contaminationOutOpts = SeqIOOptions::genPairedOut(njh::files::make_path(unfilteredByPairsProcessedDir, "possibleContamination_" + name));
-				SeqOutput contaminationWriter(contaminationOutOpts);
-				auto tempOutOpts = SeqIOOptions::genPairedOut(njh::files::make_path(unfilteredByPairsProcessedDir, "temp_" + name));
 
+				SeqIOOptions contaminationOutOpts;
+				SeqIOOptions tempOutOpts;
+
+				if (SeqIOOptions::inFormats::FASTQPAIREDGZ == setUp.pars_.ioOptions_.inFormat_) {
+					contaminationOutOpts = SeqIOOptions::genPairedOutGz(njh::files::make_path(unfilteredByPairsProcessedDir, "possibleContamination_" + name));
+					tempOutOpts = SeqIOOptions::genPairedOutGz(njh::files::make_path(unfilteredByPairsProcessedDir, "temp_" + name));
+				}else{
+					contaminationOutOpts = SeqIOOptions::genPairedOut(njh::files::make_path(unfilteredByPairsProcessedDir, "possibleContamination_" + name));
+					tempOutOpts = SeqIOOptions::genPairedOut(njh::files::make_path(unfilteredByPairsProcessedDir, "temp_" + name));
+				}
+
+
+				SeqOutput contaminationWriter(contaminationOutOpts);
 				SeqOutput tempWriter(tempOutOpts);
 				processedReader.openIn();
 				tempWriter.openOut();
@@ -665,10 +696,18 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 					filterSeqOpts = *resultsPerMidTarPair[name].second.r1EndsInR2CombinedOpts;
 				}
 				SeqInput processedReader(filterSeqOpts);
-				auto contaminationOutOpts = SeqIOOptions::genFastqOut(njh::files::make_path(unfilteredByPairsProcessedDir, "possibleContamination_" + name + ".fastq"));
-				SeqOutput contaminationWriter(contaminationOutOpts);
-				auto tempOutOpts = SeqIOOptions::genFastqOut(njh::files::make_path(unfilteredByPairsProcessedDir, "temp_" + name + ".fastq"));
+				SeqIOOptions contaminationOutOpts;
+				SeqIOOptions tempOutOpts;
 
+				if (SeqIOOptions::inFormats::FASTQPAIREDGZ == setUp.pars_.ioOptions_.inFormat_) {
+					contaminationOutOpts = SeqIOOptions::genFastqOutGz(njh::files::make_path(unfilteredByPairsProcessedDir, "possibleContamination_" + name + ".fastq.gz"));
+					tempOutOpts = SeqIOOptions::genFastqOutGz(njh::files::make_path(unfilteredByPairsProcessedDir, "temp_" + name + ".fastq.gz"));
+				}else{
+					contaminationOutOpts = SeqIOOptions::genFastqOut(njh::files::make_path(unfilteredByPairsProcessedDir, "possibleContamination_" + name + ".fastq"));
+					tempOutOpts = SeqIOOptions::genFastqOut(njh::files::make_path(unfilteredByPairsProcessedDir, "temp_" + name + ".fastq"));\
+				}
+
+				SeqOutput contaminationWriter(contaminationOutOpts);
 				SeqOutput tempWriter(tempOutOpts);
 				processedReader.openIn();
 				tempWriter.openOut();
@@ -749,8 +788,18 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 				PairedRead filteringSeq;
 				SeqInput tempReader(tempOuts[name]);
 				tempReader.openIn();
-				auto finalSeqOut = SeqIOOptions::genPairedOut(njh::files::make_path(setUp.pars_.directoryName_, name));
-				auto badSeqOut =  SeqIOOptions::genPairedOut(njh::files::make_path(badDir, name));
+				SeqIOOptions finalSeqOut = SeqIOOptions::genPairedOut(njh::files::make_path(setUp.pars_.directoryName_, name));
+				SeqIOOptions badSeqOut =  SeqIOOptions::genPairedOut(njh::files::make_path(badDir, name));
+
+				if(SeqIOOptions::inFormats::FASTQPAIREDGZ == setUp.pars_.ioOptions_.inFormat_){
+					finalSeqOut = SeqIOOptions::genPairedOutGz(njh::files::make_path(setUp.pars_.directoryName_, name));
+					badSeqOut =  SeqIOOptions::genPairedOutGz(njh::files::make_path(badDir, name));
+				}else{
+					finalSeqOut = SeqIOOptions::genPairedOut(njh::files::make_path(setUp.pars_.directoryName_, name));
+					badSeqOut =  SeqIOOptions::genPairedOut(njh::files::make_path(badDir, name));
+				}
+
+
 				SeqOutput finalWriter(finalSeqOut);
 				SeqOutput badWriter(badSeqOut);
 				while(tempReader.readNextRead(filteringSeq)){
@@ -783,8 +832,15 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 				seqInfo filteringSeq;
 				SeqInput tempReader(tempOuts[name]);
 				tempReader.openIn();
-				auto finalSeqOut = SeqIOOptions::genFastqOut(njh::files::make_path(setUp.pars_.directoryName_, name));
-				auto badSeqOUt =  SeqIOOptions::genFastqOut(njh::files::make_path(badDir, name));
+				SeqIOOptions finalSeqOut;
+				SeqIOOptions badSeqOUt;
+				if(SeqIOOptions::inFormats::FASTQPAIREDGZ == setUp.pars_.ioOptions_.inFormat_){
+					finalSeqOut = SeqIOOptions::genFastqOutGz(njh::files::make_path(setUp.pars_.directoryName_, name));
+					badSeqOUt =   SeqIOOptions::genFastqOutGz(njh::files::make_path(badDir, name));
+				}else{
+					finalSeqOut = SeqIOOptions::genFastqOut(njh::files::make_path(setUp.pars_.directoryName_, name));
+					badSeqOUt =   SeqIOOptions::genFastqOut(njh::files::make_path(badDir, name));
+				}
 				SeqOutput finalWriter(finalSeqOut);
 				SeqOutput badWriter(badSeqOUt);
 				while(tempReader.readNextRead(filteringSeq)){
@@ -866,15 +922,29 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 			}
 		}
 	};
-	auto unRecBarR1Opts = SeqIOOptions::genFastqIn(njh::files::make_path(setUp.pars_.directoryName_, "filteredOff/bad/unrecognizedBarcode_NO_MATCHING_R1.fastq"));
-	auto unRecBarR2Opts = SeqIOOptions::genFastqIn(njh::files::make_path(setUp.pars_.directoryName_, "filteredOff/bad/unrecognizedBarcode_NO_MATCHING_R2.fastq"));
-	auto unRecBarPaired = SeqIOOptions::genPairedIn(njh::files::make_path(setUp.pars_.directoryName_, "filteredOff/bad/unrecognizedBarcode_NO_MATCHING_R1.fastq"),
-			njh::files::make_path(setUp.pars_.directoryName_, "filteredOff/bad/unrecognizedBarcode_NO_MATCHING_R2.fastq"));
+	if(SeqIOOptions::inFormats::FASTQPAIREDGZ == setUp.pars_.ioOptions_.inFormat_){
+		auto unRecBarR1Opts = SeqIOOptions::genFastqIn(njh::files::make_path(setUp.pars_.directoryName_, "filteredOff/bad/unrecognizedBarcode_NO_MATCHING_R1.fastq.gz"));
+		auto unRecBarR2Opts = SeqIOOptions::genFastqIn(njh::files::make_path(setUp.pars_.directoryName_, "filteredOff/bad/unrecognizedBarcode_NO_MATCHING_R2.fastq.gz"));
+		auto unRecBarPaired = SeqIOOptions::genPairedIn(
+				njh::files::make_path(setUp.pars_.directoryName_, "filteredOff/bad/unrecognizedBarcode_NO_MATCHING_R1.fastq.gz"),
+				njh::files::make_path(setUp.pars_.directoryName_, "filteredOff/bad/unrecognizedBarcode_NO_MATCHING_R2.fastq.gz"));
 
-	writeOutUnrecCounts(unRecBarR1Opts, njh::files::make_path(setUp.pars_.directoryName_, "top_mostCommonR1Starts_for_unrecognizedBarcodes.tab.txt"));
-	writeOutUnrecCounts(unRecBarR2Opts, njh::files::make_path(setUp.pars_.directoryName_, "top_mostCommonR2Starts_for_unrecognizedBarcodes.tab.txt"));
-	writeOutUnrecCounts(unRecBarPaired, njh::files::make_path(setUp.pars_.directoryName_, "top_mostCommonR1AndR2Starts_for_unrecognizedBarcodes.tab.txt"));
+		writeOutUnrecCounts(unRecBarR1Opts, njh::files::make_path(setUp.pars_.directoryName_, "top_mostCommonR1Starts_for_unrecognizedBarcodes.tab.txt"));
+		writeOutUnrecCounts(unRecBarR2Opts, njh::files::make_path(setUp.pars_.directoryName_, "top_mostCommonR2Starts_for_unrecognizedBarcodes.tab.txt"));
+		writeOutUnrecCounts(unRecBarPaired, njh::files::make_path(setUp.pars_.directoryName_, "top_mostCommonR1AndR2Starts_for_unrecognizedBarcodes.tab.txt"));
 
+	}else{
+		auto unRecBarR1Opts = SeqIOOptions::genFastqIn(njh::files::make_path(setUp.pars_.directoryName_, "filteredOff/bad/unrecognizedBarcode_NO_MATCHING_R1.fastq"));
+		auto unRecBarR2Opts = SeqIOOptions::genFastqIn(njh::files::make_path(setUp.pars_.directoryName_, "filteredOff/bad/unrecognizedBarcode_NO_MATCHING_R2.fastq"));
+		auto unRecBarPaired = SeqIOOptions::genPairedIn(
+				njh::files::make_path(setUp.pars_.directoryName_, "filteredOff/bad/unrecognizedBarcode_NO_MATCHING_R1.fastq"),
+				njh::files::make_path(setUp.pars_.directoryName_, "filteredOff/bad/unrecognizedBarcode_NO_MATCHING_R2.fastq"));
+
+		writeOutUnrecCounts(unRecBarR1Opts, njh::files::make_path(setUp.pars_.directoryName_, "top_mostCommonR1Starts_for_unrecognizedBarcodes.tab.txt"));
+		writeOutUnrecCounts(unRecBarR2Opts, njh::files::make_path(setUp.pars_.directoryName_, "top_mostCommonR2Starts_for_unrecognizedBarcodes.tab.txt"));
+		writeOutUnrecCounts(unRecBarPaired, njh::files::make_path(setUp.pars_.directoryName_, "top_mostCommonR1AndR2Starts_for_unrecognizedBarcodes.tab.txt"));
+
+	}
 	if(!pars.corePars_.keepUnfilteredReads){
 		njh::files::rmDirForce(unfilteredReadsDir);
 	}

@@ -59,11 +59,11 @@ int SeekDeepServerRunner::popClusteringViewer(const njh::progutils::CmdArgs & in
 	corePars.name_ = "pcv";
 	bfs::path configDir = "";
 	bfs::path resourceDirName = njh::files::make_path(SeekDeep_INSTALLDIR, "etc/serverResources").string();
-	setUp.setOption(resourceDirName, "-resourceDirName",
+	setUp.setOption(resourceDirName, "--resourceDirName",
 			"Name of the resource Directory where the js and html is located",
 			!bfs::exists(resourceDirName));
 
-	setUp.setOption(configDir, "-configDir", "Name of the Master Result Directory", true);
+	setUp.setOption(configDir, "--configDir", "Name of the Master Result Directory", true);
 
 	setUp.processDebug();
 	setUp.processVerbose();
@@ -94,11 +94,8 @@ int SeekDeepServerRunner::popClusteringViewer(const njh::progutils::CmdArgs & in
   if(setUp.pars_.verbose_){
   	std::cout << corePars.getAddress() << std::endl;
   }
-
 	pcv pcViewer(appConfig);
-
 	auto resources = pcViewer.getAllResources();
-
 	auto settings = std::make_shared<restbed::Settings>();
 	settings->set_port(corePars.port_);
 	settings->set_default_header("Connection", "close");
