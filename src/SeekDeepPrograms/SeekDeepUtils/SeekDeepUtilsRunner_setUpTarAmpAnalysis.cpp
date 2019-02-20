@@ -384,7 +384,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 						+ "if [ -f {TARGET}{MIDREP}.fastq.gz  ]; then "
 						+ setUp.commands_.masterProgram_
 						+ " qluster "
-								"--fastqgz \"{TARGET}{MIDREP}.fastq\" "
+								"--fastqgz \"{TARGET}{MIDREP}.fastq.gz\" "
 								"--alnInfoDir {TARGET}{MIDREP}_alnCache --overWriteDir "
 								"--additionalOut \"../popClustering/{TARGET}/locationByIndex/{INDEX}.tab.txt\" "
 								"--overWrite --dout {TARGET}{MIDREP}_qlusterOut ";
@@ -515,7 +515,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 				+ " if [ -f {TARGET}{MIDREP}.fastq.gz  ]; then "
 										+ setUp.commands_.masterProgram_
 										+ " qluster "
-						"--fastqgz \"{TARGET}{MIDREP}.fastq\" "
+						"--fastqgz \"{TARGET}{MIDREP}.fastq.gz\" "
 						"--alnInfoDir {TARGET}{MIDREP}_alnCache --overWriteDir "
 						"--additionalOut ../popClustering/locationByIndex/{TARGET}.tab.txt "
 						"--overWrite --dout {TARGET}{MIDREP}_qlusterOut ";
