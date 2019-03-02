@@ -1,6 +1,6 @@
 SeekDeep
 ========
-Version 2.6.3
+Version 2.6.4-dev
 
 Bioinformatic Tools for analyzing targeted amplicon sequencing developed by the UMASS Med Bailey Lab
 
@@ -31,11 +31,11 @@ For Mac OsX make sure clang version is 7.0 or greater
 
 Also though SeekDeep does not use cmake, several of the libraries it uses do depend on cmake so it needs to be present.  
 
-## To Install Version 2.6.3 (latest) using g++-7 (defaults to clang on Mac)    
+## To Install Version 2.6.4-dev (latest developmental version) using g++-7 (defaults to clang on Mac)    
 ```bash
 git clone https://github.com/bailey-lab/SeekDeep.git   
 cd SeekDeep  
-git checkout v2.6.3
+git checkout develop
 ./configure.py  
 ./setup.py --compfile compfile.mk --outMakefile makefile-common.mk
 make   
