@@ -7,7 +7,7 @@
 
 //
 // SeekDeep - A library for analyzing amplicon sequence data
-// Copyright (C) 2012-2018 Nicholas Hathaway <nicholas.hathaway@umassmed.edu>,
+// Copyright (C) 2012-2019 Nicholas Hathaway <nicholas.hathaway@umassmed.edu>,
 // Jeffrey Bailey <Jeffrey.Bailey@umassmed.edu>
 //
 // This file is part of SeekDeep.
@@ -32,27 +32,6 @@ namespace njhseq {
 
 
 
-bool TarAmpAnalysisSetup::TarAmpPars::checkForStitcher(VecStr & warnings) const {
-	if (!njh::sys::hasSysCommand(stitcherCmd)) {
-		std::stringstream ss;
-		ss << __PRETTY_FUNCTION__ << ": error, need to have " << stitcherCmd
-				<< " in path" << "\n";
-		warnings.emplace_back(ss.str());
-		return false;
-	}
-	return true;
-}
-
-bool TarAmpAnalysisSetup::TarAmpPars::checkForZcat(VecStr & warnings) const {
-	if (!njh::sys::hasSysCommand(zcatCmd)) {
-		std::stringstream ss;
-		ss << __PRETTY_FUNCTION__ << ": error, need to have " << zcatCmd
-				<< " in path" << "\n";
-		warnings.emplace_back(ss.str());
-		return false;
-	}
-	return true;
-}
 
 
 bool TarAmpAnalysisSetup::TarAmpPars::checkForOutDir(VecStr & warnings) const {
@@ -582,12 +561,16 @@ std::vector<VecStr> TarAmpAnalysisSetup::getTarCombos() const{
 	return tarCombos;
 }
 
-void TarAmpAnalysisSetup::writeOutIdFiles() const{
+void TarAmpAnalysisSetup::writeOutIdFiles() {
 	//now write id files
 	std::vector<VecStr> tarCombos = getTarCombos();
+	tarsToTargetSubSets_.clear();
 
 	for (const auto & tarCombo : tarCombos) {
-		auto collapse = njh::conToStr(tarCombo, "_");
+
+		auto collapseStr = njh::conToStr(tarCombo, "_");
+		auto collapseIdx = estd::to_string(tarsToTargetSubSets_.size());
+		tarsToTargetSubSets_[collapseStr] = collapseIdx;
 		auto refs = idsMids_->getRefSeqs(tarCombo);
 		auto lens = idsMids_->genLenCutOffs(tarCombo);
 		auto overlapStatuses = idsMids_->genOverlapStatuses(tarCombo);
@@ -595,20 +578,20 @@ void TarAmpAnalysisSetup::writeOutIdFiles() const{
 		if (!lens.empty()) {
 			auto lensOutOpts = TableIOOpts::genTabFileOut(
 					njh::files::make_path(idsDir_,
-							collapse + "_lenCutOffs.tab.txt"));
+							collapseIdx + "_lenCutOffs.tab.txt"));
 			lens.outPutContents(lensOutOpts);
 		}
 
 		if (!overlapStatuses.empty()) {
 			auto overlapStatusesOpts = TableIOOpts::genTabFileOut(
 					njh::files::make_path(idsDir_,
-							collapse + "_overlapStatus.tab.txt"));
+							collapseIdx + "_overlapStatus.tab.txt"));
 			overlapStatuses.outPutContents(overlapStatusesOpts);
 		}
 
 		idsMids_->writeIdFile(
 				OutOptions(
-						njh::files::make_path(idsDir_, collapse + ".id.txt")),
+						njh::files::make_path(idsDir_, collapseIdx + ".id.txt")),
 				tarCombo);
 	}
 	for(const auto & tar : idsMids_->targets_){
@@ -618,7 +601,6 @@ void TarAmpAnalysisSetup::writeOutIdFiles() const{
 							njh::files::make_path(refsDir_, tar.first)));
 		}
 	}
-
 }
 
 VecStr TarAmpAnalysisSetup::getExpectantInputNames()const{

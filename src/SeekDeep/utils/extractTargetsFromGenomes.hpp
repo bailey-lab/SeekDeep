@@ -30,6 +30,8 @@ struct extractBetweenSeqsPars{
 	bool writeOutAllSeqsFile = false;
 	bool removeRefAlignments = false;
 	njh::files::MkdirPar outputDirPars{"extractedRegions_TODAY"};
+	bool verbose_ = false;
+	bool debug_ = false;
 
 	void setUpCoreOptions(seqSetUp & setUp, bool needReadLength = false);
 

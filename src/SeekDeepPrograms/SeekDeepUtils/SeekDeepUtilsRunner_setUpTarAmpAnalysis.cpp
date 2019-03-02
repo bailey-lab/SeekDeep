@@ -67,10 +67,6 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	setUp.setOption(pars.extraProcessClusterCmds, "--extraProcessClusterCmds",
 			"Extra process clusters cmds to add to the defaults", false, "Extra Commands");
 
-	setUp.setOption(pars.noQualTrim, "--noQualTrim", "No Quality Trim", false, "Pre Processing");
-
-	setUp.setOption(pars.r1Trim, "--r1Trim", "Trim R1 Reads to this length", false, "Pre Processing");
-	setUp.setOption(pars.r2Trim, "--r2Trim", "Trim R2 Reads to this length", false, "Pre Processing");
 
 	setUp.setOption(pars.groupMeta, "--groupMeta", "Group Metadata", false, "Meta");
 
@@ -87,6 +83,9 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 
 	setUp.setOption(pars.inputFilePat, "--inputFilePat",
 			"The input file pattern in the input directory to work on", false, "Input");
+
+	setUp.setOption(pars.noGuessSampNames, "--noGuessSampNames",
+			"Don't guess the sample names from the raw fastq directory input", false, "Input");
 
 	setUp.finishSetUp(std::cout);
 
@@ -247,9 +246,8 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	std::unordered_map<std::string, std::pair<VecStr, VecStr>> readsByPairs ;
 	std::unordered_map<std::string, bfs::path> filesByPossibleName;
 	ReadPairsOrganizer rpOrganizer(expectedSamples);
-
+	rpOrganizer.doNotGuessSampleNames_ = pars.noGuessSampNames;
 	if (analysisSetup.pars_.techIsIllumina()) {
-
 		rpOrganizer.processFiles(files);
 		readsByPairs = rpOrganizer.processReadPairs();
 		auto keys = getVectorOfMapKeys(readsByPairs);
@@ -370,9 +368,9 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 			}
 		}
 		if (analysisSetup.pars_.techIsIllumina()) {
-			extractorCmdTemplate += "--fastq1 \"{INDEX_R1}\" --fastq2 \"{INDEX_R2}\" ";
+			extractorCmdTemplate += "--fastq1gz \"{INDEX_R1}\" --fastq2gz \"{INDEX_R2}\" ";
 		} else {
-			extractorCmdTemplate += "--fastq \"{INDEX_InFile}\" ";
+			extractorCmdTemplate += "--fastqgz \"{INDEX_InFile}\" ";
 		}
 		std::string lenCutOffsTemplate ="--lenCutOffs info/ids/{TARS}_lenCutOffs.tab.txt ";
 		std::string idTemplate = "--id info/ids/{TARS}.id.txt ";
@@ -383,10 +381,10 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 				bfs::absolute(analysisSetup.dir_), "{INDEX}_extraction");
 		std::string qlusterCmdTemplate =
 				"cd \"" + extractionDirs.string() + "\" && "
-						+ "if [ -f {TARGET}{MIDREP}.fastq  ]; then "
+						+ "if [ -f {TARGET}{MIDREP}.fastq.gz  ]; then "
 						+ setUp.commands_.masterProgram_
 						+ " qluster "
-								"--fastq \"{TARGET}{MIDREP}.fastq\" "
+								"--fastqgz \"{TARGET}{MIDREP}.fastq.gz\" "
 								"--alnInfoDir {TARGET}{MIDREP}_alnCache --overWriteDir "
 								"--additionalOut \"../popClustering/{TARGET}/locationByIndex/{INDEX}.tab.txt\" "
 								"--overWrite --dout {TARGET}{MIDREP}_qlusterOut ";
@@ -410,7 +408,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 				auto cmds = VecStr { extractorCmdTemplate, idTemplate };
 				if (bfs::exists(
 						njh::files::make_path(analysisSetup.idsDir_,
-								tarsNames + "_lenCutOffs.tab.txt"))) {
+								analysisSetup.tarsToTargetSubSets_[tarsNames] + "_lenCutOffs.tab.txt"))) {
 					cmds.emplace_back(lenCutOffsTemplate);
 				}
 				bool anyRefs = false;
@@ -460,7 +458,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 					}
 				}
 				currentExtractCmd = njh::replaceString(currentExtractCmd, "{TARS}",
-						tarsNames);
+						analysisSetup.tarsToTargetSubSets_[tarsNames]);
 				extractorCmds.emplace_back(currentExtractCmd);
 				for (const auto & mid : analysisSetup.idsMids_->getMids()) {
 					for (const auto & tar : analysisSetup.indexToTars_[index]) {
@@ -498,9 +496,9 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 			 }
 		}
 		if (analysisSetup.pars_.techIsIllumina()) {
-			extractorCmdTemplate += "--fastq1 \"{REP_R1}\" --fastq2 \"{REP_R2}\" ";
+			extractorCmdTemplate += "--fastq1gz \"{REP_R1}\" --fastq2gz \"{REP_R2}\" ";
 		} else {
-			extractorCmdTemplate += "--fastq \"{REP_InFile}\" ";
+			extractorCmdTemplate += "--fastqgz \"{REP_InFile}\" ";
 		}
 
 		std::string lenCutOffsTemplate ="--lenCutOffs info/ids/{TARS}_lenCutOffs.tab.txt ";
@@ -514,10 +512,10 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 				bfs::absolute(analysisSetup.dir_), "{REP}_extraction");
 
 		std::string qlusterCmdTemplate = "cd \"" + extractionDirs.string() + "\" && "
-				+ " if [ -f {TARGET}{MIDREP}.fastq  ]; then "
+				+ " if [ -f {TARGET}{MIDREP}.fastq.gz  ]; then "
 										+ setUp.commands_.masterProgram_
 										+ " qluster "
-						"--fastq \"{TARGET}{MIDREP}.fastq\" "
+						"--fastqgz \"{TARGET}{MIDREP}.fastq.gz\" "
 						"--alnInfoDir {TARGET}{MIDREP}_alnCache --overWriteDir "
 						"--additionalOut ../popClustering/locationByIndex/{TARGET}.tab.txt "
 						"--overWrite --dout {TARGET}{MIDREP}_qlusterOut ";
@@ -569,7 +567,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 				auto cmds = VecStr { extractorCmdTemplate, idTemplate, currentSampTemp };
 				if (bfs::exists(
 						njh::files::make_path(analysisSetup.idsDir_,
-								tarsNames + "_lenCutOffs.tab.txt"))) {
+								analysisSetup.tarsToTargetSubSets_[tarsNames] + "_lenCutOffs.tab.txt"))) {
 					cmds.emplace_back(lenCutOffsTemplate);
 				}
 				if ("" != analysisSetup.pars_.extraExtractorCmds) {
@@ -622,7 +620,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 					}
 				}
 				currentExtractCmd = njh::replaceString(currentExtractCmd, "{TARS}",
-						tarsNames);
+						analysisSetup.tarsToTargetSubSets_[tarsNames]);
 				extractorCmds.emplace_back(currentExtractCmd);
 
 				for (const auto & tar : rep.second) {
@@ -660,7 +658,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	std::string processClusterTemplate =
 			setUp.commands_.masterProgram_
 					+ " processClusters "
-							"--alnInfoDir alnCache --strictErrors --dout analysis --fastq output.fastq --overWriteDir";
+							"--alnInfoDir alnCache --strictErrors --dout analysis --fastqgz output.fastq.gz --overWriteDir";
 	if ("" != analysisSetup.pars_.extraProcessClusterCmds) {
 		processClusterTemplate += " " + analysisSetup.pars_.extraProcessClusterCmds;
 	}
@@ -774,11 +772,24 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 			<< "##except start the server which is done by running ./startServerCmd.sh"
 			<< std::endl;
 	runAnalysisFile << "" << std::endl;
-	runAnalysisFile << "numThreads=1" << std::endl;
+	runAnalysisFile << "numThreads=" << pars.numThreads << std::endl;
 	runAnalysisFile << "" << std::endl;
 	runAnalysisFile << "if [[ $# -eq 1 ]]; then" << std::endl;
 	runAnalysisFile << "	numThreads=$1" << std::endl;
-	runAnalysisFile << "fi" << std::endl;
+	runAnalysisFile << "fi\n" << std::endl;
+	runAnalysisFile << R"(if [[ $# -gt 1 ]]; then
+  echo "Illegal number of parameters, should either be no agruments or a number to indicate the number of threads"
+  echo "Examples:"
+  echo "Example 1"
+  echo "Run with the default number of threads, which was set when running setupTarAmpAnalysis"
+  echo "./runAnalysis.sh"
+  echo ""
+  echo "Example 2"
+  echo "Run with 7 threads"
+  echo "./runAnalysis.sh 7"
+  exit
+fi)" << std::endl;
+
 	runAnalysisFile << "" << std::endl;
 	runAnalysisFile << "" << setUp.commands_.masterProgram_
 			<< " runMultipleCommands --cmdFile extractorCmds.txt      --numThreads $numThreads --raw"

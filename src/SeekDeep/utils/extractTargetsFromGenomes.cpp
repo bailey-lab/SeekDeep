@@ -64,8 +64,7 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 	}
 
 
-
-	auto alignToGenome = [](njh::concurrent::LockableQueue<bfs::path> & genomesQuque,
+	auto alignToGenome = [&extractPars](njh::concurrent::LockableQueue<bfs::path> & genomesQuque,
 			const bfs::path & forwardFnp,
 			const bfs::path & reverseFnp,
 			const bfs::path & alignDir){
@@ -73,12 +72,14 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 		while(genomesQuque.getVal(genomeFnp)){
 			{
 				BioCmdsUtils bioRunner;
+				bioRunner.verbose_ = extractPars.verbose_;
 				auto seqOpts = SeqIOOptions::genFastaIn(forwardFnp, false);
 				seqOpts.out_.outFilename_ = njh::files::make_path(alignDir, bfs::basename(genomeFnp) + "_" + bfs::basename(forwardFnp) + ".sorted.bam");
 				bioRunner.bowtie2Align(seqOpts, genomeFnp	, "-D 20 -R 3 -N 1 -L 15 -i S,1,0.5 -a --end-to-end");
 			}
 			{
 				BioCmdsUtils bioRunner;
+				bioRunner.verbose_ = extractPars.verbose_;
 				auto seqOpts = SeqIOOptions::genFastaIn(reverseFnp, false);
 				seqOpts.out_.outFilename_ = njh::files::make_path(alignDir, bfs::basename(genomeFnp) + "_" + bfs::basename(reverseFnp) + ".sorted.bam");
 				bioRunner.bowtie2Align(seqOpts, genomeFnp, "-D 20 -R 3 -N 1 -L 15 -i S,1,0.5 -a --end-to-end"	);
@@ -169,11 +170,11 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 						}
 						genomeExtractionsResults[genome.first].extractCounts_ = genome.second.size();
 						OutputStream bedOut{OutOptions(njh::files::make_path(bedDirectory, genome.first + ".bed"))};
+						OutputStream bedInnerOut{OutOptions(njh::files::make_path(bedDirectory, genome.first + "_inner.bed"))};
 						uint32_t extractionCount = 0;
 						for(auto & extract : genome.second){
 							extract.setRegion();
-							auto bedRegion = extract.gRegion_->genBedRecordCore();
-							bedRegion.name_ = genome.first + "-" + target;
+
 							auto name = genome.first;
 							if(0 != extractionCount){
 								name.append("." + estd::to_string(extractionCount));
@@ -183,8 +184,18 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 							meta.addMeta("target", target);
 							meta.addMeta("extractionCount", extractionCount);
 							name += " " + meta.createMetaName();
-							bedRegion.name_ = name;
-							bedOut << bedRegion.toDelimStr() << std::endl;
+
+							{
+								auto bedRegion = extract.gRegion_->genBedRecordCore();
+								bedRegion.name_ = name;
+								bedOut << bedRegion.toDelimStr() << std::endl;
+							}
+							{
+								auto bedRegion = extract.gRegionInner_->genBedRecordCore();
+								bedRegion.name_ = name;
+								bedInnerOut << bedRegion.toDelimStr() << std::endl;
+							}
+
 							TwoBit::TwoBitFile tReader(gMapper->genomes_.at(genome.first)->fnpTwoBit_);
 							auto eSeq = extract.gRegion_->extractSeq(tReader);
 							if(extractPars.shortNames){
@@ -204,6 +215,7 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 							if(!refFound){
 								refSeqs.emplace_back(eSeq);
 							}
+
 							bool trimmed_refFound = false;
 							auto innerSeq = extract.gRegionInner_->extractSeq(tReader);
 							innerSeq.name_ = name;
@@ -268,11 +280,86 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 	auto locationsCombined = njh::files::make_path(outputDir, "locationsByGenome");
 	njh::files::makeDir(njh::files::MkdirPar{locationsCombined});
 
+	//outer with primer
 	for(const auto & genome : gMapper->genomes_){
 		auto genomeBedOpts = njh::files::make_path(locationsCombined, genome.first + ".bed");
 		std::vector<std::shared_ptr<Bed6RecordCore>> allRegions;
 		for(const auto & tar : ids.targets_){
 			auto bedForTarFnp = njh::files::make_path(outputDir, tar.first, "genomeLocations", genome.first + ".bed");
+			if(bfs::exists(bedForTarFnp)){
+				auto locs = getBeds(bedForTarFnp);
+				addOtherVec(allRegions, locs);
+			}
+		}
+		if(!allRegions.empty()){
+			if("" != genome.second->gffFnp_){
+				intersectBedLocsWtihGffRecordsPars pars(genome.second->gffFnp_);
+				pars.selectFeatures_ = VecStr{"gene"};
+				pars.extraAttributes_ = tokenizeString(extractPars.gffExtraAttributesStr, ",");
+				auto jsonValues = intersectBedLocsWtihGffRecords(allRegions, pars);
+				auto geneIds = jsonValues.getMemberNames();
+				std::set<std::string> geneIdsSet(geneIds.begin(), geneIds.end());
+				auto genes = GeneFromGffs::getGenesFromGffForIds(genome.second->gffFnp_,geneIdsSet);
+				for(const auto & reg : allRegions){
+					if(reg->extraFields_.empty()){
+						continue;
+					}
+					auto geneToks = njh::tokenizeString(reg->extraFields_.back(), "],[");
+					if(geneToks.size() > 1){
+						geneToks.front().append("]");
+						for(const auto pos : iter::range<uint32_t>(1, geneToks.size() - 1)){
+							geneToks[pos] = "[" + geneToks[pos] + "]";
+						}
+						geneToks.back() = "[" +geneToks.back();
+					}
+					std::string replacement = "";
+					for(const auto & geneTok : geneToks){
+						MetaDataInName geneMeta(geneTok);
+						TwoBit::TwoBitFile tReader(genome.second->fnpTwoBit_);
+						auto infos = njh::mapAt(genes, geneMeta.getMeta("ID"))->generateGeneSeqInfo(tReader, false);
+						for(const auto & info : infos){
+							auto posInfos = info.second->getInfosByGDNAPos();
+
+							auto minPos = vectorMinimum(getVectorOfMapKeys(posInfos));
+							auto maxPos = vectorMaximum(getVectorOfMapKeys(posInfos));
+							auto startPos = std::max(minPos, reg->chromStart_);
+							auto stopPos =  std::min(maxPos, reg->chromEnd_);
+							auto aaStartPos = std::min(posInfos[startPos].aaPos_, posInfos[stopPos].aaPos_) + 1;
+							auto aaStopPos =  std::max(posInfos[startPos].aaPos_, posInfos[stopPos].aaPos_) + 1;
+							geneMeta.addMeta(info.first + "-AAStart", aaStartPos );
+							geneMeta.addMeta(info.first + "-AAStop", aaStopPos );
+						}
+						if("" != replacement){
+							replacement += ",";
+						}
+						replacement += geneMeta.createMetaName();
+					}
+					reg->extraFields_.back() = replacement;
+				}
+			}
+			OutputStream genomeBedOut(genomeBedOpts);
+			njh::sort(allRegions, [](
+					const std::shared_ptr<Bed3RecordCore> & bed1,
+					const std::shared_ptr<Bed3RecordCore> & bed2
+					){
+				if(bed1->chrom_ == bed2->chrom_){
+					return bed1->chromStart_ < bed2->chromStart_;
+				}else{
+					return bed1->chrom_ < bed2->chrom_;
+				}
+			});
+			for(const auto & loc : allRegions){
+				genomeBedOut << loc->toDelimStrWithExtra() << std::endl;
+			}
+		}
+	}
+
+	//inner with primer
+	for(const auto & genome : gMapper->genomes_){
+		auto genomeBedOpts = njh::files::make_path(locationsCombined, genome.first + "_inner.bed");
+		std::vector<std::shared_ptr<Bed6RecordCore>> allRegions;
+		for(const auto & tar : ids.targets_){
+			auto bedForTarFnp = njh::files::make_path(outputDir, tar.first, "genomeLocations", genome.first + "_inner.bed");
 			if(bfs::exists(bedForTarFnp)){
 				auto locs = getBeds(bedForTarFnp);
 				addOtherVec(allRegions, locs);

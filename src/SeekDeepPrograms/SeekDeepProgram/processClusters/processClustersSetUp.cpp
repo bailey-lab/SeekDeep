@@ -7,7 +7,7 @@
 
 //
 // SeekDeep - A library for analyzing amplicon sequence data
-// Copyright (C) 2012-2018 Nicholas Hathaway <nicholas.hathaway@umassmed.edu>,
+// Copyright (C) 2012-2019 Nicholas Hathaway <nicholas.hathaway@umassmed.edu>,
 // Jeffrey Bailey <Jeffrey.Bailey@umassmed.edu>
 //
 // This file is part of SeekDeep.
@@ -115,6 +115,11 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 	setOption(pars.fracExcludeOnlyInFinalAverageFrac, "--fracExcludeOnlyInFinalAverageFrac", "By default fraction exclusion is done per rep, use fracExcludeOnlyInFinalAverageFrac to exclude only on the final averaged frac", false, "Filtering");
 
 
+	setOption(pars.removeCommonlyLowFreqHaplotypes_, "--excludeCommonlyLowFreqHaplotypes", "Remove Commonly Low Freq Haplotypes", false, "Filtering");
+	setOption(pars.lowFreqHaplotypeFracCutOff_, "--lowFreqHaplotypeFracCutOff", "Low Freq Haplotype Frac Cut Off", false, "Filtering");
+
+
+
 	setOption(pars.noTrees, "--noTrees", "Don't generate html difference trees");
 	processDirectoryOutputName("clusters_" + getCurrentDate(), true);
 
@@ -123,11 +128,17 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 	setOption(pars.noPopulation, "--noPopulation",
 			"Don't do Population Clustering", false, "Population");
 
+	setOption(pars.controlSamples, "--controlSamples", "Samples that shouldn't be included in frequency filtering calcs", false, "Filtering");
 
-	setOption(pars.collapseLowFreqOneOffs, "--collapseLowFreqOneOffs",
+
+	setOption(pars.collapseLowFreqOneOffs, "--excludeLowFreqOneOffs",
 			"Collapse any haplotypes that are low frequency compared to another haplotype (determined by lowFreqMultiplier) and only differs by 1 base", false, "Filtering");
-	setOption(pars.lowFreqMultiplier, "--lowFreqMultiplier",
-			"Low Freq Multiplier used for --collapseLowFreqOneOffs, considered low frequency if haplotype frac is less than its fraction times this number than the other haplotype", false, "Filtering");
+	setOption(pars.lowFreqMultiplier, "--oneOffLowFreqMultiplier",
+			"Low Freq Multiplier used for --excludeLowFreqOneOffs, considered low frequency if haplotype frac is less than its fraction times this number than the other haplotype", false, "Filtering");
+
+	setOption(pars.rescueExcludedChimericHaplotypes, "--rescueExcludedChimericHaplotypes", "Rescue Excluded chimeric Haplotypes if they appear as a major haplotype in another sample");
+	setOption(pars.rescueExcludedOneOffLowFreqHaplotypes, "--rescueExcludedOneOffLowFreqHaplotypes", "Rescue Excluded chimeric Haplotypes if they appear as a major haplotype in another sample");
+	setOption(pars.rescueMatchingExpected, "--rescueMatchingExpected", "Rescue Haplotypes that match expected sequences if they have been read using --ref");
 
 	setOption(pars.fracCutoff, "--fracCutOff",
 			"Final cluster Fraction Cut off", false, "Filtering");
@@ -150,6 +161,8 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 	setOption(pars_.chiOpts_.parentFreqs_, "--parFreqs", "Chimeric Parent Frequency multiplier cutoff", false, "Chimeras");
 
 	setOption(pars.numThreads, "--numThreads", "Number of threads to use");
+	setOption(pars.writeOutAllInfoFile, "--writeOutAllInfoFile", "Write Out All Info File that contains information on all clusters including excluded ones");
+
 	setOption(pars_.colOpts_.clusOpts_.converge_, "--converge", "Keep clustering at each iteration until there is no more collapsing, could increase run time significantly", false, "Clustering");
 	//setOption(pars.plotRepAgreement, "--plotRepAgreement", "Plot Rep Agreement");
 	processAlignerDefualts();

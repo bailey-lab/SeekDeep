@@ -6,7 +6,7 @@
  */
 //
 // SeekDeep - A library for analyzing amplicon sequence data
-// Copyright (C) 2012-2018 Nicholas Hathaway <nicholas.hathaway@umassmed.edu>,
+// Copyright (C) 2012-2019 Nicholas Hathaway <nicholas.hathaway@umassmed.edu>,
 // Jeffrey Bailey <Jeffrey.Bailey@umassmed.edu>
 //
 // This file is part of SeekDeep.
@@ -292,10 +292,32 @@ PairedReadProcessor::ProcessedPairRes PairedReadProcessor::processPairedEnd(
 	//std::cout << __PRETTY_FUNCTION__ << " " << __LINE__ <<  std::endl;
 	alignerObj.profileAlignment(seq.seqBase_, seq.mateSeqBase_, false, true, true);
 	//std::cout << __PRETTY_FUNCTION__ << " " << __LINE__ <<  std::endl;
+//	std::cout << "alignerObj.comp_.distances_.eventBasedIdentityHq_: " << alignerObj.comp_.distances_.eventBasedIdentityHq_<< std::endl;
+//	std::cout << "alignerObj.comp_.distances_.basesInAln_: " << alignerObj.comp_.distances_.basesInAln_ << std::endl;
+//	std::cout << "alignerObj.comp_.hqMismatches_: " << alignerObj.comp_.hqMismatches_ << std::endl;
+	MultiSeqOutCache<seqInfo> debugOutCache;
+	auto failedOverLapOpts = SeqIOOptions::genFastqOut(bfs::path("tempAln_failedOverLap.fastq"));
+	failedOverLapOpts.out_.append_ = true;
+	debugOutCache.addReader("failedOverLap", failedOverLapOpts);
+
+	auto r1BeginsInR2LapOpts = SeqIOOptions::genFastqOut(bfs::path("tempAln_r1BeginsInR2.fastq"));
+	r1BeginsInR2LapOpts.out_.append_ = true;
+	debugOutCache.addReader("r1BeginsInR2", r1BeginsInR2LapOpts);
+
+	auto r1EndsInR2LapOpts = SeqIOOptions::genFastqOut(bfs::path("tempAln_r1EndsInR2.fastq"));
+	r1EndsInR2LapOpts.out_.append_ = true;
+	debugOutCache.addReader("r1EndsInR2", r1EndsInR2LapOpts);
+
+//	OutOptions tempOutR1BEGINSINR2Opts(bfs::path("temp_failedOverLap.fastq"));
+//	tempOutR1BEGINSINR2Opts.append_ = true;
+//	OutputStream tempOutR1BEGINSINR2(tempOutR1BEGINSINR2Opts);
+//
 
 	if( alignerObj.comp_.distances_.eventBasedIdentityHq_ >= percentId &&
 			alignerObj.comp_.distances_.basesInAln_ >= params_.minOverlap_ &&
-			alignerObj.comp_.hqMismatches_ + alignerObj.comp_.lqMismatches_ <= params_.hardMismatchCutOff_){
+			alignerObj.comp_.hqMismatches_ + alignerObj.comp_.lqMismatches_ <= params_.hardMismatchCutOff_ &&
+			alignerObj.comp_.hqMismatches_ <= params_.hqMismatchCutOff &&
+			alignerObj.comp_.lqMismatches_ <= params_.lqMismatchCutOff){
 		AlignOverlapEnd frontCase = AlignOverlapEnd::UNHANDLEED;
 		AlignOverlapEnd backCase  = AlignOverlapEnd::UNHANDLEED;
 		if( '-' != alignerObj.alignObjectA_.seqBase_.seq_.front() &&
@@ -379,6 +401,8 @@ PairedReadProcessor::ProcessedPairRes PairedReadProcessor::processPairedEnd(
 			ret.combinedSeq_ = std::make_shared<seqInfo>(seq.seqBase_.name_, cseq, quals);
 			ret.status_ = ReadPairOverLapStatus::R1ENDSINR2;
 			++counts.r1EndsInR2Combined;
+			debugOutCache.add("r1EndsInR2", alignerObj.alignObjectA_.seqBase_);
+			debugOutCache.add("r1EndsInR2", alignerObj.alignObjectB_.seqBase_);
 		}else if((AlignOverlapEnd::NOOVERHANG == frontCase || AlignOverlapEnd::R2OVERHANG == frontCase) &&
 						 (AlignOverlapEnd::NOOVERHANG == backCase  || AlignOverlapEnd::R1OVERHANG == backCase)){
 			//read through situation, R2 end overlaps R1 beg, overhang is likely illumina adaptor/primer
@@ -401,8 +425,10 @@ PairedReadProcessor::ProcessedPairRes PairedReadProcessor::processPairedEnd(
 				}
 				//writers.overhangsWriter->openWrite(overhang);
 			}
-//				tempWriter.write(alignerObj.alignObjectA_);
-//				tempWriter.write(alignerObj.alignObjectB_);
+
+//			alignerObj.alignObjectA_.seqBase_.outPutFastq(tempOutR1BEGINSINR2);
+//			alignerObj.alignObjectB_.seqBase_.outPutFastq(tempOutR1BEGINSINR2);
+
 			std::string cseq;
 			cseq.reserve(alignerObj.comp_.distances_.basesInAln_);
 			std::vector<uint32_t> quals;
@@ -419,6 +445,8 @@ PairedReadProcessor::ProcessedPairRes PairedReadProcessor::processPairedEnd(
 			ret.combinedSeq_ = std::make_shared<seqInfo>(seq.seqBase_.name_, cseq, quals);
 			ret.status_ = ReadPairOverLapStatus::R1BEGINSINR2;
 			++counts.r1BeginsInR2Combined;
+			debugOutCache.add("r1BeginsInR2", alignerObj.alignObjectA_.seqBase_);
+			debugOutCache.add("r1BeginsInR2", alignerObj.alignObjectB_.seqBase_);
 		} else if(AlignOverlapEnd::R2OVERHANG == frontCase && AlignOverlapEnd::R2OVERHANG == backCase){
 			//no over hangs, perfect overlap
 			std::string cseq;
@@ -476,9 +504,24 @@ PairedReadProcessor::ProcessedPairRes PairedReadProcessor::processPairedEnd(
 		//writers.notCombinedWriter->openWrite(seq);
 		ret.status_ = ReadPairOverLapStatus::NOOVERLAP;
 		ret.combinedSeq_ = nullptr; //not really needed as it should default construct to nullptr anyways
+		if(params_.debug_){
+			auto objA = alignerObj.alignObjectA_.seqBase_;
+			auto objB = alignerObj.alignObjectB_.seqBase_;
+			MetaDataInName mismatchMeta;
+			mismatchMeta.addMeta("eventBasedIdentityHq_", alignerObj.comp_.distances_.eventBasedIdentityHq_);
+			mismatchMeta.addMeta("basesInAln_", alignerObj.comp_.distances_.basesInAln_);
+			mismatchMeta.addMeta("hqMismatches_+lqMismatches_", alignerObj.comp_.hqMismatches_ +alignerObj.comp_.lqMismatches_ );
+			mismatchMeta.addMeta("hqMismatches_", alignerObj.comp_.hqMismatches_);
+			mismatchMeta.addMeta("lqMismatches_", alignerObj.comp_.lqMismatches_);
+			objA.name_.append(mismatchMeta.createMetaName());
+			objB.name_.append(mismatchMeta.createMetaName());
+			debugOutCache.add("failedOverLap", objA);
+			debugOutCache.add("failedOverLap", objB);
+		}
 	}
 	return ret;
 }
+
 
 bool PairedReadProcessor::processPairedEnd(
 		SeqInput & reader,
@@ -486,20 +529,31 @@ bool PairedReadProcessor::processPairedEnd(
 		ProcessorOutWriters & writers,
 		aligner & alignerObj,
 		ProcessedResultsCounts & res){
-//  uncomment for debugging
-//	OutOptions tempOutOpts(bfs::path("temp.fastq"));
-//	tempOutOpts.append_ = true;
-//	OutputStream tempOut(tempOutOpts);
+//  uncomment for debugging R1ENDSINR2
+//	OutOptions tempOutR1BEGINSINR2Opts(bfs::path("temp_R1BEGINSINR2.fastq"));
+//	tempOutR1BEGINSINR2Opts.append_ = true;
+//	OutputStream tempOutR1BEGINSINR2(tempOutR1BEGINSINR2Opts);
+//
+//	OutOptions tempOutR1ENDSINR2Opts(bfs::path("temp_R1ENDSINR2.fastq"));
+//	tempOutR1ENDSINR2Opts.append_ = true;
+//	OutputStream tempOutR1ENDSINR2(tempOutR1ENDSINR2Opts);
+
 	if(reader.readNextRead(seq)){
 		++res.total;
 		if(res.total % 25000 == 0 && params_.verbose_){
 			std::cout << res.total << std::endl;
 		}
-		auto processedPairResults = processPairedEnd(seq,res, alignerObj);
+		auto processedPairResults = processPairedEnd(seq, res, alignerObj);
 //    uncomment for debugging
+//		if(ReadPairOverLapStatus::R1BEGINSINR2 == processedPairResults.status_ ){
+//			alignerObj.alignObjectA_.seqBase_.outPutFastq(tempOutR1BEGINSINR2);
+//			alignerObj.alignObjectB_.seqBase_.outPutFastq(tempOutR1BEGINSINR2);
+//		}
+//		if(ReadPairOverLapStatus::R1ENDSINR2 == processedPairResults.status_ ){
+//			alignerObj.alignObjectA_.seqBase_.outPutFastq(tempOutR1ENDSINR2);
+//			alignerObj.alignObjectB_.seqBase_.outPutFastq(tempOutR1ENDSINR2);
+//		}
 
-//		alignerObj.alignObjectA_.seqBase_.outPutFastq(tempOut);
-//		alignerObj.alignObjectB_.seqBase_.outPutFastq(tempOut);
 
 		std::stringstream errorStream;
 		std::stringstream errorStream2;
@@ -516,6 +570,9 @@ bool PairedReadProcessor::processPairedEnd(
 				break;
 			case ReadPairOverLapStatus::R1BEGINSINR2:
 				writers.r1BeginsInR2CombinedWriter->openWrite(processedPairResults.combinedSeq_);
+				if(params_.writeOverHangs_){
+					writers.overhangsWriter->openWrite(PairedRead(*processedPairResults.r1Overhang_, *processedPairResults.r2Overhang_, false));
+				}
 				break;
 			case ReadPairOverLapStatus::R1ENDSINR2:
 				writers.r1EndsInR2CombinedWriter->openWrite(processedPairResults.combinedSeq_);

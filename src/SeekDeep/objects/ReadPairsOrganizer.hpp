@@ -7,7 +7,7 @@
  */
 //
 // SeekDeep - A library for analyzing amplicon sequence data
-// Copyright (C) 2012-2018 Nicholas Hathaway <nicholas.hathaway@umassmed.edu>,
+// Copyright (C) 2012-2019 Nicholas Hathaway <nicholas.hathaway@umassmed.edu>,
 // Jeffrey Bailey <Jeffrey.Bailey@umassmed.edu>
 //
 // This file is part of SeekDeep.
@@ -39,11 +39,14 @@ public:
 	ReadPairsOrganizer(const VecStr & expectedSamples);
 
 	VecStr expectedSamples_;
+	bool doNotGuessSampleNames_{false};
+	static std::regex illuminaPat_;
+
 	std::unordered_map<std::string, VecStr> readPairs_;
 	std::unordered_map<std::string, VecStr> readPairsUnrecognized_;
 
 	void processFiles(const std::map<bfs::path, bool> & files);
-	std::unordered_map<std::string, std::pair<VecStr, VecStr>> processReadPairs() ;
+	std::unordered_map<std::string, std::pair<VecStr, VecStr>> processReadPairs();
 };
 
 

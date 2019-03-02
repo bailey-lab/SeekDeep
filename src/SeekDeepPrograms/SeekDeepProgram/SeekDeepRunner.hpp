@@ -1,7 +1,7 @@
 #pragma once
 //
 // SeekDeep - A library for analyzing amplicon sequence data
-// Copyright (C) 2012-2018 Nicholas Hathaway <nicholas.hathaway@umassmed.edu>,
+// Copyright (C) 2012-2019 Nicholas Hathaway <nicholas.hathaway@umassmed.edu>,
 // Jeffrey Bailey <Jeffrey.Bailey@umassmed.edu>
 //
 // This file is part of SeekDeep.
@@ -39,7 +39,7 @@ class SeekDeepRunner : public njh::progutils::OneRing {
   SeekDeepRunner();
   static int extractor(const njh::progutils::CmdArgs & inputCommands);
   static int extractorPairedEnd(const njh::progutils::CmdArgs & inputCommands);
-  static int qluster(const njh::progutils::CmdArgs & inputCommands);
+  static int clusterDown(const njh::progutils::CmdArgs & inputCommands);
   //.cpp
   static int processClusters(const njh::progutils::CmdArgs & inputCommands);
   static int makeSampleDirectories(const njh::progutils::CmdArgs & inputCommands);

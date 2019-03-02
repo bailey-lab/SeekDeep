@@ -6,7 +6,7 @@
  */
 //
 // SeekDeep - A library for analyzing amplicon sequence data
-// Copyright (C) 2012-2018 Nicholas Hathaway <nicholas.hathaway@umassmed.edu>,
+// Copyright (C) 2012-2019 Nicholas Hathaway <nicholas.hathaway@umassmed.edu>,
 // Jeffrey Bailey <Jeffrey.Bailey@umassmed.edu>
 //
 // This file is part of SeekDeep.
@@ -30,6 +30,9 @@
 
 namespace njhseq {
 
+std::regex ReadPairsOrganizer::illuminaPat_{"(.*?)((_S[0-9]+)?(_L[0-9]+)?_(R[12])(_[0-9]+)?\\.fastq(\\.gz)?)"};
+
+
 ReadPairsOrganizer::ReadPairsOrganizer(const VecStr & expectedSamples) :
 		expectedSamples_(expectedSamples) {
 
@@ -37,6 +40,7 @@ ReadPairsOrganizer::ReadPairsOrganizer(const VecStr & expectedSamples) :
 
 
 void ReadPairsOrganizer::processFiles(const std::map<bfs::path, bool> & files) {
+
 	for (const auto & f : files) {
 		auto filename = f.first.filename().string();
 		auto underPos = filename.find("_");
@@ -56,16 +60,46 @@ void ReadPairsOrganizer::processFiles(const std::map<bfs::path, bool> & files) {
 					<< "\n";
 			throw std::runtime_error { ss.str() };
 		}
-		std::string sampName = filename.substr(0, underPos);
 
-		if (njh::in(sampName, expectedSamples_)
-				|| njh::in("MID" + sampName, expectedSamples_)) {
-			readPairs_[sampName].emplace_back(f.first.string());
+
+
+		if (doNotGuessSampleNames_) {
+			VecStr matchingSamples;
+			for(const auto & sampName : expectedSamples_){
+				if(njh::beginsWith(filename, sampName)){
+					matchingSamples.emplace_back(sampName);
+				}
+			}
+			if(matchingSamples.empty()){
+				std::string sampName = filename.substr(0, underPos);
+				std::smatch matchRes;
+				if(std::regex_match(filename, matchRes, illuminaPat_)){
+					sampName = matchRes[1];
+				}
+				readPairsUnrecognized_[sampName].emplace_back(f.first.string());
+			} else if(matchingSamples.size() == 1){
+				readPairs_[matchingSamples.front()].emplace_back(f.first.string());
+			}else{
+				std::stringstream ss;
+				ss << __PRETTY_FUNCTION__ << ", error " << filename << " matched multiple input names: " << njh::conToStrEndSpecial(matchingSamples, ", ", " and ") << "\n";
+				throw std::runtime_error{ss.str()};
+			}
 		} else {
-			readPairsUnrecognized_[sampName].emplace_back(f.first.string());
+			std::smatch matchRes;
+			std::string sampName = filename.substr(0, underPos);
+			if(std::regex_match(filename, matchRes, illuminaPat_)){
+				sampName = matchRes[1];
+			}
+			if (njh::in(sampName, expectedSamples_)
+					|| njh::in("MID" + sampName, expectedSamples_)) {
+				readPairs_[sampName].emplace_back(f.first.string());
+			} else {
+				readPairsUnrecognized_[sampName].emplace_back(f.first.string());
+			}
 		}
 	}
 }
+
 std::unordered_map<std::string, std::pair<VecStr, VecStr>> ReadPairsOrganizer::processReadPairs() {
 	std::unordered_map<std::string, std::pair<VecStr, VecStr>> readsByPairs;
 	for (const auto & reads : readPairs_) {

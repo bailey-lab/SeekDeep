@@ -7,7 +7,7 @@
 
 //
 // SeekDeep - A library for analyzing amplicon sequence data
-// Copyright (C) 2012-2018 Nicholas Hathaway <nicholas.hathaway@umassmed.edu>,
+// Copyright (C) 2012-2019 Nicholas Hathaway <nicholas.hathaway@umassmed.edu>,
 // Jeffrey Bailey <Jeffrey.Bailey@umassmed.edu>
 //
 // This file is part of SeekDeep.
@@ -62,7 +62,10 @@ void CoreExtractorPars::setCorePars(seqSetUp & setUp){
 	setUp.setOption(primIdsPars.mPars_.checkComplement_, "--checkRevComplementForMids", "Check the Reverse Complement of the Seqs As Well For MIDs", false, "Complement");
 
 	setUp.setOption(pDetPars.primerWithin_, "--primerWithinStart",
-			"By default the primer or barcodes are searched at the very beginning of seq, use this flag to extended the search, should be kept low to cut down on false positives",
+			"By default the primers are searched at the very beginning of seq, use this flag to extended the search, should be kept low to cut down on false positives",
+			false, "Primers");
+	setUp.setOption(pDetPars.primerStart_, "--primerSearchStart",
+			"By default the primers are searched at the very beginning of seq, use this flag to start the search here",
 			false, "Primers");
 	if (setUp.setOption(primIdsPars.idFile_, "--id", "The name of the ID file", true, "ID File")) {
 		if (!bfs::exists(primIdsPars.idFile_)) {
@@ -123,6 +126,11 @@ ExtractorPairedEndPars::ExtractorPairedEndPars(){
 
 	pairProcessorParams_.r1Trim_ = 1;
 	pairProcessorParams_.r2Trim_ = 1;
+
+
+	pairProcessorParams_.errorAllowed_ = 0.01;
+//	pairProcessorParams_.errorAllowed_ = 0.03;
+
 
 }
 

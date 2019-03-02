@@ -1968,7 +1968,7 @@ class Setup:
             if self.args.numCores < retCores:
                 retCores = self.args.numCores
         else:
-            if retCores > 8:
+            if retCores > 24:
                 retCores  = math.floor(retCores/2)
             if 1 != retCores:
                 retCores -= 1

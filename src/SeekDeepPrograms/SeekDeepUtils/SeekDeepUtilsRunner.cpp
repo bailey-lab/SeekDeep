@@ -3,7 +3,7 @@
 //  Created by Nick Hathaway on 2015/06/24.
 //
 // SeekDeep - A library for analyzing amplicon sequence data
-// Copyright (C) 2012-2018 Nicholas Hathaway <nicholas.hathaway@umassmed.edu>,
+// Copyright (C) 2012-2019 Nicholas Hathaway <nicholas.hathaway@umassmed.edu>,
 // Jeffrey Bailey <Jeffrey.Bailey@umassmed.edu>
 //
 // This file is part of SeekDeep.
@@ -50,10 +50,14 @@ int SeekDeepUtilsRunner::genTargetInfoFromGenomes(const njh::progutils::CmdArgs 
 	setUp.processVerbose();
 	setUp.processDebug();
 	setUp.setOption(pars.primersFile, "--primers", "A file that contains three columns, target,forwardPrimer,reversePrimer 5` to 3` directions, same file as the input to SeekDeep", true);
-
+	pars.verbose_ = setUp.pars_.verbose_;
+	pars.debug_ = setUp.pars_.debug_;
 	pars.setUpCoreOptions(setUp, true);
+
 	setUp.finishSetUp(std::cout);
 
+	njh::sys::requireExternalProgramThrow("bowtie2");
+	njh::sys::requireExternalProgramThrow("samtools");
 
 	PrimersAndMids ids(pars.primersFile);
 	if(0 == ids.getTargets().size() ){
@@ -63,6 +67,8 @@ int SeekDeepUtilsRunner::genTargetInfoFromGenomes(const njh::progutils::CmdArgs 
 		throw std::runtime_error{ss.str()};
 	}
 	ids.initPrimerDeterminator();
+
+
 
 	extractBetweenSeqs(ids, pars);
 
@@ -392,6 +398,8 @@ int SeekDeepUtilsRunner::runMultipleCommands(
 
 	allLog["totalTime"] = setUp.timer_.totalTime();
 	allLog["cmdsfile"] = njh::json::toJson(bfs::absolute(filename));
+	allLog["numThreads"] = njh::json::toJson(numThreads);
+
 	auto & cmdsLog = allLog["cmdsLog"];
 	for (const auto & out : allRunOutputs) {
 		cmdsLog.append(out.toJson());

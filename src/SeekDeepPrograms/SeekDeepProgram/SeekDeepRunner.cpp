@@ -1,6 +1,6 @@
 //
 // SeekDeep - A library for analyzing amplicon sequence data
-// Copyright (C) 2012-2018 Nicholas Hathaway <nicholas.hathaway@umassmed.edu>,
+// Copyright (C) 2012-2019 Nicholas Hathaway <nicholas.hathaway@umassmed.edu>,
 // Jeffrey Bailey <Jeffrey.Bailey@umassmed.edu>
 //
 // This file is part of SeekDeep.
@@ -40,10 +40,10 @@ SeekDeepRunner::SeekDeepRunner() :
 						addFunc("extractor", extractor, false),
 						addFunc("extractorPairedEnd", extractorPairedEnd, false),
 						addFunc("processClusters", processClusters,false),
-						addFunc("qluster", qluster, false),
-						addFunc("clusterDown",qluster, true),
+						addFunc("qluster", clusterDown, false),
+						addFunc("clusterDown",clusterDown, true),
 						addFunc("makeSampleDirectories", makeSampleDirectories, false)
-				}, "SeekDeep", "2", "6", "2") {
+				}, "SeekDeep", "2", "6", "3") {
 }
 
 //
