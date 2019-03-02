@@ -295,7 +295,19 @@ PairedReadProcessor::ProcessedPairRes PairedReadProcessor::processPairedEnd(
 //	std::cout << "alignerObj.comp_.distances_.eventBasedIdentityHq_: " << alignerObj.comp_.distances_.eventBasedIdentityHq_<< std::endl;
 //	std::cout << "alignerObj.comp_.distances_.basesInAln_: " << alignerObj.comp_.distances_.basesInAln_ << std::endl;
 //	std::cout << "alignerObj.comp_.hqMismatches_: " << alignerObj.comp_.hqMismatches_ << std::endl;
-//
+	MultiSeqOutCache<seqInfo> debugOutCache;
+	auto failedOverLapOpts = SeqIOOptions::genFastqOut(bfs::path("tempAln_failedOverLap.fastq"));
+	failedOverLapOpts.out_.append_ = true;
+	debugOutCache.addReader("failedOverLap", failedOverLapOpts);
+
+	auto r1BeginsInR2LapOpts = SeqIOOptions::genFastqOut(bfs::path("tempAln_r1BeginsInR2.fastq"));
+	r1BeginsInR2LapOpts.out_.append_ = true;
+	debugOutCache.addReader("r1BeginsInR2", r1BeginsInR2LapOpts);
+
+	auto r1EndsInR2LapOpts = SeqIOOptions::genFastqOut(bfs::path("tempAln_r1EndsInR2.fastq"));
+	r1EndsInR2LapOpts.out_.append_ = true;
+	debugOutCache.addReader("r1EndsInR2", r1EndsInR2LapOpts);
+
 //	OutOptions tempOutR1BEGINSINR2Opts(bfs::path("temp_failedOverLap.fastq"));
 //	tempOutR1BEGINSINR2Opts.append_ = true;
 //	OutputStream tempOutR1BEGINSINR2(tempOutR1BEGINSINR2Opts);
@@ -303,7 +315,9 @@ PairedReadProcessor::ProcessedPairRes PairedReadProcessor::processPairedEnd(
 
 	if( alignerObj.comp_.distances_.eventBasedIdentityHq_ >= percentId &&
 			alignerObj.comp_.distances_.basesInAln_ >= params_.minOverlap_ &&
-			alignerObj.comp_.hqMismatches_ + alignerObj.comp_.lqMismatches_ <= params_.hardMismatchCutOff_){
+			alignerObj.comp_.hqMismatches_ + alignerObj.comp_.lqMismatches_ <= params_.hardMismatchCutOff_ &&
+			alignerObj.comp_.hqMismatches_ <= params_.hqMismatchCutOff &&
+			alignerObj.comp_.lqMismatches_ <= params_.lqMismatchCutOff){
 		AlignOverlapEnd frontCase = AlignOverlapEnd::UNHANDLEED;
 		AlignOverlapEnd backCase  = AlignOverlapEnd::UNHANDLEED;
 		if( '-' != alignerObj.alignObjectA_.seqBase_.seq_.front() &&
@@ -387,6 +401,8 @@ PairedReadProcessor::ProcessedPairRes PairedReadProcessor::processPairedEnd(
 			ret.combinedSeq_ = std::make_shared<seqInfo>(seq.seqBase_.name_, cseq, quals);
 			ret.status_ = ReadPairOverLapStatus::R1ENDSINR2;
 			++counts.r1EndsInR2Combined;
+			debugOutCache.add("r1EndsInR2", alignerObj.alignObjectA_.seqBase_);
+			debugOutCache.add("r1EndsInR2", alignerObj.alignObjectB_.seqBase_);
 		}else if((AlignOverlapEnd::NOOVERHANG == frontCase || AlignOverlapEnd::R2OVERHANG == frontCase) &&
 						 (AlignOverlapEnd::NOOVERHANG == backCase  || AlignOverlapEnd::R1OVERHANG == backCase)){
 			//read through situation, R2 end overlaps R1 beg, overhang is likely illumina adaptor/primer
@@ -429,6 +445,8 @@ PairedReadProcessor::ProcessedPairRes PairedReadProcessor::processPairedEnd(
 			ret.combinedSeq_ = std::make_shared<seqInfo>(seq.seqBase_.name_, cseq, quals);
 			ret.status_ = ReadPairOverLapStatus::R1BEGINSINR2;
 			++counts.r1BeginsInR2Combined;
+			debugOutCache.add("r1BeginsInR2", alignerObj.alignObjectA_.seqBase_);
+			debugOutCache.add("r1BeginsInR2", alignerObj.alignObjectB_.seqBase_);
 		} else if(AlignOverlapEnd::R2OVERHANG == frontCase && AlignOverlapEnd::R2OVERHANG == backCase){
 			//no over hangs, perfect overlap
 			std::string cseq;
@@ -486,8 +504,20 @@ PairedReadProcessor::ProcessedPairRes PairedReadProcessor::processPairedEnd(
 		//writers.notCombinedWriter->openWrite(seq);
 		ret.status_ = ReadPairOverLapStatus::NOOVERLAP;
 		ret.combinedSeq_ = nullptr; //not really needed as it should default construct to nullptr anyways
-//		alignerObj.alignObjectA_.seqBase_.outPutFastq(tempOutR1BEGINSINR2);
-//		alignerObj.alignObjectB_.seqBase_.outPutFastq(tempOutR1BEGINSINR2);
+		if(params_.debug_){
+			auto objA = alignerObj.alignObjectA_.seqBase_;
+			auto objB = alignerObj.alignObjectB_.seqBase_;
+			MetaDataInName mismatchMeta;
+			mismatchMeta.addMeta("eventBasedIdentityHq_", alignerObj.comp_.distances_.eventBasedIdentityHq_);
+			mismatchMeta.addMeta("basesInAln_", alignerObj.comp_.distances_.basesInAln_);
+			mismatchMeta.addMeta("hqMismatches_+lqMismatches_", alignerObj.comp_.hqMismatches_ +alignerObj.comp_.lqMismatches_ );
+			mismatchMeta.addMeta("hqMismatches_", alignerObj.comp_.hqMismatches_);
+			mismatchMeta.addMeta("lqMismatches_", alignerObj.comp_.lqMismatches_);
+			objA.name_.append(mismatchMeta.createMetaName());
+			objB.name_.append(mismatchMeta.createMetaName());
+			debugOutCache.add("failedOverLap", objA);
+			debugOutCache.add("failedOverLap", objB);
+		}
 	}
 	return ret;
 }

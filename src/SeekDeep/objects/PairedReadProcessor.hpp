@@ -98,9 +98,14 @@ public:
 		uint32_t minOverlap_ = 10;
 		double errorAllowed_ = 0.01;
 		uint32_t hardMismatchCutOff_ = 10;
+		uint32_t lqMismatchCutOff = 10;
+		uint32_t hqMismatchCutOff = 10;
+
 		uint32_t checkAmount_ = 100;
 		uint32_t testNumber_ = std::numeric_limits<uint32_t>::max();
 		bool verbose_ = false;
+		bool debug_ = false;
+
 		bool writeOverHangs_ = false;
 
 		uint32_t r1Trim_ = 0;

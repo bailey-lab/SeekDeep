@@ -58,6 +58,11 @@ void SeekDeepSetUp::setUpExtractorPairedEnd(ExtractorPairedEndPars & pars) {
 			"The amount of error to allow in the overlap processing", false, "Post-Processing-PairProcessing");
 	setOption(pars.pairProcessorParams_.hardMismatchCutOff_, "--hardMismatchCutOff",
 			 "A hard cut off for number of mismatches between overlapping sequences in pair processing", false, "Post-Processing-PairProcessing");
+	setOption(pars.pairProcessorParams_.lqMismatchCutOff, "--lqMismatchCutOff",
+			 "A hard cut off for number of high quality mismatches between overlapping sequences in pair processing", false, "Post-Processing-PairProcessing");
+	setOption(pars.pairProcessorParams_.hqMismatchCutOff, "--hqMismatchCutOff",
+			 "A hard cut off for number of low quality mismatches between overlapping sequences in pair processing", false, "Post-Processing-PairProcessing");
+
 	setOption(pars.pairProcessorParams_.minOverlap_, "--minOverlap",
 			"The minimal amount of over lap in pair processing", false, "Post-Processing-PairProcessing");
 	setOption(pars.pairProcessorParams_.writeOverHangs_, "--writeOverHangs",
