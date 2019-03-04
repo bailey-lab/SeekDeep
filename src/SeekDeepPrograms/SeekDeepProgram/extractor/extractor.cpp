@@ -338,17 +338,30 @@ int SeekDeepRunner::extractor(const njh::progutils::CmdArgs & inputCommands) {
 			readsNotMatchedToBarcodePossContam, smallFragmentCount);
 	std::map<std::string, uint32_t> goodCounts;
 
-	for (const auto & f : barcodeFiles) {
-		auto barcodeName = bfs::basename(f.first.string());
+	for (const auto & barcodeFile : barcodeFiles) {
+		std::string barcodeName = bfs::basename(barcodeFile.first.string());
+		std::string extension =   njh::files::getExtension(barcodeFile.first.string());
+		if(setUp.pars_.ioOptions_.isInGz()){
+			barcodeName = bfs::basename(bfs::basename(barcodeFile.first.string()));
+			extension = njh::files::getExtension(bfs::path(barcodeFile.first).replace_extension("")) + "." + njh::files::getExtension(bfs::path(barcodeFile.first));
+			std::cout << "extension: " << extension << std::endl;
+		}
+
 		if ((counts[barcodeName].first + counts[barcodeName].second) == 0) {
 			//no reads extracted for barcode so skip filtering step
 			continue;
 		}
-
+		if (setUp.pars_.verbose_) {
+			if(ids.containsMids()){
+				std::cout << "Starting Filtering On MID: " << barcodeName << std::endl;
+			}else{
+				std::cout << "Starting Filtering" << std::endl;
+			}
+		}
 		if (pars.filterOffSmallReadCounts && (counts[barcodeName].first + counts[barcodeName].second) <= pars.smallExtractReadCount) {
 			auto barcodeOpts = setUp.pars_.ioOptions_;
-			barcodeOpts.firstName_ = f.first.string();
-			barcodeOpts.inFormat_ = SeqIOOptions::getInFormat(njh::files::getExtension(f.first.string()));
+			barcodeOpts.firstName_ = barcodeFile.first.string();
+			barcodeOpts.inFormat_ = SeqIOOptions::getInFormat(extension);
 			barcodeOpts.out_.outFilename_ = njh::files::make_path(smallDir,  barcodeName).string();
 			SeqIO barcodeIn(barcodeOpts);
 			barcodeIn.openIn();
@@ -369,9 +382,8 @@ int SeekDeepRunner::extractor(const njh::progutils::CmdArgs & inputCommands) {
 		}
 
 		auto barcodeOpts = setUp.pars_.ioOptions_;
-		barcodeOpts.firstName_ = f.first.string();
-		barcodeOpts.inFormat_ = SeqIOOptions::getInFormat(
-				njh::files::getExtension(f.first.string()));
+		barcodeOpts.firstName_ = barcodeFile.first.string();
+		barcodeOpts.inFormat_ = SeqIOOptions::getInFormat(extension);
 		SeqIO barcodeIn(barcodeOpts);
 		barcodeIn.openIn();
 
