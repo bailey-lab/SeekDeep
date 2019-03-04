@@ -40,17 +40,7 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 	setUp.writeParametersFile(setUp.pars_.directoryName_ + "parametersUsed.txt", false, false);
 	PrimersAndMids ids(pars.corePars_.primIdsPars.idFile_);
 
-	if (pars.corePars_.noPrimers_) {
-		if (nullptr == ids.pDeterminator_
-				|| ids.pDeterminator_->primers_.size() != 1) {
-			std::stringstream ss;
-			ss << __PRETTY_FUNCTION__
-					<< ", error if setting --noPrimers then there should be just target listed after the target/gene header in id file" << "\n"
-					<< "the forward and reverse primer sequences columns will be ignored but a name must still appear"
-					<< "\n";
-			throw std::runtime_error { ss.str() };
-		}
-	}
+
 	ids.checkIfMIdsOrPrimersReadInThrow(__PRETTY_FUNCTION__);
 	if(setUp.pars_.verbose_){
 		if(ids.getMids().size()> 0){
@@ -68,6 +58,18 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 	ids.initAllAddLenCutsRefs(pars.corePars_.primIdsPars);
 	//add in overlap status
 	ids.addOverLapStatuses(pars.corePars_.primIdsPars.overlapStatusFnp_);
+
+	if (pars.corePars_.noPrimers_) {
+		if (nullptr == ids.pDeterminator_
+				|| ids.pDeterminator_->primers_.size() != 1) {
+			std::stringstream ss;
+			ss << __PRETTY_FUNCTION__
+					<< ", error if setting --noPrimers then there should be just target listed after the target/gene header in id file" << "\n"
+					<< "the forward and reverse primer sequences columns will be ignored but a name must still appear"
+					<< "\n";
+			throw std::runtime_error { ss.str() };
+		}
+	}
 
 	//default checks for Ns and quality
 	ReadCheckerOnSeqContaining nChecker("N", pars.corePars_.numberOfNs, true);
