@@ -46,17 +46,7 @@ int SeekDeepRunner::extractor(const njh::progutils::CmdArgs & inputCommands) {
 
 	// create Primers and MIDs
 	PrimersAndMids ids(pars.corePars_.primIdsPars.idFile_);
-	if (pars.corePars_.noPrimers_) {
-		if (nullptr == ids.pDeterminator_
-				|| ids.pDeterminator_->primers_.size() != 1) {
-			std::stringstream ss;
-			ss << __PRETTY_FUNCTION__
-					<< ", error if setting --noPrimers then there should be just target listed after the target/gene header in id file" << "\n"
-					<< "the forward and reverse primer sequences columns will be ignored but a name must still appear"
-					<< "\n";
-			throw std::runtime_error { ss.str() };
-		}
-	}
+
 	ids.checkIfMIdsOrPrimersReadInThrow(__PRETTY_FUNCTION__);
 	if(setUp.pars_.verbose_){
 		if(ids.getMids().size()> 0){
@@ -68,7 +58,17 @@ int SeekDeepRunner::extractor(const njh::progutils::CmdArgs & inputCommands) {
 	}
 	// init
 	ids.initAllAddLenCutsRefs(pars.corePars_.primIdsPars);
-
+	if (pars.corePars_.noPrimers_) {
+		if (nullptr == ids.pDeterminator_
+				|| ids.pDeterminator_->primers_.size() != 1) {
+			std::stringstream ss;
+			ss << __PRETTY_FUNCTION__
+					<< ", error if setting --noPrimers then there should be just target listed after the target/gene header in id file" << "\n"
+					<< "the forward and reverse primer sequences columns will be ignored but a name must still appear"
+					<< "\n";
+			throw std::runtime_error { ss.str() };
+		}
+	}
 	// make some directories for outputs
 	bfs::path unfilteredReadsDir = njh::files::makeDir(
 			setUp.pars_.directoryName_,
@@ -344,7 +344,7 @@ int SeekDeepRunner::extractor(const njh::progutils::CmdArgs & inputCommands) {
 		if(setUp.pars_.ioOptions_.isInGz()){
 			barcodeName = bfs::basename(bfs::basename(barcodeFile.first.string()));
 			extension = njh::files::getExtension(bfs::path(barcodeFile.first).replace_extension("")) + "." + njh::files::getExtension(bfs::path(barcodeFile.first));
-			std::cout << "extension: " << extension << std::endl;
+			//std::cout << "extension: " << extension << std::endl;
 		}
 
 		if ((counts[barcodeName].first + counts[barcodeName].second) == 0) {
