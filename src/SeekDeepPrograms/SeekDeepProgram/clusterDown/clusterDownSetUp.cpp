@@ -225,6 +225,10 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 		}
 		pars_.colOpts_.iTOpts_.weighHomopolyer_ = false;
 		needsParFlag = false;
+		pars_.qScorePars_.primaryQual_ = 25;
+		pars_.qScorePars_.secondaryQual_ = 20;
+		pars_.qualThres_ = "25,20";
+
 	}
 	bool otuSet = setOption(pars.otuPerc, "--otu",
 			"Collapse on this OTU percentage, should be between (0,1)", false, "OTU Clustering");
@@ -250,6 +254,11 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 		pars_.colOpts_.kmerOpts_.runCutOff_ = 1;
 		pars_.colOpts_.kmerOpts_.runCutOffString_ = "1";
 	}
+
+	setOption(pars.useAllInput, "--useAllInput", "use all input reads even for large input", false, "Preprocessing");
+	setOption(pars.useCutOff, "--useCutOff", "the cut off for input size, will down sample the file if more than this, helps to control memory usage", false, "Preprocessing");
+	setOption(pars.keepDownSampledFile, "--keepDownloadSampledFile", "Keep down sampled file", false, "Preprocessing");
+
 
 
 	setOption(pars.parameters, "--par", "Parameters filename to supply differences to allow to cluster, required unless technology flag used", needsParFlag, "Clustering");

@@ -51,13 +51,15 @@ public:
 		bool debug = false;
 		bool noGuessSampNames = false;
 
+		//for population clustering step
+		bool conservative = false;
+		bool noRescue = false;
+
 		uint32_t numThreads = 1;
 
 		std::string technology = "illumina";
 
 		std::string inputFilePat = ".*.fastq.gz";
-
-		//Illumina specific
 
 
 
