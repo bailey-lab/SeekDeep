@@ -138,6 +138,10 @@ struct clusterDownPars {
 	bool extra = false;
 	uint32_t smallReadSize = 20;
 
+	bool useAllInput = false; // use all input reads even for large input
+	uint32_t useCutOff = 25000; // the cut off for input size, will down sample the file if more than this, helps to control memory usage
+	bool keepDownSampledFile = false; //keep the down sampled file;
+
 	bool writeOutInitalSeqs = false;
 
 	SnapShotsOpts snapShotsOpts_;

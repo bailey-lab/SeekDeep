@@ -75,6 +75,53 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 	// read in the sequences
 	setUp.rLog_.logCurrentTime("Various filtering and little modifications");
 	auto inputOpts = setUp.pars_.ioOptions_;
+
+	//downsample input file to save on memory usage
+	bfs::path downsampledFnp;
+	if(!pars.useAllInput){
+		//for limiting large number of input sequences
+		uint32_t totalInputCount = 0;
+		{
+			SeqInput counterIo(inputOpts);
+			counterIo.openIn();
+			seqInfo seq;
+			while(counterIo.readNextRead(seq)){
+				++totalInputCount;
+			}
+		}
+		if(setUp.pars_.verbose_){
+			std::cout << "totalInputCount: " << totalInputCount << std::endl;
+		}
+		if(totalInputCount > pars.useCutOff){
+
+			std::vector<uint32_t> randomSel;
+			{
+				njh::randomGenerator rGen;
+				std::vector<uint32_t> allIndexes(totalInputCount);
+				njh::iota<uint32_t>(allIndexes, 0);
+				std::shuffle( std::begin(allIndexes), std::end(allIndexes), rGen.mtGen_) ;
+				randomSel = std::vector<uint32_t>{ std::begin(allIndexes), std::begin(allIndexes)+pars.useCutOff} ;
+			}
+			SeqIOOptions outOpts(njh::files::make_path(setUp.pars_.directoryName_, "downsampledFile"), SeqIOOptions::getOutFormat(inputOpts.inFormat_));
+			SeqOutput writer(outOpts);
+			writer.openOut();
+
+			SeqInput reader(inputOpts);
+			reader.openIn();
+			uint32_t seqCount = 0;
+			seqInfo seq;
+
+			while(reader.readNextRead(seq)){
+				if(njh::in(seqCount, randomSel)){
+					writer.write(seq);
+				}
+				++seqCount;
+			}
+			downsampledFnp = outOpts.out_.outFilename_.string() + outOpts.getOutExtension();
+			inputOpts.firstName_ = downsampledFnp;
+		}
+	}
+
 	bfs::path tempOutFnp;
 	if(setUp.pars_.ioOptions_.inFormat_ == SeqIOOptions::inFormats::FASTAGZ ||
 		 setUp.pars_.ioOptions_.inFormat_ == SeqIOOptions::inFormats::FASTQGZ){
@@ -86,13 +133,15 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 			tempOutFnp =njh::files::make_path(setUp.pars_.directoryName_, "tempinput.fastq");
 		}
 		OutputStream tempOut(tempOutFnp);
-		InputStream in(setUp.pars_.ioOptions_.firstName_);
+		InputStream in(inputOpts.firstName_);
 		std::string line;
 		while(njh::files::crossPlatGetline(in, line)){
 			tempOut << line << "\n";
 		}
 		inputOpts.firstName_ = tempOutFnp;
 	}
+
+
 
 	SeqInput reader(inputOpts);
 	reader.openIn();
@@ -664,7 +713,9 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 	if(bfs::exists(tempOutFnp)){
 		bfs::remove(tempOutFnp);
 	}
-
+	if(bfs::exists(downsampledFnp) && !pars.keepDownSampledFile){
+		bfs::remove(downsampledFnp);
+	}
 	//log number of alignments done
 	setUp.rLog_ << "Number of Alignments Done: "
 			<< alignerObj.numberOfAlingmentsDone_ << "\n";

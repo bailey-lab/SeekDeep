@@ -67,6 +67,9 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	setUp.setOption(pars.extraProcessClusterCmds, "--extraProcessClusterCmds",
 			"Extra process clusters cmds to add to the defaults", false, "Extra Commands");
 
+	setUp.setOption(pars.conservative, "--conservativePopClus",
+			"Do conservative population clustering which skips possible artifact cleanup step", false, "processClusters");
+
 
 	setUp.setOption(pars.groupMeta, "--groupMeta", "Group Metadata", false, "Meta");
 
@@ -659,9 +662,20 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 			setUp.commands_.masterProgram_
 					+ " processClusters "
 							"--alnInfoDir alnCache --strictErrors --dout analysis --fastqgz output.fastq.gz --overWriteDir";
+
+	if (!analysisSetup.pars_.conservative) {
+		processClusterTemplate += " --excludeCommonlyLowFreqHaplotypes --excludeLowFreqOneOffs --fracCutOff 0 ";
+	}
+
+	if (!analysisSetup.pars_.noRescue) {
+		processClusterTemplate += " --rescueExcludedOneOffLowFreqHaplotypes ";
+		//--rescueMatchingExpected --rescueExcludedChimericHaplotypes
+	}
+
 	if ("" != analysisSetup.pars_.extraProcessClusterCmds) {
 		processClusterTemplate += " " + analysisSetup.pars_.extraProcessClusterCmds;
 	}
+
 	VecStr processClusterCmds;
 	if (nullptr != analysisSetup.groupMetaData_) {
 		processClusterTemplate += " --groupingsFile \""
