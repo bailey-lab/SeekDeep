@@ -664,12 +664,12 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 							"--alnInfoDir alnCache --strictErrors --dout analysis --fastqgz output.fastq.gz --overWriteDir";
 
 	if (!analysisSetup.pars_.conservative) {
-		processClusterTemplate += " --excludeCommonlyLowFreqHaplotypes --excludeLowFreqOneOffs ";
+		processClusterTemplate += " --excludeCommonlyLowFreqHaplotypes --excludeLowFreqOneOffs --fracCutOff 0 ";
 	}
 
 	if (!analysisSetup.pars_.noRescue) {
-		processClusterTemplate += " --rescueExcludedChimericHaplotypes --rescueExcludedOneOffLowFreqHaplotypes ";
-		//--rescueMatchingExpected
+		processClusterTemplate += " --rescueExcludedOneOffLowFreqHaplotypes ";
+		//--rescueMatchingExpected --rescueExcludedChimericHaplotypes
 	}
 
 	if ("" != analysisSetup.pars_.extraProcessClusterCmds) {
