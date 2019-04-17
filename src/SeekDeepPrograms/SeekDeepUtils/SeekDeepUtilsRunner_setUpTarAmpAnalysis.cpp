@@ -667,7 +667,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 		processClusterTemplate += " --excludeCommonlyLowFreqHaplotypes --excludeLowFreqOneOffs --fracCutOff 0 ";
 	}
 
-	if (!analysisSetup.pars_.noRescue) {
+	if (!analysisSetup.pars_.conservative && !analysisSetup.pars_.noRescue) {
 		processClusterTemplate += " --rescueExcludedOneOffLowFreqHaplotypes ";
 		//--rescueMatchingExpected --rescueExcludedChimericHaplotypes
 	}
