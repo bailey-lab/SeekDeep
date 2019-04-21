@@ -277,10 +277,9 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 	bool countEndGaps = false;
 	//to avoid allocating an extremely large aligner matrix;
 
-
-
-	aligner alignObj = aligner(maxReadSize, gapPars, scoreMatrix, emptyMaps,
+	aligner alignObj(maxReadSize, gapPars, scoreMatrix, emptyMaps,
 			setUp.pars_.qScorePars_, countEndGaps, false);
+
 	alignObj.processAlnInfoInput(setUp.pars_.alnInfoDirName_);
 	ExtractionStator stats(count, readsNotMatchedToBarcode, 0, smallFragmentCount);
 	std::map<std::string, uint32_t> allPrimerCounts;
