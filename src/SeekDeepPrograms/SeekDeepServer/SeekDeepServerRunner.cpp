@@ -142,11 +142,7 @@ int SeekDeepServerRunner::genProjectConfig(
 	config["shortName"] = shortName;
 	config["projectName"] = projectName;
 	config["debug"] = debug;
-	std::ofstream outFile;
-	std::ostream out(
-			njh::files::determineOutBuf(outFile, outOpts.outFilename_,
-					outOpts.outExtention_, outOpts.overWriteFile_, outOpts.append_,
-					outOpts.exitOnFailureToWrite_));
+	OutputStream out(outOpts);
 	out << config << std::endl;
 	return 0;
 }

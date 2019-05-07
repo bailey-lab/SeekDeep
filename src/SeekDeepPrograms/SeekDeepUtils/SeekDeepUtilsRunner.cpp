@@ -37,6 +37,7 @@ SeekDeepUtilsRunner::SeekDeepUtilsRunner() :
 					addFunc("replaceUnderscores", replaceUnderscores, false),
 				  addFunc("rBind", ManipulateTableRunner::rBind, false),
 					addFunc("genTargetInfoFromGenomes", genTargetInfoFromGenomes, false),
+					addFunc("benchmarkControlMixtures", benchmarkControlMixtures, false)
 				}, //
 				"SeekDeepUtils") {
 }
