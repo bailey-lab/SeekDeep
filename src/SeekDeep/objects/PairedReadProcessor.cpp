@@ -153,6 +153,16 @@ void PairedReadProcessor::ProcessorOutWriters::unsetWriters(){
 	overhangsWriter = nullptr;//(overhangsOpts);
 }
 
+void PairedReadProcessor::ProcessedResultsCounts::addOther(const ProcessedResultsCounts & otherCounts){
+	overlapFail+= otherCounts.overlapFail;
+	overhangFail+= otherCounts.overhangFail;
+	perfectOverlapCombined+= otherCounts.perfectOverlapCombined;
+	r1EndsInR2Combined+= otherCounts.r1EndsInR2Combined;
+	r1BeginsInR2Combined+= otherCounts.r1BeginsInR2Combined;
+	r1AllInR2Combined+= otherCounts.r1AllInR2Combined;
+	r2AllInR1Combined+= otherCounts.r2AllInR1Combined;
+	total+= otherCounts.total;
+}
 
 Json::Value PairedReadProcessor::ProcessedResultsCounts::toJson() const{
 	Json::Value outVal;

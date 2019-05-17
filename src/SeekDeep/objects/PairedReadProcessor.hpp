@@ -155,6 +155,8 @@ public:
 		std::shared_ptr<SeqIOOptions> notCombinedOpts;
 		std::shared_ptr<SeqIOOptions> overhangsOpts;
 
+		void addOther(const ProcessedResultsCounts & otherCounts);
+
 		Json::Value toJson() const;
 		Json::Value toJsonCounts() const;
 	};
