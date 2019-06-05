@@ -32,11 +32,9 @@ ControlBencher::ControlBencher(const ControlBencherPars & pars):pars_(pars){
 	}
 	if(!missingMixs.empty()){
 		std::stringstream ss;
-		ss << __PRETTY_FUNCTION__ << ", error " << " error missing the following mixture information from " << pars_.mixSetUpFnp_ << "\n";
+		ss << __PRETTY_FUNCTION__ << ", error " << " error missing the following mixture information " << njh::conToStr(missingMixs, ",") << " from " << pars_.mixSetUpFnp_ << "\n";
 		throw std::runtime_error{ss.str()};
 	}
-
-
 }
 
 VecStr ControlBencher::getSamples() const {
