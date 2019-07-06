@@ -247,7 +247,7 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 		if(pars.rescueExcludedChimericHaplotypes || pars.rescueExcludedOneOffLowFreqHaplotypes){
 			//firth gather major haplotypes
 			std::set<std::string> majorHaps;
-			for(const auto & sampleName : samplesDirs){
+			for(const auto & sampleName : sampColl.passingSamples_){
 				sampColl.setUpSampleFromPrevious(sampleName);
 				auto sampPtr = sampColl.sampleCollapses_.at(sampleName);
 				for(uint32_t clusPos = 0; clusPos < 2 && clusPos < sampPtr->collapsed_.clusters_.size(); ++clusPos){
@@ -256,7 +256,7 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 				}
 				sampColl.dumpSample(sampleName);
 			}
-			for(const auto & sampleName : samplesDirs){
+			for(const auto & sampleName : sampColl.passingSamples_){
 				sampColl.setUpSampleFromPrevious(sampleName);
 				auto sampPtr = sampColl.sampleCollapses_.at(sampleName);
 				for(uint32_t clusPos = 0; clusPos < 2 && clusPos < sampPtr->collapsed_.clusters_.size(); ++clusPos){
@@ -269,7 +269,7 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 				std::cout << "majorHaps: " << njh::conToStr(majorHaps, ",") << std::endl;
 			}
 			bool rescuedHaplotypes = false;
-			for(const auto & sampleName : samplesDirs){
+			for(const auto & sampleName : sampColl.passingSamples_){
 				sampColl.setUpSampleFromPrevious(sampleName);
 				auto sampPtr = sampColl.sampleCollapses_.at(sampleName);
 				std::vector<uint32_t> toBeRescued;
@@ -353,7 +353,7 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 
 		if(pars.rescueMatchingExpected && !expectedSeqs.empty()){
 			bool rescuedHaplotypes = false;
-			for(const auto & sampleName : samplesDirs){
+			for(const auto & sampleName : sampColl.passingSamples_){
 				sampColl.setUpSampleFromPrevious(sampleName);
 				auto sampPtr = sampColl.sampleCollapses_.at(sampleName);
 				std::vector<uint32_t> toBeRescued;
