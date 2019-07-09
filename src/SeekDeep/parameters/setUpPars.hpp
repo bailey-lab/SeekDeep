@@ -144,6 +144,9 @@ struct clusterDownPars {
 
 	bool writeOutInitalSeqs = false;
 
+	bool countIlluminaSampleNumbers_ = false;
+	bool filterToMostCommonIlluminaSampleNumber_ = false;
+
 	SnapShotsOpts snapShotsOpts_;
 };
 

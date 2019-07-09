@@ -255,7 +255,7 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 			clusterNameToFilePosKey[clusters[fPositions.first].seqBase_.name_] = fPositions.first;
 		}
 	}
-	if(!pars.writeOutInitalSeqs){
+	if(!pars.countIlluminaSampleNumbers_ && !pars.writeOutInitalSeqs){
 		filepositions.clear();
 		clusterNameToFilePosKey.clear();
 	}
@@ -607,7 +607,37 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 		outHtml << outHtmlStr;
 	}
 
-
+	if(pars.countIlluminaSampleNumbers_){
+		OutputStream sampleCountsOut(njh::files::make_path(setUp.pars_.directoryName_, "illuminaSampleNumbersCounts.tab.txt"));
+		SeqInput reader(inputOpts);
+		reader.openIn();
+		seqInfo inSeq;
+		sampleCountsOut << "SeqName\tsampleNumber\tcount" << std::endl;
+		for (const auto& clus : clusters) {
+			std::unordered_map<std::string, uint32_t> sampleNumberCounts;
+			for (const auto & seq : clus.reads_) {
+				for (const auto seqPos : filepositions[clusterNameToFilePosKey[seq->seqBase_.name_]]) {
+					reader.seekgPri(seqPos);
+					reader.readNextRead(inSeq);
+					IlluminaNameFormatDecoder nameDecoded(inSeq.name_);
+					++sampleNumberCounts[nameDecoded.getSampleNumber()];
+				}
+			}
+			VecStr sampleNumbersNames = getVectorOfMapKeys(sampleNumberCounts);
+			njh::sort(sampleNumbersNames,[&sampleNumberCounts](const std::string &k1, const std::string &k2){
+				if(sampleNumberCounts[k1] == sampleNumberCounts[k2]){
+					return k1 > k2;
+				}else{
+					return sampleNumberCounts[k1] > sampleNumberCounts[k2];
+				}
+			});
+			for(const auto & k : sampleNumbersNames){
+				sampleCountsOut << clus.seqBase_.name_
+						<< "\t" << k
+						<< "\t" << sampleNumberCounts[k] << std::endl;
+			}
+		}
+	}
 
 	if (pars.writeOutInitalSeqs) {
 		std::string clusterDirectoryName = njh::files::makeDir(setUp.pars_.directoryName_,
@@ -642,18 +672,14 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 			compStats << "cluster\tcompAmount" << std::endl;
 		}
 		std::string allInputReadsDir;
-		if(pars.writeOutInitalSeqs){
-			allInputReadsDir = njh::files::makeDir(setUp.pars_.directoryName_,
-					njh::files::MkdirPar("allInputReadsForEachCluster", false)).string();
-		}
+		allInputReadsDir = njh::files::makeDir(setUp.pars_.directoryName_,
+				njh::files::MkdirPar("allInputReadsForEachCluster", false)).string();
 		SeqIOOptions clustersIoOpts(
 				njh::files::make_path(allInputReadsDir, "allInitialReads"),
 				setUp.pars_.ioOptions_.outFormat_);
 		SeqOutput subClusterWriter(clustersIoOpts);
-		if(pars.writeOutInitalSeqs){
-			subClusterWriter.openOut();
-		}
-		SeqInput reader(setUp.pars_.ioOptions_);
+		subClusterWriter.openOut();
+		SeqInput reader(inputOpts);
 		reader.openIn();
 		seqInfo inSeq;
 		for (const auto& clus : clusters) {

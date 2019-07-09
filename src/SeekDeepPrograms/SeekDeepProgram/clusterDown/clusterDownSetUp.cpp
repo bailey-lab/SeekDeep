@@ -178,6 +178,8 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 	setOption(pars.ionTorrent, "--ionTorrent", "Flag to indicate reads are IonTorrent and therefore turns on --adjustHomopolyerRuns and --qualTrim", false, "Technology");
 	setOption(pars.tech454, "--454", "Flag to indicate reads are 454", false, "Technology");
 	setOption(pars.illumina, "--illumina","Flag to indicate reads are Illumina", false, "Technology");
+	setOption(pars.countIlluminaSampleNumbers_, "--countIlluminaSampleNumbers", "Count Illumina Sample Numbers");
+
 	bool needsParFlag = true;
 
 	setOption(pars.hq, "--hq",
