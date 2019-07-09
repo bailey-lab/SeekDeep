@@ -76,6 +76,37 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 	setUp.rLog_.logCurrentTime("Various filtering and little modifications");
 	auto inputOpts = setUp.pars_.ioOptions_;
 
+	//
+	std::unordered_map<std::string, uint32_t> sampleNumberCounts;
+	if(!pars.dontFilterToMostCommonIlluminaSampleNumber_){
+		uint32_t totalInputCount = 0;
+		{
+			SeqInput counterIo(inputOpts);
+			counterIo.openIn();
+			seqInfo seq;
+			while(counterIo.readNextRead(seq)){
+				IlluminaNameFormatDecoder decoder(seq.name_);
+				++sampleNumberCounts[decoder.getSampleNumber()];
+				++totalInputCount;
+				if(totalInputCount > pars.useCutOff){
+					break;
+				}
+			}
+		}
+	}
+	VecStr sampleNames;
+	if(!pars.dontFilterToMostCommonIlluminaSampleNumber_){
+		sampleNames = getVectorOfMapKeys(sampleNumberCounts);
+		njh::sort(sampleNames,[&sampleNumberCounts](const std::string & k1, const std::string & k2){
+			if(sampleNumberCounts[k1] == sampleNumberCounts[k2]){
+				return k1 > k2;
+			}else{
+				return sampleNumberCounts[k1] > sampleNumberCounts[k2];
+			}
+		});
+	}
+
+
 	//downsample input file to save on memory usage
 	bfs::path downsampledFnp;
 	if(!pars.useAllInput){
@@ -86,6 +117,12 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 			counterIo.openIn();
 			seqInfo seq;
 			while(counterIo.readNextRead(seq)){
+				if(!pars.dontFilterToMostCommonIlluminaSampleNumber_){
+					IlluminaNameFormatDecoder decoder(seq.name_);
+					if(decoder.getSampleNumber() != sampleNames.front()){
+						continue;
+					}
+				}
 				++totalInputCount;
 			}
 		}
@@ -112,6 +149,12 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 			seqInfo seq;
 
 			while(reader.readNextRead(seq)){
+				if(!pars.dontFilterToMostCommonIlluminaSampleNumber_){
+					IlluminaNameFormatDecoder decoder(seq.name_);
+					if(decoder.getSampleNumber() != sampleNames.front()){
+						continue;
+					}
+				}
 				if(njh::in(seqCount, randomSel)){
 					writer.write(seq);
 				}
@@ -156,6 +199,13 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 		seqInfo seq;
 		uint64_t fPos = reader.tellgPri();
 		while(reader.readNextRead(seq)){
+			if(!pars.dontFilterToMostCommonIlluminaSampleNumber_){
+				IlluminaNameFormatDecoder decoder(seq.name_);
+				if(decoder.getSampleNumber() != sampleNames.front()){
+					fPos = reader.tellgPri();
+					continue;
+				}
+			}
 			++counter;
 			if(len(seq) <= pars.smallReadSize){
 				smallWriter.openWrite(seq);

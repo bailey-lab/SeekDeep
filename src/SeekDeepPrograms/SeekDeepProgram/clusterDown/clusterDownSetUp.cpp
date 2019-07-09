@@ -179,6 +179,8 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 	setOption(pars.tech454, "--454", "Flag to indicate reads are 454", false, "Technology");
 	setOption(pars.illumina, "--illumina","Flag to indicate reads are Illumina", false, "Technology");
 	setOption(pars.countIlluminaSampleNumbers_, "--countIlluminaSampleNumbers", "Count Illumina Sample Numbers");
+	setOption(pars.dontFilterToMostCommonIlluminaSampleNumber_, "--dontFilterToMostCommonIlluminaSampleNumber", "Don't Filter To Most Common Illumina Sample Number");
+
 
 	bool needsParFlag = true;
 
