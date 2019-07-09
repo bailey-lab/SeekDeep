@@ -612,17 +612,21 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 		SeqInput reader(inputOpts);
 		reader.openIn();
 		seqInfo inSeq;
-		sampleCountsOut << "SeqName\tsampleNumber\tcount" << std::endl;
+		sampleCountsOut << "SeqName\tsampleNumber\tcount\tfrac" << std::endl;
 		for (const auto& clus : clusters) {
 			std::unordered_map<std::string, uint32_t> sampleNumberCounts;
+			double total = 0;
 			for (const auto & seq : clus.reads_) {
+
 				for (const auto seqPos : filepositions[clusterNameToFilePosKey[seq->seqBase_.name_]]) {
 					reader.seekgPri(seqPos);
 					reader.readNextRead(inSeq);
 					IlluminaNameFormatDecoder nameDecoded(inSeq.name_);
 					++sampleNumberCounts[nameDecoded.getSampleNumber()];
+					++total;
 				}
 			}
+
 			VecStr sampleNumbersNames = getVectorOfMapKeys(sampleNumberCounts);
 			njh::sort(sampleNumbersNames,[&sampleNumberCounts](const std::string &k1, const std::string &k2){
 				if(sampleNumberCounts[k1] == sampleNumberCounts[k2]){
@@ -634,7 +638,8 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 			for(const auto & k : sampleNumbersNames){
 				sampleCountsOut << clus.seqBase_.name_
 						<< "\t" << k
-						<< "\t" << sampleNumberCounts[k] << std::endl;
+						<< "\t" << sampleNumberCounts[k]
+						<< "\t" << sampleNumberCounts[k]/total<< std::endl;
 			}
 		}
 	}
