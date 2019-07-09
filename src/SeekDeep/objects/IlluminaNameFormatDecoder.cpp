@@ -12,7 +12,7 @@
 
 namespace njhseq {
 //std::regex IlluminaNameFormatDecoder::NameRegPatStr_{""};
-std::regex IlluminaNameFormatDecoder::NameRegPatStr_{"([A-Za-z0-9_]+):([0-9]+):([A-Za-z0-9-]+):([0-9]+):([0-9]+):([0-9]+):([0-9]+)"};
+std::regex IlluminaNameFormatDecoder::NameRegPatStr_{"([A-Za-z0-9_]+):([0-9]+):([A-Za-z0-9-]+):([0-9]+):([0-9]+):([0-9]+):([0-9]+) "};
 //std::regex IlluminaNameFormatDecoder::NameRegPatStr_{"([A-Za-z0-9_]+):([0-9]+):([A-Za-z0-9-]+):([0-9]+):([0-9]+):([0-9]+):([0-9]+) ([12]):([NY]):([0-9]):([AGCTN+]+))"};
 
 }  // namespace njhseq
