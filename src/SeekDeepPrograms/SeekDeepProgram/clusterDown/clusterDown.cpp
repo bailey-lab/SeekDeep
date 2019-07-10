@@ -159,7 +159,7 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 					writer.write(seq);
 				}
 				++seqCount;
-			}
+			}//Improper name format
 			downsampledFnp = outOpts.out_.outFilename_.string() + outOpts.getOutExtension();
 			inputOpts.firstName_ = downsampledFnp;
 		}
