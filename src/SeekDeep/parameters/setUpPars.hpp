@@ -29,6 +29,7 @@
 #include <njhseq.h>
 #include "SeekDeep/objects/PairedReadProcessor.hpp"
 #include "SeekDeep/objects/PrimersAndMids.hpp"
+#include "SeekDeep/objects/IlluminaNameFormatDecoder.hpp"
 
 namespace njhseq {
 
@@ -146,6 +147,9 @@ struct clusterDownPars {
 
 	bool countIlluminaSampleNumbers_ = false;
 	bool dontFilterToMostCommonIlluminaSampleNumber_ = false;
+	std::string IlluminaSampleRegPatStr_ = IlluminaNameFormatDecoder::DefaultNameRegPatStr_;
+	uint32_t IlluminaSampleNumberPos_ = IlluminaNameFormatDecoder::DefaultSampleNumberPos_;
+
 
 	SnapShotsOpts snapShotsOpts_;
 };

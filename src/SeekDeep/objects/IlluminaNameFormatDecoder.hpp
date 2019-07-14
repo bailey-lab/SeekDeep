@@ -14,10 +14,23 @@ namespace njhseq {
 class IlluminaNameFormatDecoder{
 public:
 
-	IlluminaNameFormatDecoder(const std::string & name){
-		std::regex_match(name, match_, NameRegPatStr_);
+	IlluminaNameFormatDecoder(const std::string & name,
+			const std::string nameRegPat, const uint32_t sampleNumberPos) :
+			nameRegPat_(nameRegPat), sampleNumberPos_(sampleNumberPos) {
+		std::regex_match(name, match_, nameRegPat_);
 	}
-	static std::regex NameRegPatStr_;
+
+	IlluminaNameFormatDecoder(const std::string & name) :
+			IlluminaNameFormatDecoder(name, DefaultNameRegPatStr_,
+					DefaultSampleNumberPos_) {
+	}
+
+	static std::string DefaultNameRegPatStr_;
+	static uint32_t DefaultSampleNumberPos_;
+
+	std::regex nameRegPat_;
+	uint32_t sampleNumberPos_;
+
 	std::smatch match_;
 
 	/** index in match to what value in the illumina
@@ -44,7 +57,7 @@ public:
 	}
 
 	std::string getSampleNumber() const{
-		return getIndexValue(11);
+		return getIndexValue(sampleNumberPos_);
 	}
 };
 
