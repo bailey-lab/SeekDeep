@@ -184,6 +184,8 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 	setOption(pars.dontFilterToMostCommonIlluminaSampleNumber_, "--dontFilterToMostCommonIlluminaSampleNumber", "Don't Filter To Most Common Illumina Sample Number");
 	setOption(pars.IlluminaSampleRegPatStr_, "--IlluminaSampleRegPatStr", "Illumina Sample Reg Pat Str");
 	setOption(pars.IlluminaSampleNumberPos_, "--IlluminaSampleNumberPos", "Illumina Sample Number Pos");
+	setOption(pars.BackUpIlluminaSampleRegPatStr_, "--BackUpIlluminaSampleRegPatStr", "Back Up Illumina Sample Reg Pat Str");
+	setOption(pars.BackUpIlluminaSampleNumberPos_, "--BackUpIlluminaSampleNumberPos", "Back Up Illumina Sample Number Pos");
 
 
 	bool needsParFlag = true;

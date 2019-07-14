@@ -86,6 +86,9 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 			seqInfo seq;
 			while(counterIo.readNextRead(seq)){
 				IlluminaNameFormatDecoder decoder(seq.name_, pars.IlluminaSampleRegPatStr_, pars.IlluminaSampleNumberPos_);
+				if(0 == decoder.match_.size()){
+					decoder = IlluminaNameFormatDecoder(seq.name_, pars.BackUpIlluminaSampleRegPatStr_, pars.BackUpIlluminaSampleNumberPos_);
+				}
 				++sampleNumberCounts[decoder.getSampleNumber()];
 				++totalInputCount;
 				if(totalInputCount > pars.useCutOff){
@@ -119,6 +122,9 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 			while(counterIo.readNextRead(seq)){
 				if(!pars.dontFilterToMostCommonIlluminaSampleNumber_){
 					IlluminaNameFormatDecoder decoder(seq.name_, pars.IlluminaSampleRegPatStr_, pars.IlluminaSampleNumberPos_);
+					if(0 == decoder.match_.size()){
+						decoder = IlluminaNameFormatDecoder(seq.name_, pars.BackUpIlluminaSampleRegPatStr_, pars.BackUpIlluminaSampleNumberPos_);
+					}
 					if(decoder.getSampleNumber() != sampleNames.front()){
 						continue;
 					}
@@ -151,6 +157,9 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 			while(reader.readNextRead(seq)){
 				if(!pars.dontFilterToMostCommonIlluminaSampleNumber_){
 					IlluminaNameFormatDecoder decoder(seq.name_, pars.IlluminaSampleRegPatStr_, pars.IlluminaSampleNumberPos_);
+					if(0 == decoder.match_.size()){
+						decoder = IlluminaNameFormatDecoder(seq.name_, pars.BackUpIlluminaSampleRegPatStr_, pars.BackUpIlluminaSampleNumberPos_);
+					}
 					if(decoder.getSampleNumber() != sampleNames.front()){
 						continue;
 					}
@@ -201,6 +210,9 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 		while(reader.readNextRead(seq)){
 			if(!pars.dontFilterToMostCommonIlluminaSampleNumber_){
 				IlluminaNameFormatDecoder decoder(seq.name_, pars.IlluminaSampleRegPatStr_, pars.IlluminaSampleNumberPos_);
+				if(0 == decoder.match_.size()){
+					decoder = IlluminaNameFormatDecoder(seq.name_, pars.BackUpIlluminaSampleRegPatStr_, pars.BackUpIlluminaSampleNumberPos_);
+				}
 				if(decoder.getSampleNumber() != sampleNames.front()){
 					fPos = reader.tellgPri();
 					continue;
@@ -672,6 +684,9 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 					reader.seekgPri(seqPos);
 					reader.readNextRead(inSeq);
 					IlluminaNameFormatDecoder nameDecoded(inSeq.name_, pars.IlluminaSampleRegPatStr_, pars.IlluminaSampleNumberPos_);
+					if(0 == nameDecoded.match_.size()){
+						nameDecoded = IlluminaNameFormatDecoder(inSeq.name_, pars.BackUpIlluminaSampleRegPatStr_, pars.BackUpIlluminaSampleNumberPos_);
+					}
 					++sampleNumberCounts[nameDecoded.getSampleNumber()];
 					++total;
 				}
