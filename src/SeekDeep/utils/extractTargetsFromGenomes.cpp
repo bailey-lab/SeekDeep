@@ -253,14 +253,15 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 						SeqOutput::write(refTrimmedSeqs, innerSeqOpts);
 					}
 
-					table performanceTab(VecStr{"genome", "forwardPrimerHits", "reversePrimerHits", "extractionCounts"});
+					table performanceTab(VecStr{"genome", "forwardPrimerHits", "reversePrimerHits", "extractionCounts", "target"});
 					auto genomeKeys = getVectorOfMapKeys(genomeExtractionsResults);
 					njh::sort(genomeKeys);
 					for(const auto & genomeKey : genomeKeys){
 						performanceTab.addRow(genomeKey,
 								genomeExtractionsResults[genomeKey].forwardHits_,
 								genomeExtractionsResults[genomeKey].reverseHits_,
-								genomeExtractionsResults[genomeKey].extractCounts_);
+								genomeExtractionsResults[genomeKey].extractCounts_,
+								primerInfo.primerPairName_);
 					}
 					auto perTabOpts = TableIOOpts::genTabFileOut(njh::files::make_path(primerDirectory, "extractionCounts"),true);
 					performanceTab.outPutContents(perTabOpts);
