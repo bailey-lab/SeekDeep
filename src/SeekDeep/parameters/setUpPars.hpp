@@ -130,6 +130,7 @@ struct clusterDownPars {
   bool useCompPerCutOff = false;
   bool ionTorrent = false;
   bool illumina = false;
+  bool illuminaAllowHomopolyers = false;
   bool tech454 = false;
   uint32_t hq = 0;
 
@@ -150,8 +151,10 @@ struct clusterDownPars {
 	std::string IlluminaSampleRegPatStr_ = IlluminaNameFormatDecoder::DefaultNameRegPatStr_;
 	uint32_t IlluminaSampleNumberPos_ = IlluminaNameFormatDecoder::DefaultSampleNumberPos_;
 
-	std::string BackUpIlluminaSampleRegPatStr_ = "([A-Za-z0-9_]+):([0-9]+):([A-Za-z0-9-]+):([0-9]+):([0-9]+):([0-9]+):([0-9]+) ([12]):([NY]):([0-9]):([A-z0-9_-+]+):([A-z0-9_-+]+) ([A-z0-9_|+-]+) (.*)";
-	uint32_t BackUpIlluminaSampleNumberPos_ = 13;
+//	std::string BackUpIlluminaSampleRegPatStr_ = "([A-Za-z0-9_]+):([0-9]+):([A-Za-z0-9-]+):([0-9]+):([0-9]+):([0-9]+):([0-9]+) ([12]):([NY]):([0-9]):([A-z0-9_-+]+):([A-z0-9_-+]+) ([A-z0-9_|+-]+)( .*)?";
+//	uint32_t BackUpIlluminaSampleNumberPos_ = 13;
+	std::string BackUpIlluminaSampleRegPatStr_ = "([A-Za-z0-9_]+):([0-9]+):([A-Za-z0-9-]+):([0-9]+):([0-9]+):([0-9]+):([0-9]+) ([12]):([NY]):([0-9]):([A-Za-z0-9_+:-]+) ([A-z0-9_|+-]+)( .*)?";
+	uint32_t BackUpIlluminaSampleNumberPos_ = 12;
 
 	SnapShotsOpts snapShotsOpts_;
 };

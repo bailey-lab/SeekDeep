@@ -510,16 +510,16 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 				processWriter.r2AllInR1CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOutGz(njh::files::make_path(unfilteredByPairsProcessedDir, name + "_r2AllInR1")));
 				if(PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP == njh::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
 					processWriter.notCombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genPairedOutGz(njh::files::make_path(unfilteredByPairsProcessedDir, name)));
-					processWriter.r1BeginsInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOutGz(njh::files::make_path(badDir, name + "_r1BeginsInR2.fastq")));
-					processWriter.r1EndsInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOutGz(njh::files::make_path(badDir, name + "_r1EndsInR2.fastq")));
+					processWriter.r1BeginsInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOutGz(njh::files::make_path(badDir, name + "_r1BeginsInR2")));
+					processWriter.r1EndsInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOutGz(njh::files::make_path(badDir, name + "_r1EndsInR2")));
 				} else if(PairedReadProcessor::ReadPairOverLapStatus::R1BEGINSINR2 == njh::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
 					processWriter.r1BeginsInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOutGz(njh::files::make_path(unfilteredByPairsProcessedDir, name + "")));
 					processWriter.notCombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genPairedOutGz(njh::files::make_path(badDir, name + "_notCombined")));
-					processWriter.r1EndsInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOutGz(njh::files::make_path(badDir, name + "_r1EndsInR2.fastq")));
+					processWriter.r1EndsInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOutGz(njh::files::make_path(badDir, name + "_r1EndsInR2")));
 				} else if(PairedReadProcessor::ReadPairOverLapStatus::R1ENDSINR2 == njh::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
 					processWriter.r1EndsInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOutGz(njh::files::make_path(unfilteredByPairsProcessedDir, name + "")));
 					processWriter.notCombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genPairedOutGz(njh::files::make_path(badDir, name + "_notCombined")));
-					processWriter.r1BeginsInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOutGz(njh::files::make_path(badDir, name + "_r1BeginsInR2.fastq")));
+					processWriter.r1BeginsInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOutGz(njh::files::make_path(badDir, name + "_r1BeginsInR2")));
 				}
 			}else{
 				processWriter.overhangsWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(njh::files::make_path(overHansDir, name + "_overhangs")));
@@ -529,16 +529,16 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 				processWriter.r2AllInR1CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(njh::files::make_path(unfilteredByPairsProcessedDir, name + "_r2AllInR1")));
 				if(PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP == njh::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
 					processWriter.notCombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genPairedOut(njh::files::make_path(unfilteredByPairsProcessedDir, name)));
-					processWriter.r1BeginsInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(njh::files::make_path(badDir, name + "_r1BeginsInR2.fastq")));
-					processWriter.r1EndsInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(njh::files::make_path(badDir, name + "_r1EndsInR2.fastq")));
+					processWriter.r1BeginsInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(njh::files::make_path(badDir, name + "_r1BeginsInR2")));
+					processWriter.r1EndsInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(njh::files::make_path(badDir, name + "_r1EndsInR2")));
 				}else if(PairedReadProcessor::ReadPairOverLapStatus::R1BEGINSINR2 == njh::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
 					processWriter.r1BeginsInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(njh::files::make_path(unfilteredByPairsProcessedDir, name + "")));
 					processWriter.notCombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genPairedOut(njh::files::make_path(badDir, name + "_notCombined")));
-					processWriter.r1EndsInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(njh::files::make_path(badDir, name + "_r1EndsInR2.fastq")));
+					processWriter.r1EndsInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(njh::files::make_path(badDir, name + "_r1EndsInR2")));
 				}else if(PairedReadProcessor::ReadPairOverLapStatus::R1ENDSINR2 == njh::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
 					processWriter.r1EndsInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(njh::files::make_path(unfilteredByPairsProcessedDir, name + "")));
 					processWriter.notCombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genPairedOut(njh::files::make_path(badDir, name + "_notCombined")));
-					processWriter.r1BeginsInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(njh::files::make_path(badDir, name + "_r1BeginsInR2.fastq")));
+					processWriter.r1BeginsInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(njh::files::make_path(badDir, name + "_r1BeginsInR2")));
 				}
 			}
 
