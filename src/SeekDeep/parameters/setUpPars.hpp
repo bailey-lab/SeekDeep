@@ -55,7 +55,7 @@ struct CoreExtractorPars{
   std::string sampleName = "";
 
   bool keepUnfilteredReads = false;
-
+  bool keepFilteredOff = false;
   void setCorePars(seqSetUp & setUp);
 
 };

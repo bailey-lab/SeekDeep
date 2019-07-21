@@ -96,6 +96,7 @@ void CoreExtractorPars::setCorePars(seqSetUp & setUp){
 	setUp.setOption(noPrimers_, "--noPrimers", "If no primers is set, only one line can be found under the targets/gene headers, the sequences in the forward/reverse primers will be ignored", false, "Primer");
 
 	setUp.setOption(keepUnfilteredReads, "--keepUnfilteredReads", "Keep the unfiltered reads for debugging purposes", false);
+	setUp.setOption(keepFilteredOff, "--keepFilteredOff", "Keep Filtered Off", false);
 
 }
 

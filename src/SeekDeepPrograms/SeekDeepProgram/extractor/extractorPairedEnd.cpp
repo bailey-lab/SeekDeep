@@ -109,7 +109,7 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 	auto smallOpts = setUp.pars_.ioOptions_;
 	smallOpts.out_.outFilename_ = njh::files::make_path(badDir, "smallFragments").string();
 	SeqIO smallFragMentOut(smallOpts);
-	smallFragMentOut.openOut();
+	//smallFragMentOut.openOut();
 	auto startsWtihBadQualOpts = setUp.pars_.ioOptions_;
 	startsWtihBadQualOpts.out_.outFilename_ = njh::files::make_path(badDir , "startsWtihBadQual").string();
 	SeqOutput startsWtihBadQualOut(startsWtihBadQualOpts);
@@ -193,7 +193,7 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 		readVec::handelLowerCaseBases(seq, setUp.pars_.ioOptions_.lowerCaseBases_);
 
 		if (len(seq) < pars.corePars_.smallFragmentCutoff) {
-			smallFragMentOut.write(seq);
+			smallFragMentOut.openWrite(seq);
 			++smallFragmentCount;
 			continue;
 		}
@@ -334,12 +334,10 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 			//std::cout << "fullname: " << fullname << std::endl;
 			//bad out
 			auto badDirOutOpts = setUp.pars_.ioOptions_;
-			badDirOutOpts.out_.outFilename_ =
-					njh::files::make_path(badDir, fullname).string();
+			badDirOutOpts.out_.outFilename_ = njh::files::make_path(badDir, fullname).string();
 			midReaderOuts.addReader(fullname + "bad", badDirOutOpts);
 			//good out
 			auto goodDirOutOpts = setUp.pars_.ioOptions_;
-
 			goodDirOutOpts.out_.outFilename_ = njh::files::make_path(unfilteredByPrimersDir,  fullname);
 			midReaderOuts.addReader(fullname + "good", goodDirOutOpts);
 		}
@@ -425,10 +423,12 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 				auto badDirOutOpts = setUp.pars_.ioOptions_;
 				badDirOutOpts.out_.outFilename_ =
 						njh::files::make_path(badDir, fullname).string();
-				if(!midReaderOuts.containsReader(fullname + "bad")){
-					midReaderOuts.addReader(fullname + "bad", badDirOutOpts);
+				if(pars.corePars_.keepFilteredOff){
+					if(!midReaderOuts.containsReader(fullname + "bad")){
+						midReaderOuts.addReader(fullname + "bad", badDirOutOpts);
+					}
+					midReaderOuts.openWrite(fullname + "bad", seq);
 				}
-				midReaderOuts.openWrite(fullname + "bad", seq);
 				++allPrimerCounts[fullname];
 				++unrecognizedPrimers;
 			}else{
@@ -524,7 +524,6 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 			}else{
 				processWriter.overhangsWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(njh::files::make_path(overHansDir, name + "_overhangs")));
 				processWriter.perfectOverlapCombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(njh::files::make_path(unfilteredByPairsProcessedDir, name + "_perfectOverlap")));
-
 				processWriter.r1AllInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(njh::files::make_path(unfilteredByPairsProcessedDir, name + "_r1AllInR2")));
 				processWriter.r2AllInR1CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(njh::files::make_path(unfilteredByPairsProcessedDir, name + "_r2AllInR1")));
 				if(PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP == njh::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
@@ -818,7 +817,9 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 					}
 					if(bad){
 						++qualityFilters;
-						badWriter.openWrite(filteringSeq);
+						if(pars.corePars_.keepFilteredOff){
+							badWriter.openWrite(filteringSeq);
+						}
 					}
 				}
 			}else if(PairedReadProcessor::ReadPairOverLapStatus::R1BEGINSINR2 == njh::mapAt(ids.targets_, extractedPrimer).overlapStatus_ ||
@@ -865,7 +866,9 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 					}
 					if(bad){
 						++qualityFilters;
-						badWriter.openWrite(filteringSeq);
+						if(pars.corePars_.keepFilteredOff){
+							badWriter.openWrite(filteringSeq);
+						}
 					}
 				}
 			}
@@ -948,6 +951,9 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 	}
 	if(!pars.corePars_.keepUnfilteredReads){
 		njh::files::rmDirForce(unfilteredReadsDir);
+	}
+	if(!pars.corePars_.keepFilteredOff){
+		njh::files::rmDirForce(filteredOffDir);
 	}
 	if(setUp.pars_.verbose_){
 		setUp.logRunTime(std::cout);
