@@ -74,7 +74,7 @@ void SeekDeepSetUp::setUpExtractorPairedEnd(ExtractorPairedEndPars & pars) {
 	setOption(pars.corePars_.primIdsPars.overlapStatusFnp_, "--overlapStatusFnp",
 			"A file with two columns, target,status; status column should contain 1 of 3 values (capitalization doesn't matter): r1BegOverR2End,r1EndOverR2Beg,NoOverlap. r1BegOverR2End=target size < read length (causes read through),r1EndOverR2Beg= target size > read length less than 2 x read length, NoOverlap=target size > 2 x read length", true, "Post Processing");
 
-
+	setOption(pars.primerDimerSize_, "--primerDimerSize", "Size of r1 begins in r2 stitched reads that should be considered primer dimers");
 
 	pars_.gapInfo_.gapOpen_ = 5;
 	pars_.gapInfo_.gapExtend_ = 1;

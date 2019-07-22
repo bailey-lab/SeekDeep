@@ -170,6 +170,8 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 	uint32_t count = 0;
 	uint32_t readsNotMatchedToBarcode = 0;
 	uint32_t unrecognizedPrimers = 0;
+	uint32_t mismatchedPrimers = 0;
+	uint32_t mismatchedPrimersDimers = 0;
 	uint32_t contamination = 0;
 	uint32_t qualityFilters = 0;
 	uint32_t used = 0;
@@ -303,6 +305,25 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 
 	std::unordered_map<std::string, std::set<std::string>> primersInMids;
 
+	//now post processing
+	PairedReadProcessor pairProcessor(pars.pairProcessorParams_);
+	auto alnGapPars = gapScoringParameters(
+			10,
+			1,
+			0,0,
+			0,0);
+
+	PairedReadProcessor::ProcessedResultsCounts mismatchedPrimerPairProcessCounts;
+
+	auto pairedProcessingScoring = substituteMatrix::createScoreMatrix(2, -2, true, true, true);
+	aligner processingPairsAligner(maxReadSize, alnGapPars, pairedProcessingScoring, false);
+	processingPairsAligner.qScorePars_.qualThresWindow_ = 0;
+	std::unordered_map<std::string, std::vector<uint32_t>> lengthsPerStitchedTarget;
+	std::unordered_map<std::string, std::pair<std::string, PairedReadProcessor::ProcessedResultsCounts>> resultsPerMidTarPair;
+
+
+	std::map<std::string, std::map<std::string, std::map<std::string, std::map<std::string, std::vector<uint32_t>>>>> failedPrimer;
+
 	for (const auto & barcodeReadsKey : barcodeReadsKeys) {
 		const auto & barcodeReadPairs = readsByPairs[barcodeReadsKey];
 		std::string barcodeName = barcodeReadsKey;
@@ -414,8 +435,18 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 				//check for unrecognized primers
 				stats.increaseFailedForward(barcodeName, seq.seqBase_.name_);
 				midReaderOuts.openWrite("unrecognized", seq);
-				++allPrimerCounts[fullname];
+				//++allPrimerCounts[fullname];
 				++unrecognizedPrimers;
+				seq.mateSeqBase_.reverseComplementRead(false, true);
+				seq.mateRComplemented_ = true;
+				auto mismatchedPairRes = pairProcessor.processPairedEnd(seq, mismatchedPrimerPairProcessCounts, processingPairsAligner);
+				if(mismatchedPairRes.status_ != PairedReadProcessor::ReadPairOverLapStatus::NONE &&
+						mismatchedPairRes.status_ != PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP){
+					readVec::handelLowerCaseBases(mismatchedPairRes.combinedSeq_, "remove");
+					failedPrimer[barcodeName][forwardPrimerName][reversePrimerName][PairedReadProcessor::getOverlapStatusStr(mismatchedPairRes.status_)].emplace_back(len(*mismatchedPairRes.combinedSeq_));
+				}else{
+					failedPrimer[barcodeName][forwardPrimerName][reversePrimerName][PairedReadProcessor::getOverlapStatusStr(mismatchedPairRes.status_)].emplace_back(0);
+				}
 			}else if(forwardPrimerName != reversePrimerName){
 				//check for primer mismatch
 				//stats.increasePrimerMismatch(barcodeName, seq.seqBase_.name_);
@@ -429,8 +460,23 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 					}
 					midReaderOuts.openWrite(fullname + "bad", seq);
 				}
-				++allPrimerCounts[fullname];
-				++unrecognizedPrimers;
+				//++allPrimerCounts[fullname];
+				seq.mateSeqBase_.reverseComplementRead(false, true);
+				seq.mateRComplemented_ = true;
+				auto mismatchedPairRes = pairProcessor.processPairedEnd(seq, mismatchedPrimerPairProcessCounts, processingPairsAligner);
+				if(mismatchedPairRes.status_ != PairedReadProcessor::ReadPairOverLapStatus::NONE &&
+						mismatchedPairRes.status_ != PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP){
+					readVec::handelLowerCaseBases(mismatchedPairRes.combinedSeq_, "remove");
+					failedPrimer[barcodeName][forwardPrimerName][reversePrimerName][PairedReadProcessor::getOverlapStatusStr(mismatchedPairRes.status_)].emplace_back(len(*mismatchedPairRes.combinedSeq_));
+				}else{
+					failedPrimer[barcodeName][forwardPrimerName][reversePrimerName][PairedReadProcessor::getOverlapStatusStr(mismatchedPairRes.status_)].emplace_back(0);
+				}
+				if(PairedReadProcessor::ReadPairOverLapStatus::R1BEGINSINR2 == mismatchedPairRes.status_ &&
+						len(*mismatchedPairRes.combinedSeq_)<= pars.primerDimerSize_){
+					++mismatchedPrimersDimers;
+				}else{
+					++mismatchedPrimers;
+				}
 			}else{
 				primersInMids[barcodeName].emplace(forwardPrimerName);
 				//primer match
@@ -451,30 +497,44 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 		}
 	}
 
-	auto primerCountsKeys = getVectorOfMapKeys(allPrimerCounts);
-	njh::sort(primerCountsKeys);
-	OutOptions allPrimerCountsOpts(njh::files::make_path(setUp.pars_.directoryName_, "allPrimerCounts.tab.txt"));
-	OutputStream allPrimerCountsOut(allPrimerCountsOpts);
-
-
-	allPrimerCountsOut << "inputName\tname\tcount" << std::endl;
-
-	for (const auto & good : allPrimerCounts) {
-		allPrimerCountsOut << seqName << '\t'
-				<< good.first << "\t" << good.second << std::endl;
+//	{
+//		auto primerCountsKeys = getVectorOfMapKeys(allPrimerCounts);
+//		njh::sort(primerCountsKeys);
+//		OutOptions allPrimerCountsOpts(njh::files::make_path(setUp.pars_.directoryName_, "allPrimerCounts.tab.txt"));
+//		OutputStream allPrimerCountsOut(allPrimerCountsOpts);
+//		allPrimerCountsOut << "inputName\tname\tcount" << std::endl;
+//		for (const auto & good : allPrimerCounts) {
+//			allPrimerCountsOut << seqName << '\t'
+//					<< good.first << "\t" << good.second << std::endl;
+//		}
+//	}
+	{
+		OutOptions allFailedPrimerCountsOpts(njh::files::make_path(setUp.pars_.directoryName_, "allFailedPrimerCounts.tab.txt"));
+		OutputStream allFailedPrimerCountsOut(allFailedPrimerCountsOpts);
+		allFailedPrimerCountsOut << "inputName\tMIDName\tforwardPrimer\treversePrimer\toverlapStatus\tcount\tMIDtotal\tavgLength" << "\n";
+		for(const auto & samp : failedPrimer){
+			for(const auto & forw : samp.second){
+				for(const auto & rev : forw.second){
+					for(const auto & status : rev.second){
+						std::string meanStr = "";
+						if(status.first != "NONE" && status.first != "NOOVERLAP"){
+							meanStr = estd::to_string(vectorMean(status.second));
+						}
+						allFailedPrimerCountsOut
+						<< seqName
+								<< "\t" << samp.first
+								<< "\t" << forw.first
+								<< "\t" << rev.first
+								<< "\t" << status.first
+								<< "\t" << status.second.size()
+								<< "\t" << counts[samp.first].first + counts[samp.first].second
+								<< "\t" << meanStr << std::endl;
+					}
+				}
+			}
+		}
+		failedPrimer.clear();
 	}
-	//now post processing
-	PairedReadProcessor pairProcessor(pars.pairProcessorParams_);
-	auto alnGapPars = gapScoringParameters(
-			10,
-			1,
-			0,0,
-			0,0);
-	auto pairedProcessingScoring = substituteMatrix::createScoreMatrix(2, -2, true, true, true);
-	aligner processingPairsAligner(maxReadSize, alnGapPars, pairedProcessingScoring, false);
-	processingPairsAligner.qScorePars_.qualThresWindow_ = 0;
-	std::unordered_map<std::string, std::vector<uint32_t>> lengthsPerStitchedTarget;
-	std::unordered_map<std::string, std::pair<std::string, PairedReadProcessor::ProcessedResultsCounts>> resultsPerMidTarPair;
 
 	for(const auto & extractedMid : primersInMids){
 		for(const auto & extractedPrimer : extractedMid.second){
@@ -585,8 +645,12 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 	std::unordered_map<std::string, SeqIOOptions> tempOuts;
 	std::unordered_map<std::string, std::vector<uint32_t>> readLengthsPerTarget;
 	std::unordered_map<std::string, uint32_t> possibleContaminationCounts;
-	std::unordered_map<std::string, uint32_t> failedPairProcessing;
-	uint32_t failedPairProcessingTotal = 0;
+	std::unordered_map<std::string, uint32_t> failedPairProcessingOverlap;
+	uint32_t failedPairProcessingOverlapTotal = 0;
+
+	std::unordered_map<std::string, uint32_t> failedPairProcessingUnexpectedStatus;
+	uint32_t failedPairProcessingUnexpectedStatusTotal = 0;
+
 	for(const auto & extractedMid : primersInMids){
 		for(const auto & extractedPrimer : extractedMid.second){
 			std::string name = extractedPrimer + extractedMid.first;
@@ -607,9 +671,10 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 					continue;
 				}
 				//add failed pair processing
-				uint32_t failedPairProcessingForName = resultsPerMidTarPair[name].second.total - resultsPerMidTarPair[name].second.overlapFail;
-				failedPairProcessing[name] = failedPairProcessingForName;
-				failedPairProcessingTotal += failedPairProcessingForName;
+				uint32_t failedPairProcessingUnexpectedStatusForName = resultsPerMidTarPair[name].second.total - resultsPerMidTarPair[name].second.overlapFail;
+				failedPairProcessingUnexpectedStatus[name] = failedPairProcessingUnexpectedStatusForName;
+				failedPairProcessingUnexpectedStatusTotal += failedPairProcessingUnexpectedStatusForName;
+
 				//get seq options for expected pair status
 				SeqIOOptions filterSeqOpts = *resultsPerMidTarPair[name].second.notCombinedOpts;
 				SeqInput processedReader(filterSeqOpts);
@@ -675,12 +740,18 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 						}
 						continue;
 					}
-					//add failed pair processing
-					uint32_t failedPairProcessingForName = resultsPerMidTarPair[name].second.total - resultsPerMidTarPair[name].second.r1BeginsInR2Combined;
-					failedPairProcessing[name] = failedPairProcessingForName;
-					failedPairProcessingTotal += failedPairProcessingForName;
 					//get seq options for expected pair status
 					filterSeqOpts = *resultsPerMidTarPair[name].second.r1BeginsInR2CombinedOpts;
+
+					//add failed pair processing
+					uint32_t failedPairProcessingForNameOverlapFail = resultsPerMidTarPair[name].second.overlapFail;
+					failedPairProcessingOverlap[name] = failedPairProcessingForNameOverlapFail;
+					failedPairProcessingOverlapTotal += failedPairProcessingForNameOverlapFail;
+
+					uint32_t failedPairProcessingForNameUnexpectedStatus = resultsPerMidTarPair[name].second.total - resultsPerMidTarPair[name].second.r1BeginsInR2Combined - resultsPerMidTarPair[name].second.overlapFail;
+					failedPairProcessingUnexpectedStatus[name] = failedPairProcessingForNameUnexpectedStatus;
+					failedPairProcessingUnexpectedStatusTotal += failedPairProcessingForNameUnexpectedStatus;
+
 				}else{
 					if(nullptr == resultsPerMidTarPair[name].second.r1EndsInR2CombinedOpts){
 						if(setUp.pars_.verbose_){
@@ -688,12 +759,35 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 						}
 						continue;
 					}
-					//add failed pair processing
-					uint32_t failedPairProcessingForName = resultsPerMidTarPair[name].second.total - resultsPerMidTarPair[name].second.r1EndsInR2Combined;
-					failedPairProcessing[name] = failedPairProcessingForName;
-					failedPairProcessingTotal += failedPairProcessingForName;
+
 					//get seq options for expected pair status
 					filterSeqOpts = *resultsPerMidTarPair[name].second.r1EndsInR2CombinedOpts;
+					//read in the other overlap, whcih wasn't expected
+//					if(resultsPerMidTarPair[name].second.r1BeginsInR2Combined > 0){
+//						auto r1EndsInR2Opts = *resultsPerMidTarPair[name].second.r1BeginsInR2CombinedOpts;
+//						r1EndsInR2Opts.lowerCaseBases_ = "remove";
+//						SeqInput r1EndsInR2CombinedReader(r1EndsInR2Opts);
+//						seqInfo shortSeq;
+//						r1EndsInR2CombinedReader.openIn();
+//						while(r1EndsInR2CombinedReader.readNextRead(shortSeq)){
+//							if(len(shortSeq) <= pars.primerDimerSize_){
+//								//check for possible dimers
+//
+//							}else if(!ids.targets_.at(extractedPrimer).refs_.empty()){
+//								//check for possible contamination
+//
+//							}
+//						}
+//					}
+					//add failed pair processing
+					uint32_t failedPairProcessingForNameOverlapFail = resultsPerMidTarPair[name].second.overlapFail;
+					failedPairProcessingOverlap[name] = failedPairProcessingForNameOverlapFail;
+					failedPairProcessingOverlapTotal += failedPairProcessingForNameOverlapFail;
+
+					uint32_t failedPairProcessingForNameUnexpectedStatus = resultsPerMidTarPair[name].second.total - resultsPerMidTarPair[name].second.r1EndsInR2Combined - resultsPerMidTarPair[name].second.overlapFail;
+					failedPairProcessingUnexpectedStatus[name] = failedPairProcessingForNameUnexpectedStatus;
+					failedPairProcessingUnexpectedStatusTotal += failedPairProcessingForNameUnexpectedStatus;
+
 				}
 				SeqInput processedReader(filterSeqOpts);
 				SeqIOOptions contaminationOutOpts;
@@ -878,19 +972,22 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 
 	OutOptions extractionStatsOpts(njh::files::make_path(setUp.pars_.directoryName_, "extractionStats.tab.txt"));
 	OutputStream extractionStatsOut(extractionStatsOpts);
-	extractionStatsOut << "inputName\tTotal\tfailedBarcode\tfailedPrimers\tfailedPairProcessing\tpossibleContamination\tfilteredOff\tused" << std::endl;
+	extractionStatsOut << "inputName\tTotal\tfailedBarcode\tfailedPrimers\tmismatchedPrimers\tmismatchedPrimersDimers\tfailedOverlapPairProcessing\tfailedStatusPairProcessing\tpossibleContamination\tfilteredOff\tused" << std::endl;
 	extractionStatsOut << seqName
 			<< "\t" << count
 			<< "\t" << getPercentageString(readsNotMatchedToBarcode, count)
 			<< "\t" << getPercentageString(unrecognizedPrimers, count)
-			<< "\t" << getPercentageString(failedPairProcessingTotal, count)
+			<< "\t" << getPercentageString(mismatchedPrimers, count)
+			<< "\t" << getPercentageString(mismatchedPrimersDimers, count)
+			<< "\t" << getPercentageString(failedPairProcessingOverlapTotal, count)
+			<< "\t" << getPercentageString(failedPairProcessingUnexpectedStatusTotal, count)
 			<< "\t" << getPercentageString(contamination, count)
 			<< "\t" << getPercentageString(qualityFilters, count)
 			<< "\t" << getPercentageString(used, count) << std::endl;
 
 	OutOptions extractionProfileOpts(njh::files::make_path(setUp.pars_.directoryName_, "extractionProfile.tab.txt"));
 	OutputStream extractionProfileOut(extractionProfileOpts);
-	extractionProfileOut << "inputName\tname\ttotalMatching\tgood\tbad\tfailedMinLen\tfailedMaxLen\tfailedQuality\tfailedNs\tfailedPossibleContamination\tfailedPairProcessing";
+	extractionProfileOut << "inputName\tname\ttotalMatching\tgood\tbad\tfailedMinLen\tfailedMaxLen\tfailedQuality\tfailedNs\tfailedPossibleContamination\tfailedOverlapPairProcessing\tfailedStatusPairProcessing";
 
 	extractionProfileOut << std::endl;
 	for(const auto & name : allNames){
@@ -905,7 +1002,8 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 				<< "\t" <<  getPercentageString(badQual[name], totalBad)
 				<< "\t" <<  getPercentageString(badNs[name], totalBad)
 				<< "\t" <<  getPercentageString(possibleContaminationCounts[name], totalBad)
-				<< "\t" <<  getPercentageString(failedPairProcessing[name], matchingPrimerCounts[name])
+				<< "\t" <<  getPercentageString(failedPairProcessingOverlap[name], matchingPrimerCounts[name])
+				<< "\t" <<  getPercentageString(failedPairProcessingUnexpectedStatus[name], matchingPrimerCounts[name])
 				<< std::endl;
 	}
 
