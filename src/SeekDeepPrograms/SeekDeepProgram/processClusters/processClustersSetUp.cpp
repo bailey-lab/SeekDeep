@@ -111,6 +111,7 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 						+ pars.experimentName);
 		failed_ = true;
 	}
+	pars.preFiltCutOffs.clusterSizeCutOff = 10;
 	setOption(pars.preFiltCutOffs.clusterSizeCutOff, "--clusterCutOff", "Input Cluster Size Cut Off", false, "Filtering");
 	setOption(pars.fracExcludeOnlyInFinalAverageFrac, "--fracExcludeOnlyInFinalAverageFrac", "By default fraction exclusion is done per rep, use fracExcludeOnlyInFinalAverageFrac to exclude only on the final averaged frac", false, "Filtering");
 

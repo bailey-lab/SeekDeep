@@ -69,6 +69,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 
 	setUp.setOption(pars.conservative, "--conservativePopClus",
 			"Do conservative population clustering which skips possible artifact cleanup step", false, "processClusters");
+	setUp.setOption(pars.rescueFilteredHaplotypes, "--rescueFilteredHaplotypes", "Add on resuce of haplotypes that filtered due to low frequency or chimera filtering if it appears as a major haplotype in another sample", false, "processClusters");
 
 
 	setUp.setOption(pars.groupMeta, "--groupMeta", "Group Metadata", false, "Meta");
@@ -664,12 +665,13 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 							"--alnInfoDir alnCache --strictErrors --dout analysis --fastqgz output.fastq.gz --overWriteDir";
 
 	if (!analysisSetup.pars_.conservative) {
-		processClusterTemplate += " --excludeCommonlyLowFreqHaplotypes --excludeLowFreqOneOffs --fracCutOff 0 ";
+		auto lowerCaseExtracProcessArgs = stringToLowerReturn(analysisSetup.pars_.extraProcessClusterCmds);
+		processClusterTemplate += " --excludeCommonlyLowFreqHaplotypes --excludeLowFreqOneOffs";
+		//processClusterTemplate += " --excludeCommonlyLowFreqHaplotypes --excludeLowFreqOneOffs --fracCutOff 0 ";
 	}
 
-	if (!analysisSetup.pars_.conservative && !analysisSetup.pars_.noRescue) {
-		processClusterTemplate += " --rescueExcludedOneOffLowFreqHaplotypes ";
-		//--rescueMatchingExpected --rescueExcludedChimericHaplotypes
+	if (!analysisSetup.pars_.conservative && analysisSetup.pars_.rescueFilteredHaplotypes) {
+		processClusterTemplate += " --rescueExcludedOneOffLowFreqHaplotypes --rescueMatchingExpected --rescueExcludedChimericHaplotypes";
 	}
 
 	if ("" != analysisSetup.pars_.extraProcessClusterCmds) {

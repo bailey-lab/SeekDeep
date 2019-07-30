@@ -53,7 +53,7 @@ public:
 
 		//for population clustering step
 		bool conservative = false;
-		bool noRescue = false;
+		bool rescueFilteredHaplotypes = false;
 
 		uint32_t numThreads = 1;
 

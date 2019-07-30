@@ -173,7 +173,7 @@ struct processClustersPars {
 
   VecStr controlSamples;
   bool extra = false;
-  double fracCutoff = 0.005;
+  double fracCutoff = 0.001;
   uint32_t runsRequired = 0;
   bool fracExcludeOnlyInFinalAverageFrac = false;
 
