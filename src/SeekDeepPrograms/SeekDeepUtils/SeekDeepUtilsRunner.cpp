@@ -61,6 +61,7 @@ int SeekDeepUtilsRunner::genTargetInfoFromGenomes(const njh::progutils::CmdArgs 
 	njh::sys::requireExternalProgramThrow("samtools");
 
 	PrimersAndMids ids(pars.primersFile);
+
 	if(0 == ids.getTargets().size() ){
 		std::stringstream ss;
 		ss << __PRETTY_FUNCTION__ << ", error in reading in target primers file " << pars.primersFile << "\n";
