@@ -104,6 +104,19 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 	bencher.checkForStrainsThrow(expNames, __PRETTY_FUNCTION__);
 
 
+	std::unordered_map<std::string, std::unordered_map<std::string, double>> readCountsPerHapPerSample;
+	auto sampInfoFnp = analysisMaster.getSampInfoPath();
+	TableReader sampInfoReader(TableIOOpts::genTabFileIn(sampInfoFnp, true));
+	VecStr row;
+	while(sampInfoReader.getNextRow(row)){
+		auto sample = row[sampInfoReader.header_.getColPos("s_Name")];
+		auto hapName = row[sampInfoReader.header_.getColPos("c_name")];
+		auto readCnt = njh::StrToNumConverter::stoToNum<double>(row[sampInfoReader.header_.getColPos("c_AveragedFrac")]);
+		readCountsPerHapPerSample[sample][hapName] = readCnt;
+	}
+
+
+
 	OutputStream haplotypesClassified(njh::files::make_path(setUp.pars_.directoryName_, "classifiedHaplotypes.tab.txt"));
 	haplotypesClassified << "AnalysisName\tsample\tmix\tseqName\treadCnt\tfrac\tmatchExpcted\texpectedRef\texpectedFrac";
 	OutputStream performanceOut(njh::files::make_path(setUp.pars_.directoryName_, "performancePerTarget.tab.txt"));
@@ -142,12 +155,12 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 				expSeqsKey);
 		double total = 0;
 		for(const auto & seq : resultSeqs){
-			total += seq.cnt_;
+			total += readCountsPerHapPerSample[sname][seq.name_];
 			haplotypesClassified << name
 					<< "\t" << sname
 					<< "\t" << bencher.samplesToMix_[sname]
 					<< "\t" << seq.name_
-					<< "\t" << seq.cnt_
+					<< "\t" << readCountsPerHapPerSample[sname][seq.name_]
 					<< "\t" << seq.frac_
 					<< "\t" << ("" == res.resSeqToExpSeq_[seq.name_] ? "FALSE": "TRUE")
 					<< "\t" << res.resSeqToExpSeq_[seq.name_]
