@@ -149,6 +149,7 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 			outOptsMissing.append_ = true;
 			OutputStream outMissing(outOptsMissing);
 			outMissing << sname << std::endl;
+			continue;
 		} else if(!bfs::exists(resultsSeqsFnp)){
 			std::stringstream ss;
 			ss << __PRETTY_FUNCTION__ << ", error " << "missing results for the following sample: " << sname << "\n";
