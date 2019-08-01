@@ -18,6 +18,7 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 	bfs::path expectedSeqsFnp = "";
 	std::string name = "";
 	bfs::path metaFnp = "";
+	bool skipMissingSamples = false;
 	seqSetUp setUp(inputCommands);
 	setUp.processVerbose();
 	setUp.processDebug();
@@ -28,7 +29,7 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 
 	setUp.setOption(conBenchPars.samplesToMixFnp_, "--sampleToMixture", "Sample To Mixture, 2 columns 1)sample, 2)MixName", true);
 	setUp.setOption(conBenchPars.mixSetUpFnp_, "--mixtureSetUp", "Mixture Set Up, 3 columns 1)MixName, 2)strain, 3)relative_abundance", true);
-
+	setUp.setOption(skipMissingSamples, "--skipMissingSamples", "Skip Samples if they are missing");
 	setUp.processDirectoryOutputName(name + "_benchmarkControlMixtures_TODAY", true);
 	setUp.finishSetUp(std::cout);
 	setUp.startARunLog(setUp.pars_.directoryName_);
@@ -52,13 +53,19 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 			missingSamples.emplace_back(sname);
 		}
 	}
-	if (!missingSamples.empty()) {
+
+	if (!skipMissingSamples && !missingSamples.empty()) {
 		std::stringstream ss;
 		ss << __PRETTY_FUNCTION__ << ", error "
 				<< "missing the following samples in " << processClustersDir << ": "
 				<< njh::conToStrEndSpecial(missingSamples, ", ", " and ") << "\n";
 		throw std::runtime_error { ss.str() };
+	}else if(skipMissingSamples && !missingSamples.empty()){
+		OutOptions outOptsMissing(njh::files::make_path(setUp.pars_.directoryName_, "missingSamples"));
+		OutputStream outMissing(outOptsMissing);
+		outMissing << njh::conToStr(missingSamples, "\n") << std::endl;
 	}
+
 
 	//read in expected seqs
 	SeqInput expSeqsSeqIn(SeqIOOptions::genFastaIn(expectedSeqsFnp));
@@ -137,6 +144,17 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 	for(const auto & sname : controlSamples){
 		//read in result sequences
 		auto resultsSeqsFnp = analysisMaster.getSampleFinalHapsPath(sname);
+		if(!bfs::exists(resultsSeqsFnp) && skipMissingSamples){
+			OutOptions outOptsMissing(njh::files::make_path(setUp.pars_.directoryName_, "missingSamples"));
+			outOptsMissing.append_ = true;
+			OutputStream outMissing(outOptsMissing);
+			outMissing << sname << std::endl;
+		} else if(!bfs::exists(resultsSeqsFnp)){
+			std::stringstream ss;
+			ss << __PRETTY_FUNCTION__ << ", error " << "missing results for the following sample: " << sname << "\n";
+			throw std::runtime_error{ss.str()};
+		}
+
 		SeqIOOptions resultsSeqsOpts(resultsSeqsFnp, analysisMaster.inputOptions_.inFormat_, true);
 		auto resultSeqs = SeqInput::getSeqVec<seqInfo>(resultsSeqsOpts);
 		//get current expected seqs
