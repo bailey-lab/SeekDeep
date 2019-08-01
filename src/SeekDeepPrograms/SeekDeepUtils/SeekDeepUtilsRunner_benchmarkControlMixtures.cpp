@@ -105,9 +105,9 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 
 
 	OutputStream haplotypesClassified(njh::files::make_path(setUp.pars_.directoryName_, "classifiedHaplotypes.tab.txt"));
-	haplotypesClassified << "sample\tmix\tseqName\tfrac\tmatchExpcted\texpectedRef\texpectedFrac";
+	haplotypesClassified << "AnalysisName\tsample\tmix\tseqName\tfrac\tmatchExpcted\texpectedRef\texpectedFrac";
 	OutputStream performanceOut(njh::files::make_path(setUp.pars_.directoryName_, "performancePerTarget.tab.txt"));
-	performanceOut << "sample\tmix\trecoveredHaps\tfalseHaps\ttotalHaps\ttotalExpectedHaps\thapRecovery\tfalseHapsRate\tRMSE";
+	performanceOut << "AnalysisName\tsample\tmix\trecoveredHaps\tfalseHaps\ttotalHaps\ttotalExpectedHaps\thapRecovery\tfalseHapsRate\tRMSE";
 	VecStr metalevels;
 	if(nullptr != analysisMaster.groupMetaData_){
 		metalevels = getVectorOfMapKeys(analysisMaster.groupMetaData_->groupData_);
@@ -142,7 +142,8 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 				expSeqsKey);
 
 		for(const auto & seq : resultSeqs){
-			haplotypesClassified << sname
+			haplotypesClassified << name
+					<< "\t" << sname
 					<< "\t" << bencher.samplesToMix_[sname]
 					<< "\t" << seq.name_
 					<< "\t" << seq.frac_
@@ -156,7 +157,8 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 			}
 			haplotypesClassified << std::endl;
 		}
-		performanceOut << sname
+		performanceOut  << name
+				<< "\t" << sname
 				<< "\t" << bencher.samplesToMix_[sname]
 				<< "\t" << res.recoveredHaps_
 				<< "\t" << res.falseHaps_
