@@ -118,7 +118,7 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 	while(sampInfoReader.getNextRow(row)){
 		auto sample = row[sampInfoReader.header_.getColPos("s_Name")];
 		auto hapName = row[sampInfoReader.header_.getColPos("c_name")];
-		auto readCnt = njh::StrToNumConverter::stoToNum<double>(row[sampInfoReader.header_.getColPos("c_AveragedFrac")]);
+		auto readCnt = njh::StrToNumConverter::stoToNum<double>(row[sampInfoReader.header_.getColPos("c_ReadCnt")]);
 		readCountsPerHapPerSample[sample][hapName] = readCnt;
 	}
 
