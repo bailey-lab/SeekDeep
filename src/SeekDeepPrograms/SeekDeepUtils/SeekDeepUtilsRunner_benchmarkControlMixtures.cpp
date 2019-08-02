@@ -142,6 +142,10 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 	performanceOut << std::endl;
 
 	for(const auto & sname : controlSamples){
+		//skip completely missing
+		if(skipMissingSamples && njh::in(sname, missingSamples)){
+			continue;
+		}
 		//read in result sequences
 		auto resultsSeqsFnp = analysisMaster.getSampleFinalHapsPath(sname);
 		if(!bfs::exists(resultsSeqsFnp) && skipMissingSamples){
