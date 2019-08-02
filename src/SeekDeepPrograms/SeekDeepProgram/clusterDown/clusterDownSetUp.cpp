@@ -191,6 +191,12 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 	setOption(pars.BackUpIlluminaSampleNumberPos_, "--BackUpIlluminaSampleNumberPos", "Back Up Illumina Sample Number Pos");
 
 
+	//pre-process
+	setOption(pars.trimFront, "--trimFront", "Trim front of the input sequences by this much", false, "Pre-process");
+	setOption(pars.trimBack, "--trimBack", "Trim back of the input sequence by this much", false, "Pre-process");
+
+
+
 	bool needsParFlag = true;
 
 	setOption(pars.hq, "--hq",

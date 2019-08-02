@@ -235,22 +235,28 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 				}
 			}
 			++counter;
+			if (setUp.pars_.colOpts_.iTOpts_.removeLowQualityBases_) {
+				seq.removeLowQualityBases(setUp.pars_.colOpts_.iTOpts_.lowQualityBaseTrim_);
+			}
+			if (setUp.pars_.colOpts_.iTOpts_.adjustHomopolyerRuns_) {
+				seq.adjustHomopolymerRunQualities();
+			}
+			if(std::string::npos != seq.name_.find("_Comp")){
+				++compCount;
+			}
+		  readVec::handelLowerCaseBases(seq, setUp.pars_.ioOptions_.lowerCaseBases_);
+		  if (setUp.pars_.ioOptions_.removeGaps_) {
+		    seq.removeGaps();
+		  }
+			if(pars.trimBack > 0){
+				readVecTrimmer::trimOffEndBases(seq, pars.trimBack);
+			}
+			if(pars.trimFront > 0){
+				readVecTrimmer::trimOffForwardBases(seq, pars.trimFront);
+			}
 			if(len(seq) <= pars.smallReadSize){
 				smallWriter.openWrite(seq);
 			}else{
-				if (setUp.pars_.colOpts_.iTOpts_.removeLowQualityBases_) {
-					seq.removeLowQualityBases(setUp.pars_.colOpts_.iTOpts_.lowQualityBaseTrim_);
-				}
-				if (setUp.pars_.colOpts_.iTOpts_.adjustHomopolyerRuns_) {
-					seq.adjustHomopolymerRunQualities();
-				}
-				if(std::string::npos != seq.name_.find("_Comp")){
-					++compCount;
-				}
-			  readVec::handelLowerCaseBases(seq, setUp.pars_.ioOptions_.lowerCaseBases_);
-			  if (setUp.pars_.ioOptions_.removeGaps_) {
-			    seq.removeGaps();
-			  }
 			  bool found = false;
 			  for(const auto & clusPos : iter::range(clusters.size())){
 			  	if(seq.seq_ == clusters[clusPos].seqBase_.seq_){
@@ -291,6 +297,12 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 				  if (setUp.pars_.ioOptions_.removeGaps_) {
 				    seq.removeGaps();
 				  }
+					if(pars.trimBack > 0){
+						readVecTrimmer::trimOffEndBases(seq, pars.trimBack);
+					}
+					if(pars.trimFront > 0){
+						readVecTrimmer::trimOffForwardBases(seq, pars.trimFront);
+					}
 
 					for(const auto i : iter::range(seq.qual_.size())){
 						qualities[i].emplace_back(seq.qual_[i]);
@@ -790,6 +802,12 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 						++compCount;
 					}
 				  readVec::handelLowerCaseBases(inSeq, setUp.pars_.ioOptions_.lowerCaseBases_);
+					if(pars.trimBack > 0){
+						readVecTrimmer::trimOffEndBases(seq, pars.trimBack);
+					}
+					if(pars.trimFront > 0){
+						readVecTrimmer::trimOffForwardBases(seq, pars.trimFront);
+					}
 				  if (setUp.pars_.ioOptions_.removeGaps_) {
 				    inSeq.removeGaps();
 				  }
