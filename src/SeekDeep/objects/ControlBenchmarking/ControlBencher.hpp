@@ -55,15 +55,16 @@ public:
 			return recoveredHaps_/static_cast<double>(expectedHapCnt_);
 		}
 
+		std::map<std::string, std::map<std::string, comparison>> falseHapsCompsToExpected;
+		std::map<std::string, std::map<std::string, comparison>> falseHapsCompsToOthers;
+
 	};
+
+
 	template<typename RESULTSEQ, typename REFSEQ>
 	static benchResults benchmark(const std::vector<RESULTSEQ> & resultSeqs, const std::vector<REFSEQ> & expectedSeqs,
 	const std::unordered_map<std::string, double> & expectedSeqFracs,
 	const std::unordered_map<std::string, std::string> & expectedSeqNameKey){
-//	static benchResults benchmark(const std::vector<seqInfo> & resultSeqs,
-//			const std::vector<seqInfo> & expectedSeqs,
-//			const std::unordered_map<std::string, double> & expectedSeqFracs,
-//			const std::unordered_map<std::string, std::string> & expectedSeqNameKey) {
 		benchResults ret;
 		ret.expectedHapCnt_ = expectedSeqs.size();
 		for(const auto & resultSeq : resultSeqs){
@@ -73,7 +74,7 @@ public:
 			for(const auto & expectedSeq : expectedSeqs){
 				const auto & expSeq = getSeqBase(expectedSeq);
 				if(resSeq.seq_ == expSeq.seq_){
-					matchingRef = njh::mapAt(expectedSeqNameKey,expSeq.name_);
+					matchingRef =  njh::mapAt(expectedSeqNameKey,expSeq.name_);
 					expectedFrac = njh::mapAt(expectedSeqFracs,expSeq.name_);
 					break;
 				}
@@ -83,6 +84,46 @@ public:
 				ret.sumOfSquares_+= std::pow(resultSeq.frac_ - expectedFrac, 2.0);
 			}else{
 				++ret.falseHaps_;
+			}
+			ret.resSeqToExpSeq_[resSeq.name_] = matchingRef;
+		}
+		return ret;
+	}
+
+	template<typename RESULTSEQ, typename REFSEQ>
+	static benchResults benchmark(const std::vector<RESULTSEQ> & resultSeqs, const std::vector<REFSEQ> & expectedSeqs,
+	const std::unordered_map<std::string, double> & expectedSeqFracs,
+	const std::unordered_map<std::string, std::string> & expectedSeqNameKey,
+	aligner & alignerObj){
+		benchResults ret;
+		ret.expectedHapCnt_ = expectedSeqs.size();
+		for(const auto & resultSeq : resultSeqs){
+			const auto & resSeq = getSeqBase(resultSeq);
+			std::string matchingRef = "";
+			double expectedFrac = 0;
+			for(const auto & expectedSeq : expectedSeqs){
+				const auto & expSeq = getSeqBase(expectedSeq);
+				if(resSeq.seq_ == expSeq.seq_){
+					matchingRef =  njh::mapAt(expectedSeqNameKey,expSeq.name_);
+					expectedFrac = njh::mapAt(expectedSeqFracs,expSeq.name_);
+					break;
+				}
+			}
+			if("" != matchingRef){
+				++ret.recoveredHaps_;
+				ret.sumOfSquares_+= std::pow(resultSeq.frac_ - expectedFrac, 2.0);
+			}else{
+				++ret.falseHaps_;
+				for(const auto & exp : expectedSeqs){
+					alignerObj.alignCacheGlobal(exp, resultSeq);
+					alignerObj.profileAlignment(exp, resultSeq, false, false, false);
+					ret.falseHapsCompsToExpected[resSeq.name_][getSeqBase(exp).name_] = alignerObj.comp_;
+				}
+				for(const auto & otherRes : resultSeqs){
+					alignerObj.alignCacheGlobal(otherRes, resultSeq);
+					alignerObj.profileAlignment(otherRes, resultSeq, false, false, false);
+					ret.falseHapsCompsToOthers[resSeq.name_][getSeqBase(otherRes).name_] = alignerObj.comp_;
+				}
 			}
 			ret.resSeqToExpSeq_[resSeq.name_] = matchingRef;
 		}

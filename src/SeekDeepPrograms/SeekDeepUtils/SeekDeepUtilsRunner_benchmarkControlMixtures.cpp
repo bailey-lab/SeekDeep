@@ -30,6 +30,7 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 	setUp.setOption(conBenchPars.samplesToMixFnp_, "--sampleToMixture", "Sample To Mixture, 2 columns 1)sample, 2)MixName", true);
 	setUp.setOption(conBenchPars.mixSetUpFnp_, "--mixtureSetUp", "Mixture Set Up, 3 columns 1)MixName, 2)strain, 3)relative_abundance", true);
 	setUp.setOption(skipMissingSamples, "--skipMissingSamples", "Skip Samples if they are missing");
+	setUp.processAlignerDefualts();
 	setUp.processDirectoryOutputName(name + "_benchmarkControlMixtures_TODAY", true);
 	setUp.finishSetUp(std::cout);
 	setUp.startARunLog(setUp.pars_.directoryName_);
@@ -103,7 +104,10 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 	}
 	std::unordered_map<std::string, uint32_t> finalExpSeqsPositions;
 
+	uint64_t maxLen = 0;
+
 	for(const auto expSeqPos : iter::range(expSeqs.size())){
+		readVec::getMaxLength(expSeqs[expSeqPos], maxLen);
 		expSeqsKey[expSeqs[expSeqPos]->name_] = expSeqs[expSeqPos]->name_;
 		finalExpSeqsPositions[expSeqs[expSeqPos]->name_] = expSeqPos;
 	}
@@ -111,21 +115,39 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 	bencher.checkForStrainsThrow(expNames, __PRETTY_FUNCTION__);
 
 
+
 	std::unordered_map<std::string, std::unordered_map<std::string, double>> readCountsPerHapPerSample;
 	auto sampInfoFnp = analysisMaster.getSampInfoPath();
 	TableReader sampInfoReader(TableIOOpts::genTabFileIn(sampInfoFnp, true));
 	VecStr row;
+	std::unordered_map<std::string, std::string> cNameToPopUID;
+	std::unordered_map<std::string, uint32_t> cNamePopSampCnt;
+
 	while(sampInfoReader.getNextRow(row)){
 		auto sample = row[sampInfoReader.header_.getColPos("s_Name")];
 		auto hapName = row[sampInfoReader.header_.getColPos("c_name")];
+		auto c_Consensus = row[sampInfoReader.header_.getColPos("c_Consensus")];
+		seqInfo clus(hapName, c_Consensus);
+		readVec::getMaxLength(clus, maxLen);
+
 		auto readCnt = njh::StrToNumConverter::stoToNum<double>(row[sampInfoReader.header_.getColPos("c_ReadCnt")]);
 		readCountsPerHapPerSample[sample][hapName] = readCnt;
+		auto h_popUID = row[sampInfoReader.header_.getColPos("h_popUID")];
+		auto h_SampCnt = row[sampInfoReader.header_.getColPos("h_SampCnt")];
+
+		cNameToPopUID[hapName] = h_popUID;
+		cNamePopSampCnt[hapName] = njh::StrToNumConverter::stoToNum<uint32_t>(h_SampCnt);
 	}
 
 
+	OutputStream falseHaplotypesToExpClassified(njh::files::make_path(setUp.pars_.directoryName_, "falseHaplotypesComparedToExpected.tab.txt"));
+	falseHaplotypesToExpClassified << "AnalysisName\tsample\tmix\tc_name\treadCnt\tfrac\tRefName\tExpectedRefFreq\tExpectedMajor\tscore\tmismatches\toneBaseIndels\ttwoBaseIndels\tlargeIndels\ttotalErrors";
+	OutputStream falseHaplotypesToOtherResultsClassified(njh::files::make_path(setUp.pars_.directoryName_, "falseHaplotypesComparedToOthers.tab.txt"));
+	falseHaplotypesToOtherResultsClassified << "AnalysisName\tsample\tmix\tc_name\treadCnt\tfrac\tOtherName\tOtherFrac\tOtherReadCnt\tratio\tOtherMajor\tOtherMatchesExpected\tscore\tmismatches\toneBaseIndels\ttwoBaseIndels\tlargeIndels\ttotalErrors";
+
 
 	OutputStream haplotypesClassified(njh::files::make_path(setUp.pars_.directoryName_, "classifiedHaplotypes.tab.txt"));
-	haplotypesClassified << "AnalysisName\tsample\tmix\tseqName\treadCnt\tfrac\tmatchExpcted\texpectedRef\texpectedFrac";
+	haplotypesClassified << "AnalysisName\tsample\tmix\tc_name\th_popUID\th_SampCnt\treadCnt\tfrac\tmatchExpcted\texpectedRef\texpectedFrac";
 	OutputStream performanceOut(njh::files::make_path(setUp.pars_.directoryName_, "performancePerTarget.tab.txt"));
 	performanceOut << "AnalysisName\tsample\tmix\ttotalReads\trecoveredHaps\tfalseHaps\ttotalHaps\ttotalExpectedHaps\thapRecovery\tfalseHapsRate\tRMSE";
 	VecStr metalevels;
@@ -135,12 +157,18 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 		for(const auto & meta : metalevels){
 			haplotypesClassified << "\t" << meta;
 			performanceOut << "\t" << meta;
+			falseHaplotypesToExpClassified << "\t" << meta;
+			falseHaplotypesToOtherResultsClassified << "\t" << meta;
 		}
 	}
 
 	haplotypesClassified << std::endl;
 	performanceOut << std::endl;
-
+	falseHaplotypesToExpClassified << std::endl;
+	falseHaplotypesToOtherResultsClassified << std::endl;
+	aligner alignerObj(maxLen, gapScoringParameters(5,1,0,0,0,0));
+	alignerObj.weighHomopolymers_ = false;
+	alignerObj.processAlnInfoInput(setUp.pars_.alnInfoDirName_, false);
 	for(const auto & sname : controlSamples){
 		//skip completely missing
 		if(skipMissingSamples && njh::in(sname, missingSamples)){
@@ -162,11 +190,43 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 
 		SeqIOOptions resultsSeqsOpts(resultsSeqsFnp, analysisMaster.inputOptions_.inFormat_, true);
 		auto resultSeqs = SeqInput::getSeqVec<seqInfo>(resultsSeqsOpts);
+		std::unordered_map<std::string, uint32_t> resSeqToPos;
+		double maxResFrac = 0;
+		for(const auto pos : iter::range(resultSeqs.size())){
+			resSeqToPos[resultSeqs[pos].name_] = pos;
+			if(resultSeqs[pos].frac_ > maxResFrac){
+				maxResFrac = resultSeqs[pos].frac_;
+			}
+		}
 		//get current expected seqs
 		std::unordered_map<std::string, double> currentExpectedSeqsFrac;
+		double maxExpFrac = 0;
+
 		for(const auto & expSeqFrac : bencher.mixSetups_.at(bencher.samplesToMix_.at(sname)).relativeAbundances_){
 			currentExpectedSeqsFrac[expSeqs[initialExpSeqsPositions[expSeqFrac.first]]->name_] += expSeqFrac.second;
 		}
+		for(const auto & expFrac : currentExpectedSeqsFrac){
+			if(expFrac.second > maxExpFrac){
+				maxExpFrac = expFrac.second;
+			}
+		}
+		std::unordered_map<std::string, std::string> expectedToMajorClass;
+		for(const auto & expFrac : currentExpectedSeqsFrac){
+			if(expFrac.second == maxExpFrac){
+				expectedToMajorClass[expFrac.first] = "major";
+			}else{
+				expectedToMajorClass[expFrac.first] = "minor";
+			}
+		}
+		std::unordered_map<std::string, std::string> resultsToMajorClass;
+		for(const auto & res : resultSeqs){
+			if(res.frac_ == maxExpFrac){
+				resultsToMajorClass[res.name_] = "major";
+			}else{
+				resultsToMajorClass[res.name_] = "minor";
+			}
+		}
+
 
 		std::vector<std::shared_ptr<seqInfo>> currentExpectedSeqs;
 		for(const auto & finalExp : currentExpectedSeqsFrac){
@@ -175,14 +235,19 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 
 		auto res = bencher.benchmark(resultSeqs, currentExpectedSeqs,
 				currentExpectedSeqsFrac,
-				expSeqsKey);
+				expSeqsKey, alignerObj);
 		double total = 0;
+
+
+		//haplotype classification
 		for(const auto & seq : resultSeqs){
 			total += readCountsPerHapPerSample[sname][seq.name_];
 			haplotypesClassified << name
 					<< "\t" << sname
 					<< "\t" << bencher.samplesToMix_[sname]
 					<< "\t" << seq.name_
+					<< "\t" << cNameToPopUID[seq.name_]
+					<< "\t" << cNamePopSampCnt[seq.name_]
 					<< "\t" << readCountsPerHapPerSample[sname][seq.name_]
 					<< "\t" << seq.frac_
 					<< "\t" << ("" == res.resSeqToExpSeq_[seq.name_] ? "FALSE": "TRUE")
@@ -195,6 +260,7 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 			}
 			haplotypesClassified << std::endl;
 		}
+		//performance
 		performanceOut  << name
 				<< "\t" << sname
 				<< "\t" << bencher.samplesToMix_[sname]
@@ -212,7 +278,65 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 			}
 		}
 		performanceOut << std::endl;
+
+
+		//further classification of false haplotypes to expected
+		for(const auto & falseHap : res.falseHapsCompsToExpected){
+			for(const auto & exp : falseHap.second){
+				falseHaplotypesToExpClassified<< name
+						<< "\t" << sname
+						<< "\t" << bencher.samplesToMix_[sname]
+						<< "\t" << falseHap.first
+						<< "\t" << readCountsPerHapPerSample[sname][falseHap.first]
+						<< "\t" << resultSeqs[resSeqToPos[falseHap.first]].frac_
+						<< "\t" << exp.first
+						<< "\t" << currentExpectedSeqsFrac[exp.first]
+						<< "\t" << expectedToMajorClass[exp.first]
+						<< "\t" << exp.second.distances_.eventBasedIdentityHq_
+						<< "\t" << exp.second.hqMismatches_ + exp.second.lqMismatches_ + exp.second.lowKmerMismatches_
+						<< "\t" << exp.second.oneBaseIndel_
+						<< "\t" << exp.second.twoBaseIndel_
+						<< "\t" << exp.second.largeBaseIndel_
+						<< "\t" << exp.second.distances_.getNumOfEvents(true);
+				if(nullptr != analysisMaster.groupMetaData_){
+					for(const auto & meta : metalevels){
+						falseHaplotypesToExpClassified << "\t" << analysisMaster.groupMetaData_->groupData_[meta]->getGroupForSample(sname);
+					}
+				}
+				falseHaplotypesToExpClassified << std::endl;
+			}
+		}
+
+		//further classification of false haplotypes to other sequences
+		for(const auto & falseHap : res.falseHapsCompsToOthers){
+			for(const auto & other : falseHap.second){
+				falseHaplotypesToOtherResultsClassified<< name
+						<< "\t" << sname
+						<< "\t" << bencher.samplesToMix_[sname]
+						<< "\t" << falseHap.first
+						<< "\t" << readCountsPerHapPerSample[sname][falseHap.first]
+						<< "\t" << resultSeqs[resSeqToPos[falseHap.first]].frac_
+						<< "\t" << other.first
+						<< "\t" << readCountsPerHapPerSample[sname][other.first]
+						<< "\t" << resultSeqs[resSeqToPos[other.first]].frac_
+						<< "\t" << resultSeqs[resSeqToPos[other.first]].frac_/resultSeqs[resSeqToPos[falseHap.first]].frac_
+						<< "\t" << resultsToMajorClass[other.first]
+						<< "\t" << other.second.distances_.eventBasedIdentityHq_
+						<< "\t" << other.second.hqMismatches_ + other.second.lqMismatches_ + other.second.lowKmerMismatches_
+						<< "\t" << other.second.oneBaseIndel_
+						<< "\t" << other.second.twoBaseIndel_
+						<< "\t" << other.second.largeBaseIndel_
+						<< "\t" << other.second.distances_.getNumOfEvents(true);
+				if(nullptr != analysisMaster.groupMetaData_){
+					for(const auto & meta : metalevels){
+						falseHaplotypesToOtherResultsClassified << "\t" << analysisMaster.groupMetaData_->groupData_[meta]->getGroupForSample(sname);
+					}
+				}
+				falseHaplotypesToOtherResultsClassified << std::endl;
+			}
+		}
 	}
+	alignerObj.processAlnInfoOutput(setUp.pars_.outAlnInfoDirName_, false);
 
 	return 0;
 }
