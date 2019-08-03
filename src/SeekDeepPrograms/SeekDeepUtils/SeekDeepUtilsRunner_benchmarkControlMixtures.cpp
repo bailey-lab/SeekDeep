@@ -141,9 +141,9 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 
 
 	OutputStream falseHaplotypesToExpClassified(njh::files::make_path(setUp.pars_.directoryName_, "falseHaplotypesComparedToExpected.tab.txt"));
-	falseHaplotypesToExpClassified << "AnalysisName\tsample\tmix\tc_name\treadCnt\tfrac\tRefName\tExpectedRefFreq\tExpectedMajor\tscore\tmismatches\toneBaseIndels\ttwoBaseIndels\tlargeIndels\ttotalErrors";
+	falseHaplotypesToExpClassified << "AnalysisName\tsample\tmix\tc_name\treadCnt\tfrac\tRefName\tExpectedRefFreq\tExpectedMajor\tscore\tbestMatchScore\tmismatches\toneBaseIndels\ttwoBaseIndels\tlargeIndels\ttotalErrors";
 	OutputStream falseHaplotypesToOtherResultsClassified(njh::files::make_path(setUp.pars_.directoryName_, "falseHaplotypesComparedToOthers.tab.txt"));
-	falseHaplotypesToOtherResultsClassified << "AnalysisName\tsample\tmix\tc_name\treadCnt\tfrac\tOtherName\tOtherFrac\tOtherReadCnt\tratio\tOtherMajor\tOtherMatchesExpected\tscore\tmismatches\toneBaseIndels\ttwoBaseIndels\tlargeIndels\ttotalErrors";
+	falseHaplotypesToOtherResultsClassified << "AnalysisName\tsample\tmix\tc_name\treadCnt\tfrac\tOtherName\tOtherFrac\tOtherReadCnt\tratio\tOtherMajor\tOtherMatchesExpected\tscore\tbestMatchScore\tmismatches\toneBaseIndels\ttwoBaseIndels\tlargeIndels\ttotalErrors";
 
 
 	OutputStream haplotypesClassified(njh::files::make_path(setUp.pars_.directoryName_, "classifiedHaplotypes.tab.txt"));
@@ -282,6 +282,12 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 
 		//further classification of false haplotypes to expected
 		for(const auto & falseHap : res.falseHapsCompsToExpected){
+			double bestScore = 0;
+			for(const auto & exp : falseHap.second){
+				if(exp.second.distances_.eventBasedIdentityHq_ > bestScore){
+					bestScore = exp.second.distances_.eventBasedIdentityHq_;
+				}
+			}
 			for(const auto & exp : falseHap.second){
 				falseHaplotypesToExpClassified<< name
 						<< "\t" << sname
@@ -293,6 +299,7 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 						<< "\t" << currentExpectedSeqsFrac[exp.first]
 						<< "\t" << expectedToMajorClass[exp.first]
 						<< "\t" << exp.second.distances_.eventBasedIdentityHq_
+						<< "\t" << (exp.second.distances_.eventBasedIdentityHq_ == bestScore ? "TRUE" : "FALSE")
 						<< "\t" << exp.second.hqMismatches_ + exp.second.lqMismatches_ + exp.second.lowKmerMismatches_
 						<< "\t" << exp.second.oneBaseIndel_
 						<< "\t" << exp.second.twoBaseIndel_
@@ -309,6 +316,12 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 
 		//further classification of false haplotypes to other sequences
 		for(const auto & falseHap : res.falseHapsCompsToOthers){
+			double bestScore = 0;
+			for(const auto & other : falseHap.second){
+				if(other.second.distances_.eventBasedIdentityHq_ > bestScore){
+					bestScore = other.second.distances_.eventBasedIdentityHq_;
+				}
+			}
 			for(const auto & other : falseHap.second){
 				falseHaplotypesToOtherResultsClassified<< name
 						<< "\t" << sname
@@ -322,6 +335,7 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 						<< "\t" << resultSeqs[resSeqToPos[other.first]].frac_/resultSeqs[resSeqToPos[falseHap.first]].frac_
 						<< "\t" << resultsToMajorClass[other.first]
 						<< "\t" << other.second.distances_.eventBasedIdentityHq_
+						<< "\t" << (other.second.distances_.eventBasedIdentityHq_ == bestScore ? "TRUE" : "FALSE")
 						<< "\t" << other.second.hqMismatches_ + other.second.lqMismatches_ + other.second.lowKmerMismatches_
 						<< "\t" << other.second.oneBaseIndel_
 						<< "\t" << other.second.twoBaseIndel_
