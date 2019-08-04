@@ -183,6 +183,9 @@ struct processClustersPars {
   bool collapseLowFreqOneOffs = false;
   double lowFreqMultiplier = 30;
 
+  bool removeOneSampOnlyOneOffHaps = false;
+  double oneSampOnlyOneOffHapsFrac = 0.25;
+
   bool keepChimeras = false;
   bool investigateChimeras = false;
   bool recheckChimeras = false;

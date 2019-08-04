@@ -181,6 +181,7 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 					sampColl.sampleCollapses_.at(samp)->excludeLowFreqOneOffs(true, pars.lowFreqMultiplier, *currentAligner);
 				}
 
+
 				if (!pars.keepChimeras) {
 					//now exclude all marked chimeras, currently this will also remark chimeras unnecessarily
 					sampColl.sampleCollapses_.at(samp)->excludeChimerasNoReMark(true);
@@ -345,6 +346,14 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 
 		if(pars.removeCommonlyLowFreqHaplotypes_){
 			while(sampColl.excludeCommonlyLowFreqHaps(pars.lowFreqHaplotypeFracCutOff_)){
+				//if excluded run pop clustering again
+				sampColl.doPopulationClustering(sampColl.createPopInput(),
+						alignerObj, collapserObj, pars.popIteratorMap);
+			}
+		}
+
+		if(pars.removeCommonlyLowFreqHaplotypes_){
+			if(sampColl.excludeOneSampOnlyOneOffHaps(pars.oneSampOnlyOneOffHapsFrac, alignerObj)){
 				//if excluded run pop clustering again
 				sampColl.doPopulationClustering(sampColl.createPopInput(),
 						alignerObj, collapserObj, pars.popIteratorMap);

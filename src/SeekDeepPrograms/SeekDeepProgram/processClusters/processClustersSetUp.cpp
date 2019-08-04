@@ -137,6 +137,14 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 	setOption(pars.lowFreqMultiplier, "--oneOffLowFreqMultiplier",
 			"Low Freq Multiplier used for --excludeLowFreqOneOffs, considered low frequency if haplotype frac is less than its fraction times this number than the other haplotype", false, "Filtering");
 
+	setOption(pars.removeOneSampOnlyOneOffHaps, "--removeOneSampOnlyOneOffHaps",
+			"Remove haplotypes that are below --oneSampOnlyOneOffHapsFrac fraction(default 0.20) that only appear in one sample that is one off of another haplotype within sample", false, "Filtering");
+	setOption(pars.oneSampOnlyOneOffHapsFrac, "--oneSampOnlyOneOffHapsFrac",
+			"Fraction for --removeOneSampOnlyOneOffHaps", false, "Filtering");
+
+
+
+
 	setOption(pars.rescueExcludedChimericHaplotypes, "--rescueExcludedChimericHaplotypes", "Rescue Excluded chimeric Haplotypes if they appear as a major haplotype in another sample");
 	setOption(pars.rescueExcludedOneOffLowFreqHaplotypes, "--rescueExcludedOneOffLowFreqHaplotypes", "Rescue Excluded chimeric Haplotypes if they appear as a major haplotype in another sample");
 	setOption(pars.rescueMatchingExpected, "--rescueMatchingExpected", "Rescue Haplotypes that match expected sequences if they have been read using --ref");
