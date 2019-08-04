@@ -220,7 +220,7 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 		}
 		std::unordered_map<std::string, std::string> resultsToMajorClass;
 		for(const auto & res : resultSeqs){
-			if(res.frac_ == maxExpFrac){
+			if(res.frac_ == maxResFrac){
 				resultsToMajorClass[res.name_] = "major";
 			}else{
 				resultsToMajorClass[res.name_] = "minor";
