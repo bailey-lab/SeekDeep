@@ -666,12 +666,13 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 
 	if (!analysisSetup.pars_.conservative) {
 		auto lowerCaseExtracProcessArgs = stringToLowerReturn(analysisSetup.pars_.extraProcessClusterCmds);
-		processClusterTemplate += " --excludeCommonlyLowFreqHaplotypes --excludeLowFreqOneOffs";
+		processClusterTemplate += " --excludeCommonlyLowFreqHaplotypes --excludeLowFreqOneOffs --rescueExcludedOneOffLowFreqHaplotypes";
 		//processClusterTemplate += " --excludeCommonlyLowFreqHaplotypes --excludeLowFreqOneOffs --fracCutOff 0 ";
 	}
 
 	if (!analysisSetup.pars_.conservative && analysisSetup.pars_.rescueFilteredHaplotypes) {
-		processClusterTemplate += " --rescueExcludedOneOffLowFreqHaplotypes --rescueMatchingExpected --rescueExcludedChimericHaplotypes";
+		//processClusterTemplate += " --rescueExcludedOneOffLowFreqHaplotypes --rescueMatchingExpected --rescueExcludedChimericHaplotypes";
+		processClusterTemplate += " --rescueMatchingExpected --rescueExcludedChimericHaplotypes";
 	}
 
 	if ("" != analysisSetup.pars_.extraProcessClusterCmds) {
