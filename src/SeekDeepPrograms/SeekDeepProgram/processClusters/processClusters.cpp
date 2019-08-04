@@ -352,7 +352,7 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 			}
 		}
 
-		if(pars.removeCommonlyLowFreqHaplotypes_){
+		if(pars.removeOneSampOnlyOneOffHaps){
 			if(sampColl.excludeOneSampOnlyOneOffHaps(pars.oneSampOnlyOneOffHapsFrac, alignerObj)){
 				//if excluded run pop clustering again
 				sampColl.doPopulationClustering(sampColl.createPopInput(),
