@@ -19,6 +19,7 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 	std::string name = "";
 	bfs::path metaFnp = "";
 	bool skipMissingSamples = false;
+	bfs::path popSeqsFnp = "";
 	seqSetUp setUp(inputCommands);
 	setUp.processVerbose();
 	setUp.processDebug();
@@ -26,6 +27,7 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 	setUp.setOption(expectedSeqsFnp, "--expectedSeqsFnp", "Expected Seqs fasta file", true);
 	setUp.setOption(name, "--name", "Name to give the current analysis", true);
 	setUp.setOption(metaFnp, "--metaFnp", "meta data for the control samples");
+	setUp.setOption(popSeqsFnp, "--popSeqsFnp", "Population Sequences");
 
 	setUp.setOption(conBenchPars.samplesToMixFnp_, "--sampleToMixture", "Sample To Mixture, 2 columns 1)sample, 2)MixName", true);
 	setUp.setOption(conBenchPars.mixSetUpFnp_, "--mixtureSetUp", "Mixture Set Up, 3 columns 1)MixName, 2)strain, 3)relative_abundance", true);
@@ -71,6 +73,12 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 	//read in expected seqs
 	SeqInput expSeqsSeqIn(SeqIOOptions::genFastaIn(expectedSeqsFnp));
 	auto initialExpSeqs = expSeqsSeqIn.readAllReadsPtrs<seqInfo>();
+
+	//population seqs;
+	std::vector<seqInfo> popSeqs;
+	if("" != popSeqsFnp){
+		popSeqs = SeqInput::getSeqVec<seqInfo>(SeqIOOptions::genFastaIn(popSeqsFnp));
+	}
 	//check the needed expected names
 	std::set<std::string> expNames;
 	std::unordered_map<std::string, uint32_t> initialExpSeqsPositions;
@@ -147,7 +155,7 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 
 
 	OutputStream haplotypesClassified(njh::files::make_path(setUp.pars_.directoryName_, "classifiedHaplotypes.tab.txt"));
-	haplotypesClassified << "AnalysisName\tsample\tmix\tc_name\th_popUID\th_SampCnt\treadCnt\tfrac\tmatchExpcted\texpectedRef\texpectedFrac";
+	haplotypesClassified << "AnalysisName\tsample\tmix\tc_name\th_popUID\th_SampCnt\treadCnt\tfrac\tmatchExpcted\texpectedRef\texpectedFrac\tmatchingPopulation\tPopName";
 	OutputStream performanceOut(njh::files::make_path(setUp.pars_.directoryName_, "performancePerTarget.tab.txt"));
 	performanceOut << "AnalysisName\tsample\tmix\ttotalReads\trecoveredHaps\tfalseHaps\ttotalHaps\ttotalExpectedHaps\thapRecovery\tfalseHapsRate\tRMSE";
 	VecStr metalevels;
@@ -253,6 +261,17 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 					<< "\t" << ("" == res.resSeqToExpSeq_[seq.name_] ? "FALSE": "TRUE")
 					<< "\t" << res.resSeqToExpSeq_[seq.name_]
 					<< "\t" << currentExpectedSeqsFrac[res.resSeqToExpSeq_[seq.name_]];
+
+			std::string matchingPop = "";
+			for(const auto & popSeq : popSeqs){
+				if(popSeq.seq_ == seq.seq_){
+					matchingPop = popSeq.name_;
+					break;
+				}
+			}
+			haplotypesClassified
+			    << "\t" << ("" == matchingPop ? "TRUE" : "FALSE")
+					<< "\t" << matchingPop;
 			if(nullptr != analysisMaster.groupMetaData_){
 				for(const auto & meta : metalevels){
 					haplotypesClassified << "\t" << analysisMaster.groupMetaData_->groupData_[meta]->getGroupForSample(sname);
