@@ -120,7 +120,7 @@ public:
 					ret.falseHapsCompsToExpected[resSeq.name_][getSeqBase(exp).name_] = alignerObj.comp_;
 				}
 				for(const auto & otherRes : resultSeqs){
-					if(getSeqBase(otherRes).name_ == getSeqBase(otherRes).name_){
+					if(getSeqBase(otherRes).name_ == getSeqBase(resultSeq).name_){
 						continue;
 					}
 					alignerObj.alignCacheGlobal(otherRes, resultSeq);
