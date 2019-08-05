@@ -99,8 +99,10 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 	setOption(pars.parameters, "--par", "ParametersFileName", !pars.noErrorsSet && !pars.strictErrorsSet && !pars.strictErrorsSetHq1, "Clustering");
 
 	setOption(pars.binParameters, "--binPar", "bin Parameters Filename", false, "Clustering");
+	pars.preFiltCutOffs.sampleMinReadCount = 100;
 	setOption(pars.preFiltCutOffs.sampleMinReadCount, "--sampleMinTotalReadCutOff",
 			"Sample Minimum Total Read Cut Off, if the total read count for the sample is below this it will be thrown out", false, "Filtering");
+	pars.preFiltCutOffs.replicateMinReadCount = 100;
 	setOption(pars.preFiltCutOffs.replicateMinReadCount, "--replicateMinTotalReadCutOff",
 				"Replicate Minimum Total Read Cut Off, if the total read count for the replicate is below this it will be thrown out", false, "Filtering");
 
@@ -114,6 +116,9 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 	pars.preFiltCutOffs.clusterSizeCutOff = 10;
 	setOption(pars.preFiltCutOffs.clusterSizeCutOff, "--clusterCutOff", "Input Cluster Size Cut Off", false, "Filtering");
 	setOption(pars.fracExcludeOnlyInFinalAverageFrac, "--fracExcludeOnlyInFinalAverageFrac", "By default fraction exclusion is done per rep, use fracExcludeOnlyInFinalAverageFrac to exclude only on the final averaged frac", false, "Filtering");
+
+
+	setOption(pars.excludeSamples, "--excludeSamples", "Samples to Exclude from analysis", false, "Filtering");
 
 
 	setOption(pars.removeCommonlyLowFreqHaplotypes_, "--excludeCommonlyLowFreqHaplotypes", "Remove Commonly Low Freq Haplotypes", false, "Filtering");
@@ -141,6 +146,15 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 			"Remove haplotypes that are below --oneSampOnlyOneOffHapsFrac fraction(default 0.20) that only appear in one sample that is one off of another haplotype within sample", false, "Filtering");
 	setOption(pars.oneSampOnlyOneOffHapsFrac, "--oneSampOnlyOneOffHapsFrac",
 			"Fraction for --removeOneSampOnlyOneOffHaps", false, "Filtering");
+
+	setOption(pars.removeOneSampOnlyHaps, "--removeOneSampOnlyHaps",
+			"Remove haplotypes that are below --OneSampOnlyHapsFrac fraction(default 0.20) that only appear in one sample that is one off of another haplotype within sample", false, "Filtering");
+	setOption(pars.oneSampOnlyHapsFrac, "--oneSampOnlyHapsFrac",
+			"Fraction for --removeOneSampOnlyHaps", false, "Filtering");
+
+
+	//setOption(pars.popSeqsFnp, "--popSeqsFnp", "popSeqsFnp", false, "Population");
+
 
 
 

@@ -75,6 +75,12 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 	pars.popIteratorMap.writePars(popParsOutFile);
 
 
+	//population seqs;
+	std::vector<seqInfo> globalPopSeqs;
+	if("" != pars.popSeqsFnp){
+		globalPopSeqs = SeqInput::getSeqVec<seqInfo>(SeqIOOptions::genFastaIn(pars.popSeqsFnp));
+	}
+
 	//read in the files in the corresponding sample directories
 	auto analysisFiles = njh::files::listAllFiles(pars.masterDir, true,
 			{ std::regex { "^" + setUp.pars_.ioOptions_.firstName_.string() + "$" } }, 3);
@@ -88,8 +94,12 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 					<< " for " << bfs::relative(af.first, pars.masterDir).string() << std::endl;
 			throw std::runtime_error { ss.str() };
 		}
+		if(njh::in(fileToks[0], pars.excludeSamples)){
+			continue;
+		}
 		samplesDirsSet.insert(fileToks[0]);
 	}
+
 	VecStr samplesDirs(samplesDirsSet.begin(), samplesDirsSet.end());
 	VecStr specificFiles;
 
@@ -360,6 +370,14 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 			}
 		}
 
+		if(pars.removeOneSampOnlyHaps){
+			if(sampColl.excludeOneSampOnlyHaps(pars.oneSampOnlyHapsFrac)){
+				//if excluded run pop clustering again
+				sampColl.doPopulationClustering(sampColl.createPopInput(),
+						alignerObj, collapserObj, pars.popIteratorMap);
+			}
+		}
+
 		if(pars.rescueMatchingExpected && !expectedSeqs.empty()){
 			bool rescuedHaplotypes = false;
 			for(const auto & sampleName : sampColl.passingSamples_){
@@ -382,7 +400,6 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 									chimeriaExcludedRescue = true;
 									other = false;
 								}
-
 								if("ExcludeFailedLowFreqOneOff" == excMeta.first){
 									oneOffExcludedRescue = true;
 									other = false;
@@ -391,7 +408,6 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 									commonlyLowExcludedRescue = true;
 									other = false;
 								}
-
 								if(other){
 									otherExcludedCriteria.emplace(excMeta.first);
 								}

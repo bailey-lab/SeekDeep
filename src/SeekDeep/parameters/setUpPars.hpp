@@ -174,6 +174,12 @@ struct processClustersPars {
   std::string parameters = "";
   std::string binParameters = "";
 
+  bfs::path popSeqsFnp = "";
+
+  VecStr excludeSamples;
+
+
+
   VecStr controlSamples;
   bool extra = false;
   double fracCutoff = 0.001;
@@ -185,6 +191,9 @@ struct processClustersPars {
 
   bool removeOneSampOnlyOneOffHaps = false;
   double oneSampOnlyOneOffHapsFrac = 0.25;
+
+  bool removeOneSampOnlyHaps = false;
+  double oneSampOnlyHapsFrac = 0.25;
 
   bool keepChimeras = false;
   bool investigateChimeras = false;

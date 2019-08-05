@@ -151,7 +151,7 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 	OutputStream falseHaplotypesToExpClassified(njh::files::make_path(setUp.pars_.directoryName_, "falseHaplotypesComparedToExpected.tab.txt"));
 	falseHaplotypesToExpClassified << "AnalysisName\tsample\tmix\tc_name\treadCnt\tfrac\tRefName\tExpectedRefFreq\tExpectedMajor\tscore\tbestMatchScore\tmismatches\toneBaseIndels\ttwoBaseIndels\tlargeIndels\ttotalErrors";
 	OutputStream falseHaplotypesToOtherResultsClassified(njh::files::make_path(setUp.pars_.directoryName_, "falseHaplotypesComparedToOthers.tab.txt"));
-	falseHaplotypesToOtherResultsClassified << "AnalysisName\tsample\tmix\tc_name\treadCnt\tfrac\tOtherName\tOtherFrac\tOtherReadCnt\tratio\tOtherMajor\tOtherMatchesExpected\tOtherExpectedMatchName\tscore\tbestMatchScore\tmismatches\toneBaseIndels\ttwoBaseIndels\tlargeIndels\ttotalErrors";
+	falseHaplotypesToOtherResultsClassified << "AnalysisName\tsample\tmix\tc_name\treadCnt\tfrac\tOtherName\tOtherReadCnt\tOtherFrac\tratio\tOtherMajor\tOtherMatchesExpected\tOtherExpectedMatchName\tscore\tbestMatchScore\tmismatches\toneBaseIndels\ttwoBaseIndels\tlargeIndels\ttotalErrors";
 
 
 	OutputStream haplotypesClassified(njh::files::make_path(setUp.pars_.directoryName_, "classifiedHaplotypes.tab.txt"));
