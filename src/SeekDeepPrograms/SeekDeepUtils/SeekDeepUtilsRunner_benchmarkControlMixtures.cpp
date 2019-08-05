@@ -47,12 +47,40 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 
 	collapse::SampleCollapseCollection analysisMaster(coreJson);
 
+	std::unordered_map<std::string, std::unordered_map<std::string, double>> readCountsPerHapPerSample;
+	auto sampInfoFnp = analysisMaster.getSampInfoPath();
+	TableReader sampInfoReader(TableIOOpts::genTabFileIn(sampInfoFnp, true));
+	VecStr row;
+	std::unordered_map<std::string, std::string> cNameToPopUID;
+	std::unordered_map<std::string, uint32_t> cNamePopSampCnt;
+
+	uint64_t maxLen = 0;
+
+	std::unordered_set<std::string> allSamplesInOutput;
+	while(sampInfoReader.getNextRow(row)){
+		auto sample = row[sampInfoReader.header_.getColPos("s_Name")];
+		auto hapName = row[sampInfoReader.header_.getColPos("c_name")];
+		auto c_Consensus = row[sampInfoReader.header_.getColPos("c_Consensus")];
+		seqInfo clus(hapName, c_Consensus);
+		readVec::getMaxLength(clus, maxLen);
+
+		auto readCnt = njh::StrToNumConverter::stoToNum<double>(row[sampInfoReader.header_.getColPos("c_ReadCnt")]);
+		readCountsPerHapPerSample[sample][hapName] = readCnt;
+		auto h_popUID = row[sampInfoReader.header_.getColPos("h_popUID")];
+		auto h_SampCnt = row[sampInfoReader.header_.getColPos("h_SampCnt")];
+
+		cNameToPopUID[hapName] = h_popUID;
+		cNamePopSampCnt[hapName] = njh::StrToNumConverter::stoToNum<uint32_t>(h_SampCnt);
+		allSamplesInOutput.emplace(sample);
+	}
+
 	ControlBencher bencher(conBenchPars);
 	//check for samples in analysis
 	auto controlSamples = bencher.getSamples();
 	VecStr missingSamples;
 	for (const auto & sname : controlSamples) {
-		if (!analysisMaster.hasSample(sname)) {
+		//if (!analysisMaster.hasSample(sname)) {
+		if (!njh::in(sname, allSamplesInOutput)) {
 			missingSamples.emplace_back(sname);
 		}
 	}
@@ -112,7 +140,6 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 	}
 	std::unordered_map<std::string, uint32_t> finalExpSeqsPositions;
 
-	uint64_t maxLen = 0;
 
 	for(const auto expSeqPos : iter::range(expSeqs.size())){
 		readVec::getMaxLength(expSeqs[expSeqPos], maxLen);
@@ -124,28 +151,7 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 
 
 
-	std::unordered_map<std::string, std::unordered_map<std::string, double>> readCountsPerHapPerSample;
-	auto sampInfoFnp = analysisMaster.getSampInfoPath();
-	TableReader sampInfoReader(TableIOOpts::genTabFileIn(sampInfoFnp, true));
-	VecStr row;
-	std::unordered_map<std::string, std::string> cNameToPopUID;
-	std::unordered_map<std::string, uint32_t> cNamePopSampCnt;
 
-	while(sampInfoReader.getNextRow(row)){
-		auto sample = row[sampInfoReader.header_.getColPos("s_Name")];
-		auto hapName = row[sampInfoReader.header_.getColPos("c_name")];
-		auto c_Consensus = row[sampInfoReader.header_.getColPos("c_Consensus")];
-		seqInfo clus(hapName, c_Consensus);
-		readVec::getMaxLength(clus, maxLen);
-
-		auto readCnt = njh::StrToNumConverter::stoToNum<double>(row[sampInfoReader.header_.getColPos("c_ReadCnt")]);
-		readCountsPerHapPerSample[sample][hapName] = readCnt;
-		auto h_popUID = row[sampInfoReader.header_.getColPos("h_popUID")];
-		auto h_SampCnt = row[sampInfoReader.header_.getColPos("h_SampCnt")];
-
-		cNameToPopUID[hapName] = h_popUID;
-		cNamePopSampCnt[hapName] = njh::StrToNumConverter::stoToNum<uint32_t>(h_SampCnt);
-	}
 
 
 	OutputStream falseHaplotypesToExpClassified(njh::files::make_path(setUp.pars_.directoryName_, "falseHaplotypesComparedToExpected.tab.txt"));
