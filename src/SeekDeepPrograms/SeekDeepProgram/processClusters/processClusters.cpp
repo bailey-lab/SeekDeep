@@ -501,6 +501,10 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 	//collect extraction dirs
 	std::set<bfs::path> extractionDirs;
 	for(const auto & file : analysisFiles){
+		auto fileToks = njh::tokenizeString(bfs::relative(file.first, pars.masterDir).string(), "/");
+		if(njh::in(fileToks[0], pars.excludeSamples)){
+			continue;
+		}
 		auto metaDataJsonFnp = njh::files::make_path(file.first.parent_path(), "metaData.json");
 		if(bfs::exists(metaDataJsonFnp)){
 			auto metaJson = njh::json::parseFile(metaDataJsonFnp.string());
