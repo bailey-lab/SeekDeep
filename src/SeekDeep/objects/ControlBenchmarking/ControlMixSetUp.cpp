@@ -22,7 +22,6 @@ ControlMixSetUp::ControlMixSetUp(const std::string & name,
 
 	double total = 0;
 	for (const auto & relAbund : rawRelativeAbundances_) {
-
 		if (relAbund.second <= 0) {
 			std::stringstream ss;
 			ss << __PRETTY_FUNCTION__ << ", error "
@@ -36,6 +35,31 @@ ControlMixSetUp::ControlMixSetUp(const std::string & name,
 		relativeAbundances_[relAbund.first] = relAbund.second/total;
 	}
 
+}
+
+void ControlMixSetUp::removeStrain(const std::string & name){
+	if(!njh::in(name, rawRelativeAbundances_) || !njh::in(name, relativeAbundances_)){
+		std::stringstream ss;
+		ss << __PRETTY_FUNCTION__ << ", error " << "no strain named: " << name << " options are: " << njh::conToStr(njh::getVecOfMapKeys(rawRelativeAbundances_), ",")<< "\n";
+		throw std::runtime_error{ss.str()};
+	}
+	rawRelativeAbundances_.erase(name);
+	relativeAbundances_.erase(name);
+
+	double total = 0;
+	for (const auto & relAbund : rawRelativeAbundances_) {
+		if (relAbund.second <= 0) {
+			std::stringstream ss;
+			ss << __PRETTY_FUNCTION__ << ", error "
+					<< " abundances need to be greater than zero, " << relAbund.first
+					<< ": " << relAbund.second << "\n";
+			throw std::runtime_error { ss.str() };
+		}
+		total += relAbund.second;
+	}
+	for (const auto & relAbund : rawRelativeAbundances_) {
+		relativeAbundances_[relAbund.first] = relAbund.second/total;
+	}
 }
 
 VecStr ControlMixSetUp::getStrains() const {
@@ -73,3 +97,8 @@ std::unordered_map<std::string, ControlMixSetUp> ControlMixSetUp::readInSetUps(c
 	}
 
 }  // namespace njhseq
+
+
+
+
+

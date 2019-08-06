@@ -25,6 +25,8 @@ public:
 
 	VecStr getStrains() const;
 
+	void removeStrain(const std::string & name);
+
 
 	static std::unordered_map<std::string, ControlMixSetUp> readInSetUps(const bfs::path & mixtureSetUpFnp);
 

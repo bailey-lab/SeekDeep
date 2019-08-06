@@ -32,6 +32,10 @@ public:
 	VecStr getSamples() const;
 
 
+	void removeStrain(const std::string & name);
+	void removeStrains(const VecStr & names);
+
+
 	void checkForStrainsThrow(const std::set<std::string> & names,
 			const std::string & funcName) const;
 

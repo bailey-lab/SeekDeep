@@ -114,7 +114,16 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 	std::unordered_map<std::string, VecStr> matchingExpectedSeqs;
 
 	std::vector<std::shared_ptr<seqInfo>> expSeqs;
+
+	VecStr removeSeqs;
 	for(const auto & expSeq : initialExpSeqs){
+		if (std::all_of(expSeq->seq_.begin(), expSeq->seq_.end(),
+				[](const char base) {
+					return 'N' == base || 'n' == base;
+				})) {
+			removeSeqs.emplace_back(expSeq->name_);
+			continue;
+		}
 		if(njh::in(expSeq->name_, expNames)){
 			std::stringstream ss;
 			ss << __PRETTY_FUNCTION__ << ", error " << " already have expected sequence named " << expSeq->name_<< "\n";
@@ -138,8 +147,13 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 			expSeqs.emplace_back(std::make_shared<seqInfo>(*expSeq));
 		}
 	}
+	//remove ref seqs that were zero;
+	bencher.removeStrains(removeSeqs);
+
+
 	std::unordered_map<std::string, uint32_t> finalExpSeqsPositions;
 
+	//
 
 	for(const auto expSeqPos : iter::range(expSeqs.size())){
 		readVec::getMaxLength(expSeqs[expSeqPos], maxLen);
@@ -148,10 +162,6 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 	}
 
 	bencher.checkForStrainsThrow(expNames, __PRETTY_FUNCTION__);
-
-
-
-
 
 
 	OutputStream falseHaplotypesToExpClassified(njh::files::make_path(setUp.pars_.directoryName_, "falseHaplotypesComparedToExpected.tab.txt"));

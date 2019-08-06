@@ -43,6 +43,19 @@ VecStr ControlBencher::getSamples() const {
 	return ret;
 }
 
+
+void ControlBencher::removeStrain(const std::string & name){
+	for(auto & mix : mixSetups_){
+		mix.second.removeStrain(name);
+	}
+}
+
+void ControlBencher::removeStrains(const VecStr & names){
+	for(const auto & name : names){
+		removeStrain(name);
+	}
+}
+
 void ControlBencher::checkForStrainsThrow(const std::set<std::string> & names,
 		const std::string & funcName) const {
 	VecStr missingStrains;
