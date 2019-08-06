@@ -99,13 +99,18 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 	setOption(pars.parameters, "--par", "ParametersFileName", !pars.noErrorsSet && !pars.strictErrorsSet && !pars.strictErrorsSetHq1, "Clustering");
 
 	setOption(pars.binParameters, "--binPar", "bin Parameters Filename", false, "Clustering");
-	pars.preFiltCutOffs.sampleMinReadCount = 100;
-	setOption(pars.preFiltCutOffs.sampleMinReadCount, "--sampleMinTotalReadCutOff",
-			"Sample Minimum Total Read Cut Off, if the total read count for the sample is below this it will be thrown out", false, "Filtering");
-	pars.preFiltCutOffs.replicateMinReadCount = 100;
-	setOption(pars.preFiltCutOffs.replicateMinReadCount, "--replicateMinTotalReadCutOff",
-				"Replicate Minimum Total Read Cut Off, if the total read count for the replicate is below this it will be thrown out", false, "Filtering");
 
+
+	pars.preFiltCutOffs.sampleMinReadCount = 250;
+	bool sampMinSet = setOption(pars.preFiltCutOffs.sampleMinReadCount, "--sampleMinTotalReadCutOff",
+			"Sample Minimum Total Read Cut Off, if the total read count for the sample is below this it will be thrown out", false, "Filtering");
+
+	pars.preFiltCutOffs.replicateMinReadCount = pars.preFiltCutOffs.sampleMinReadCount;
+	bool repMinSet = setOption(pars.preFiltCutOffs.replicateMinReadCount, "--replicateMinTotalReadCutOff",
+				"Replicate Minimum Total Read Cut Off, if the total read count for the replicate is below this it will be thrown out", false, "Filtering");
+	if(repMinSet && !sampMinSet){
+		pars.preFiltCutOffs.sampleMinReadCount = pars.preFiltCutOffs.replicateMinReadCount;
+	}
 	setOption(pars.runsRequired, "--runsRequired", "Number of PCR runs Required for a haplotype to be kept", false, "Filtering");
 	setOption(pars.experimentName, "--experimentName", "Name given to the final population haplotypes", false, "Population");
 	if (njh::containsSubString(pars.experimentName, ".")) {
