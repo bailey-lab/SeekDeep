@@ -46,6 +46,8 @@ public:
 		uint32_t expectedHapCnt_ = 0;
 		double sumOfSquares_ = 0;
 
+		VecStr missingExpecteds_;
+
 		double RMSE() const{
 			return 0 == sumOfSquares_ ? 0 : std::sqrt(sumOfSquares_/static_cast<double>(recoveredHaps_));
 		}
@@ -101,6 +103,7 @@ public:
 	aligner & alignerObj){
 		benchResults ret;
 		ret.expectedHapCnt_ = expectedSeqs.size();
+		std::unordered_set<std::string> matchingRefs;
 		for(const auto & resultSeq : resultSeqs){
 			const auto & resSeq = getSeqBase(resultSeq);
 			std::string matchingRef = "";
@@ -132,8 +135,19 @@ public:
 					ret.falseHapsCompsToOthers[resSeq.name_][getSeqBase(otherRes).name_] = alignerObj.comp_;
 				}
 			}
+			matchingRefs.emplace(matchingRef);
 			ret.resSeqToExpSeq_[resSeq.name_] = matchingRef;
 		}
+		std::set<std::string> missing;
+		for(const auto & expectedSeq : expectedSeqs){
+			const auto & expSeq = getSeqBase(expectedSeq);
+			if(!njh::in(expSeq.name_, matchingRefs)){
+				missing.emplace(expSeq.name_);
+			}
+		}
+
+		ret.missingExpecteds_ = VecStr(missing.begin(), missing.end());
+
 		return ret;
 	}
 

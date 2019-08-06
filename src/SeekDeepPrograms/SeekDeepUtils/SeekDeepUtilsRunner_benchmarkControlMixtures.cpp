@@ -173,7 +173,7 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 	OutputStream haplotypesClassified(njh::files::make_path(setUp.pars_.directoryName_, "classifiedHaplotypes.tab.txt"));
 	haplotypesClassified << "AnalysisName\tsample\tmix\tc_name\th_popUID\th_SampCnt\treadCnt\tfrac\tmatchExpcted\texpectedRef\texpectedFrac\tmatchingPopulation\tPopName";
 	OutputStream performanceOut(njh::files::make_path(setUp.pars_.directoryName_, "performancePerTarget.tab.txt"));
-	performanceOut << "AnalysisName\tsample\tmix\ttotalReads\trecoveredHaps\tfalseHaps\ttotalHaps\ttotalExpectedHaps\thapRecovery\tfalseHapsRate\tRMSE";
+	performanceOut << "AnalysisName\tsample\tmix\ttotalReads\trecoveredHaps\tfalseHaps\ttotalHaps\ttotalExpectedHaps\thapRecovery\tfalseHapsRate\tmissingExpecteds\tRMSE";
 	VecStr metalevels;
 	if(nullptr != analysisMaster.groupMetaData_){
 		metalevels = getVectorOfMapKeys(analysisMaster.groupMetaData_->groupData_);
@@ -306,6 +306,7 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 				<< "\t" << res.expectedHapCnt_
 				<< "\t" << res.hapRecoveryRate()
 				<< "\t" << res.falseHapRate()
+				<< "\t" << njh::conToStr(res.missingExpecteds_, ";")
 				<< "\t" << res.RMSE();
 		if(nullptr != analysisMaster.groupMetaData_){
 			for(const auto & meta : metalevels){
