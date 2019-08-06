@@ -46,7 +46,9 @@ VecStr ControlBencher::getSamples() const {
 
 void ControlBencher::removeStrain(const std::string & name){
 	for(auto & mix : mixSetups_){
-		mix.second.removeStrain(name);
+		if(njh::in(name, mix.second.getStrains())){
+			mix.second.removeStrain(name);
+		}
 	}
 }
 
