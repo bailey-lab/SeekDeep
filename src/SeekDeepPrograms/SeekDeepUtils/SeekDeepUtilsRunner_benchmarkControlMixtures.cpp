@@ -295,6 +295,32 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 			}
 			haplotypesClassified << std::endl;
 		}
+		for(const auto & missing : res.missingExpecteds_){
+
+
+			haplotypesClassified << name
+					<< "\t" << sname
+					<< "\t" << bencher.samplesToMix_[sname]
+					<< "\t" << "NA"
+					<< "\t" << "NA"
+					<< "\t" << "NA"
+					<< "\t" << "NA"
+					<< "\t" << "NA"
+					<< "\t" << "NA"
+					<< "\t" << missing
+					<< "\t" << currentExpectedSeqsFrac[missing];
+
+			haplotypesClassified
+					<< "\t" << "NA"
+					<< "\t" << "NA";
+			if(nullptr != analysisMaster.groupMetaData_){
+				for(const auto & meta : metalevels){
+					haplotypesClassified << "\t" << analysisMaster.groupMetaData_->groupData_[meta]->getGroupForSample(sname);
+				}
+			}
+			haplotypesClassified << std::endl;
+
+		}
 		//performance
 		performanceOut  << name
 				<< "\t" << sname
