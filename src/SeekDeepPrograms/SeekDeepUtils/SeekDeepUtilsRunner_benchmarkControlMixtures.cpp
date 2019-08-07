@@ -171,7 +171,7 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 
 
 	OutputStream haplotypesClassified(njh::files::make_path(setUp.pars_.directoryName_, "classifiedHaplotypes.tab.txt"));
-	haplotypesClassified << "AnalysisName\tsample\tmix\tc_name\th_popUID\th_SampCnt\treadCnt\tfrac\tmatchExpcted\texpectedRef\texpectedFrac\tmatchingPopulation\tPopName";
+	haplotypesClassified << "AnalysisName\tsample\tmix\tc_name\th_popUID\th_SampCnt\treadCnt\tfrac\tmatchExpcted\texpectedRef\texpectedFrac\tMajorOrMinor\tmatchingPopulation\tPopName";
 	OutputStream performanceOut(njh::files::make_path(setUp.pars_.directoryName_, "performancePerTarget.tab.txt"));
 	performanceOut << "AnalysisName\tsample\tmix\ttotalReads\trecoveredHaps\tfalseHaps\ttotalHaps\ttotalExpectedHaps\thapRecovery\tfalseHapsRate\tmissingExpecteds\tRMSE";
 	VecStr metalevels;
@@ -276,7 +276,8 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 					<< "\t" << seq.frac_
 					<< "\t" << ("" == res.resSeqToExpSeq_[seq.name_] ? "FALSE": "TRUE")
 					<< "\t" << res.resSeqToExpSeq_[seq.name_]
-					<< "\t" << currentExpectedSeqsFrac[res.resSeqToExpSeq_[seq.name_]];
+					<< "\t" << currentExpectedSeqsFrac[res.resSeqToExpSeq_[seq.name_]]
+					<< "\t" << expectedToMajorClass[res.resSeqToExpSeq_[seq.name_]];
 
 			std::string matchingPop = "";
 			for(const auto & popSeq : popSeqs){
@@ -308,7 +309,8 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 					<< "\t" << "NA"
 					<< "\t" << "NA"
 					<< "\t" << missing
-					<< "\t" << currentExpectedSeqsFrac[missing];
+					<< "\t" << currentExpectedSeqsFrac[missing]
+					<< "\t" << expectedToMajorClass[missing];
 
 			haplotypesClassified
 					<< "\t" << "NA"
