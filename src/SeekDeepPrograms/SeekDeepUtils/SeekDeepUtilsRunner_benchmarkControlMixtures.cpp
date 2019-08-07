@@ -297,8 +297,6 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 			haplotypesClassified << std::endl;
 		}
 		for(const auto & missing : res.missingExpecteds_){
-
-
 			haplotypesClassified << name
 					<< "\t" << sname
 					<< "\t" << bencher.samplesToMix_[sname]
