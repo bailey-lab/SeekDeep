@@ -1487,11 +1487,11 @@ class Packages():
             #print gccJamLoc
             #print gccJamOutLoc
             installNameToolCmd  = """ 
-            && install_name_tool -change $(otool -L {local_dir}/lib/libboost_filesystem.dylib | egrep -o "\\S+libboost_system.dylib") {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_filesystem.dylib
+            && if [ ! -z $(otool -L {local_dir}/lib/libboost_filesystem.dylib | egrep -o "\\S+libboost_system.dylib") ]; then install_name_tool -change $(otool -L {local_dir}/lib/libboost_filesystem.dylib | egrep -o "\\S+libboost_system.dylib") {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_filesystem.dylib ; fi 
             && install_name_tool -id {local_dir}/lib/libboost_filesystem.dylib {local_dir}/lib/libboost_filesystem.dylib
             && install_name_tool -id {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_system.dylib
             """
-            print(installNameToolCmd)
+            #print(installNameToolCmd)
         if self.args.clang:
             if Utils.isMac():
                 buildCmd = """./bootstrap.sh --with-toolset=clang --prefix={local_dir} --with-libraries=""" + boostLibs + """
