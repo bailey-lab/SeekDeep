@@ -308,13 +308,15 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 								}
 							}
 						}
-						//check if it should be considered for resuce
+						//check if it should be considered for rescue
 						//std::cout << excluded.seqBase_.name_ << " consider for rescue: " << njh::colorBool((chimeriaExcludedRescue || oneOffExcludedRescue) && otherExcludedCriteria.empty()) << std::endl;
 						if((chimeriaExcludedRescue || oneOffExcludedRescue) && otherExcludedCriteria.empty()){
 							//see if it matches a major haplotype
 							bool rescue = false;
 							for(const auto & popHap : sampColl.popCollapse_->collapsed_.clusters_){
-								if(popHap.seqBase_.seq_ == excluded.seqBase_.seq_ && njh::in(popHap.seqBase_.name_, majorHaps)){
+								if(popHap.seqBase_.seq_ == excluded.seqBase_.seq_ &&
+										popHap.seqBase_.cnt_ > excluded.seqBase_.cnt_ &&
+										njh::in(popHap.seqBase_.name_, majorHaps)){
 									rescue = true;
 									break;
 								}

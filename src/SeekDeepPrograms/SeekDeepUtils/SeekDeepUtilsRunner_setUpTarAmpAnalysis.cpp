@@ -797,7 +797,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	runAnalysisFile << "	numThreads=$1" << std::endl;
 	runAnalysisFile << "fi\n" << std::endl;
 	runAnalysisFile << R"(if [[ $# -gt 1 ]]; then
-  echo "Illegal number of parameters, should either be no agruments or a number to indicate the number of threads"
+  echo "Illegal number of parameters, should either be no arguments or a number to indicate the number of threads"
   echo "Examples:"
   echo "Example 1"
   echo "Run with the default number of threads, which was set when running setupTarAmpAnalysis"
