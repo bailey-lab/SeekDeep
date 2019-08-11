@@ -223,39 +223,40 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 			readerOuts.openWrite("all", seq);
 		}
 	}
-
-	OutOptions barcodeCountOpts(njh::files::make_path(setUp.pars_.directoryName_, "midCounts.tab.txt"));
-	OutputStream barcodeCountOut(barcodeCountOpts);
-	barcodeCountOut << "inputName\tMID\tforwardCount\tforwardCountPerc\treverseCount\treverseCountPerc\ttotal\tfraction" << std::endl;
-	std::set<std::string> barKeysSet{"all"};
 	if(ids.containsMids()){
-		auto inputMNames = ids.getMids();
-		barKeysSet = std::set<std::string>(inputMNames.begin(), inputMNames.end());
-	}
-	for(const auto & count : counts){
-		barKeysSet.emplace(count.first);
-	}
-	for(const auto & countkey : barKeysSet){
-		double total = counts[countkey].first + counts[countkey].second;
-		if(total > 0){
-			barcodeCountOut
-					<< seqName
-					<< "\t" << countkey
-					<< "\t" << counts[countkey].first
-					<< "\t" << 100 * (counts[countkey].first/total)
-					<< "\t" << counts[countkey].second
-					<< "\t" << 100 * (counts[countkey].second/total)
-					<< "\t" << total
-					<< "\t" << total/count << std::endl;
-		} else {
-			barcodeCountOut << seqName
-					<< "\t" << countkey
-					<< "\t" << "0"
-					<< "\t" << "0"
-					<< "\t" << "0"
-					<< "\t" << "0"
-					<< "\t" << "0"
-					<< "\t" << "0" << std::endl;
+		OutOptions barcodeCountOpts(njh::files::make_path(setUp.pars_.directoryName_, "midCounts.tab.txt"));
+		OutputStream barcodeCountOut(barcodeCountOpts);
+		barcodeCountOut << "inputName\tMID\tforwardCount\tforwardCountPerc\treverseCount\treverseCountPerc\ttotal\tfraction" << std::endl;
+		std::set<std::string> barKeysSet{"all"};
+		if(ids.containsMids()){
+			auto inputMNames = ids.getMids();
+			barKeysSet = std::set<std::string>(inputMNames.begin(), inputMNames.end());
+		}
+		for(const auto & count : counts){
+			barKeysSet.emplace(count.first);
+		}
+		for(const auto & countkey : barKeysSet){
+			double total = counts[countkey].first + counts[countkey].second;
+			if(total > 0){
+				barcodeCountOut
+						<< seqName
+						<< "\t" << countkey
+						<< "\t" << counts[countkey].first
+						<< "\t" << 100 * (counts[countkey].first/total)
+						<< "\t" << counts[countkey].second
+						<< "\t" << 100 * (counts[countkey].second/total)
+						<< "\t" << total
+						<< "\t" << total/count << std::endl;
+			} else {
+				barcodeCountOut << seqName
+						<< "\t" << countkey
+						<< "\t" << "0"
+						<< "\t" << "0"
+						<< "\t" << "0"
+						<< "\t" << "0"
+						<< "\t" << "0"
+						<< "\t" << "0" << std::endl;
+			}
 		}
 	}
 	if (setUp.pars_.verbose_) {

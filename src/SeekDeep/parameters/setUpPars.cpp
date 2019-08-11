@@ -120,7 +120,7 @@ ExtractorPairedEndPars::ExtractorPairedEndPars(){
 
 	corePars_.pDetPars.allowable_.hqMismatches_ = 2;
 	corePars_.pDetPars.allowable_.lqMismatches_ = 5; /**@todo incorporate this*/
-	corePars_.pDetPars.allowable_.distances_.query_.coverage_ = 1;
+	corePars_.pDetPars.allowable_.distances_.query_.coverage_ = .90;
 	corePars_.pDetPars.allowable_.largeBaseIndel_ = 0.99;
 	corePars_.pDetPars.allowable_.oneBaseIndel_ = 0.5;
 	corePars_.pDetPars.allowable_.twoBaseIndel_ = 0.5;
