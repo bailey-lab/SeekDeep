@@ -120,7 +120,7 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 	}
 	pars.preFiltCutOffs.clusterSizeCutOff = 10;
 	setOption(pars.preFiltCutOffs.clusterSizeCutOff, "--clusterCutOff", "Input Cluster Size Cut Off", false, "Filtering");
-	setOption(pars.fracExcludeOnlyInFinalAverageFrac, "--fracExcludeOnlyInFinalAverageFrac", "By default fraction exclusion is done per rep, use fracExcludeOnlyInFinalAverageFrac to exclude only on the final averaged frac", false, "Filtering");
+	//setOption(pars.fracExcludeOnlyInFinalAverageFrac, "--fracExcludeOnlyInFinalAverageFrac", "By default fraction exclusion is done per rep, use fracExcludeOnlyInFinalAverageFrac to exclude only on the final averaged frac", false, "Filtering");
 
 
 	setOption(pars.excludeSamples, "--excludeSamples", "Samples to Exclude from analysis", false, "Filtering");
@@ -170,8 +170,9 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 
 
 
-	setOption(pars.fracCutoff, "--fracCutOff",
-			"Final cluster Fraction Cut off", false, "Filtering");
+	setOption(pars.fracCutoff, "--fracCutOff", "Final cluster Fraction Cut off", false, "Filtering");
+	setOption(pars.withinReplicateFracCutOff, "--withinReplicateFracCutOff", "Within Replicate Frac Cut Off, this is done before filtering sequences for appearing in all replicates", false, "Filtering");
+
 	pars.differentPar = setOption(pars.parametersPopulation, "--popPar",
 			"Parameters For Population Collapse", false, "Population");
 	struct ClusteringParametersPars {

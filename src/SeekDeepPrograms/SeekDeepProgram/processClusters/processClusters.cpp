@@ -156,6 +156,7 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 
 	//process custom cut offs
 	std::unordered_map<std::string, double> customCutOffsMap = processCustomCutOffs(pars.customCutOffs, samplesDirs, pars.fracCutoff);
+	std::unordered_map<std::string, double> customCutOffsMapPerRep = processCustomCutOffs(pars.customCutOffs, samplesDirs, pars.withinReplicateFracCutOff);
 
 	{
 		njh::concurrent::LockableQueue<std::string> sampleQueue(samplesDirs);
@@ -163,7 +164,7 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 		alnPool.initAligners();
 		alnPool.outAlnDir_ = setUp.pars_.outAlnInfoDirName_;
 
-		auto setupClusterSamples = [&sampleQueue, &alnPool,&collapserObj,&pars, &setUp,&expectedSeqs,&sampColl,&customCutOffsMap](){
+		auto setupClusterSamples = [&sampleQueue, &alnPool,&collapserObj,&pars, &setUp,&expectedSeqs,&sampColl,&customCutOffsMap,&customCutOffsMapPerRep](){
 			std::string samp = "";
 			auto currentAligner = alnPool.popAligner();
 			while(sampleQueue.getVal(samp)){
@@ -179,14 +180,15 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 
 				//exclude clusters that don't have the necessary replicate number
 				//defaults to the number of input replicates if none supplied
+
 				if (0 != pars.runsRequired) {
 					sampColl.sampleCollapses_.at(samp)->excludeBySampNum(pars.runsRequired, true);
 				} else {
 					sampColl.sampleCollapses_.at(samp)->excludeBySampNum(sampColl.sampleCollapses_.at(samp)->input_.info_.infos_.size(), true);
 				}
-
-				sampColl.excludeOnFrac(samp, customCutOffsMap, pars.fracExcludeOnlyInFinalAverageFrac);
-
+				sampColl.sampleCollapses_.at(samp)->excludeFractionAnyRep(customCutOffsMapPerRep.at(samp), true);
+				sampColl.sampleCollapses_.at(samp)->excludeFraction(customCutOffsMap.at(samp), true);
+				//sampColl.excludeOnFrac(samp, customCutOffsMap, pars.fracExcludeOnlyInFinalAverageFrac);
 				if(pars.collapseLowFreqOneOffs){
 					sampColl.sampleCollapses_.at(samp)->excludeLowFreqOneOffs(true, pars.lowFreqMultiplier, *currentAligner);
 				}
