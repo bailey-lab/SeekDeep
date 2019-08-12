@@ -232,6 +232,8 @@ struct processClustersPars {
 	bool rescueExcludedChimericHaplotypes = false;
 	bool rescueMatchingExpected = false;
 
+	double majorHaplotypeFracForRescue = .10;
+
 	bool removeCommonlyLowFreqHaplotypes_ = false;      //
 	double lowFreqHaplotypeFracCutOff_ = 0.01; //remove haplotypes that on average appear below this fraction (0.01 == 1%)
 

@@ -262,17 +262,9 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 				sampColl.setUpSampleFromPrevious(sampleName);
 				auto sampPtr = sampColl.sampleCollapses_.at(sampleName);
 				for(uint32_t clusPos = 0; clusPos < 2 && clusPos < sampPtr->collapsed_.clusters_.size(); ++clusPos){
-					majorHaps.emplace(sampColl.popCollapse_->collapsed_.clusters_[sampColl.popCollapse_->collapsed_.subClustersPositions_.at(
-							sampPtr->collapsed_.clusters_[clusPos].getStubName(true))].seqBase_.name_);
-				}
-				sampColl.dumpSample(sampleName);
-			}
-			for(const auto & sampleName : sampColl.passingSamples_){
-				sampColl.setUpSampleFromPrevious(sampleName);
-				auto sampPtr = sampColl.sampleCollapses_.at(sampleName);
-				for(uint32_t clusPos = 0; clusPos < 2 && clusPos < sampPtr->collapsed_.clusters_.size(); ++clusPos){
-					majorHaps.emplace(sampColl.popCollapse_->collapsed_.clusters_[sampColl.popCollapse_->collapsed_.subClustersPositions_.at(
-							sampPtr->collapsed_.clusters_[clusPos].getStubName(true))].seqBase_.name_);
+					if(sampPtr->collapsed_.clusters_[clusPos].seqBase_.frac_ >= pars.majorHaplotypeFracForRescue){
+						majorHaps.emplace(sampColl.popCollapse_->collapsed_.clusters_[sampColl.popCollapse_->collapsed_.subClustersPositions_.at(sampPtr->collapsed_.clusters_[clusPos].getStubName(true))].seqBase_.name_);
+					}
 				}
 				sampColl.dumpSample(sampleName);
 			}
