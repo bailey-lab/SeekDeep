@@ -16,4 +16,6 @@ rm -fr external/local/njhseq/ external/local/seqServer/ external/local/TwoBit/ e
 
 ./setup.py --compfile compfile.mk --outMakefile makefile-common.mk --overWrite
 
+make clean
+
 make -j $1
