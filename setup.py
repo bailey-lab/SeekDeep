@@ -2187,6 +2187,28 @@ class Setup:
                     print("Linking " + CT.boldGreen(bFileFull) + " to " + CT.boldBlue(os.path.join(masterBinDir, bFile)))
                     os.symlink(bFileFull, os.path.join(masterBinDir, bFile))
             
+    
+    def linkInBinWithVersionName(self, package, version, overwrite = False):
+        self.packages_.checkForPackVer(LibNameVer(package, version))
+        masterBinDir = os.path.join(os.path.dirname(self.extDirLoc), "bin" )
+        Utils.mkdir(masterBinDir)
+        masterBinDir = os.path.abspath(masterBinDir)
+        pack = self.packages_.package(package)
+        installDir = pack.getLocalDir(version)
+        if os.path.exists(os.path.join(installDir, "bin")):
+            binFiles = os.listdir(os.path.join(installDir, "bin"))
+            for bFile in binFiles:
+                bFileFull = os.path.join(installDir, "bin", bFile)
+                bFileOut = os.path.join(masterBinDir, bFile + "-" + version)
+                if os.path.isfile(bFileFull) and os.access(bFileFull, os.X_OK):
+                    if os.path.exists(bFileOut):
+                        if overwrite:
+                            os.remove(bFileOut)
+                        else:
+                            raise Exception("File: " + bFileOut + " already exists, use --overWrite to overWrite")
+                    print("Linking " + CT.boldGreen(bFileFull) + " to " + CT.boldBlue(bFileOut))
+                    os.symlink(bFileFull, bFileOut)
+            
         
     def updateNJHProjects(self, njhProjects):
         inLibs = njhProjects.split(",")
@@ -2559,6 +2581,8 @@ class SetupRunner:
         parser.add_argument('--justDownload', action = 'store_true')
         parser.add_argument('--verbose', action = 'store_true')
         parser.add_argument('--symlinkBin', action = 'store_true', help = "Symlink in executables into a directory bin next to external")
+        parser.add_argument('--symlinkBinVersion', action = 'store_true', help = "Symlink in executables into a directory bin next to external with version name")
+
         parser.add_argument('--clearCache', action = 'store_true')
         parser.add_argument('--clean', action = 'store_true',  help = "Remove intermediate build files to save space")
         parser.add_argument('--private', action = 'store_true',  help = "Add the private repos MIPWrangler and elucidator if you have the rights to access")
@@ -2619,6 +2643,9 @@ class SetupRunner:
                 if args.symlinkBin:
                     for setUpNeeded in s.setUpsNeeded:
                         s.linkInBin(setUpNeeded.name, setUpNeeded.version, args.overWrite)
+                if args.symlinkBinVersion:
+                    for setUpNeeded in s.setUpsNeeded:
+                        s.linkInBinWithVersionName(setUpNeeded.name, setUpNeeded.version, args.overWrite)
                 return 0
 
 if __name__ == '__main__':
