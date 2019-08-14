@@ -180,6 +180,7 @@ struct processClustersPars {
 
 
   TranslatorByAlignment::TranslatorByAlignmentPars transPars;
+  TranslatorByAlignment::RunPars variantCallerRunPars;
 
 
 
