@@ -697,7 +697,10 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 		SeqOutput::write(popSeqsPerSamp, SeqIOOptions::genFastqOut(njh::files::make_path(sampColl.masterOutputDir_, "population", "popSeqsWithMetaWtihSampleName")));
 
 		auto popMetaTable = seqsToMetaTable(popSeqsPerSamp);
-		popMetaTable.outPutContents(TableIOOpts::genTabFileIn(njh::files::make_path(pars.masterDir, "population", "popSeqsWithMetaWtihSampleNameTable.tab.txt")));
+		for(auto & row : popMetaTable){
+			MetaDataInName::removeMetaDataInName(row[popMetaTable.getColPos("name")]);
+		}
+		popMetaTable.outPutContents(TableIOOpts::genTabFileOut(njh::files::make_path(pars.masterDir, "population", "popSeqsWithMetaWtihSampleNameTable.tab.txt")));
 	}
 
 
