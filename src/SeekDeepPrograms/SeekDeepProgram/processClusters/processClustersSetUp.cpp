@@ -53,6 +53,13 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 		pars_.colOpts_.iTOpts_.adjustHomopolyerRuns_ = true;
 	}
 
+
+
+	setOption(pars.transPars.lzPars_.genomeFnp, "--genomeFnp",
+			"Genome file so final haplotypes can be mapped to a genome", false, "Additional Output");
+	setOption(pars.transPars.gffFnp_, "--gffFnp",
+			"Gff file to intersect the final haplotypes with genes to get translations", false, "Additional Output");
+
 	setOption(pars.masterDir, "--masterDir", "Master directory containing sample sequence files", false, "Input");
 	pars.masterDir = bfs::absolute(pars.masterDir);
 	pars.removeLowQualBases = setOption(pars.lowQualityCutOff, "--qualTrim",

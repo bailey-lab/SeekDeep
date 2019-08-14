@@ -179,6 +179,9 @@ struct processClustersPars {
   VecStr excludeSamples;
 
 
+  TranslatorByAlignment::TranslatorByAlignmentPars transPars;
+
+
 
   VecStr controlSamples;
   bool extra = false;
