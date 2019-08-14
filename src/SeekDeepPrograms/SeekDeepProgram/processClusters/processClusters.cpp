@@ -681,14 +681,14 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 					aaPos.emplace_back(estd::to_string(variablePos + 1) + "-" + pop.second.getMeta(estd::to_string(variablePos)));
 				}
 				typed += njh::conToStr(aaPos, ":");
-				typed +=";";
+				//typed +=";";
 
 				popHapAminoTyped[pop.first.substr(0, pop.first.rfind("_f"))] = typed;
 				outPopHapAminos << std::endl;
 			}
 			for(auto & popHapSamp : popSeqsPerSamp){
 				MetaDataInName meta(popHapSamp.name_);
-				meta.addMeta(varPerTrans.first, popHapAminoTyped[meta.getMeta("PopUID")].substr(popHapAminoTyped[meta.getMeta("PopUID")].find("=")  + 1));
+				meta.addMeta(varPerTrans.first, popHapAminoTyped[meta.getMeta("PopUID")].substr(popHapAminoTyped[meta.getMeta("PopUID")].find("=") + 1));
 				meta.resetMetaInName(popHapSamp.name_);
 			}
 		}
