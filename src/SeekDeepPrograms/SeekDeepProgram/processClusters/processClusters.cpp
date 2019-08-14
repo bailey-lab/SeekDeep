@@ -700,7 +700,7 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 		for(auto & row : popMetaTable){
 			MetaDataInName::removeMetaDataInName(row[popMetaTable.getColPos("name")]);
 		}
-		popMetaTable.outPutContents(TableIOOpts::genTabFileOut(njh::files::make_path(pars.masterDir, "population", "popSeqsWithMetaWtihSampleNameTable.tab.txt")));
+		popMetaTable.outPutContents(TableIOOpts::genTabFileOut(njh::files::make_path(sampColl.masterOutputDir_, "population", "popSeqsWithMetaWtihSampleNameTable.tab.txt")));
 	}
 
 
