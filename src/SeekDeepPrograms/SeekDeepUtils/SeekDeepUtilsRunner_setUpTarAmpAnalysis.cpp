@@ -662,11 +662,11 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	std::string processClusterTemplate =
 			setUp.commands_.masterProgram_
 					+ " processClusters "
-							"--alnInfoDir alnCache --strictErrors --dout analysis --fastqgz output.fastq.gz --overWriteDir";
+							"--alnInfoDir alnCache --strictErrors --dout analysis --fastqgz output.fastq.gz --overWriteDir ";
 
 	if (!analysisSetup.pars_.conservative) {
 		auto lowerCaseExtracProcessArgs = stringToLowerReturn(analysisSetup.pars_.extraProcessClusterCmds);
-		processClusterTemplate += "--removeOneSampOnlyOneOffHaps --excludeCommonlyLowFreqHaplotypes --excludeLowFreqOneOffs --rescueExcludedOneOffLowFreqHaplotypes";
+		processClusterTemplate += " --removeOneSampOnlyOneOffHaps --excludeCommonlyLowFreqHaplotypes --excludeLowFreqOneOffs --rescueExcludedOneOffLowFreqHaplotypes";
 		//processClusterTemplate += " --excludeCommonlyLowFreqHaplotypes --excludeLowFreqOneOffs --fracCutOff 0 ";
 	}
 
@@ -840,4 +840,3 @@ fi)" << std::endl;
 
 
 }  // namespace njhseq
-
