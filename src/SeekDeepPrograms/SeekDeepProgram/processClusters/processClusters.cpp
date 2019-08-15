@@ -628,16 +628,19 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 					OutputStream bedVariableRegionOut(OutOptions(njh::files::make_path(variantInfoDir, njh::pasteAsStr(varPerTrans.first +  "-protein_variableRegion.bed"))));
 					bedVariableRegionOut << variableRegion.genBedRecordCore().toDelimStrWithExtra() << std::endl;
 				}
-
+				std::set<uint32_t> allLocations(knownMutationsLocations.begin(), knownMutationsLocations.end());
+				for(const auto & variablePos : varPerTrans.second.snpsFinal){
+					allLocations.emplace(variablePos.first);
+				}
 				std::map<std::string, MetaDataInName> aaMeta;
 
 
 				for(auto & seqName : translatedRes.translations_){
 					if(njh::in(varPerTrans.first, seqName.second)){
-						for(const auto & variablePos : varPerTrans.second.snpsFinal){
+						for(const auto & variablePos : allLocations){
 //							std::cout << __FILE__ << " " << __LINE__ << std::endl;
-							auto aa = seqName.second[varPerTrans.first].queryAlnTranslation_.seq_[getAlnPosForRealPos(seqName.second[varPerTrans.first].refAlnTranslation_.seq_, variablePos.first)];
-							aaMeta[seqName.first].addMeta(estd::to_string(variablePos.first), aa, false);
+							auto aa = seqName.second[varPerTrans.first].queryAlnTranslation_.seq_[getAlnPosForRealPos(seqName.second[varPerTrans.first].refAlnTranslation_.seq_, variablePos)];
+							aaMeta[seqName.first].addMeta(estd::to_string(variablePos), aa, false);
 						}
 					}
 					for(const auto & knownLoc : knownMutationsLocations){
@@ -645,10 +648,7 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 						knownAAMeta[seqName.first.substr(0, seqName.first.rfind("_f"))][varPerTrans.first].addMeta(estd::to_string(knownLoc), aa, false);
 					}
 				}
-				std::set<uint32_t> allLocations(knownMutationsLocations.begin(), knownMutationsLocations.end());
-				for(const auto & variablePos : varPerTrans.second.snpsFinal){
-					allLocations.emplace(variablePos.first);
-				}
+
 				for (auto & seqName : translatedRes.translations_) {
 					if (njh::in(varPerTrans.first, seqName.second)) {
 						VecStr allAAPosCoded;
@@ -697,9 +697,9 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 				OutputStream outPopHapAminos(njh::files::make_path(variantInfoDir, njh::pasteAsStr(varPerTrans.first +  "-popHapToAmino.tab.txt")));
 				outPopHapAminos << "h_PopUID" ;
 				VecStr aminoPositionsHeader;
-				for(const auto & variablePos : varPerTrans.second.snpsFinal){
-					outPopHapAminos << "\t" << varPerTrans.first << "-aa" << variablePos.first + 1;
-					aminoPositionsHeader.emplace_back(njh::pasteAsStr(varPerTrans.first, "-aa",  variablePos.first + 1));
+				for(const auto & variablePos : allLocations){
+					outPopHapAminos << "\t" << varPerTrans.first << "-aa" << variablePos + 1;
+					aminoPositionsHeader.emplace_back(njh::pasteAsStr(varPerTrans.first, "-aa",  variablePos + 1));
 				}
 				outPopHapAminos << std::endl;
 				std::unordered_map<std::string, std::string> popHapAminoTyped;
@@ -711,10 +711,10 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 					std::vector<std::string> aaPos;
 					std::vector<std::string> aa;
 
-					for(const auto & variablePos : varPerTrans.second.snpsFinal){
-						outPopHapAminos << "\t" << pop.second.getMeta(estd::to_string(variablePos.first));
-						aaPos.emplace_back(estd::to_string(variablePos.first + 1) + "-" + pop.second.getMeta(estd::to_string(variablePos.first)));
-						aa.emplace_back(pop.second.getMeta(estd::to_string(variablePos.first)));
+					for(const auto & variablePos : allLocations){
+						outPopHapAminos << "\t" << pop.second.getMeta(estd::to_string(variablePos));
+						aaPos.emplace_back(estd::to_string(variablePos + 1) + "-" + pop.second.getMeta(estd::to_string(variablePos)));
+						aa.emplace_back(pop.second.getMeta(estd::to_string(variablePos)));
 
 					}
 					if (!aaPos.empty()) {
@@ -723,6 +723,7 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 						typed += "NONE";
 					}
 					//typed +=";";
+
 					popHapAminoTyped[pop.first.substr(0, pop.first.rfind("_f"))] = typed;
 					popHapAminoTypedRow[pop.first.substr(0, pop.first.rfind("_f"))] = aa;
 					outPopHapAminos << std::endl;
@@ -746,11 +747,15 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 
 				popMetaTable.outPutContents(TableIOOpts::genTabFileOut(njh::files::make_path(variantInfoDir, varPerTrans.first + "-popSeqsWithMetaAndVariableAAInfoTable.tab.txt")));
 
-				for(auto & popHapSamp : outPopSeqsPerSamp){
-					MetaDataInName meta(popHapSamp.name_);
-					meta.addMeta(varPerTrans.first, popHapAminoTyped[meta.getMeta("PopUID")].substr(popHapAminoTyped[meta.getMeta("PopUID")].find("=") + 1));
-					meta.resetMetaInName(popHapSamp.name_);
-				}
+//				for(auto & popHapSamp : outPopSeqsPerSamp){
+//					MetaDataInName meta(popHapSamp.name_);
+//					auto typed = popHapAminoTyped[meta.getMeta("PopUID")].substr(popHapAminoTyped[meta.getMeta("PopUID")].find("=") + 1);
+//					if("" ==typed){
+//						typed = "NONE";
+//					}
+//					meta.addMeta(varPerTrans.first, typed);
+//					meta.resetMetaInName(popHapSamp.name_);
+//				}
 			}
 		}
 
@@ -846,6 +851,7 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 					popHapAminoTypedRow[pop.first.substr(0, pop.first.rfind("_f"))] = aa;
 					outPopHapAminos << std::endl;
 				}
+				//std::cout << __FILE__ << " " << __LINE__ << std::endl;
 				auto popMetaTable = seqsToMetaTable(popSeqsPerSamp);
 				popMetaTable.deleteColumn("seq");
 				popMetaTable.deleteColumn("count");
@@ -862,12 +868,18 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 					}
 					addOtherVec(row, aminos);
 				}
-				popMetaTable.outPutContents(TableIOOpts::genTabFileOut(njh::files::make_path(variantInfoDir, varPerChrom.first + "-popSeqsWithMetaAndVariableSNPInfoTable.tab.txt")));
-				for(auto & popHapSamp : outPopSeqsPerSamp){
-					MetaDataInName meta(popHapSamp.name_);
-					meta.addMeta(varPerChrom.first, popHapAminoTyped[meta.getMeta("PopUID")].substr(popHapAminoTyped[meta.getMeta("PopUID")].find("=") + 1));
-					meta.resetMetaInName(popHapSamp.name_);
-				}
+//				std::cout << __FILE__ << " " << __LINE__ << std::endl;
+//				popMetaTable.outPutContents(TableIOOpts::genTabFileOut(njh::files::make_path(variantInfoDir, varPerChrom.first + "-popSeqsWithMetaAndVariableSNPInfoTable.tab.txt")));
+//				for(auto & popHapSamp : outPopSeqsPerSamp){
+////					std::cout << __FILE__ << " " << __LINE__ << std::endl;
+//					MetaDataInName meta(popHapSamp.name_);
+//					auto typed = popHapAminoTyped[meta.getMeta("PopUID")].substr(popHapAminoTyped[meta.getMeta("PopUID")].find("=") + 1);
+//					if("" ==typed){
+//						typed = "NONE";
+//					}
+//					meta.addMeta(varPerChrom.first, typed);
+//					meta.resetMetaInName(popHapSamp.name_);
+//				}
 			}
 		}
 	}
@@ -880,12 +892,9 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 				typed += ";";
 			}
 			typed += tran.first + "=" + tran.second;
+//			std::cout << tran.second << std::endl;
+			clus.meta_.addMeta("h_AATyped", typed);
 		}
-		clus.meta_.addMeta("h_AATyped", typed);
-//		std::cout << clus.seqBase_.name_ << std::endl;
-//		std::cout << popName << std::endl;
-//		std::cout << typed << std::endl;
-
 	}
 	sampColl.printSampleCollapseInfo(
 			njh::files::make_path(sampColl.masterOutputDir_,
@@ -909,12 +918,14 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 	}
 	//if(!pars.noPopulation){
 	if(true){
+
 		SeqOutput::write(outPopSeqsPerSamp, SeqIOOptions::genFastqOut(njh::files::make_path(sampColl.masterOutputDir_, "population", "popSeqsWithMetaWtihSampleName")));
 
 		auto popMetaTable = seqsToMetaTable(outPopSeqsPerSamp);
 		for(auto & row : popMetaTable){
 			MetaDataInName::removeMetaDataInName(row[popMetaTable.getColPos("name")]);
 		}
+
 		popMetaTable.outPutContents(TableIOOpts::genTabFileOut(njh::files::make_path(sampColl.masterOutputDir_, "population", "popSeqsWithMetaWtihSampleNameTable.tab.txt")));
 	}
 
