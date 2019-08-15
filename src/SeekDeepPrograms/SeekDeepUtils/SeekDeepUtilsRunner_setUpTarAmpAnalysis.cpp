@@ -765,16 +765,16 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 			njh::files::make_path(analysisSetup.dir_, "combineExtractionCountsCmd.sh"));
 	OutputStream combineExtractionCmdOut(combineExtractionCmdOpts);
 	combineExtractionCmdOut << "#!/usr/bin/env bash" << std::endl;
-	combineExtractionCmdOut << "SeekDeep rBind --recursive --depth 1 --contains allFailedPrimerCounts.tab.txt --delim tab --header --out reports/combinedAllFailedPrimerCounts.tab.txt  --overWrite" << std::endl;
-	//combineExtractionCmdOut << "SeekDeep rBind --recursive --depth 1 --contains allPrimerCounts.tab.txt --delim tab --header --out reports/combinedAllPrimerCounts.tab.txt  --overWrite" << std::endl;
-	combineExtractionCmdOut << "SeekDeep rBind --recursive --depth 1 --contains extractionProfile.tab.txt --delim tab --header --out reports/allExtractionProfile.tab.txt  --overWrite" << std::endl;
-	combineExtractionCmdOut << "SeekDeep rBind --recursive --depth 1 --contains extractionStats.tab.txt --delim tab --header --out reports/allExtractionStats.tab.txt  --overWrite" << std::endl;
-	combineExtractionCmdOut << "SeekDeep rBind --recursive --depth 1 --contains processPairsCounts.tab.txt --delim tab --header --out reports/allProcessPairsCounts.tab.txt  --overWrite" << std::endl;
+	combineExtractionCmdOut << setUp.commands_.masterProgram_ << " rBind --recursive --depth 1 --contains allFailedPrimerCounts.tab.txt --delim tab --header --out reports/combinedAllFailedPrimerCounts.tab.txt  --overWrite" << std::endl;
+	//combineExtractionCmdOut << setUp.commands_.masterProgram_ << " rBind --recursive --depth 1 --contains allPrimerCounts.tab.txt --delim tab --header --out reports/combinedAllPrimerCounts.tab.txt  --overWrite" << std::endl;
+	combineExtractionCmdOut << setUp.commands_.masterProgram_ << " rBind --recursive --depth 1 --contains extractionProfile.tab.txt --delim tab --header --out reports/allExtractionProfile.tab.txt  --overWrite" << std::endl;
+	combineExtractionCmdOut << setUp.commands_.masterProgram_ << " rBind --recursive --depth 1 --contains extractionStats.tab.txt --delim tab --header --out reports/allExtractionStats.tab.txt  --overWrite" << std::endl;
+	combineExtractionCmdOut << setUp.commands_.masterProgram_ << " rBind --recursive --depth 1 --contains processPairsCounts.tab.txt --delim tab --header --out reports/allProcessPairsCounts.tab.txt  --overWrite" << std::endl;
 	if(analysisSetup.idsMids_->containsMids()){
-		combineExtractionCmdOut << "SeekDeep rBind --recursive --depth 1 --contains midCounts.tab.txt --delim tab --header --out reports/allMidCounts.tab.txt  --overWrite" << std::endl;
-		combineExtractionCmdOut << "SeekDeep rBind --recursive --depth 1 --contains top_mostCommonR1Starts_for_unrecognizedBarcodes.tab.txt --delim tab --header --out reports/allTop_mostCommonR1Starts_for_unrecognizedBarcodes.tab.txt  --overWrite" << std::endl;
-		combineExtractionCmdOut << "SeekDeep rBind --recursive --depth 1 --contains top_mostCommonR2Starts_for_unrecognizedBarcodes.tab.txt --delim tab --header --out reports/allTop_mostCommonR2Starts_for_unrecognizedBarcodes.tab.txt  --overWrite" << std::endl;
-		combineExtractionCmdOut << "SeekDeep rBind --recursive --depth 1 --contains top_mostCommonR1AndR2Starts_for_unrecognizedBarcodes.tab.txt --delim tab --header --out reports/allTop_mostCommonR1AndR2Starts_for_unrecognizedBarcodes.tab.txt  --overWrite" << std::endl;
+		combineExtractionCmdOut << setUp.commands_.masterProgram_ << " rBind --recursive --depth 1 --contains midCounts.tab.txt --delim tab --header --out reports/allMidCounts.tab.txt  --overWrite" << std::endl;
+		combineExtractionCmdOut << setUp.commands_.masterProgram_ << " rBind --recursive --depth 1 --contains top_mostCommonR1Starts_for_unrecognizedBarcodes.tab.txt --delim tab --header --out reports/allTop_mostCommonR1Starts_for_unrecognizedBarcodes.tab.txt  --overWrite" << std::endl;
+		combineExtractionCmdOut << setUp.commands_.masterProgram_ << " rBind --recursive --depth 1 --contains top_mostCommonR2Starts_for_unrecognizedBarcodes.tab.txt --delim tab --header --out reports/allTop_mostCommonR2Starts_for_unrecognizedBarcodes.tab.txt  --overWrite" << std::endl;
+		combineExtractionCmdOut << setUp.commands_.masterProgram_ << " rBind --recursive --depth 1 --contains top_mostCommonR1AndR2Starts_for_unrecognizedBarcodes.tab.txt --delim tab --header --out reports/allTop_mostCommonR1AndR2Starts_for_unrecognizedBarcodes.tab.txt  --overWrite" << std::endl;
 	}
 	chmod(combineExtractionCmdOpts.outFilename_.c_str(),
 			S_IWUSR | S_IRUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IEXEC | S_IXGRP);

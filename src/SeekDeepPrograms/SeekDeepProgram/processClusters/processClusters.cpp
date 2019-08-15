@@ -579,18 +579,19 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 				std::map<std::string, MetaDataInName> aaMeta;
 				for(auto & seqName : translatedRes.translations_){
 					if(njh::in(varPerTrans.first, seqName.second)){
-						for(const auto & variablePos : varPerTrans.second.variablePositons_){
-							auto aa = seqName.second[varPerTrans.first].queryAlnTranslation_.seq_[getAlnPosForRealPos(seqName.second[varPerTrans.first].refAlnTranslation_.seq_, variablePos)];
-							aaMeta[seqName.first].addMeta(estd::to_string(variablePos), aa, false);
+						for(const auto & variablePos : varPerTrans.second.snpsFinal){
+//							std::cout << __FILE__ << " " << __LINE__ << std::endl;
+							auto aa = seqName.second[varPerTrans.first].queryAlnTranslation_.seq_[getAlnPosForRealPos(seqName.second[varPerTrans.first].refAlnTranslation_.seq_, variablePos.first)];
+							aaMeta[seqName.first].addMeta(estd::to_string(variablePos.first), aa, false);
 						}
 					}
 				}
 				OutputStream outPopHapAminos(njh::files::make_path(variantInfoDir, njh::pasteAsStr(varPerTrans.first +  "-popHapToAmino.tab.txt")));
 				outPopHapAminos << "h_PopUID" ;
 				VecStr aminoPositionsHeader;
-				for(const auto & variablePos : varPerTrans.second.variablePositons_){
-					outPopHapAminos << "\t" << varPerTrans.first << "-aa" << variablePos + 1;
-					aminoPositionsHeader.emplace_back(njh::pasteAsStr(varPerTrans.first, "-aa",  variablePos + 1));
+				for(const auto & variablePos : varPerTrans.second.snpsFinal){
+					outPopHapAminos << "\t" << varPerTrans.first << "-aa" << variablePos.first + 1;
+					aminoPositionsHeader.emplace_back(njh::pasteAsStr(varPerTrans.first, "-aa",  variablePos.first + 1));
 				}
 				outPopHapAminos << std::endl;
 				std::unordered_map<std::string, std::string> popHapAminoTyped;
@@ -602,10 +603,10 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 					std::vector<std::string> aaPos;
 					std::vector<std::string> aa;
 
-					for(const auto & variablePos : varPerTrans.second.variablePositons_){
-						outPopHapAminos << "\t" << pop.second.getMeta(estd::to_string(variablePos));
-						aaPos.emplace_back(estd::to_string(variablePos + 1) + "-" + pop.second.getMeta(estd::to_string(variablePos)));
-						aa.emplace_back(pop.second.getMeta(estd::to_string(variablePos)));
+					for(const auto & variablePos : varPerTrans.second.snpsFinal){
+						outPopHapAminos << "\t" << pop.second.getMeta(estd::to_string(variablePos.first));
+						aaPos.emplace_back(estd::to_string(variablePos.first + 1) + "-" + pop.second.getMeta(estd::to_string(variablePos.first)));
+						aa.emplace_back(pop.second.getMeta(estd::to_string(variablePos.first)));
 
 					}
 					typed += njh::conToStr(aaPos, ":");
@@ -688,17 +689,24 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 
 				std::map<std::string, MetaDataInName> snpMeta;
 				for(auto & seqName : translatedRes.seqAlns_){
-					for(const auto & variablePos : varPerChrom.second.variablePositons_){
-						auto aa = seqName.second.front()->alnSeqAligned_->seq_[getAlnPosForRealPos(seqName.second.front()->refSeqAligned_->seq_, variablePos - seqName.second.front()->gRegion_.start_)];
-						snpMeta[seqName.first].addMeta(estd::to_string(variablePos), aa, false);
+					for(const auto & variablePos : varPerChrom.second.snpsFinal){
+//						std::cout << __FILE__ << " " << __LINE__ << std::endl;
+//						std::cout << "seqName.second.front()->gRegion_.start_: " << seqName.second.front()->gRegion_.start_ << std::endl;
+//						std::cout << "variablePos: " << variablePos.first << std::endl;
+						if(variablePos.first < seqName.second.front()->gRegion_.start_){
+							snpMeta[seqName.first].addMeta(estd::to_string(variablePos.first), "X", false);
+						} else {
+							auto aa = seqName.second.front()->alnSeqAligned_->seq_[getAlnPosForRealPos(seqName.second.front()->refSeqAligned_->seq_, variablePos.first - seqName.second.front()->gRegion_.start_)];
+							snpMeta[seqName.first].addMeta(estd::to_string(variablePos.first), aa, false);
+						}
 					}
 				}
 				OutputStream outPopHapAminos(njh::files::make_path(variantInfoDir, njh::pasteAsStr(varPerChrom.first +  "-popHapToSNPs.tab.txt")));
 				outPopHapAminos << "h_PopUID" ;
 				VecStr aminoPositionsHeader;
-				for(const auto & variablePos : varPerChrom.second.variablePositons_){
-					outPopHapAminos << "\t" << varPerChrom.first << "-" << variablePos;
-					aminoPositionsHeader.emplace_back(njh::pasteAsStr(varPerChrom.first, "-",  variablePos));
+				for(const auto & variablePos : varPerChrom.second.snpsFinal){
+					outPopHapAminos << "\t" << varPerChrom.first << "-" << variablePos.first;
+					aminoPositionsHeader.emplace_back(njh::pasteAsStr(varPerChrom.first, "-",  variablePos.first));
 				}
 				outPopHapAminos << std::endl;
 				std::unordered_map<std::string, std::string> popHapAminoTyped;
@@ -710,10 +718,10 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 					std::vector<std::string> aaPos;
 					std::vector<std::string> aa;
 
-					for(const auto & variablePos : varPerChrom.second.variablePositons_){
-						outPopHapAminos << "\t" << pop.second.getMeta(estd::to_string(variablePos));
-						aaPos.emplace_back(estd::to_string(variablePos) + "-" + pop.second.getMeta(estd::to_string(variablePos)));
-						aa.emplace_back(pop.second.getMeta(estd::to_string(variablePos)));
+					for(const auto & variablePos : varPerChrom.second.snpsFinal){
+						outPopHapAminos << "\t" << pop.second.getMeta(estd::to_string(variablePos.first));
+						aaPos.emplace_back(estd::to_string(variablePos.first) + "-" + pop.second.getMeta(estd::to_string(variablePos.first)));
+						aa.emplace_back(pop.second.getMeta(estd::to_string(variablePos.first)));
 					}
 					typed += njh::conToStr(aaPos, ":");
 					//typed +=";";
