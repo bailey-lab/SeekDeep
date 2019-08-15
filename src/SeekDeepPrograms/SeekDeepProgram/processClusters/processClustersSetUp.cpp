@@ -59,6 +59,8 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 			"Genome file so final haplotypes can be mapped to a genome", false, "Additional Output");
 	setOption(pars.transPars.gffFnp_, "--gffFnp",
 			"Gff file to intersect the final haplotypes with genes to get translations", false, "Additional Output");
+	setOption(pars.knownAminoAcidChangesFnp, "--knownAminoAcidChangesFnp",
+			"Known Amino Acid Changes, must have at least 2 columns, positions are 1-based, 1)TranscriptID, 2)AAPosition ", false, "Additional Output");
 
 	setOption(pars.masterDir, "--masterDir", "Master directory containing sample sequence files", false, "Input");
 	pars.masterDir = bfs::absolute(pars.masterDir);
@@ -143,8 +145,8 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 
 	setOption(pars.extra, "--extra", "Extra Output", false, "Additional Output");
 	processRefFilename();
-	setOption(pars.noPopulation, "--noPopulation",
-			"Don't do Population Clustering", false, "Population");
+//	setOption(pars.noPopulation, "--noPopulation",
+//			"Don't do Population Clustering", false, "Population");
 
 	setOption(pars.controlSamples, "--controlSamples", "Samples that shouldn't be included in frequency filtering calcs", false, "Filtering");
 

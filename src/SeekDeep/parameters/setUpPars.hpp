@@ -164,7 +164,7 @@ struct clusterDownPars {
 
 struct processClustersPars {
 	bfs::path masterDir = ".";
-  bool noPopulation = false;
+  //bool noPopulation = false;
   std::string previousPopFilename = "";
   comparison previousPopErrors;
 
@@ -181,7 +181,7 @@ struct processClustersPars {
 
   TranslatorByAlignment::TranslatorByAlignmentPars transPars;
   TranslatorByAlignment::RunPars variantCallerRunPars;
-
+  bfs::path knownAminoAcidChangesFnp;
 
 
   VecStr controlSamples;
