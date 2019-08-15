@@ -658,7 +658,11 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 							auto aa =seqName.second[varPerTrans.first].queryAlnTranslation_.seq_[getAlnPosForRealPos(seqName.second[varPerTrans.first].refAlnTranslation_.seq_,loc)];
 							allAAPosCoded.emplace_back(njh::pasteAsStr(loc + 1, "-", aa));
 						}
-						fullAATyped[popName][transcript] = njh::conToStr(allAAPosCoded, ":");
+						if(!allAAPosCoded.empty()){
+							fullAATyped[popName][transcript] = njh::conToStr(allAAPosCoded, ":");
+						}else{
+							fullAATyped[popName][transcript] = "NONE";
+						}
 					}
 				}
 				if(!knownMutationsLocations.empty()){
@@ -713,7 +717,11 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 						aa.emplace_back(pop.second.getMeta(estd::to_string(variablePos.first)));
 
 					}
-					typed += njh::conToStr(aaPos, ":");
+					if (!aaPos.empty()) {
+						typed += njh::conToStr(aaPos, ":");
+					} else {
+						typed += "NONE";
+					}
 					//typed +=";";
 					popHapAminoTyped[pop.first.substr(0, pop.first.rfind("_f"))] = typed;
 					popHapAminoTypedRow[pop.first.substr(0, pop.first.rfind("_f"))] = aa;
@@ -828,7 +836,11 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 						aaPos.emplace_back(estd::to_string(variablePos.first) + "-" + pop.second.getMeta(estd::to_string(variablePos.first)));
 						aa.emplace_back(pop.second.getMeta(estd::to_string(variablePos.first)));
 					}
-					typed += njh::conToStr(aaPos, ":");
+					if (!aaPos.empty()) {
+						typed += njh::conToStr(aaPos, ":");
+					} else {
+						typed += "NONE";
+					}
 					//typed +=";";
 					popHapAminoTyped[pop.first.substr(0, pop.first.rfind("_f"))] = typed;
 					popHapAminoTypedRow[pop.first.substr(0, pop.first.rfind("_f"))] = aa;
