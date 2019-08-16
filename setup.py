@@ -572,16 +572,16 @@ class Packages():
                 """
         buildCmd = " ".join(buildCmd.split())
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "3.4.0")
-        pack.versions_["3.4.0"] = CPPLibPackageVersionR("R", "http://baileylab.umassmed.edu/sourceCodes/R/R-3.4.0.tar.gz", "3.4.0", self.dirMaster_)
-        pack.versions_["3.3.3"] = CPPLibPackageVersionR("R", "http://baileylab.umassmed.edu/sourceCodes/R/R-3.3.3.tar.gz", "3.3.3", self.dirMaster_)
-        pack.versions_["3.3.2"] = CPPLibPackageVersionR("R", "http://baileylab.umassmed.edu/sourceCodes/R/R-3.3.2.tar.gz", "3.3.2", self.dirMaster_)
-        pack.versions_["3.3.0"] = CPPLibPackageVersionR("R", "http://baileylab.umassmed.edu/sourceCodes/R/R-3.3.0.tar.gz", "3.3.0", self.dirMaster_)
-        pack.versions_["3.2.4"] = CPPLibPackageVersionR("R", "http://baileylab.umassmed.edu/sourceCodes/R/R-3.2.4.tar.gz", "3.2.4", self.dirMaster_)
-        pack.versions_["3.2.3"] = CPPLibPackageVersionR("R", "http://baileylab.umassmed.edu/sourceCodes/R/R-3.2.3.tar.gz", "3.2.3", self.dirMaster_)
-        pack.versions_["3.2.2"] = CPPLibPackageVersionR("R", "http://baileylab.umassmed.edu/sourceCodes/R/R-3.2.2.tar.gz", "3.2.2", self.dirMaster_)
-        pack.versions_["3.2.1"] = CPPLibPackageVersionR("R", "http://baileylab.umassmed.edu/sourceCodes/R/R-3.2.1.tar.gz", "3.2.1", self.dirMaster_)
-        pack.versions_["3.2.0"] = CPPLibPackageVersionR("R", "http://baileylab.umassmed.edu/sourceCodes/R/R-3.2.0.tar.gz", "3.2.0", self.dirMaster_)
-        pack.versions_["3.1.3"] = CPPLibPackageVersionR("R", "http://baileylab.umassmed.edu/sourceCodes/R/R-3.1.3.tar.gz", "3.1.3", self.dirMaster_)
+        pack.versions_["3.4.0"] = CPPLibPackageVersionR("R", "http://baileylab.brown.edu/sourceCodes/R/R-3.4.0.tar.gz", "3.4.0", self.dirMaster_)
+        pack.versions_["3.3.3"] = CPPLibPackageVersionR("R", "http://baileylab.brown.edu/sourceCodes/R/R-3.3.3.tar.gz", "3.3.3", self.dirMaster_)
+        pack.versions_["3.3.2"] = CPPLibPackageVersionR("R", "http://baileylab.brown.edu/sourceCodes/R/R-3.3.2.tar.gz", "3.3.2", self.dirMaster_)
+        pack.versions_["3.3.0"] = CPPLibPackageVersionR("R", "http://baileylab.brown.edu/sourceCodes/R/R-3.3.0.tar.gz", "3.3.0", self.dirMaster_)
+        pack.versions_["3.2.4"] = CPPLibPackageVersionR("R", "http://baileylab.brown.edu/sourceCodes/R/R-3.2.4.tar.gz", "3.2.4", self.dirMaster_)
+        pack.versions_["3.2.3"] = CPPLibPackageVersionR("R", "http://baileylab.brown.edu/sourceCodes/R/R-3.2.3.tar.gz", "3.2.3", self.dirMaster_)
+        pack.versions_["3.2.2"] = CPPLibPackageVersionR("R", "http://baileylab.brown.edu/sourceCodes/R/R-3.2.2.tar.gz", "3.2.2", self.dirMaster_)
+        pack.versions_["3.2.1"] = CPPLibPackageVersionR("R", "http://baileylab.brown.edu/sourceCodes/R/R-3.2.1.tar.gz", "3.2.1", self.dirMaster_)
+        pack.versions_["3.2.0"] = CPPLibPackageVersionR("R", "http://baileylab.brown.edu/sourceCodes/R/R-3.2.0.tar.gz", "3.2.0", self.dirMaster_)
+        pack.versions_["3.1.3"] = CPPLibPackageVersionR("R", "http://baileylab.brown.edu/sourceCodes/R/R-3.1.3.tar.gz", "3.1.3", self.dirMaster_)
         return pack
 
     def __armadillo(self):
@@ -641,7 +641,7 @@ class Packages():
         buildCmd = """mkdir build && cd build && CC={CC} CXX={CXX} cmake -DCMAKE_INSTALL_PREFIX={local_dir} .. && make install -j {num_cores}"""
         buildCmd = " ".join(buildCmd.split())
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "3.3.1")
-        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/eigen/eigen-3.3.1.tar.bz2", "3.3.1")
+        pack.addVersion("http://baileylab.brown.edu/sourceCodes/eigen/eigen-3.3.1.tar.bz2", "3.3.1")
         pack.versions_["3.3.1"].libPath_ = "";
         pack.versions_["3.3.1"].includePath_ = os.path.join(joinNameVer(pack.versions_["3.3.1"].nameVer_), "include", "eigen3")
         return pack
@@ -651,7 +651,7 @@ class Packages():
         buildCmd = """mkdir build && cd build && CC={CC} CXX={CXX} cmake -DCMAKE_INSTALL_PREFIX={local_dir} .. && make install -j {num_cores}"""
         buildCmd = " ".join(buildCmd.split())
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "3.7.0")
-        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/lapack/lapack-3.7.0.tar.gz", "3.7.0")
+        pack.addVersion("http://baileylab.brown.edu/sourceCodes/lapack/lapack-3.7.0.tar.gz", "3.7.0")
         return pack
     
 
@@ -663,7 +663,7 @@ class Packages():
             && make -j {num_cores} install"""
         buildCmd = " ".join(buildCmd.split())
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "4.61")
-        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/glpk/glpk-4.61.tar.gz", "4.61")
+        pack.addVersion("http://baileylab.brown.edu/sourceCodes/glpk/glpk-4.61.tar.gz", "4.61")
         return pack
 
     def __cmake(self):
@@ -738,7 +738,7 @@ class Packages():
             && make -j {num_cores} install"""
         buildCmd = " ".join(buildCmd.split())
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "3.10.3")
-        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/atlas/atlas3.10.3.tar.gz", "3.10.3")
+        pack.addVersion("http://baileylab.brown.edu/sourceCodes/atlas/atlas3.10.3.tar.gz", "3.10.3")
         return pack
     
     def __muscle(self):
@@ -841,14 +841,14 @@ class Packages():
         name = "pigz"
         buildCmd = "CC={CC} CXX={CXX} make -j {num_cores} && mkdir -p {local_dir}/bin && cp pigz unpigz {local_dir}/bin/"
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "2.3.4")
-        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/pigz/pigz-2.3.4.tar.gz", "2.3.4")
+        pack.addVersion("http://baileylab.brown.edu/sourceCodes/pigz/pigz-2.3.4.tar.gz", "2.3.4")
         return pack
     
     def __lastz(self):
         name = "lastz"
         buildCmd = "sed -i.bak 's/-Werror//g' src/Makefile && CC={CC} CXX={CXX} make -j {num_cores} && mkdir -p {local_dir}/bin && cp src/lastz src/lastz_D {local_dir}/bin/"
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "1.03.73")
-        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/lastz/lastz-1.03.73.tar.gz", "1.03.73")
+        pack.addVersion("http://baileylab.brown.edu/sourceCodes/lastz/lastz-1.03.73.tar.gz", "1.03.73")
         return pack
         
     def __samtools(self):
@@ -878,7 +878,7 @@ class Packages():
         name = "bcftools"
         buildCmd = "CC={CC} CXX={CXX} && make prefix={local_dir} -j {num_cores} && make prefix={local_dir} install "
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "1.3.1")
-        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/bcftools/bcftools-1.3.1.tar.bz2", "1.3.1")
+        pack.addVersion("http://baileylab.brown.edu/sourceCodes/bcftools/bcftools-1.3.1.tar.bz2", "1.3.1")
         return pack
     
     def __hts(self):
@@ -1034,7 +1034,7 @@ class Packages():
             && make -j {num_cores} install"""
         buildCmd = " ".join(buildCmd.split())
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "5.25")
-        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/libmagic/file-5.25.tar.gz", "5.25")
+        pack.addVersion("http://baileylab.brown.edu/sourceCodes/libmagic/file-5.25.tar.gz", "5.25")
         return pack
         
     def __zlib(self):
@@ -1075,10 +1075,10 @@ class Packages():
             && make -j {num_cores} install"""
         buildCmd = " ".join(buildCmd.split())
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "2.2.1")
-        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/mathgl/mathgl-2.2.1.tar.gz", "2.2.1")
+        pack.addVersion("http://baileylab.brown.edu/sourceCodes/mathgl/mathgl-2.2.1.tar.gz", "2.2.1")
         pack.versions_["2.2.1"].includePath_ = os.path.join(pack.versions_["2.2.1"].includePath_,"mgl2")
         pack.versions_["2.2.1"].altLibName_ = "mgl"
-        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/mathgl/mathgl-2.3.4.tar.gz", "2.3.4")
+        pack.addVersion("http://baileylab.brown.edu/sourceCodes/mathgl/mathgl-2.3.4.tar.gz", "2.3.4")
         pack.versions_["2.3.4"].includePath_ = os.path.join(pack.versions_["2.3.4"].includePath_,"mgl2")
         pack.versions_["2.3.4"].altLibName_ = "mgl"
         return pack
@@ -1090,7 +1090,7 @@ class Packages():
             buildCmd += " && install_name_tool -change libbooster.0.dylib {local_dir}/lib/libbooster.0.dylib {local_dir}/lib/libcppcms.1.dylib"
         buildCmd = " ".join(buildCmd.split())
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "1.0.5")
-        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/cppcms/cppcms-1.0.5.tar.bz2", "1.0.5")
+        pack.addVersion("http://baileylab.brown.edu/sourceCodes/cppcms/cppcms-1.0.5.tar.bz2", "1.0.5")
         pack.versions_["1.0.5"].additionalLdFlags_ = ["-lbooster"]
         return pack
 
@@ -1420,55 +1420,59 @@ class Packages():
             gccJamOutLoc = "{build_sub_dir}/tools/build/src/tools/gcc.jam"
             #print gccJamLoc
             #print gccJamOutLoc
+            
             installNameToolCmd  = """ 
-            && install_name_tool -change $(otool -L {local_dir}/lib/libboost_filesystem.dylib | egrep -o "\\S+libboost_system.dylib") {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_filesystem.dylib
+            && if [ ! -z $(otool -L {local_dir}/lib/libboost_filesystem.dylib | egrep -o "\\S+libboost_system.dylib") ]; then install_name_tool -change $(otool -L {local_dir}/lib/libboost_filesystem.dylib | egrep -o "\\S+libboost_system.dylib") {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_filesystem.dylib ; fi 
             && install_name_tool -id {local_dir}/lib/libboost_filesystem.dylib {local_dir}/lib/libboost_filesystem.dylib
             && install_name_tool -id {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_system.dylib
             """
         if self.args.clang:
             if Utils.isMac():
                 buildCmd = """./bootstrap.sh --with-toolset=clang --prefix={local_dir} --with-libraries=""" + boostLibs + """
-                  &&  ./b2 -d 0  toolset=clang cxxflags=\"-stdlib=libc++ -std=c++14\" linkflags=\"-stdlib=libc++\" -j {num_cores} install 
+                  &&  ./b2 -d 0  toolset=clang cxxflags=\"-stdlib=libc++ -std=c++17\" linkflags=\"-stdlib=libc++\" -j {num_cores} install 
                   """ + installNameToolCmd
             else:
-                buildCmd = """ln -s $(for x in $(which -a {CC}); do echo $(realpath $x); done | egrep clang | head -1) clang && PATH=$(realpath .):$PATH && ln -s $(for x in $(which -a {CXX}); do echo $(realpath $x); done | egrep clang | head -1) clang++ && ./bootstrap.sh --with-toolset=clang --prefix={local_dir}  --with-libraries=""" + boostLibs + """ &&  ./b2 -d 0 toolset=clang cxxflags=\"-std=c++14\" -j {num_cores} install && rm clang && rm clang++"""
+                buildCmd = """ln -s $(for x in $(which -a {CC}); do echo $(realpath $x); done | egrep clang | head -1) clang && PATH=$(realpath .):$PATH && ln -s $(for x in $(which -a {CXX}); do echo $(realpath $x); done | egrep clang | head -1) clang++ && ./bootstrap.sh --with-toolset=clang --prefix={local_dir}  --with-libraries=""" + boostLibs + """ &&  ./b2 -d 0 toolset=clang cxxflags=\"-std=c++17\" -j {num_cores} install && rm clang && rm clang++"""
         elif "g++" in self.args.CXX:
             if "-" in self.args.CXX:
                 gccVer = self.args.CXX[(self.args.CXX.find("-") + 1):]
                 if Utils.isMac():
                     buildCmd = "cp " + gccJamLoc + "  " + gccJamOutLoc + """ && ./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
                      && echo "using gcc : """ + str(gccVer) + """ : {CXX} : <linker-type>darwin ;" >> tools/build/src/user-config.jam
-                     && ./b2 -d 0 --toolset=gcc-""" + str(gccVer) +  """ -j {num_cores} install 
+                     && ./b2 -d 0 cxxflags=\"-std=c++17\" --toolset=gcc -""" + str(gccVer) +  """ -j {num_cores} install 
                      """ + installNameToolCmd
                 else:
                     buildCmd = """./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
                      && echo "using gcc : """ + str(gccVer) + """ : {CXX} ;" >> tools/build/src/user-config.jam
-                     && ./b2 -d 0 --toolset=gcc-""" + str(gccVer) +  """ -j {num_cores} install 
+                     && ./b2 -d 0 cxxflags=\"-std=c++17\" --toolset=gcc -""" + str(gccVer) +  """ -j {num_cores} install 
                      """
             else:
                 if Utils.isMac():
                     buildCmd = "cp " + gccJamLoc + "  " + gccJamOutLoc + """ && echo "using gcc :  : g++ : <linker-type>darwin ;" >> tools/build/src/user-config.jam
                      && ./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
-                     && ./b2 -d 0 --toolset=gcc -j {num_cores} install 
+                     && ./b2 -d 0 cxxflags=\"-std=c++17\" --toolset=gcc  -j {num_cores} install 
                      """ + installNameToolCmd
                 else:
                     buildCmd = """./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
-                     && ./b2 -d 0 --toolset=gcc -j {num_cores} install 
+                     && ./b2 -d 0 cxxflags=\"-std=c++17\" --toolset=gcc  -j {num_cores} install 
                      """
         buildCmd = " ".join(buildCmd.split())
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "1_60_0")
-        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/boost/boost_1_58_0.tar.bz2", "1_58_0")
+        pack.addVersion("http://baileylab.brown.edu/sourceCodes/boost/boost_1_58_0.tar.bz2", "1_58_0")
         pack.versions_["1_58_0"].additionalLdFlags_ = ["-lboost_system", "-lboost_filesystem"]
         pack.versions_["1_58_0"].libName_ = ""
-        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/boost/boost_1_59_0.tar.bz2", "1_59_0")
+        pack.addVersion("http://baileylab.brown.edu/sourceCodes/boost/boost_1_59_0.tar.bz2", "1_59_0")
         pack.versions_["1_59_0"].additionalLdFlags_ = ["-lboost_system", "-lboost_filesystem"]
         pack.versions_["1_59_0"].libName_ = ""
-        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/boost/boost_1_60_0.tar.bz2", "1_60_0")
+        pack.addVersion("http://baileylab.brown.edu/sourceCodes/boost/boost_1_60_0.tar.bz2", "1_60_0")
         pack.versions_["1_60_0"].additionalLdFlags_ = ["-lboost_system", "-lboost_filesystem"]
         pack.versions_["1_60_0"].libName_ = ""
-        pack.addVersion("http://baileylab.umassmed.edu/sourceCodes/boost/boost_1_62_0.tar.bz2", "1_62_0")
+        pack.addVersion("http://baileylab.brown.edu/sourceCodes/boost/boost_1_62_0.tar.bz2", "1_62_0")
         pack.versions_["1_62_0"].additionalLdFlags_ = ["-lboost_system", "-lboost_filesystem"]
         pack.versions_["1_62_0"].libName_ = ""
+        pack.addVersion("http://baileylab.brown.edu/sourceCodes/boost/boost_1_70_0.tar.bz2", "1_70_0")
+        pack.versions_["1_70_0"].additionalLdFlags_ = ["-lboost_system", "-lboost_filesystem"]
+        pack.versions_["1_70_0"].libName_ = ""
         return pack
     
     def __boost_filesystem(self):
@@ -1483,39 +1487,40 @@ class Packages():
             #print gccJamLoc
             #print gccJamOutLoc
             installNameToolCmd  = """ 
-            && install_name_tool -change $(otool -L {local_dir}/lib/libboost_filesystem.dylib | egrep -o "\\S+libboost_system.dylib") {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_filesystem.dylib
+            && if [ ! -z $(otool -L {local_dir}/lib/libboost_filesystem.dylib | egrep -o "\\S+libboost_system.dylib") ]; then install_name_tool -change $(otool -L {local_dir}/lib/libboost_filesystem.dylib | egrep -o "\\S+libboost_system.dylib") {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_filesystem.dylib ; fi 
             && install_name_tool -id {local_dir}/lib/libboost_filesystem.dylib {local_dir}/lib/libboost_filesystem.dylib
             && install_name_tool -id {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_system.dylib
             """
+            #print(installNameToolCmd)
         if self.args.clang:
             if Utils.isMac():
                 buildCmd = """./bootstrap.sh --with-toolset=clang --prefix={local_dir} --with-libraries=""" + boostLibs + """
-                  &&  ./b2 -d 0 toolset=clang cxxflags=\"-stdlib=libc++ -std=c++14\" linkflags=\"-stdlib=libc++\" -j {num_cores} install 
+                  &&  ./b2 -d 0 toolset=clang cxxflags=\"-stdlib=libc++ -std=c++17\" linkflags=\"-stdlib=libc++\" -j {num_cores} install 
                   """ + installNameToolCmd
             else:
-                buildCmd = """ln -s $(for x in $(which -a {CC}); do echo $(realpath $x); done | egrep clang | head -1) clang && PATH=$(realpath .):$PATH && ln -s $(for x in $(which -a {CXX}); do echo $(realpath $x); done | egrep clang | head -1) clang++ && ./bootstrap.sh --with-toolset=clang --prefix={local_dir}  --with-libraries=""" + boostLibs + """ &&  ./b2 -d 0 toolset=clang cxxflags=\"-std=c++14\" -j {num_cores} install && rm clang && rm clang++"""
+                buildCmd = """ln -s $(for x in $(which -a {CC}); do echo $(realpath $x); done | egrep clang | head -1) clang && PATH=$(realpath .):$PATH && ln -s $(for x in $(which -a {CXX}); do echo $(realpath $x); done | egrep clang | head -1) clang++ && ./bootstrap.sh --with-toolset=clang --prefix={local_dir}  --with-libraries=""" + boostLibs + """ &&  ./b2 -d 0 toolset=clang cxxflags=\"-std=c++17\" -j {num_cores} install && rm clang && rm clang++"""
         elif "g++" in self.args.CXX:
             if "-" in self.args.CXX:
                 gccVer = self.args.CXX[(self.args.CXX.find("-") + 1):]
                 if Utils.isMac():
                     buildCmd = "cp " + gccJamLoc + "  " + gccJamOutLoc + """ && ./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
                      && echo "using gcc : """ + str(gccVer) + """ : {CXX} : <linker-type>darwin ;" >> tools/build/src/user-config.jam
-                     && ./b2 -d 0 --toolset=gcc-""" + str(gccVer) +  """ -j {num_cores} install 
+                     && ./b2 -d 0 cxxflags=\"-std=c++17\" --toolset=gcc -""" + str(gccVer) +  """ -j {num_cores} install 
                      """ + installNameToolCmd
                 else:
                     buildCmd = """./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
                      && echo "using gcc : """ + str(gccVer) + """ : {CXX} ;" >> tools/build/src/user-config.jam
-                     && ./b2 -d 0 --toolset=gcc-""" + str(gccVer) +  """ -j {num_cores} install 
+                     && ./b2 -d 0 cxxflags=\"-std=c++17\" --toolset=gcc -""" + str(gccVer) +  """ -j {num_cores} install 
                      """
             else:
                 if Utils.isMac():
                     buildCmd = "cp " + gccJamLoc + "  " + gccJamOutLoc + """ && echo "using gcc :  : g++ : <linker-type>darwin ;" >> tools/build/src/user-config.jam
                      && ./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
-                     && ./b2 -d 0 --toolset=gcc -j {num_cores} install 
+                     && ./b2 -d 0 cxxflags=\"-std=c++17\" --toolset=gcc  -j {num_cores} install 
                      """ + installNameToolCmd
                 else:
                     buildCmd = """./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
-                     && ./b2 -d 0 --toolset=gcc -j {num_cores} install 
+                     && ./b2 -d 0 cxxflags=\"-std=c++17\" --toolset=gcc  -j {num_cores} install 
                      """
         buildCmd = " ".join(buildCmd.split())
         url = "https://github.com/nickjhathaway/boost_filesystem.git"
@@ -1898,7 +1903,7 @@ class Setup:
                     else:
                         raise Exception("Need to supply version in compfile with USE_PACKAGE#Version")
             elif "PRIVATE" == k and "TRUE" == v:
-              self.args.private = True;
+                self.args.private = True;
               
                 
 
@@ -2181,6 +2186,28 @@ class Setup:
                             raise Exception("File: " + os.path.join(masterBinDir, bFile) + " already exists, use --overWrite to overWrite")
                     print("Linking " + CT.boldGreen(bFileFull) + " to " + CT.boldBlue(os.path.join(masterBinDir, bFile)))
                     os.symlink(bFileFull, os.path.join(masterBinDir, bFile))
+            
+    
+    def linkInBinWithVersionName(self, package, version, overwrite = False):
+        self.packages_.checkForPackVer(LibNameVer(package, version))
+        masterBinDir = os.path.join(os.path.dirname(self.extDirLoc), "bin" )
+        Utils.mkdir(masterBinDir)
+        masterBinDir = os.path.abspath(masterBinDir)
+        pack = self.packages_.package(package)
+        installDir = pack.getLocalDir(version)
+        if os.path.exists(os.path.join(installDir, "bin")):
+            binFiles = os.listdir(os.path.join(installDir, "bin"))
+            for bFile in binFiles:
+                bFileFull = os.path.join(installDir, "bin", bFile)
+                bFileOut = os.path.join(masterBinDir, bFile + "-" + version)
+                if os.path.isfile(bFileFull) and os.access(bFileFull, os.X_OK):
+                    if os.path.exists(bFileOut):
+                        if overwrite:
+                            os.remove(bFileOut)
+                        else:
+                            raise Exception("File: " + bFileOut + " already exists, use --overWrite to overWrite")
+                    print("Linking " + CT.boldGreen(bFileFull) + " to " + CT.boldBlue(bFileOut))
+                    os.symlink(bFileFull, bFileOut)
             
         
     def updateNJHProjects(self, njhProjects):
@@ -2554,6 +2581,8 @@ class SetupRunner:
         parser.add_argument('--justDownload', action = 'store_true')
         parser.add_argument('--verbose', action = 'store_true')
         parser.add_argument('--symlinkBin', action = 'store_true', help = "Symlink in executables into a directory bin next to external")
+        parser.add_argument('--symlinkBinVersion', action = 'store_true', help = "Symlink in executables into a directory bin next to external with version name")
+
         parser.add_argument('--clearCache', action = 'store_true')
         parser.add_argument('--clean', action = 'store_true',  help = "Remove intermediate build files to save space")
         parser.add_argument('--private', action = 'store_true',  help = "Add the private repos MIPWrangler and elucidator if you have the rights to access")
@@ -2614,6 +2643,9 @@ class SetupRunner:
                 if args.symlinkBin:
                     for setUpNeeded in s.setUpsNeeded:
                         s.linkInBin(setUpNeeded.name, setUpNeeded.version, args.overWrite)
+                if args.symlinkBinVersion:
+                    for setUpNeeded in s.setUpsNeeded:
+                        s.linkInBinWithVersionName(setUpNeeded.name, setUpNeeded.version, args.overWrite)
                 return 0
 
 if __name__ == '__main__':

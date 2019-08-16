@@ -37,6 +37,7 @@ SeekDeepUtilsRunner::SeekDeepUtilsRunner() :
 					addFunc("replaceUnderscores", replaceUnderscores, false),
 				  addFunc("rBind", ManipulateTableRunner::rBind, false),
 					addFunc("genTargetInfoFromGenomes", genTargetInfoFromGenomes, false),
+					addFunc("benchmarkControlMixtures", benchmarkControlMixtures, false)
 				}, //
 				"SeekDeepUtils") {
 }
@@ -60,6 +61,7 @@ int SeekDeepUtilsRunner::genTargetInfoFromGenomes(const njh::progutils::CmdArgs 
 	njh::sys::requireExternalProgramThrow("samtools");
 
 	PrimersAndMids ids(pars.primersFile);
+
 	if(0 == ids.getTargets().size() ){
 		std::stringstream ss;
 		ss << __PRETTY_FUNCTION__ << ", error in reading in target primers file " << pars.primersFile << "\n";
@@ -279,13 +281,16 @@ int SeekDeepUtilsRunner::runMultipleCommands(
 		const njh::progutils::CmdArgs & inputCommands) {
 	std::string filename = "";
 	std::string logFile = "";
+	bfs::path logDir = "./";
 	uint32_t numThreads = 1;
 	bool raw = false;
 	bool noFilesInReplacementToks = false;
 	seqSetUp setUp(inputCommands);
+	setUp.processVerbose();
+	setUp.processDebug();
+	setUp.setOption(logDir, "--logDir", "Directory to create log file");
 	setUp.setOption(numThreads, "--numThreads", "Number of threads to use");
-	setUp.setOption(logFile, "--logFile",
-			"Name of a file to log the output of the commands");
+	setUp.setOption(logFile, "--logFile", "Name of a file to log the output of the commands, this will cause --logDir to be ignored");
 	setUp.setOption(filename, "--cmdFile",
 			"Name of the file, first line is command with REPLACETHIS, the next lines are the cmd to run with that line replacing REPLACETHIS",
 			true);
@@ -293,9 +298,9 @@ int SeekDeepUtilsRunner::runMultipleCommands(
 			"If if the file is simply just a list of commands to run");
 	setUp.setOption(noFilesInReplacementToks, "--noFilesInReplacementToks",
 			"The replacement tokens are by default checked to see if there are files and more replacement strings are read in where each line is a replacement, this turns off that behavior");
-	setUp.processVerbose();
+
 	setUp.processWritingOptions();
-	setUp.processDebug();
+
 	if (setUp.needsHelp()) {
 		std::cout
 				<< "Input cmdFile should start with CMD: and then command and "
@@ -316,11 +321,19 @@ int SeekDeepUtilsRunner::runMultipleCommands(
 	}
 	setUp.finishSetUp(std::cout);
 	if (logFile == "") {
-		logFile = bfs::path(filename).filename().replace_extension("").string()
-				+ "Log.json";
+		logFile = njh::files::make_path(logDir, bfs::path(filename).filename().replace_extension("").string() + "_TODAY_Log.json").string();
 	}
 	std::ofstream outFile;
+
 	if (!setUp.pars_.debug_) {
+		logFile = njh::replaceString(logFile, "TODAY", njh::getCurrentDate());
+		if(!setUp.pars_.ioOptions_.out_.overWriteFile_){
+			uint32_t number = 1;
+			while(bfs::exists(logFile)){
+				logFile = njh::files::nameAppendBeforeExt(logFile, estd::to_string(number)).string();
+				++number;
+			}
+		}
 		openTextFile(outFile, logFile, ".json", setUp.pars_.ioOptions_.out_);
 	}
 

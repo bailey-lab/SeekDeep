@@ -43,6 +43,9 @@ class SeekDeepUtilsRunner : public njh::progutils::ProgramRunner {
 
 	static int genTargetInfoFromGenomes(const njh::progutils::CmdArgs & inputCommands);
 
+
+	static int benchmarkControlMixtures(const njh::progutils::CmdArgs & inputCommands);
+
 };
 
 } // namespace njhseq

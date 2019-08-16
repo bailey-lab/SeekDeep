@@ -96,6 +96,7 @@ void CoreExtractorPars::setCorePars(seqSetUp & setUp){
 	setUp.setOption(noPrimers_, "--noPrimers", "If no primers is set, only one line can be found under the targets/gene headers, the sequences in the forward/reverse primers will be ignored", false, "Primer");
 
 	setUp.setOption(keepUnfilteredReads, "--keepUnfilteredReads", "Keep the unfiltered reads for debugging purposes", false);
+	setUp.setOption(keepFilteredOff, "--keepFilteredOff", "Keep Filtered Off", false);
 
 }
 
@@ -119,7 +120,7 @@ ExtractorPairedEndPars::ExtractorPairedEndPars(){
 
 	corePars_.pDetPars.allowable_.hqMismatches_ = 2;
 	corePars_.pDetPars.allowable_.lqMismatches_ = 5; /**@todo incorporate this*/
-	corePars_.pDetPars.allowable_.distances_.query_.coverage_ = 1;
+	corePars_.pDetPars.allowable_.distances_.query_.coverage_ = .90;
 	corePars_.pDetPars.allowable_.largeBaseIndel_ = 0.99;
 	corePars_.pDetPars.allowable_.oneBaseIndel_ = 0.5;
 	corePars_.pDetPars.allowable_.twoBaseIndel_ = 0.5;

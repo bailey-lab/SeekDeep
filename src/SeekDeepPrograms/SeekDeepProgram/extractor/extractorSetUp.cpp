@@ -49,7 +49,10 @@ void SeekDeepSetUp::setUpExtractorPairedEnd(ExtractorPairedEndPars & pars) {
 	processReadInNames(VecStr{"--fastq1", "--fastq1gz", "--fastq2", "--fastq2gz"},true);
 	bool mustMakeDirectory = true;
 	processDirectoryOutputName(mustMakeDirectory);
-
+	bool useAlnPrimerSearch = false;
+	setOption(useAlnPrimerSearch, "--useAlnPrimerSearch",
+			"Use alignment to search for primers rather than motif search, motif search is faster but alignment search allows indels which might be good for SWGA", false, "Primer");
+	pars.corePars_.pDetPars.useMotif_ = !useAlnPrimerSearch;
 	//paired end specific stuff
 	pars.pairProcessorParams_.verbose_ = pars_.verbose_;
 	setOption(pars.corePars_.primIdsPars.noOverlapProcessForNoOverlapStatusTargets_, "--noOverlapProcessForNoOverlapStatusTargets,--noOverlapProcessForNoOverlapStatusTargets_", "By default, indicating NoOverlap in overlap status file assumes anything that does overlap isn't wanted, even just simple de-multiplexing is wanted without stitching you use this flag to skip this",
@@ -74,7 +77,7 @@ void SeekDeepSetUp::setUpExtractorPairedEnd(ExtractorPairedEndPars & pars) {
 	setOption(pars.corePars_.primIdsPars.overlapStatusFnp_, "--overlapStatusFnp",
 			"A file with two columns, target,status; status column should contain 1 of 3 values (capitalization doesn't matter): r1BegOverR2End,r1EndOverR2Beg,NoOverlap. r1BegOverR2End=target size < read length (causes read through),r1EndOverR2Beg= target size > read length less than 2 x read length, NoOverlap=target size > 2 x read length", true, "Post Processing");
 
-
+	setOption(pars.primerDimerSize_, "--primerDimerSize", "Size of r1 begins in r2 stitched reads that should be considered primer dimers");
 
 	pars_.gapInfo_.gapOpen_ = 5;
 	pars_.gapInfo_.gapExtend_ = 1;

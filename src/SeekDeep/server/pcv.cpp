@@ -480,7 +480,7 @@ void pcv::getSampleInfoTabPostHandler(std::shared_ptr<restbed::Session> session,
 				coiColName = "s_COI";
 			}
 			VecStr visibleColumns = VecStr { "s_Sample",
-				"h_popUID", "h_SampCnt", "h_SampFrac", "s_ReadCntTotUsed",
+				"h_popUID", "h_AATyped", "h_SampCnt", "h_SampFrac", "s_ReadCntTotUsed",
 				coiColName, "c_clusterID", "c_AveragedFrac", "c_ReadCnt",
 				"c_RepCnt" };
 			if(njh::in(std::string("bestExpected"), sampTable_.columnNames_)){
@@ -1059,7 +1059,7 @@ void pcv::groupGetSampleInfoTabPostHanlder(
 							coiColName = "s_COI";
 						}
 						VecStr visibleColumns = VecStr { "s_Sample", "g_GroupName",
-							"h_popUID", "h_SampCnt", "h_SampFrac", "s_ReadCntTotUsed",
+							"h_popUID","h_AATyped", "h_SampCnt", "h_SampFrac", "s_ReadCntTotUsed",
 							coiColName, "c_clusterID", "c_AveragedFrac", "c_ReadCnt",
 							"c_RepCnt" };
 						if(njh::in(std::string("bestExpected"), sampTable_.columnNames_)){

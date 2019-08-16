@@ -3,7 +3,7 @@ $(document).ready(function(){
 	var locSplit = window.location.toString().split(/[\/]+/);
 	var rName = locSplit[2];
 	var projectName = locSplit[4];
-	
+
 	var infoUrls = getNameUrls(projectName);
 	var gifLoading = prsentDivGifLoading();
 	Promise.all(infoUrls.map(getJSON)).then(function(projNames) {
@@ -45,9 +45,9 @@ $(document).ready(function(){
 		var addToGroup = "#groupLinks";
 		createLinksTable(addToGroup, linkPreGroup, names["groups"],cols, mouseOverC, mouseLeaveC);
 		postJSON("/" + rName + "/sampInfo/" + projectName, {"sampNames":names["samples"]}).then(function(sampInfo){
-			//create sample table 
-			var sampleTable = new njhTable("#sampTable", sampInfo, names["projectName"] + "_sampInfo", false);	
-			var sampleChart = new njhSampleChart("#sampleChartMaster", sampInfo, names["projectName"] +  "_sampChart","s_Sample", "c_AveragedFrac","h_popUID", ["s_Sample", "h_popUID", "c_clusterID", "c_AveragedFrac"]);
+			//create sample table
+			var sampleTable = new njhTable("#sampTable", sampInfo, names["projectName"] + "_sampInfo", false);
+			var sampleChart = new njhSampleChart("#sampleChartMaster", sampInfo, names["projectName"] +  "_sampChart","s_Sample", "c_AveragedFrac","h_popUID", ["s_Sample", "h_popUID", "c_clusterID", "c_AveragedFrac", "c_ReadCnt"]);
 			var popUrls = ["/" + rName + "/popInfo/" + projectName]
 			popUrls.push("/" + rName + "/popSeqData/" + projectName);
 			popUrls.push("/" + rName + "/hapIdTable/" + projectName);
@@ -65,8 +65,8 @@ $(document).ready(function(){
 				var popTable = new njhTable("#popTable", popInfoTab, names["projectName"] + "_popInfo", true);
 				var hapIdTab = new njhTable("#hapIdTab", hapIdTabInfo, names["projectName"] + "_hapIdTable", false);
 				hapIdTab.enactPoorMansHeatMap();
-				function updateChartOnClick() { 
-					//get all currently checked sample boxes and then update the current samples  
+				function updateChartOnClick() {
+					//get all currently checked sample boxes and then update the current samples
 				    var allVals = [];
 				    $('#sampNameMenu :checked').each(function() {
 				      allVals.push($(this).val());
@@ -88,7 +88,7 @@ $(document).ready(function(){
 						 	d34.select("#hapIdTab").selectAll("*").remove();
 						 	hapIdTab = new njhTable("#hapIdTab", popData[2], names["projectName"] + "_hapIdTable", false);
 						 	hapIdTab.enactPoorMansHeatMap();
-						 	
+
 						 	$("#sampleHeader").scrollView(60, 0);
 						}).catch(logRequestError).then(function(){
 							//stop loading population info
@@ -98,9 +98,9 @@ $(document).ready(function(){
 				    	removeAllDivGifLoading();
 					});
 				};
-				//create samp menu 
+				//create samp menu
 				var sampMenu = new njhCheckboxMenu("#sampNameMenu", names["samples"], updateChartOnClick);
-				
+
 			}).catch(logRequestError).then(function(){
 				//stop loading page
 			});
@@ -112,5 +112,3 @@ $(document).ready(function(){
 	  //stop loading page
 	});
 });
-
-

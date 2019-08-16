@@ -69,6 +69,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 
 	setUp.setOption(pars.conservative, "--conservativePopClus",
 			"Do conservative population clustering which skips possible artifact cleanup step", false, "processClusters");
+	setUp.setOption(pars.rescueFilteredHaplotypes, "--rescueFilteredHaplotypes", "Add on resuce of haplotypes that filtered due to low frequency or chimera filtering if it appears as a major haplotype in another sample", false, "processClusters");
 
 
 	setUp.setOption(pars.groupMeta, "--groupMeta", "Group Metadata", false, "Meta");
@@ -661,15 +662,17 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	std::string processClusterTemplate =
 			setUp.commands_.masterProgram_
 					+ " processClusters "
-							"--alnInfoDir alnCache --strictErrors --dout analysis --fastqgz output.fastq.gz --overWriteDir";
+							"--alnInfoDir alnCache --strictErrors --dout analysis --fastqgz output.fastq.gz --overWriteDir ";
 
 	if (!analysisSetup.pars_.conservative) {
-		processClusterTemplate += " --excludeCommonlyLowFreqHaplotypes --excludeLowFreqOneOffs --fracCutOff 0 ";
+		auto lowerCaseExtracProcessArgs = stringToLowerReturn(analysisSetup.pars_.extraProcessClusterCmds);
+		processClusterTemplate += " --removeOneSampOnlyOneOffHaps --excludeCommonlyLowFreqHaplotypes --excludeLowFreqOneOffs --rescueExcludedOneOffLowFreqHaplotypes";
+		//processClusterTemplate += " --excludeCommonlyLowFreqHaplotypes --excludeLowFreqOneOffs --fracCutOff 0 ";
 	}
 
-	if (!analysisSetup.pars_.noRescue) {
-		processClusterTemplate += " --rescueExcludedOneOffLowFreqHaplotypes ";
-		//--rescueMatchingExpected --rescueExcludedChimericHaplotypes
+	if (!analysisSetup.pars_.conservative && analysisSetup.pars_.rescueFilteredHaplotypes) {
+		//processClusterTemplate += " --rescueExcludedOneOffLowFreqHaplotypes --rescueMatchingExpected --rescueExcludedChimericHaplotypes";
+		processClusterTemplate += " --rescueMatchingExpected --rescueExcludedChimericHaplotypes";
 	}
 
 	if ("" != analysisSetup.pars_.extraProcessClusterCmds) {
@@ -762,15 +765,17 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 			njh::files::make_path(analysisSetup.dir_, "combineExtractionCountsCmd.sh"));
 	OutputStream combineExtractionCmdOut(combineExtractionCmdOpts);
 	combineExtractionCmdOut << "#!/usr/bin/env bash" << std::endl;
-	combineExtractionCmdOut << "SeekDeep rBind --recursive --depth 1 --contains allPrimerCounts.tab.txt --delim tab --header --out reports/allAllPrimerCounts.tab.txt  --overWrite" << std::endl;
-	combineExtractionCmdOut << "SeekDeep rBind --recursive --depth 1 --contains extractionProfile.tab.txt --delim tab --header --out reports/allExtractionProfile.tab.txt  --overWrite" << std::endl;
-	combineExtractionCmdOut << "SeekDeep rBind --recursive --depth 1 --contains extractionStats.tab.txt --delim tab --header --out reports/allExtractionStats.tab.txt  --overWrite" << std::endl;
-	combineExtractionCmdOut << "SeekDeep rBind --recursive --depth 1 --contains midCounts.tab.txt --delim tab --header --out reports/allMidCounts.tab.txt  --overWrite" << std::endl;
-	combineExtractionCmdOut << "SeekDeep rBind --recursive --depth 1 --contains processPairsCounts.tab.txt --delim tab --header --out reports/allProcessPairsCounts.tab.txt  --overWrite" << std::endl;
-	combineExtractionCmdOut << "SeekDeep rBind --recursive --depth 1 --contains top_mostCommonR1Starts_for_unrecognizedBarcodes.tab.txt --delim tab --header --out reports/allTop_mostCommonR1Starts_for_unrecognizedBarcodes.tab.txt  --overWrite" << std::endl;
-	combineExtractionCmdOut << "SeekDeep rBind --recursive --depth 1 --contains top_mostCommonR2Starts_for_unrecognizedBarcodes.tab.txt --delim tab --header --out reports/allTop_mostCommonR2Starts_for_unrecognizedBarcodes.tab.txt  --overWrite" << std::endl;
-	combineExtractionCmdOut << "SeekDeep rBind --recursive --depth 1 --contains top_mostCommonR1AndR2Starts_for_unrecognizedBarcodes.tab.txt --delim tab --header --out reports/allTop_mostCommonR1AndR2Starts_for_unrecognizedBarcodes.tab.txt  --overWrite" << std::endl;
-
+	combineExtractionCmdOut << setUp.commands_.masterProgram_ << " rBind --recursive --depth 1 --contains allFailedPrimerCounts.tab.txt --delim tab --header --out reports/combinedAllFailedPrimerCounts.tab.txt  --overWrite" << std::endl;
+	//combineExtractionCmdOut << setUp.commands_.masterProgram_ << " rBind --recursive --depth 1 --contains allPrimerCounts.tab.txt --delim tab --header --out reports/combinedAllPrimerCounts.tab.txt  --overWrite" << std::endl;
+	combineExtractionCmdOut << setUp.commands_.masterProgram_ << " rBind --recursive --depth 1 --contains extractionProfile.tab.txt --delim tab --header --out reports/allExtractionProfile.tab.txt  --overWrite" << std::endl;
+	combineExtractionCmdOut << setUp.commands_.masterProgram_ << " rBind --recursive --depth 1 --contains extractionStats.tab.txt --delim tab --header --out reports/allExtractionStats.tab.txt  --overWrite" << std::endl;
+	combineExtractionCmdOut << setUp.commands_.masterProgram_ << " rBind --recursive --depth 1 --contains processPairsCounts.tab.txt --delim tab --header --out reports/allProcessPairsCounts.tab.txt  --overWrite" << std::endl;
+	if(analysisSetup.idsMids_->containsMids()){
+		combineExtractionCmdOut << setUp.commands_.masterProgram_ << " rBind --recursive --depth 1 --contains midCounts.tab.txt --delim tab --header --out reports/allMidCounts.tab.txt  --overWrite" << std::endl;
+		combineExtractionCmdOut << setUp.commands_.masterProgram_ << " rBind --recursive --depth 1 --contains top_mostCommonR1Starts_for_unrecognizedBarcodes.tab.txt --delim tab --header --out reports/allTop_mostCommonR1Starts_for_unrecognizedBarcodes.tab.txt  --overWrite" << std::endl;
+		combineExtractionCmdOut << setUp.commands_.masterProgram_ << " rBind --recursive --depth 1 --contains top_mostCommonR2Starts_for_unrecognizedBarcodes.tab.txt --delim tab --header --out reports/allTop_mostCommonR2Starts_for_unrecognizedBarcodes.tab.txt  --overWrite" << std::endl;
+		combineExtractionCmdOut << setUp.commands_.masterProgram_ << " rBind --recursive --depth 1 --contains top_mostCommonR1AndR2Starts_for_unrecognizedBarcodes.tab.txt --delim tab --header --out reports/allTop_mostCommonR1AndR2Starts_for_unrecognizedBarcodes.tab.txt  --overWrite" << std::endl;
+	}
 	chmod(combineExtractionCmdOpts.outFilename_.c_str(),
 			S_IWUSR | S_IRUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IEXEC | S_IXGRP);
 
@@ -792,7 +797,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	runAnalysisFile << "	numThreads=$1" << std::endl;
 	runAnalysisFile << "fi\n" << std::endl;
 	runAnalysisFile << R"(if [[ $# -gt 1 ]]; then
-  echo "Illegal number of parameters, should either be no agruments or a number to indicate the number of threads"
+  echo "Illegal number of parameters, should either be no arguments or a number to indicate the number of threads"
   echo "Examples:"
   echo "Example 1"
   echo "Run with the default number of threads, which was set when running setupTarAmpAnalysis"
@@ -806,17 +811,17 @@ fi)" << std::endl;
 
 	runAnalysisFile << "" << std::endl;
 	runAnalysisFile << "" << setUp.commands_.masterProgram_
-			<< " runMultipleCommands --cmdFile extractorCmds.txt      --numThreads $numThreads --raw"
+			<< " runMultipleCommands --cmdFile extractorCmds.txt      --numThreads $numThreads --raw --logDir logs "
 			<< std::endl;
 	runAnalysisFile << "./combineExtractionCountsCmd.sh"<< std::endl;
 	runAnalysisFile << "" << setUp.commands_.masterProgram_
-			<< " runMultipleCommands --cmdFile qlusterCmds.txt        --numThreads $numThreads --raw"
+			<< " runMultipleCommands --cmdFile qlusterCmds.txt        --numThreads $numThreads --raw --logDir logs "
 			<< std::endl;
 	runAnalysisFile << "" << setUp.commands_.masterProgram_
-			<< " runMultipleCommands --cmdFile processClusterCmds.txt --numThreads $numThreads --raw"
+			<< " runMultipleCommands --cmdFile processClusterCmds.txt --numThreads $numThreads --raw --logDir logs "
 			<< std::endl;
 	runAnalysisFile << "" << setUp.commands_.masterProgram_
-			<< " runMultipleCommands --cmdFile genConfigCmds.txt      --numThreads $numThreads --raw"
+			<< " runMultipleCommands --cmdFile genConfigCmds.txt      --numThreads $numThreads --raw --logDir logs "
 			<< std::endl;
 	runAnalysisFile << "" << std::endl;
 	//make file executable
@@ -835,4 +840,3 @@ fi)" << std::endl;
 
 
 }  // namespace njhseq
-

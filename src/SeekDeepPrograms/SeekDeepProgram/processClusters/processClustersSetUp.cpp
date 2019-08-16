@@ -53,6 +53,15 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 		pars_.colOpts_.iTOpts_.adjustHomopolyerRuns_ = true;
 	}
 
+
+
+	setOption(pars.transPars.lzPars_.genomeFnp, "--genomeFnp",
+			"Genome file so final haplotypes can be mapped to a genome", false, "Additional Output");
+	setOption(pars.transPars.gffFnp_, "--gffFnp",
+			"Gff file to intersect the final haplotypes with genes to get translations", false, "Additional Output");
+	setOption(pars.knownAminoAcidChangesFnp, "--knownAminoAcidChangesFnp",
+			"Known Amino Acid Changes, must have at least 2 columns, positions are 1-based, 1)TranscriptID, 2)AAPosition ", false, "Additional Output");
+
 	setOption(pars.masterDir, "--masterDir", "Master directory containing sample sequence files", false, "Input");
 	pars.masterDir = bfs::absolute(pars.masterDir);
 	pars.removeLowQualBases = setOption(pars.lowQualityCutOff, "--qualTrim",
@@ -99,11 +108,18 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 	setOption(pars.parameters, "--par", "ParametersFileName", !pars.noErrorsSet && !pars.strictErrorsSet && !pars.strictErrorsSetHq1, "Clustering");
 
 	setOption(pars.binParameters, "--binPar", "bin Parameters Filename", false, "Clustering");
-	setOption(pars.preFiltCutOffs.sampleMinReadCount, "--sampleMinTotalReadCutOff",
-			"Sample Minimum Total Read Cut Off, if the total read count for the sample is below this it will be thrown out", false, "Filtering");
-	setOption(pars.preFiltCutOffs.replicateMinReadCount, "--replicateMinTotalReadCutOff",
-				"Replicate Minimum Total Read Cut Off, if the total read count for the replicate is below this it will be thrown out", false, "Filtering");
 
+
+	pars.preFiltCutOffs.sampleMinReadCount = 250;
+	bool sampMinSet = setOption(pars.preFiltCutOffs.sampleMinReadCount, "--sampleMinTotalReadCutOff",
+			"Sample Minimum Total Read Cut Off, if the total read count for the sample is below this it will be thrown out", false, "Filtering");
+
+	pars.preFiltCutOffs.replicateMinReadCount = pars.preFiltCutOffs.sampleMinReadCount;
+	bool repMinSet = setOption(pars.preFiltCutOffs.replicateMinReadCount, "--replicateMinTotalReadCutOff",
+				"Replicate Minimum Total Read Cut Off, if the total read count for the replicate is below this it will be thrown out", false, "Filtering");
+	if(repMinSet && !sampMinSet){
+		pars.preFiltCutOffs.sampleMinReadCount = pars.preFiltCutOffs.replicateMinReadCount;
+	}
 	setOption(pars.runsRequired, "--runsRequired", "Number of PCR runs Required for a haplotype to be kept", false, "Filtering");
 	setOption(pars.experimentName, "--experimentName", "Name given to the final population haplotypes", false, "Population");
 	if (njh::containsSubString(pars.experimentName, ".")) {
@@ -111,8 +127,12 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 						+ pars.experimentName);
 		failed_ = true;
 	}
+	pars.preFiltCutOffs.clusterSizeCutOff = 10;
 	setOption(pars.preFiltCutOffs.clusterSizeCutOff, "--clusterCutOff", "Input Cluster Size Cut Off", false, "Filtering");
-	setOption(pars.fracExcludeOnlyInFinalAverageFrac, "--fracExcludeOnlyInFinalAverageFrac", "By default fraction exclusion is done per rep, use fracExcludeOnlyInFinalAverageFrac to exclude only on the final averaged frac", false, "Filtering");
+	//setOption(pars.fracExcludeOnlyInFinalAverageFrac, "--fracExcludeOnlyInFinalAverageFrac", "By default fraction exclusion is done per rep, use fracExcludeOnlyInFinalAverageFrac to exclude only on the final averaged frac", false, "Filtering");
+
+
+	setOption(pars.excludeSamples, "--excludeSamples", "Samples to Exclude from analysis", false, "Filtering");
 
 
 	setOption(pars.removeCommonlyLowFreqHaplotypes_, "--excludeCommonlyLowFreqHaplotypes", "Remove Commonly Low Freq Haplotypes", false, "Filtering");
@@ -125,8 +145,8 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 
 	setOption(pars.extra, "--extra", "Extra Output", false, "Additional Output");
 	processRefFilename();
-	setOption(pars.noPopulation, "--noPopulation",
-			"Don't do Population Clustering", false, "Population");
+//	setOption(pars.noPopulation, "--noPopulation",
+//			"Don't do Population Clustering", false, "Population");
 
 	setOption(pars.controlSamples, "--controlSamples", "Samples that shouldn't be included in frequency filtering calcs", false, "Filtering");
 
@@ -136,12 +156,32 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 	setOption(pars.lowFreqMultiplier, "--oneOffLowFreqMultiplier",
 			"Low Freq Multiplier used for --excludeLowFreqOneOffs, considered low frequency if haplotype frac is less than its fraction times this number than the other haplotype", false, "Filtering");
 
+	setOption(pars.removeOneSampOnlyOneOffHaps, "--removeOneSampOnlyOneOffHaps",
+			"Remove haplotypes that are below --oneSampOnlyOneOffHapsFrac fraction(default 0.20) that only appear in one sample that is one off of another haplotype within sample", false, "Filtering");
+	setOption(pars.oneSampOnlyOneOffHapsFrac, "--oneSampOnlyOneOffHapsFrac",
+			"Fraction for --removeOneSampOnlyOneOffHaps", false, "Filtering");
+
+	setOption(pars.removeOneSampOnlyHaps, "--removeOneSampOnlyHaps",
+			"Remove haplotypes that are below --OneSampOnlyHapsFrac fraction(default 0.20) that only appear in one sample that is one off of another haplotype within sample", false, "Filtering");
+	setOption(pars.oneSampOnlyHapsFrac, "--oneSampOnlyHapsFrac",
+			"Fraction for --removeOneSampOnlyHaps", false, "Filtering");
+
+
+	//setOption(pars.popSeqsFnp, "--popSeqsFnp", "popSeqsFnp", false, "Population");
+
+
+
+
+	setOption(pars.majorHaplotypeFracForRescue, "--majorHaplotypeFracForRescue", "In order to be considered a major haplotype in a sample for comparing during rescue");
 	setOption(pars.rescueExcludedChimericHaplotypes, "--rescueExcludedChimericHaplotypes", "Rescue Excluded chimeric Haplotypes if they appear as a major haplotype in another sample");
 	setOption(pars.rescueExcludedOneOffLowFreqHaplotypes, "--rescueExcludedOneOffLowFreqHaplotypes", "Rescue Excluded chimeric Haplotypes if they appear as a major haplotype in another sample");
 	setOption(pars.rescueMatchingExpected, "--rescueMatchingExpected", "Rescue Haplotypes that match expected sequences if they have been read using --ref");
 
-	setOption(pars.fracCutoff, "--fracCutOff",
-			"Final cluster Fraction Cut off", false, "Filtering");
+
+
+	setOption(pars.fracCutoff, "--fracCutOff", "Final cluster Fraction Cut off", false, "Filtering");
+	setOption(pars.withinReplicateFracCutOff, "--withinReplicateFracCutOff", "Within Replicate Frac Cut Off, this is done before filtering sequences for appearing in all replicates", false, "Filtering");
+
 	pars.differentPar = setOption(pars.parametersPopulation, "--popPar",
 			"Parameters For Population Collapse", false, "Population");
 	struct ClusteringParametersPars {

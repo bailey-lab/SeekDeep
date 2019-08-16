@@ -29,6 +29,7 @@
 #include <njhseq.h>
 #include "SeekDeep/objects/PairedReadProcessor.hpp"
 #include "SeekDeep/objects/PrimersAndMids.hpp"
+#include "SeekDeep/objects/IlluminaNameFormatDecoder.hpp"
 
 namespace njhseq {
 
@@ -54,7 +55,7 @@ struct CoreExtractorPars{
   std::string sampleName = "";
 
   bool keepUnfilteredReads = false;
-
+  bool keepFilteredOff = false;
   void setCorePars(seqSetUp & setUp);
 
 };
@@ -91,7 +92,7 @@ struct ExtractorPairedEndPars{
 	ExtractorPairedEndPars();
 	CoreExtractorPars corePars_;
 
-
+	uint32_t primerDimerSize_ = 5;
 
 
   PairedReadProcessor::ProcessParams pairProcessorParams_;
@@ -129,6 +130,7 @@ struct clusterDownPars {
   bool useCompPerCutOff = false;
   bool ionTorrent = false;
   bool illumina = false;
+  bool illuminaAllowHomopolyers = false;
   bool tech454 = false;
   uint32_t hq = 0;
 
@@ -138,18 +140,31 @@ struct clusterDownPars {
 	bool extra = false;
 	uint32_t smallReadSize = 20;
 
+	uint32_t trimFront = 0;
+	uint32_t trimBack = 0;
+
 	bool useAllInput = false; // use all input reads even for large input
-	uint32_t useCutOff = 25000; // the cut off for input size, will down sample the file if more than this, helps to control memory usage
+	uint32_t useCutOff = 50000; // the cut off for input size, will down sample the file if more than this, helps to control memory usage
 	bool keepDownSampledFile = false; //keep the down sampled file;
 
 	bool writeOutInitalSeqs = false;
+
+	bool countIlluminaSampleNumbers_ = false;
+	bool dontFilterToMostCommonIlluminaSampleNumber_ = false;
+	std::string IlluminaSampleRegPatStr_ = IlluminaNameFormatDecoder::DefaultNameRegPatStr_;
+	uint32_t IlluminaSampleNumberPos_ = IlluminaNameFormatDecoder::DefaultSampleNumberPos_;
+
+//	std::string BackUpIlluminaSampleRegPatStr_ = "([A-Za-z0-9_]+):([0-9]+):([A-Za-z0-9-]+):([0-9]+):([0-9]+):([0-9]+):([0-9]+) ([12]):([NY]):([0-9]):([A-z0-9_-+]+):([A-z0-9_-+]+) ([A-z0-9_|+-]+)( .*)?";
+//	uint32_t BackUpIlluminaSampleNumberPos_ = 13;
+	std::string BackUpIlluminaSampleRegPatStr_ = "([A-Za-z0-9_]+):([0-9]+):([A-Za-z0-9-]+):([0-9]+):([0-9]+):([0-9]+):([0-9]+) ([12]):([NY]):([0-9]):([A-Za-z0-9_+:-]+) ([A-z0-9_|+-]+)( .*)?";
+	uint32_t BackUpIlluminaSampleNumberPos_ = 12;
 
 	SnapShotsOpts snapShotsOpts_;
 };
 
 struct processClustersPars {
 	bfs::path masterDir = ".";
-  bool noPopulation = false;
+  //bool noPopulation = false;
   std::string previousPopFilename = "";
   comparison previousPopErrors;
 
@@ -159,14 +174,32 @@ struct processClustersPars {
   std::string parameters = "";
   std::string binParameters = "";
 
+  bfs::path popSeqsFnp = "";
+
+  VecStr excludeSamples;
+
+
+  TranslatorByAlignment::TranslatorByAlignmentPars transPars;
+  TranslatorByAlignment::RunPars variantCallerRunPars;
+  bfs::path knownAminoAcidChangesFnp;
+
+
   VecStr controlSamples;
   bool extra = false;
   double fracCutoff = 0.005;
+  double withinReplicateFracCutOff = 0.001;
+
   uint32_t runsRequired = 0;
-  bool fracExcludeOnlyInFinalAverageFrac = false;
+  //bool fracExcludeOnlyInFinalAverageFrac = false;
 
   bool collapseLowFreqOneOffs = false;
-  double lowFreqMultiplier = 30;
+  double lowFreqMultiplier = 10;
+
+  bool removeOneSampOnlyOneOffHaps = false;
+  double oneSampOnlyOneOffHapsFrac = 0.25;
+
+  bool removeOneSampOnlyHaps = false;
+  double oneSampOnlyHapsFrac = 0.25;
 
   bool keepChimeras = false;
   bool investigateChimeras = false;
@@ -204,6 +237,8 @@ struct processClustersPars {
 	bool rescueExcludedOneOffLowFreqHaplotypes = false;
 	bool rescueExcludedChimericHaplotypes = false;
 	bool rescueMatchingExpected = false;
+
+	double majorHaplotypeFracForRescue = .10;
 
 	bool removeCommonlyLowFreqHaplotypes_ = false;      //
 	double lowFreqHaplotypeFracCutOff_ = 0.01; //remove haplotypes that on average appear below this fraction (0.01 == 1%)

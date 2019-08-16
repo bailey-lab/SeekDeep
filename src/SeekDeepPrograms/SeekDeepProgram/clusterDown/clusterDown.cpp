@@ -76,6 +76,44 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 	setUp.rLog_.logCurrentTime("Various filtering and little modifications");
 	auto inputOpts = setUp.pars_.ioOptions_;
 
+	//
+	std::unordered_map<std::string, uint32_t> sampleNumberCounts;
+	if(!pars.dontFilterToMostCommonIlluminaSampleNumber_){
+		uint32_t totalInputCount = 0;
+		{
+			SeqInput counterIo(inputOpts);
+			counterIo.openIn();
+			seqInfo seq;
+			while(counterIo.readNextRead(seq)){
+				std::string name = seq.name_;
+				if(njh::endsWith(name, "_Comp")){
+					name = name.substr(0, name.rfind("_Comp"));
+				}
+				IlluminaNameFormatDecoder decoder(name, pars.IlluminaSampleRegPatStr_, pars.IlluminaSampleNumberPos_);
+				if(0 == decoder.match_.size()){
+					decoder = IlluminaNameFormatDecoder(name, pars.BackUpIlluminaSampleRegPatStr_, pars.BackUpIlluminaSampleNumberPos_);
+				}
+				++sampleNumberCounts[decoder.getSampleNumber()];
+				++totalInputCount;
+				if(totalInputCount > pars.useCutOff){
+					break;
+				}
+			}
+		}
+	}
+	VecStr sampleNames;
+	if(!pars.dontFilterToMostCommonIlluminaSampleNumber_){
+		sampleNames = getVectorOfMapKeys(sampleNumberCounts);
+		njh::sort(sampleNames,[&sampleNumberCounts](const std::string & k1, const std::string & k2){
+			if(sampleNumberCounts[k1] == sampleNumberCounts[k2]){
+				return k1 > k2;
+			}else{
+				return sampleNumberCounts[k1] > sampleNumberCounts[k2];
+			}
+		});
+	}
+
+
 	//downsample input file to save on memory usage
 	bfs::path downsampledFnp;
 	if(!pars.useAllInput){
@@ -86,6 +124,19 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 			counterIo.openIn();
 			seqInfo seq;
 			while(counterIo.readNextRead(seq)){
+				if(!pars.dontFilterToMostCommonIlluminaSampleNumber_){
+					std::string name = seq.name_;
+					if(njh::endsWith(name, "_Comp")){
+						name = name.substr(0, name.rfind("_Comp"));
+					}
+					IlluminaNameFormatDecoder decoder(name, pars.IlluminaSampleRegPatStr_, pars.IlluminaSampleNumberPos_);
+					if(0 == decoder.match_.size()){
+						decoder = IlluminaNameFormatDecoder(name, pars.BackUpIlluminaSampleRegPatStr_, pars.BackUpIlluminaSampleNumberPos_);
+					}
+					if(decoder.getSampleNumber() != sampleNames.front()){
+						continue;
+					}
+				}
 				++totalInputCount;
 			}
 		}
@@ -112,6 +163,19 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 			seqInfo seq;
 
 			while(reader.readNextRead(seq)){
+				if(!pars.dontFilterToMostCommonIlluminaSampleNumber_){
+					std::string name = seq.name_;
+					if(njh::endsWith(name, "_Comp")){
+						name = name.substr(0, name.rfind("_Comp"));
+					}
+					IlluminaNameFormatDecoder decoder(name, pars.IlluminaSampleRegPatStr_, pars.IlluminaSampleNumberPos_);
+					if(0 == decoder.match_.size()){
+						decoder = IlluminaNameFormatDecoder(name, pars.BackUpIlluminaSampleRegPatStr_, pars.BackUpIlluminaSampleNumberPos_);
+					}
+					if(decoder.getSampleNumber() != sampleNames.front()){
+						continue;
+					}
+				}
 				if(njh::in(seqCount, randomSel)){
 					writer.write(seq);
 				}
@@ -156,23 +220,43 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 		seqInfo seq;
 		uint64_t fPos = reader.tellgPri();
 		while(reader.readNextRead(seq)){
+			if(!pars.dontFilterToMostCommonIlluminaSampleNumber_){
+				std::string name = seq.name_;
+				if(njh::endsWith(name, "_Comp")){
+					name = name.substr(0, name.rfind("_Comp"));
+				}
+				IlluminaNameFormatDecoder decoder(name, pars.IlluminaSampleRegPatStr_, pars.IlluminaSampleNumberPos_);
+				if(0 == decoder.match_.size()){
+					decoder = IlluminaNameFormatDecoder(name, pars.BackUpIlluminaSampleRegPatStr_, pars.BackUpIlluminaSampleNumberPos_);
+				}
+				if(decoder.getSampleNumber() != sampleNames.front()){
+					fPos = reader.tellgPri();
+					continue;
+				}
+			}
 			++counter;
+			if (setUp.pars_.colOpts_.iTOpts_.removeLowQualityBases_) {
+				seq.removeLowQualityBases(setUp.pars_.colOpts_.iTOpts_.lowQualityBaseTrim_);
+			}
+			if (setUp.pars_.colOpts_.iTOpts_.adjustHomopolyerRuns_) {
+				seq.adjustHomopolymerRunQualities();
+			}
+			if(std::string::npos != seq.name_.find("_Comp")){
+				++compCount;
+			}
+		  readVec::handelLowerCaseBases(seq, setUp.pars_.ioOptions_.lowerCaseBases_);
+		  if (setUp.pars_.ioOptions_.removeGaps_) {
+		    seq.removeGaps();
+		  }
+			if(pars.trimBack > 0){
+				readVecTrimmer::trimOffEndBases(seq, pars.trimBack);
+			}
+			if(pars.trimFront > 0){
+				readVecTrimmer::trimOffForwardBases(seq, pars.trimFront);
+			}
 			if(len(seq) <= pars.smallReadSize){
 				smallWriter.openWrite(seq);
 			}else{
-				if (setUp.pars_.colOpts_.iTOpts_.removeLowQualityBases_) {
-					seq.removeLowQualityBases(setUp.pars_.colOpts_.iTOpts_.lowQualityBaseTrim_);
-				}
-				if (setUp.pars_.colOpts_.iTOpts_.adjustHomopolyerRuns_) {
-					seq.adjustHomopolymerRunQualities();
-				}
-				if(std::string::npos != seq.name_.find("_Comp")){
-					++compCount;
-				}
-			  readVec::handelLowerCaseBases(seq, setUp.pars_.ioOptions_.lowerCaseBases_);
-			  if (setUp.pars_.ioOptions_.removeGaps_) {
-			    seq.removeGaps();
-			  }
 			  bool found = false;
 			  for(const auto & clusPos : iter::range(clusters.size())){
 			  	if(seq.seq_ == clusters[clusPos].seqBase_.seq_){
@@ -213,6 +297,12 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 				  if (setUp.pars_.ioOptions_.removeGaps_) {
 				    seq.removeGaps();
 				  }
+					if(pars.trimBack > 0){
+						readVecTrimmer::trimOffEndBases(seq, pars.trimBack);
+					}
+					if(pars.trimFront > 0){
+						readVecTrimmer::trimOffForwardBases(seq, pars.trimFront);
+					}
 
 					for(const auto i : iter::range(seq.qual_.size())){
 						qualities[i].emplace_back(seq.qual_[i]);
@@ -255,7 +345,7 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 			clusterNameToFilePosKey[clusters[fPositions.first].seqBase_.name_] = fPositions.first;
 		}
 	}
-	if(!pars.writeOutInitalSeqs){
+	if(!pars.countIlluminaSampleNumbers_ && !pars.writeOutInitalSeqs){
 		filepositions.clear();
 		clusterNameToFilePosKey.clear();
 	}
@@ -607,7 +697,49 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 		outHtml << outHtmlStr;
 	}
 
+	if(pars.countIlluminaSampleNumbers_){
+		OutputStream sampleCountsOut(njh::files::make_path(setUp.pars_.directoryName_, "illuminaSampleNumbersCounts.tab.txt"));
+		SeqInput reader(inputOpts);
+		reader.openIn();
+		seqInfo inSeq;
+		sampleCountsOut << "SeqName\tsampleNumber\tcount\tfrac" << std::endl;
+		for (const auto& clus : clusters) {
+			std::unordered_map<std::string, uint32_t> sampleNumberCounts;
+			double total = 0;
+			for (const auto & seq : clus.reads_) {
 
+				for (const auto seqPos : filepositions[clusterNameToFilePosKey[seq->seqBase_.name_]]) {
+					reader.seekgPri(seqPos);
+					reader.readNextRead(inSeq);
+					std::string name = inSeq.name_;
+					if(njh::endsWith(name, "_Comp")){
+						name = name.substr(0, name.rfind("_Comp"));
+					}
+					IlluminaNameFormatDecoder nameDecoded(name, pars.IlluminaSampleRegPatStr_, pars.IlluminaSampleNumberPos_);
+					if(0 == nameDecoded.match_.size()){
+						nameDecoded = IlluminaNameFormatDecoder(name, pars.BackUpIlluminaSampleRegPatStr_, pars.BackUpIlluminaSampleNumberPos_);
+					}
+					++sampleNumberCounts[nameDecoded.getSampleNumber()];
+					++total;
+				}
+			}
+
+			VecStr sampleNumbersNames = getVectorOfMapKeys(sampleNumberCounts);
+			njh::sort(sampleNumbersNames,[&sampleNumberCounts](const std::string &k1, const std::string &k2){
+				if(sampleNumberCounts[k1] == sampleNumberCounts[k2]){
+					return k1 > k2;
+				}else{
+					return sampleNumberCounts[k1] > sampleNumberCounts[k2];
+				}
+			});
+			for(const auto & k : sampleNumbersNames){
+				sampleCountsOut << clus.seqBase_.name_
+						<< "\t" << k
+						<< "\t" << sampleNumberCounts[k]
+						<< "\t" << sampleNumberCounts[k]/total<< std::endl;
+			}
+		}
+	}
 
 	if (pars.writeOutInitalSeqs) {
 		std::string clusterDirectoryName = njh::files::makeDir(setUp.pars_.directoryName_,
@@ -642,18 +774,14 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 			compStats << "cluster\tcompAmount" << std::endl;
 		}
 		std::string allInputReadsDir;
-		if(pars.writeOutInitalSeqs){
-			allInputReadsDir = njh::files::makeDir(setUp.pars_.directoryName_,
-					njh::files::MkdirPar("allInputReadsForEachCluster", false)).string();
-		}
+		allInputReadsDir = njh::files::makeDir(setUp.pars_.directoryName_,
+				njh::files::MkdirPar("allInputReadsForEachCluster", false)).string();
 		SeqIOOptions clustersIoOpts(
 				njh::files::make_path(allInputReadsDir, "allInitialReads"),
 				setUp.pars_.ioOptions_.outFormat_);
 		SeqOutput subClusterWriter(clustersIoOpts);
-		if(pars.writeOutInitalSeqs){
-			subClusterWriter.openOut();
-		}
-		SeqInput reader(setUp.pars_.ioOptions_);
+		subClusterWriter.openOut();
+		SeqInput reader(inputOpts);
 		reader.openIn();
 		seqInfo inSeq;
 		for (const auto& clus : clusters) {
@@ -674,6 +802,12 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 						++compCount;
 					}
 				  readVec::handelLowerCaseBases(inSeq, setUp.pars_.ioOptions_.lowerCaseBases_);
+					if(pars.trimBack > 0){
+						readVecTrimmer::trimOffEndBases(seq, pars.trimBack);
+					}
+					if(pars.trimFront > 0){
+						readVecTrimmer::trimOffForwardBases(seq, pars.trimFront);
+					}
 				  if (setUp.pars_.ioOptions_.removeGaps_) {
 				    inSeq.removeGaps();
 				  }

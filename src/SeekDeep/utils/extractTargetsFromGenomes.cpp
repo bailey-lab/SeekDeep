@@ -31,8 +31,81 @@ void extractBetweenSeqsPars::setUpCoreOptions(seqSetUp & setUp, bool needReadLen
 	setUp.setOption(outputDirPars.overWriteDir_, "--overWriteDir", "Overwrite Output directory");
 }
 
+//
+//inline std::vector<bfs::path> filesInFolderDev(bfs::path d) {
+//	std::cout << __FILE__ << " " << __LINE__ << std::endl;
+//	std::vector<bfs::path> ret;
+//	std::cout << __FILE__ << " " << __LINE__ << std::endl;
+//	if (bfs::is_directory(d)) {
+//		std::cout << __FILE__ << " " << __LINE__ << std::endl;
+//		njh::files::dir dir_iter(d);
+//		std::cout << __FILE__ << " " << __LINE__ << std::endl;
+//		for (const auto& e : dir_iter) {
+//			std::cout << __FILE__ << " " << __LINE__ << std::endl;
+//			ret.emplace_back(e);
+//		}
+//	}
+//	std::cout << __FILE__ << " " << __LINE__ << std::endl;
+//	return ret;
+//}
+//
+//
+//inline bool rmDirForceDev(const bfs::path & dirName) {
+//	std::cout << __FILE__ << " " << __LINE__ << std::endl;
+//	if (bfs::is_directory(dirName)) {
+//		std::cout << __FILE__ << " " << __LINE__ << std::endl;
+//		auto files = filesInFolderDev(dirName);
+//		std::cout << __FILE__ << " " << __LINE__ << std::endl;
+//		for (const auto & f : files) {
+//			std::cout << __FILE__ << " " << __LINE__ << std::endl;
+//			rmDirForceDev(f.string());
+//			std::cout << __FILE__ << " " << __LINE__ << std::endl;
+//		}
+//	}
+//	std::cout << __FILE__ << " " << __LINE__ << std::endl;
+//	return bfs::remove(dirName);
+//}
+//
+//inline int32_t makeDirDev(const njh::files::MkdirPar & pars) {
+//	std::cout << __FILE__ << " " << __LINE__ << std::endl;
+//	if (bfs::exists(pars.dirName_)) {
+//		std::cout << __FILE__ << " " << __LINE__ << std::endl;
+//		if (pars.overWriteDir_) {
+//			std::cout << __FILE__ << " " << __LINE__ << std::endl;
+//			bool removalStatus = rmDirForceDev(pars.dirName_);
+//			std::cout << __FILE__ << " " << __LINE__ << std::endl;
+//			if (!removalStatus) {
+//				std::cout << __FILE__ << " " << __LINE__ << std::endl;
+//				std::stringstream ss;
+//				ss << "Error in: " << __PRETTY_FUNCTION__
+//						<< ", when removing directory " << pars.dirName_ << std::endl;
+//				throw std::runtime_error { ss.str() };
+//			}
+//		} else {
+//			std::cout << __FILE__ << " " << __LINE__ << std::endl;
+//			std::stringstream ss;
+//			ss << "Error in: " << __PRETTY_FUNCTION__ << ", directory " << pars.dirName_
+//					<< " already exists, use overWrite = true to overwrite contents "
+//					<< std::endl;
+//			throw std::runtime_error { ss.str() };
+//		}
+//	}
+//	std::cout << __FILE__ << " " << __LINE__ << std::endl;
+//	int32_t directoryStatus = mkdir(pars.dirName_.c_str(), pars.perms_);
+//	if (directoryStatus != 0) {
+//		std::stringstream ss;
+//		ss << "Error in: " << __PRETTY_FUNCTION__ << ", in making directory "
+//				<< pars.dirName_ << ", mkdir return stats: " << directoryStatus << std::endl;
+//		throw std::runtime_error { ss.str() };
+//	}
+//	std::cout << __FILE__ << " " << __LINE__ << std::endl;
+//	return directoryStatus;
+//}
+
+
 void extractBetweenSeqs(const PrimersAndMids & ids,
 		const extractBetweenSeqsPars & extractPars){
+
 	njh::concurrent::LockableQueue<std::string> targetsQueue(getVectorOfMapKeys(ids.targets_));
 
 	std::unique_ptr<MultiGenomeMapper> gMapper;
@@ -40,7 +113,11 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 	njh::files::checkExistenceThrow(extractPars.pars.genomeDir_, __PRETTY_FUNCTION__);
 
 	//make output directory
+	//std::cout << "extractPars.outputDirPars: " << extractPars.outputDirPars.dirName_ << std::endl;
+	//int32_t directoryStatus = mkdir(extractPars.outputDirPars.dirName_.c_str(), extractPars.outputDirPars.perms_);
 	njh::files::makeDir(extractPars.outputDirPars);
+	//std::cout << "extractPars.outputDirPars: " << extractPars.outputDirPars.dirName_ << std::endl;
+
 	bfs::path outputDir = extractPars.outputDirPars.dirName_;
 
 	//set up genome mapper;
@@ -52,6 +129,7 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 	gMapper->pars_.numThreads_ = extractPars.pars.numThreads_;
 	gMapper->init();
 	gMapper->pars_.numThreads_ = 1;
+
 	//set threads;
 	uint32_t numThreads = extractPars.pars.numThreads_;
 	if(extractPars.pars.numThreads_ >= 4){
@@ -253,14 +331,15 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 						SeqOutput::write(refTrimmedSeqs, innerSeqOpts);
 					}
 
-					table performanceTab(VecStr{"genome", "forwardPrimerHits", "reversePrimerHits", "extractionCounts"});
+					table performanceTab(VecStr{"genome", "forwardPrimerHits", "reversePrimerHits", "extractionCounts", "target"});
 					auto genomeKeys = getVectorOfMapKeys(genomeExtractionsResults);
 					njh::sort(genomeKeys);
 					for(const auto & genomeKey : genomeKeys){
 						performanceTab.addRow(genomeKey,
 								genomeExtractionsResults[genomeKey].forwardHits_,
 								genomeExtractionsResults[genomeKey].reverseHits_,
-								genomeExtractionsResults[genomeKey].extractCounts_);
+								genomeExtractionsResults[genomeKey].extractCounts_,
+								primerInfo.primerPairName_);
 					}
 					auto perTabOpts = TableIOOpts::genTabFileOut(njh::files::make_path(primerDirectory, "extractionCounts"),true);
 					performanceTab.outPutContents(perTabOpts);
@@ -277,6 +356,7 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 	for(auto & t : threads){
 		t.join();
 	}
+
 	auto locationsCombined = njh::files::make_path(outputDir, "locationsByGenome");
 	njh::files::makeDir(njh::files::MkdirPar{locationsCombined});
 

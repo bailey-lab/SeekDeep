@@ -178,6 +178,25 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 	setOption(pars.ionTorrent, "--ionTorrent", "Flag to indicate reads are IonTorrent and therefore turns on --adjustHomopolyerRuns and --qualTrim", false, "Technology");
 	setOption(pars.tech454, "--454", "Flag to indicate reads are 454", false, "Technology");
 	setOption(pars.illumina, "--illumina","Flag to indicate reads are Illumina", false, "Technology");
+	setOption(pars.illuminaAllowHomopolyers, "--illuminaAllowHomopolyers","Flag to indicate reads are Illumina but also handle homopolymer indels that may be from long polymers from SWGA TAQ", false, "Technology");
+
+
+
+	//name decoder
+	setOption(pars.countIlluminaSampleNumbers_, "--countIlluminaSampleNumbers", "Count Illumina Sample Numbers");
+	setOption(pars.dontFilterToMostCommonIlluminaSampleNumber_, "--dontFilterToMostCommonIlluminaSampleNumber", "Don't Filter To Most Common Illumina Sample Number");
+	setOption(pars.IlluminaSampleRegPatStr_, "--IlluminaSampleRegPatStr", "Illumina Sample Reg Pat Str");
+	setOption(pars.IlluminaSampleNumberPos_, "--IlluminaSampleNumberPos", "Illumina Sample Number Pos");
+	setOption(pars.BackUpIlluminaSampleRegPatStr_, "--BackUpIlluminaSampleRegPatStr", "Back Up Illumina Sample Reg Pat Str");
+	setOption(pars.BackUpIlluminaSampleNumberPos_, "--BackUpIlluminaSampleNumberPos", "Back Up Illumina Sample Number Pos");
+
+
+	//pre-process
+	setOption(pars.trimFront, "--trimFront", "Trim front of the input sequences by this much", false, "Pre-process");
+	setOption(pars.trimBack, "--trimBack", "Trim back of the input sequence by this much", false, "Pre-process");
+
+
+
 	bool needsParFlag = true;
 
 	setOption(pars.hq, "--hq",
@@ -223,7 +242,15 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 			pars.intialParameters = CollapseIterations::genIlluminaDefaultPars(100);
 			pars.iteratorMap = CollapseIterations::genIlluminaDefaultPars(100);
 		}
-		pars_.colOpts_.iTOpts_.weighHomopolyer_ = false;
+		if(pars.illuminaAllowHomopolyers){
+			pars.binIteratorMap =  CollapseIterations::genIlluminaDefaultParsCollapseHomopolymers(100);
+			pars.intialParameters = CollapseIterations::genIlluminaDefaultParsCollapseHomopolymers(100);
+			pars.iteratorMap = CollapseIterations::genIlluminaDefaultParsCollapseHomopolymers(100);
+
+			pars_.colOpts_.iTOpts_.weighHomopolyer_ = true;
+		}else{
+			pars_.colOpts_.iTOpts_.weighHomopolyer_ = false;
+		}
 		needsParFlag = false;
 		pars_.qScorePars_.primaryQual_ = 25;
 		pars_.qScorePars_.secondaryQual_ = 20;

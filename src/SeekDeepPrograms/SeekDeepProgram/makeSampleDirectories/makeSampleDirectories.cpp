@@ -34,11 +34,13 @@ int SeekDeepRunner::makeSampleDirectories(const njh::progutils::CmdArgs & inputC
 	makeSampleDirectoriesPars pars;
 
 	setUp.setUpMakeSampleDirectories(pars);
+	setUp.startARunLog(setUp.pars_.directoryName_);
+
 	setUpSampleDirs(pars.sampleNameFilename.string(), setUp.pars_.directoryName_, pars.separatedDirs);
 	auto inputInfoDirPath = njh::files::make_path(setUp.pars_.directoryName_, "inputInfo");
 	njh::files::makeDir(njh::files::MkdirPar(inputInfoDirPath.string()));
 	bfs::copy_file(pars.sampleNameFilename, njh::files::make_path(inputInfoDirPath, "inputSampleNames.tab.txt"));
-	setUp.startARunLog(setUp.pars_.directoryName_);
+
 	if(setUp.pars_.verbose_){
 		setUp.logRunTime(std::cout);
 	}
