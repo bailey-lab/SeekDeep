@@ -106,8 +106,6 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 			})){
 				continue;
 			}
-
-			//std::cout << row[knownAminoAcidChanges.getColPos("aaposition")] << std::endl;
 			knownMutationsLocationsMap[row[knownAminoAcidChanges.getColPos("transcriptid")]].emplace(njh::StrToNumConverter::stoToNum<uint32_t>(row[knownAminoAcidChanges.getColPos("aaposition")]));
 		}
 	}
@@ -537,6 +535,7 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 	std::map<std::string, std::map<std::string, std::string>> fullAATyped;
 
 	if("" != pars.transPars.gffFnp_){
+
 		auto variantInfoDir =  njh::files::make_path(sampColl.masterOutputDir_, "variantInfo");
 		njh::files::makeDir(njh::files::MkdirPar{variantInfoDir});
 		translator->pars_.keepTemporaryFiles_ = true;
@@ -565,9 +564,10 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 		OutputStream popBedLocs(njh::files::make_path(variantInfoDir, "PopSeqs.bed"));
 		for(const auto & seqLocs : translatedRes.seqAlns_){
 			for(const auto & loc : seqLocs.second){
-				popBedLocs << loc->gRegion_.genBedRecordCore().toDelimStrWithExtra() << std::endl;
+				popBedLocs << loc.gRegion_.genBedRecordCore().toDelimStrWithExtra() << std::endl;
 			}
 		}
+
 		for(const auto & pop : popSeqs){
 			if(!njh::in(pop.name_, translatedRes.seqAlns_)){
 				popBedLocs << "*"
@@ -811,10 +811,10 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 //						std::cout << __FILE__ << " " << __LINE__ << std::endl;
 //						std::cout << "seqName.second.front()->gRegion_.start_: " << seqName.second.front()->gRegion_.start_ << std::endl;
 //						std::cout << "variablePos: " << variablePos.first << std::endl;
-						if(variablePos.first < seqName.second.front()->gRegion_.start_){
+						if(variablePos.first < seqName.second.front().gRegion_.start_){
 							snpMeta[seqName.first].addMeta(estd::to_string(variablePos.first), "X", false);
 						} else {
-							auto aa = seqName.second.front()->alnSeqAligned_->seq_[getAlnPosForRealPos(seqName.second.front()->refSeqAligned_->seq_, variablePos.first - seqName.second.front()->gRegion_.start_)];
+							auto aa = seqName.second.front().querySeq_.seq_[getAlnPosForRealPos(seqName.second.front().alnRefSeq_.seq_, variablePos.first - seqName.second.front().gRegion_.start_)];
 							snpMeta[seqName.first].addMeta(estd::to_string(variablePos.first), aa, false);
 						}
 					}
