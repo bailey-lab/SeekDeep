@@ -128,7 +128,7 @@ ExtractorPairedEndPars::ExtractorPairedEndPars(){
 	pairProcessorParams_.r1Trim_ = 1;
 	pairProcessorParams_.r2Trim_ = 1;
 
-
+	pairProcessorParams_.minOverlap_ = 8;
 	pairProcessorParams_.errorAllowed_ = 0.01;
 //	pairProcessorParams_.errorAllowed_ = 0.03;
 
