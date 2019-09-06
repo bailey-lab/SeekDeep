@@ -300,7 +300,9 @@ PairedReadProcessor::ProcessedPairRes PairedReadProcessor::processPairedEnd(
 	//std::cout << __PRETTY_FUNCTION__ << " " << __LINE__ <<  std::endl;
 	alignerObj.alignRegGlobalNoInternalGaps(seq.seqBase_, seq.mateSeqBase_);
 	//std::cout << __PRETTY_FUNCTION__ << " " << __LINE__ <<  std::endl;
-	alignerObj.profileAlignment(seq.seqBase_, seq.mateSeqBase_, false, true, true);
+	//alignerObj.profileAlignment(seq.seqBase_, seq.mateSeqBase_, false, true, true);
+	alignerObj.profileAlignment(seq.seqBase_, seq.mateSeqBase_, false, true, false);
+
 	//std::cout << __PRETTY_FUNCTION__ << " " << __LINE__ <<  std::endl;
 //	std::cout << "alignerObj.comp_.distances_.eventBasedIdentityHq_: " << alignerObj.comp_.distances_.eventBasedIdentityHq_<< std::endl;
 //	std::cout << "alignerObj.comp_.distances_.basesInAln_: " << alignerObj.comp_.distances_.basesInAln_ << std::endl;
@@ -322,6 +324,13 @@ PairedReadProcessor::ProcessedPairRes PairedReadProcessor::processPairedEnd(
 //	tempOutR1BEGINSINR2Opts.append_ = true;
 //	OutputStream tempOutR1BEGINSINR2(tempOutR1BEGINSINR2Opts);
 //
+
+//	std::cout << "alignerObj.comp_.distances_.eventBasedIdentityHq_: " << alignerObj.comp_.distances_.eventBasedIdentityHq_ << std::endl;
+//	std::cout << "alignerObj.comp_.distances_.eventBasedIdentityHq_ >= percentId: " << njh::colorBool(alignerObj.comp_.distances_.eventBasedIdentityHq_ >= percentId) << std::endl;
+//	std::cout << "alignerObj.comp_.distances_.basesInAln_ >= params_.minOverlap_: " << njh::colorBool(alignerObj.comp_.distances_.basesInAln_ >= params_.minOverlap_) << std::endl;
+//	std::cout << "alignerObj.comp_.hqMismatches_ + alignerObj.comp_.lqMismatches_ <= params_.hardMismatchCutOff_: " << njh::colorBool(alignerObj.comp_.hqMismatches_ + alignerObj.comp_.lqMismatches_ <= params_.hardMismatchCutOff_) << std::endl;
+//	std::cout << "alignerObj.comp_.hqMismatches_ <= params_.hqMismatchCutOff: " << njh::colorBool(alignerObj.comp_.hqMismatches_ <= params_.hqMismatchCutOff) << std::endl;
+//	std::cout << "alignerObj.comp_.lqMismatches_ <= params_.lqMismatchCutOff: " << njh::colorBool(alignerObj.comp_.lqMismatches_ <= params_.lqMismatchCutOff) << std::endl;
 
 	if( alignerObj.comp_.distances_.eventBasedIdentityHq_ >= percentId &&
 			alignerObj.comp_.distances_.basesInAln_ >= params_.minOverlap_ &&
