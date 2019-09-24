@@ -919,7 +919,7 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 	//if(!pars.noPopulation){
 	if(true){
 
-		SeqOutput::write(outPopSeqsPerSamp, SeqIOOptions::genFastqOut(njh::files::make_path(sampColl.masterOutputDir_, "population", "popSeqsWithMetaWtihSampleName")));
+		SeqOutput::write(outPopSeqsPerSamp,SeqIOOptions(njh::files::make_path(sampColl.masterOutputDir_, "population", "popSeqsWithMetaWtihSampleName"), setUp.pars_.ioOptions_.outFormat_));
 
 		auto popMetaTable = seqsToMetaTable(outPopSeqsPerSamp);
 		for(auto & row : popMetaTable){
