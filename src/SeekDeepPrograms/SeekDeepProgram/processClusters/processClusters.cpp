@@ -118,7 +118,7 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 
 	//read in the files in the corresponding sample directories
 	auto analysisFiles = njh::files::listAllFiles(pars.masterDir, true,
-			{ std::regex { "^" + setUp.pars_.ioOptions_.firstName_.string() + "$" } }, 3);
+			{ std::regex { "^" + setUp.pars_.ioOptions_.firstName_.string() + "$" } }, 2);
 
 	std::set<std::string> samplesDirsSet;
 	for (const auto & af : analysisFiles) {
@@ -288,207 +288,204 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 	if(setUp.pars_.verbose_){
 		std::cout << njh::bashCT::boldGreen("Pop Clustering") << std::endl;
 	}
-	//if(!pars.noPopulation){
-	if(true){
-		sampColl.doPopulationClustering(sampColl.createPopInput(),
-				alignerObj, collapserObj, pars.popIteratorMap);
 
-		if(pars.rescueExcludedChimericHaplotypes || pars.rescueExcludedOneOffLowFreqHaplotypes){
-			//firth gather major haplotypes
-			std::set<std::string> majorHaps;
-			for(const auto & sampleName : sampColl.passingSamples_){
-				sampColl.setUpSampleFromPrevious(sampleName);
-				auto sampPtr = sampColl.sampleCollapses_.at(sampleName);
-				for(uint32_t clusPos = 0; clusPos < 2 && clusPos < sampPtr->collapsed_.clusters_.size(); ++clusPos){
-					if(sampPtr->collapsed_.clusters_[clusPos].seqBase_.frac_ >= pars.majorHaplotypeFracForRescue){
-						majorHaps.emplace(sampColl.popCollapse_->collapsed_.clusters_[sampColl.popCollapse_->collapsed_.subClustersPositions_.at(sampPtr->collapsed_.clusters_[clusPos].getStubName(true))].seqBase_.name_);
-					}
+	sampColl.doPopulationClustering(sampColl.createPopInput(),
+			alignerObj, collapserObj, pars.popIteratorMap);
+
+	if(pars.rescueExcludedChimericHaplotypes || pars.rescueExcludedOneOffLowFreqHaplotypes){
+		//firth gather major haplotypes
+		std::set<std::string> majorHaps;
+		for(const auto & sampleName : sampColl.passingSamples_){
+			sampColl.setUpSampleFromPrevious(sampleName);
+			auto sampPtr = sampColl.sampleCollapses_.at(sampleName);
+			for(uint32_t clusPos = 0; clusPos < 2 && clusPos < sampPtr->collapsed_.clusters_.size(); ++clusPos){
+				if(sampPtr->collapsed_.clusters_[clusPos].seqBase_.frac_ >= pars.majorHaplotypeFracForRescue){
+					majorHaps.emplace(sampColl.popCollapse_->collapsed_.clusters_[sampColl.popCollapse_->collapsed_.subClustersPositions_.at(sampPtr->collapsed_.clusters_[clusPos].getStubName(true))].seqBase_.name_);
 				}
-				sampColl.dumpSample(sampleName);
 			}
-			if(setUp.pars_.debug_){
-				std::cout << "majorHaps: " << njh::conToStr(majorHaps, ",") << std::endl;
-			}
-			bool rescuedHaplotypes = false;
-			for(const auto & sampleName : sampColl.passingSamples_){
-				sampColl.setUpSampleFromPrevious(sampleName);
-				auto sampPtr = sampColl.sampleCollapses_.at(sampleName);
-				std::vector<uint32_t> toBeRescued;
-				//iterator over haplotypes, determine if they should be considered for rescue, if they should be then check to see if they match a major haplotype
-				for(const auto excludedPos : iter::range(sampPtr->excluded_.clusters_.size())){
-					const auto & excluded = sampPtr->excluded_.clusters_[excludedPos];
-					if(excluded.nameHasMetaData()){
-						MetaDataInName excludedMeta(excluded.seqBase_.name_);
-						std::set<std::string> otherExcludedCriteria;
-						bool chimeriaExcludedRescue = false;
-						bool oneOffExcludedRescue = false;
-						for(const auto & excMeta : excludedMeta.meta_){
-							if(njh::beginsWith(excMeta.first, "Exclude") ){
-								bool other = true;
-								if(pars.rescueExcludedChimericHaplotypes && "ExcludeIsChimeric" == excMeta.first){
-									chimeriaExcludedRescue = true;
-									other = false;
-								}
-								if(pars.rescueExcludedOneOffLowFreqHaplotypes && "ExcludeFailedLowFreqOneOff" == excMeta.first){
-									oneOffExcludedRescue = true;
-									other = false;
-								}
-								if(other){
-									otherExcludedCriteria.emplace(excMeta.first);
-								}
-							}
-						}
-						//check if it should be considered for rescue
-						//std::cout << excluded.seqBase_.name_ << " consider for rescue: " << njh::colorBool((chimeriaExcludedRescue || oneOffExcludedRescue) && otherExcludedCriteria.empty()) << std::endl;
-						if((chimeriaExcludedRescue || oneOffExcludedRescue) && otherExcludedCriteria.empty()){
-							//see if it matches a major haplotype
-							bool rescue = false;
-							for(const auto & popHap : sampColl.popCollapse_->collapsed_.clusters_){
-								if(popHap.seqBase_.seq_ == excluded.seqBase_.seq_ &&
-										popHap.seqBase_.cnt_ > excluded.seqBase_.cnt_ &&
-										njh::in(popHap.seqBase_.name_, majorHaps)){
-									rescue = true;
-									break;
-								}
-							}
-							if(rescue){
-								toBeRescued.emplace_back(excludedPos);
-							}
-						}
-					}
-				}
-				if(!toBeRescued.empty()){
-					rescuedHaplotypes = true;
-					std::sort(toBeRescued.rbegin(), toBeRescued.rend());
-					for(const auto toRescue : toBeRescued){
-						MetaDataInName excludedMeta(sampPtr->excluded_.clusters_[toRescue].seqBase_.name_);
-						excludedMeta.addMeta("rescue", "TRUE");
-						excludedMeta.resetMetaInName(sampPtr->excluded_.clusters_[toRescue].seqBase_.name_);
-						//unmarking so as not to mess up chimera numbers
-						sampPtr->excluded_.clusters_[toRescue].seqBase_.unmarkAsChimeric();
-						for (auto & subRead : sampPtr->excluded_.clusters_[toRescue].reads_) {
-							subRead->seqBase_.unmarkAsChimeric();
-						}
-						sampPtr->collapsed_.clusters_.emplace_back(sampPtr->excluded_.clusters_[toRescue]);
-						sampPtr->excluded_.clusters_.erase(sampPtr->excluded_.clusters_.begin() + toRescue);
-					}
-					sampPtr->updateAfterExclustion();
-					sampPtr->renameClusters("fraction");
-				}
-				sampColl.dumpSample(sampleName);
-			}
-			if(rescuedHaplotypes){
-				//if excluded run pop clustering again
-				sampColl.doPopulationClustering(sampColl.createPopInput(),
-						alignerObj, collapserObj, pars.popIteratorMap);
-			}
-		}// end resuce operations for chimeria and low freq haplotypes
-
-
-
-		if(pars.removeCommonlyLowFreqHaplotypes_){
-			while(sampColl.excludeCommonlyLowFreqHaps(pars.lowFreqHaplotypeFracCutOff_)){
-				//if excluded run pop clustering again
-				sampColl.doPopulationClustering(sampColl.createPopInput(),
-						alignerObj, collapserObj, pars.popIteratorMap);
-			}
+			sampColl.dumpSample(sampleName);
 		}
-
-		if(pars.removeOneSampOnlyOneOffHaps){
-			if(sampColl.excludeOneSampOnlyOneOffHaps(pars.oneSampOnlyOneOffHapsFrac, alignerObj)){
-				//if excluded run pop clustering again
-				sampColl.doPopulationClustering(sampColl.createPopInput(),
-						alignerObj, collapserObj, pars.popIteratorMap);
-			}
+		if(setUp.pars_.debug_){
+			std::cout << "majorHaps: " << njh::conToStr(majorHaps, ",") << std::endl;
 		}
-
-		if(pars.removeOneSampOnlyHaps){
-			if(sampColl.excludeOneSampOnlyHaps(pars.oneSampOnlyHapsFrac)){
-				//if excluded run pop clustering again
-				sampColl.doPopulationClustering(sampColl.createPopInput(),
-						alignerObj, collapserObj, pars.popIteratorMap);
-			}
-		}
-
-		if(pars.rescueMatchingExpected && !expectedSeqs.empty()){
-			bool rescuedHaplotypes = false;
-			for(const auto & sampleName : sampColl.passingSamples_){
-				sampColl.setUpSampleFromPrevious(sampleName);
-				auto sampPtr = sampColl.sampleCollapses_.at(sampleName);
-				std::vector<uint32_t> toBeRescued;
-				//iterator over haplotypes, determine if they should be considered for rescue, if they should be then check to see if they match a major haplotype
-				for(const auto excludedPos : iter::range(sampPtr->excluded_.clusters_.size())){
-					const auto & excluded = sampPtr->excluded_.clusters_[excludedPos];
-					if(excluded.nameHasMetaData()){
-						MetaDataInName excludedMeta(excluded.seqBase_.name_);
-						std::set<std::string> otherExcludedCriteria;
-						bool chimeriaExcludedRescue = false;
-						bool oneOffExcludedRescue = false;
-						bool commonlyLowExcludedRescue = false;
-						for(const auto & excMeta : excludedMeta.meta_){
-							if(njh::beginsWith(excMeta.first, "Exclude") ){
-								bool other = true;
-								if("ExcludeIsChimeric" == excMeta.first){
-									chimeriaExcludedRescue = true;
-									other = false;
-								}
-								if("ExcludeFailedLowFreqOneOff" == excMeta.first){
-									oneOffExcludedRescue = true;
-									other = false;
-								}
-								if("ExcludeFailedFracCutOff" == excMeta.first){
-									commonlyLowExcludedRescue = true;
-									other = false;
-								}
-								if(other){
-									otherExcludedCriteria.emplace(excMeta.first);
-								}
+		bool rescuedHaplotypes = false;
+		for(const auto & sampleName : sampColl.passingSamples_){
+			sampColl.setUpSampleFromPrevious(sampleName);
+			auto sampPtr = sampColl.sampleCollapses_.at(sampleName);
+			std::vector<uint32_t> toBeRescued;
+			//iterator over haplotypes, determine if they should be considered for rescue, if they should be then check to see if they match a major haplotype
+			for(const auto excludedPos : iter::range(sampPtr->excluded_.clusters_.size())){
+				const auto & excluded = sampPtr->excluded_.clusters_[excludedPos];
+				if(excluded.nameHasMetaData()){
+					MetaDataInName excludedMeta(excluded.seqBase_.name_);
+					std::set<std::string> otherExcludedCriteria;
+					bool chimeriaExcludedRescue = false;
+					bool oneOffExcludedRescue = false;
+					for(const auto & excMeta : excludedMeta.meta_){
+						if(njh::beginsWith(excMeta.first, "Exclude") ){
+							bool other = true;
+							if(pars.rescueExcludedChimericHaplotypes && "ExcludeIsChimeric" == excMeta.first){
+								chimeriaExcludedRescue = true;
+								other = false;
 							}
-						}
-						//check if it should be considered for resuce
-						if((chimeriaExcludedRescue || oneOffExcludedRescue || commonlyLowExcludedRescue) && otherExcludedCriteria.empty()){
-							//see if it matches a major haplotype
-							bool rescue = false;
-							for(const auto & expectedHap : expectedSeqs){
-								if(expectedHap.seqBase_.seq_ == excluded.seqBase_.seq_){
-									rescue = true;
-									break;
-								}
+							if(pars.rescueExcludedOneOffLowFreqHaplotypes && "ExcludeFailedLowFreqOneOff" == excMeta.first){
+								oneOffExcludedRescue = true;
+								other = false;
 							}
-							if(rescue){
-								toBeRescued.emplace_back(excludedPos);
+							if(other){
+								otherExcludedCriteria.emplace(excMeta.first);
 							}
 						}
 					}
-				}
-				if(!toBeRescued.empty()){
-					rescuedHaplotypes = true;
-					std::sort(toBeRescued.rbegin(), toBeRescued.rend());
-					for(const auto toRescue : toBeRescued){
-						MetaDataInName excludedMeta(sampPtr->excluded_.clusters_[toRescue].seqBase_.name_);
-						excludedMeta.addMeta("rescue", "TRUE");
-						excludedMeta.resetMetaInName(sampPtr->excluded_.clusters_[toRescue].seqBase_.name_);
-						//unmarking so as not to mess up chimera numbers
-						sampPtr->excluded_.clusters_[toRescue].seqBase_.unmarkAsChimeric();
-						for (auto & subRead : sampPtr->excluded_.clusters_[toRescue].reads_) {
-							subRead->seqBase_.unmarkAsChimeric();
+					//check if it should be considered for rescue
+					//std::cout << excluded.seqBase_.name_ << " consider for rescue: " << njh::colorBool((chimeriaExcludedRescue || oneOffExcludedRescue) && otherExcludedCriteria.empty()) << std::endl;
+					if((chimeriaExcludedRescue || oneOffExcludedRescue) && otherExcludedCriteria.empty()){
+						//see if it matches a major haplotype
+						bool rescue = false;
+						for(const auto & popHap : sampColl.popCollapse_->collapsed_.clusters_){
+							if(popHap.seqBase_.seq_ == excluded.seqBase_.seq_ &&
+									popHap.seqBase_.cnt_ > excluded.seqBase_.cnt_ &&
+									njh::in(popHap.seqBase_.name_, majorHaps)){
+								rescue = true;
+								break;
+							}
 						}
-						sampPtr->collapsed_.clusters_.emplace_back(sampPtr->excluded_.clusters_[toRescue]);
-						sampPtr->excluded_.clusters_.erase(sampPtr->excluded_.clusters_.begin() + toRescue);
+						if(rescue){
+							toBeRescued.emplace_back(excludedPos);
+						}
 					}
-					sampPtr->updateAfterExclustion();
-					sampPtr->renameClusters("fraction");
 				}
-				sampColl.dumpSample(sampleName);
 			}
-			if(rescuedHaplotypes){
-				//if excluded run pop clustering again
-				sampColl.doPopulationClustering(sampColl.createPopInput(),
-						alignerObj, collapserObj, pars.popIteratorMap);
+			if(!toBeRescued.empty()){
+				rescuedHaplotypes = true;
+				std::sort(toBeRescued.rbegin(), toBeRescued.rend());
+				for(const auto toRescue : toBeRescued){
+					MetaDataInName excludedMeta(sampPtr->excluded_.clusters_[toRescue].seqBase_.name_);
+					excludedMeta.addMeta("rescue", "TRUE");
+					excludedMeta.resetMetaInName(sampPtr->excluded_.clusters_[toRescue].seqBase_.name_);
+					//unmarking so as not to mess up chimera numbers
+					sampPtr->excluded_.clusters_[toRescue].seqBase_.unmarkAsChimeric();
+					for (auto & subRead : sampPtr->excluded_.clusters_[toRescue].reads_) {
+						subRead->seqBase_.unmarkAsChimeric();
+					}
+					sampPtr->collapsed_.clusters_.emplace_back(sampPtr->excluded_.clusters_[toRescue]);
+					sampPtr->excluded_.clusters_.erase(sampPtr->excluded_.clusters_.begin() + toRescue);
+				}
+				sampPtr->updateAfterExclustion();
+				sampPtr->renameClusters("fraction");
 			}
-		} //end resue of matching expected
+			sampColl.dumpSample(sampleName);
+		}
+		if(rescuedHaplotypes){
+			//if excluded run pop clustering again
+			sampColl.doPopulationClustering(sampColl.createPopInput(),
+					alignerObj, collapserObj, pars.popIteratorMap);
+		}
+	}// end resuce operations for chimeria and low freq haplotypes
+
+
+
+	if(pars.removeCommonlyLowFreqHaplotypes_){
+		while(sampColl.excludeCommonlyLowFreqHaps(pars.lowFreqHaplotypeFracCutOff_)){
+			//if excluded run pop clustering again
+			sampColl.doPopulationClustering(sampColl.createPopInput(),
+					alignerObj, collapserObj, pars.popIteratorMap);
+		}
 	}
 
+	if(pars.removeOneSampOnlyOneOffHaps){
+		if(sampColl.excludeOneSampOnlyOneOffHaps(pars.oneSampOnlyOneOffHapsFrac, alignerObj)){
+			//if excluded run pop clustering again
+			sampColl.doPopulationClustering(sampColl.createPopInput(),
+					alignerObj, collapserObj, pars.popIteratorMap);
+		}
+	}
+
+	if(pars.removeOneSampOnlyHaps){
+		if(sampColl.excludeOneSampOnlyHaps(pars.oneSampOnlyHapsFrac)){
+			//if excluded run pop clustering again
+			sampColl.doPopulationClustering(sampColl.createPopInput(),
+					alignerObj, collapserObj, pars.popIteratorMap);
+		}
+	}
+
+	if(pars.rescueMatchingExpected && !expectedSeqs.empty()){
+		bool rescuedHaplotypes = false;
+		for(const auto & sampleName : sampColl.passingSamples_){
+			sampColl.setUpSampleFromPrevious(sampleName);
+			auto sampPtr = sampColl.sampleCollapses_.at(sampleName);
+			std::vector<uint32_t> toBeRescued;
+			//iterator over haplotypes, determine if they should be considered for rescue, if they should be then check to see if they match a major haplotype
+			for(const auto excludedPos : iter::range(sampPtr->excluded_.clusters_.size())){
+				const auto & excluded = sampPtr->excluded_.clusters_[excludedPos];
+				if(excluded.nameHasMetaData()){
+					MetaDataInName excludedMeta(excluded.seqBase_.name_);
+					std::set<std::string> otherExcludedCriteria;
+					bool chimeriaExcludedRescue = false;
+					bool oneOffExcludedRescue = false;
+					bool commonlyLowExcludedRescue = false;
+					for(const auto & excMeta : excludedMeta.meta_){
+						if(njh::beginsWith(excMeta.first, "Exclude") ){
+							bool other = true;
+							if("ExcludeIsChimeric" == excMeta.first){
+								chimeriaExcludedRescue = true;
+								other = false;
+							}
+							if("ExcludeFailedLowFreqOneOff" == excMeta.first){
+								oneOffExcludedRescue = true;
+								other = false;
+							}
+							if("ExcludeFailedFracCutOff" == excMeta.first){
+								commonlyLowExcludedRescue = true;
+								other = false;
+							}
+							if(other){
+								otherExcludedCriteria.emplace(excMeta.first);
+							}
+						}
+					}
+					//check if it should be considered for resuce
+					if((chimeriaExcludedRescue || oneOffExcludedRescue || commonlyLowExcludedRescue) && otherExcludedCriteria.empty()){
+						//see if it matches a major haplotype
+						bool rescue = false;
+						for(const auto & expectedHap : expectedSeqs){
+							if(expectedHap.seqBase_.seq_ == excluded.seqBase_.seq_){
+								rescue = true;
+								break;
+							}
+						}
+						if(rescue){
+							toBeRescued.emplace_back(excludedPos);
+						}
+					}
+				}
+			}
+			if(!toBeRescued.empty()){
+				rescuedHaplotypes = true;
+				std::sort(toBeRescued.rbegin(), toBeRescued.rend());
+				for(const auto toRescue : toBeRescued){
+					MetaDataInName excludedMeta(sampPtr->excluded_.clusters_[toRescue].seqBase_.name_);
+					excludedMeta.addMeta("rescue", "TRUE");
+					excludedMeta.resetMetaInName(sampPtr->excluded_.clusters_[toRescue].seqBase_.name_);
+					//unmarking so as not to mess up chimera numbers
+					sampPtr->excluded_.clusters_[toRescue].seqBase_.unmarkAsChimeric();
+					for (auto & subRead : sampPtr->excluded_.clusters_[toRescue].reads_) {
+						subRead->seqBase_.unmarkAsChimeric();
+					}
+					sampPtr->collapsed_.clusters_.emplace_back(sampPtr->excluded_.clusters_[toRescue]);
+					sampPtr->excluded_.clusters_.erase(sampPtr->excluded_.clusters_.begin() + toRescue);
+				}
+				sampPtr->updateAfterExclustion();
+				sampPtr->renameClusters("fraction");
+			}
+			sampColl.dumpSample(sampleName);
+		}
+		if(rescuedHaplotypes){
+			//if excluded run pop clustering again
+			sampColl.doPopulationClustering(sampColl.createPopInput(),
+					alignerObj, collapserObj, pars.popIteratorMap);
+		}
+	} //end resue of matching expected
 
 
 
