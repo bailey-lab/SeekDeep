@@ -219,6 +219,7 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 		SeqOutput smallWriter(smallSeqOpts);
 		seqInfo seq;
 		uint64_t fPos = reader.tellgPri();
+		std::unordered_map<std::string, uint32_t> allNameCounts;
 		while(reader.readNextRead(seq)){
 			if(!pars.dontFilterToMostCommonIlluminaSampleNumber_){
 				std::string name = seq.name_;
@@ -233,6 +234,12 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 					fPos = reader.tellgPri();
 					continue;
 				}
+			}
+			if(njh::in(seq.name_, allNameCounts)){
+				++allNameCounts[seq.name_];
+				seq.name_.append(njh::pasteAsStr(".", allNameCounts[seq.name_]));
+			}else{
+				allNameCounts[seq.name_] = 0;
 			}
 			++counter;
 			if (setUp.pars_.colOpts_.iTOpts_.removeLowQualityBases_) {
@@ -289,9 +296,6 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 					}
 					if (setUp.pars_.colOpts_.iTOpts_.adjustHomopolyerRuns_) {
 						seq.adjustHomopolymerRunQualities();
-					}
-					if(std::string::npos != seq.name_.find("_Comp")){
-						++compCount;
 					}
 				  readVec::handelLowerCaseBases(seq, setUp.pars_.ioOptions_.lowerCaseBases_);
 				  if (setUp.pars_.ioOptions_.removeGaps_) {
