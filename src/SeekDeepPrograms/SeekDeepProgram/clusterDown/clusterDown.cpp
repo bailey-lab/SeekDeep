@@ -95,9 +95,9 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 				decodedNames.emplace_back(decoder);
 				++sampleNumberCounts[decoder->getSampleNumber()];
 				++totalInputCount;
-				if(totalInputCount > pars.useCutOff && !pars.useAllInput){
-					break;
-				}
+//				if(totalInputCount > pars.useCutOff && !pars.useAllInput){
+//					break;
+//				}
 			}
 		}
 	}
