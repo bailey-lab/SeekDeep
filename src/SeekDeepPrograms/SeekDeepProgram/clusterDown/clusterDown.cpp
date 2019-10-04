@@ -75,6 +75,7 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 
 	//
 	std::unordered_map<std::string, uint32_t> sampleNumberCounts;
+	std::vector<IlluminaNameFormatDecoder> decodedNames;
 	if(!pars.dontFilterToMostCommonIlluminaSampleNumber_){
 		setUp.rLog_.logCurrentTime("Filtering for illumina input name");
 		uint32_t totalInputCount = 0;
@@ -91,9 +92,10 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 				if(0 == decoder.match_.size()){
 					decoder = IlluminaNameFormatDecoder(name, pars.BackUpIlluminaSampleRegPatStr_, pars.BackUpIlluminaSampleNumberPos_);
 				}
+				decodedNames.emplace_back(decoder);
 				++sampleNumberCounts[decoder.getSampleNumber()];
 				++totalInputCount;
-				if(totalInputCount > pars.useCutOff){
+				if(totalInputCount > pars.useCutOff && !pars.useAllInput){
 					break;
 				}
 			}
@@ -111,7 +113,7 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 		});
 	}
 
-
+	bool downsampled = false;
 	//downsample input file to save on memory usage
 	bfs::path downsampledFnp;
 	if(!pars.useAllInput){
@@ -122,17 +124,11 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 			SeqInput counterIo(inputOpts);
 			counterIo.openIn();
 			seqInfo seq;
+			uint32_t seqIndex = 0;
 			while(counterIo.readNextRead(seq)){
+				++seqIndex;
 				if(!pars.dontFilterToMostCommonIlluminaSampleNumber_){
-					std::string name = seq.name_;
-					if(njh::endsWith(name, "_Comp")){
-						name = name.substr(0, name.rfind("_Comp"));
-					}
-					IlluminaNameFormatDecoder decoder(name, pars.IlluminaSampleRegPatStr_, pars.IlluminaSampleNumberPos_);
-					if(0 == decoder.match_.size()){
-						decoder = IlluminaNameFormatDecoder(name, pars.BackUpIlluminaSampleRegPatStr_, pars.BackUpIlluminaSampleNumberPos_);
-					}
-					if(decoder.getSampleNumber() != sampleNames.front()){
+					if(decodedNames[seqIndex - 1].getSampleNumber() != sampleNames.front()){
 						continue;
 					}
 				}
@@ -144,7 +140,7 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 		}
 		if(totalInputCount > pars.useCutOff){
 			setUp.rLog_.logCurrentTime("Down sampling");
-
+			downsampled = true;
 			std::vector<uint32_t> randomSel;
 			{
 				njh::randomGenerator rGen;
@@ -161,18 +157,12 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 			reader.openIn();
 			uint32_t seqCount = 0;
 			seqInfo seq;
+			uint32_t seqIndex = 0;
 
 			while(reader.readNextRead(seq)){
+				++seqIndex;
 				if(!pars.dontFilterToMostCommonIlluminaSampleNumber_){
-					std::string name = seq.name_;
-					if(njh::endsWith(name, "_Comp")){
-						name = name.substr(0, name.rfind("_Comp"));
-					}
-					IlluminaNameFormatDecoder decoder(name, pars.IlluminaSampleRegPatStr_, pars.IlluminaSampleNumberPos_);
-					if(0 == decoder.match_.size()){
-						decoder = IlluminaNameFormatDecoder(name, pars.BackUpIlluminaSampleRegPatStr_, pars.BackUpIlluminaSampleNumberPos_);
-					}
-					if(decoder.getSampleNumber() != sampleNames.front()){
+					if(decodedNames[seqIndex - 1].getSampleNumber() != sampleNames.front()){
 						continue;
 					}
 				}
@@ -223,21 +213,16 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 		seqInfo seq;
 		uint64_t fPos = reader.tellgPri();
 		std::unordered_map<std::string, uint32_t> allNameCounts;
+		uint32_t seqIndex = 0;
 		while(reader.readNextRead(seq)){
-			if(!pars.dontFilterToMostCommonIlluminaSampleNumber_){
-				std::string name = seq.name_;
-				if(njh::endsWith(name, "_Comp")){
-					name = name.substr(0, name.rfind("_Comp"));
-				}
-				IlluminaNameFormatDecoder decoder(name, pars.IlluminaSampleRegPatStr_, pars.IlluminaSampleNumberPos_);
-				if(0 == decoder.match_.size()){
-					decoder = IlluminaNameFormatDecoder(name, pars.BackUpIlluminaSampleRegPatStr_, pars.BackUpIlluminaSampleNumberPos_);
-				}
-				if(decoder.getSampleNumber() != sampleNames.front()){
+			++seqIndex;
+			if(!downsampled && !pars.dontFilterToMostCommonIlluminaSampleNumber_){
+				if(decodedNames[seqIndex - 1].getSampleNumber() != sampleNames.front()){
 					fPos = reader.tellgPri();
 					continue;
 				}
 			}
+
 			if(njh::in(seq.name_, allNameCounts)){
 				++allNameCounts[seq.name_];
 				seq.name_.append(njh::pasteAsStr(".", allNameCounts[seq.name_]));
@@ -355,7 +340,7 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 		}
 	}
 	setUp.rLog_.logCurrentTime("Clearing data");
-
+	decodedNames.clear();
 	if(!pars.countIlluminaSampleNumbers_ && !pars.writeOutInitalSeqs){
 		filepositions.clear();
 		clusterNameToFilePosKey.clear();
