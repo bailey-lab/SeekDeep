@@ -75,7 +75,7 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 
 	//
 	std::unordered_map<std::string, uint32_t> sampleNumberCounts;
-	std::vector<IlluminaNameFormatDecoder> decodedNames;
+	std::vector<std::shared_ptr<IlluminaNameFormatDecoder>> decodedNames;
 	if(!pars.dontFilterToMostCommonIlluminaSampleNumber_){
 		setUp.rLog_.logCurrentTime("Filtering for illumina input name");
 		uint32_t totalInputCount = 0;
@@ -88,12 +88,12 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 				if(njh::endsWith(name, "_Comp")){
 					name = name.substr(0, name.rfind("_Comp"));
 				}
-				IlluminaNameFormatDecoder decoder(name, pars.IlluminaSampleRegPatStr_, pars.IlluminaSampleNumberPos_);
-				if(0 == decoder.match_.size()){
-					decoder = IlluminaNameFormatDecoder(name, pars.BackUpIlluminaSampleRegPatStr_, pars.BackUpIlluminaSampleNumberPos_);
+				std::shared_ptr<IlluminaNameFormatDecoder> decoder=std::make_shared<IlluminaNameFormatDecoder>(name, pars.IlluminaSampleRegPatStr_, pars.IlluminaSampleNumberPos_);
+				if(0 == decoder->match_.size()){
+					decoder =std::make_shared<IlluminaNameFormatDecoder>(name, pars.BackUpIlluminaSampleRegPatStr_, pars.BackUpIlluminaSampleNumberPos_);
 				}
 				decodedNames.emplace_back(decoder);
-				++sampleNumberCounts[decoder.getSampleNumber()];
+				++sampleNumberCounts[decoder->getSampleNumber()];
 				++totalInputCount;
 				if(totalInputCount > pars.useCutOff && !pars.useAllInput){
 					break;
@@ -128,7 +128,7 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 			while(counterIo.readNextRead(seq)){
 				++seqIndex;
 				if(!pars.dontFilterToMostCommonIlluminaSampleNumber_){
-					if(decodedNames[seqIndex - 1].getSampleNumber() != sampleNames.front()){
+					if(decodedNames[seqIndex - 1]->getSampleNumber() != sampleNames.front()){
 						continue;
 					}
 				}
@@ -162,7 +162,7 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 			while(reader.readNextRead(seq)){
 				++seqIndex;
 				if(!pars.dontFilterToMostCommonIlluminaSampleNumber_){
-					if(decodedNames[seqIndex - 1].getSampleNumber() != sampleNames.front()){
+					if(decodedNames[seqIndex - 1]->getSampleNumber() != sampleNames.front()){
 						continue;
 					}
 				}
@@ -217,7 +217,7 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 		while(reader.readNextRead(seq)){
 			++seqIndex;
 			if(!downsampled && !pars.dontFilterToMostCommonIlluminaSampleNumber_){
-				if(decodedNames[seqIndex - 1].getSampleNumber() != sampleNames.front()){
+				if(decodedNames[seqIndex - 1]->getSampleNumber() != sampleNames.front()){
 					fPos = reader.tellgPri();
 					continue;
 				}
@@ -709,11 +709,11 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 					if(njh::endsWith(name, "_Comp")){
 						name = name.substr(0, name.rfind("_Comp"));
 					}
-					IlluminaNameFormatDecoder nameDecoded(name, pars.IlluminaSampleRegPatStr_, pars.IlluminaSampleNumberPos_);
-					if(0 == nameDecoded.match_.size()){
-						nameDecoded = IlluminaNameFormatDecoder(name, pars.BackUpIlluminaSampleRegPatStr_, pars.BackUpIlluminaSampleNumberPos_);
+					std::shared_ptr<IlluminaNameFormatDecoder> nameDecoded=std::make_shared<IlluminaNameFormatDecoder>(name, pars.IlluminaSampleRegPatStr_, pars.IlluminaSampleNumberPos_);
+					if(0 == nameDecoded->match_.size()){
+						nameDecoded =std::make_shared<IlluminaNameFormatDecoder>(name, pars.BackUpIlluminaSampleRegPatStr_, pars.BackUpIlluminaSampleNumberPos_);
 					}
-					++sampleNumberCounts[nameDecoded.getSampleNumber()];
+					++sampleNumberCounts[nameDecoded->getSampleNumber()];
 					++total;
 				}
 			}
