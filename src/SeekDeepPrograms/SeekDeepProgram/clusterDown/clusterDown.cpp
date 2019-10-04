@@ -57,8 +57,6 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 		printVector(setUp.pars_.colOpts_.nucCompBinOpts_.diffCutOffVec_, ", ", std::cout);
 	}
 	setUp.rLog_.setCurrentLapName("initialSetUp");
-	setUp.rLog_.logCurrentTime("Reading In Sequences");
-
 	//write out clustering parameters
 
 	std::string parDir = njh::files::makeDir(setUp.pars_.directoryName_, njh::files::MkdirPar("pars")).string();
@@ -73,12 +71,12 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 	bool containsCompReads = false;
 	int compCount = 0;
 	// read in the sequences
-	setUp.rLog_.logCurrentTime("Various filtering and little modifications");
 	auto inputOpts = setUp.pars_.ioOptions_;
 
 	//
 	std::unordered_map<std::string, uint32_t> sampleNumberCounts;
 	if(!pars.dontFilterToMostCommonIlluminaSampleNumber_){
+		setUp.rLog_.logCurrentTime("Filtering for illumina input name");
 		uint32_t totalInputCount = 0;
 		{
 			SeqInput counterIo(inputOpts);
@@ -119,6 +117,7 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 	if(!pars.useAllInput){
 		//for limiting large number of input sequences
 		uint32_t totalInputCount = 0;
+		setUp.rLog_.logCurrentTime("Counting input");
 		{
 			SeqInput counterIo(inputOpts);
 			counterIo.openIn();
@@ -144,6 +143,7 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 			std::cout << "totalInputCount: " << totalInputCount << std::endl;
 		}
 		if(totalInputCount > pars.useCutOff){
+			setUp.rLog_.logCurrentTime("Down sampling");
 
 			std::vector<uint32_t> randomSel;
 			{
@@ -189,6 +189,8 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 	bfs::path tempOutFnp;
 	if(setUp.pars_.ioOptions_.inFormat_ == SeqIOOptions::inFormats::FASTAGZ ||
 		 setUp.pars_.ioOptions_.inFormat_ == SeqIOOptions::inFormats::FASTQGZ){
+		setUp.rLog_.logCurrentTime("rewriting zipped input for file indexing");
+
 		if (setUp.pars_.ioOptions_.inFormat_ == SeqIOOptions::inFormats::FASTAGZ) {
 			inputOpts.inFormat_ = SeqIOOptions::inFormats::FASTA;
 			tempOutFnp =njh::files::make_path(setUp.pars_.directoryName_, "tempinput.fasta");
@@ -206,6 +208,7 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 	}
 
 
+	setUp.rLog_.logCurrentTime("collapsing input to unique sequences");
 
 	SeqInput reader(inputOpts);
 	reader.openIn();
@@ -283,6 +286,8 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 		}
 
 		reader.reOpenIn();
+		setUp.rLog_.logCurrentTime("calculating the quality values");
+
 		//now calculate the qualities if fastq
 		for(const auto & fPositions : filepositions){
 			if(setUp.pars_.ioOptions_.inFormat_ != SeqIOOptions::inFormats::FASTA && setUp.pars_.ioOptions_.inFormat_ != SeqIOOptions::inFormats::FASTAGZ){
@@ -349,10 +354,13 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 			clusterNameToFilePosKey[clusters[fPositions.first].seqBase_.name_] = fPositions.first;
 		}
 	}
+	setUp.rLog_.logCurrentTime("Clearing data");
+
 	if(!pars.countIlluminaSampleNumbers_ && !pars.writeOutInitalSeqs){
 		filepositions.clear();
 		clusterNameToFilePosKey.clear();
 	}
+	setUp.rLog_.logCurrentTime("Post processing after collapse");
 
 	if (compCount > 0) {
 		containsCompReads = true;
@@ -369,9 +377,6 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 	setUp.rLog_ << "Reading clusters from " << setUp.pars_.ioOptions_.firstName_ << " "
 			<< setUp.pars_.ioOptions_.secondName_ << "\n";
 	setUp.rLog_ << "Read in " << counter << " reads" << "\n";
-	setUp.rLog_.logCurrentTime("Collapsing to unique sequences");
-
-
 
 	if (setUp.pars_.verbose_) {
 		std::cout << "Unique clusters numbers: " << clusters.size() << std::endl;
