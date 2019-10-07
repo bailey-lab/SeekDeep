@@ -840,7 +840,7 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 		//will only be in here if any reads pass
 		if(njh::in(tar, readLengthsPerTarget)){
 			auto medianlength = vectorMedianRef(njh::mapAt(readLengthsPerTarget,tar));
-			njh::mapAt(ids.targets_, tar).addLenCutOff(medianlength - (medianlength * .10), medianlength + (medianlength * .10));
+			njh::mapAt(ids.targets_, tar).addLenCutOff(medianlength - (medianlength * .20), medianlength + (medianlength * .20));
 		}
 	}
 	//log read lengths used as cut offs
