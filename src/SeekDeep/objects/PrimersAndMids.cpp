@@ -468,6 +468,13 @@ void PrimersAndMids::addLenCutOffs(const bfs::path & lenCutOffsFnp){
 	}
 }
 
+
+void PrimersAndMids::addOverLapStatuses(const PairedReadProcessor::ReadPairOverLapStatus & allStatus){
+	for(auto & tar : targets_){
+		tar.second.overlapStatus_ = allStatus;
+	}
+}
+
 void PrimersAndMids::addOverLapStatuses(const bfs::path & overlapStatuses){
 	table overlapStatusTab(overlapStatuses, "whitespace", true);
 	std::unordered_map<std::string, PairedReadProcessor::ReadPairOverLapStatus> targetStatus;

@@ -92,10 +92,10 @@ struct ExtractorPairedEndPars{
 	ExtractorPairedEndPars();
 	CoreExtractorPars corePars_;
 
-	uint32_t primerDimerSize_ = 5;
 
 
   PairedReadProcessor::ProcessParams pairProcessorParams_;
+  PairedReadProcessor::ReadPairOverLapStatus defaultStatus{PairedReadProcessor::ReadPairOverLapStatus::NONE};
 
 };
 

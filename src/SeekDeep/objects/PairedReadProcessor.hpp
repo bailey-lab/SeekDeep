@@ -45,6 +45,7 @@ public:
 		R1ALLINR2,
 		R2ALLINR1,
 		PERFECTOVERLAP,
+		AUTO,
 		NONE
 	};
 
@@ -67,6 +68,9 @@ public:
 				break;
 			case ReadPairOverLapStatus::R2ALLINR1:
 				return "R2ALLINR1";
+				break;
+			case ReadPairOverLapStatus::AUTO:
+				return "AUTO";
 				break;
 			default:
 				return "NOTHANDLED";//shouldn't be getting here
@@ -108,6 +112,8 @@ public:
 
 		bool writeOverHangs_ = false;
 
+		uint32_t primerDimmerSize_{100};
+
 		uint32_t r1Trim_ = 0;
 		uint32_t r2Trim_ = 0;
 
@@ -135,6 +141,8 @@ public:
 		void checkWritersSet(const std::string & funcName);
 		void unsetWriters();
 
+		void closeAllOpenWriters();
+
 	};
 
 	struct ProcessedResultsCounts {
@@ -143,6 +151,7 @@ public:
 		uint32_t perfectOverlapCombined = 0;
 		uint32_t r1EndsInR2Combined = 0;
 		uint32_t r1BeginsInR2Combined = 0;
+		uint32_t r1BeginsInR2CombinedAboveCutOff = 0;
 		uint32_t r1AllInR2Combined = 0;
 		uint32_t r2AllInR1Combined = 0;
 		uint32_t total = 0;

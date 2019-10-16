@@ -74,10 +74,41 @@ void SeekDeepSetUp::setUpExtractorPairedEnd(ExtractorPairedEndPars & pars) {
 			"Remove this many sequences off of the end of r1 reads", false, "Post Processing");
 	setOption(pars.pairProcessorParams_.r2Trim_, "--r2Trim",
 			"Remove this many sequences off of the end of r2 reads", false, "Post Processing");
-	setOption(pars.corePars_.primIdsPars.overlapStatusFnp_, "--overlapStatusFnp",
-			"A file with two columns, target,status; status column should contain 1 of 3 values (capitalization doesn't matter): r1BegOverR2End,r1EndOverR2Beg,NoOverlap. r1BegOverR2End=target size < read length (causes read through),r1EndOverR2Beg= target size > read length less than 2 x read length, NoOverlap=target size > 2 x read length", true, "Post Processing");
 
-	setOption(pars.primerDimerSize_, "--primerDimerSize", "Size of r1 begins in r2 stitched reads that should be considered primer dimers");
+	std::string overlapStatus{"auto"};
+	std::set<std::string> allowableOverlapStatuses{"AUTO", "R1BEGINSINR2", "R1ENDSINR2", "NOOVERLAP"};
+
+	std::function<FlagCheckResult(const std::string&)> overlapStatusCheck = [allowableOverlapStatuses](const std::string & flagSet){
+		bool success = true;
+		std::string mess = "";
+		std::string upper = njh::strToUpperRet(flagSet);
+		if(!njh::in(upper, allowableOverlapStatuses)){
+			success = false;
+			mess = njh::pasteAsStr("--defaultOverlapStatus needs to be one of the following (case insensitive) ", njh::conToStr(allowableOverlapStatuses, ","), " not ", upper);
+		}
+		return FlagCheckResult{success, mess};
+	};
+
+	bool setDefaultOverlapStatus = setOption(overlapStatus,
+			"--defaultOverlapStatus",
+			"Set a overlap status for all targets, can be 1 of 4 values(case insensitive), AUTO, R1BEGINSINR2, R1ENDSINR2, NOOVERLAP. Setting to auto will go with the status was most commonly found for a target, this can be dangerous as with unspecific ampification this can end up being set as the incorrect status",
+			false, overlapStatusCheck);
+	if(setDefaultOverlapStatus){
+		std::string upper = njh::strToUpperRet(overlapStatus);
+		if("AUTO" == upper){
+			pars.defaultStatus = PairedReadProcessor::ReadPairOverLapStatus::AUTO;
+		}else if("R1BEGINSINR2" == upper){
+			pars.defaultStatus = PairedReadProcessor::ReadPairOverLapStatus::R1BEGINSINR2;
+		}else if("R1ENDSINR2" == upper){
+			pars.defaultStatus = PairedReadProcessor::ReadPairOverLapStatus::R1ENDSINR2;
+		}else if("NOOVERLAP" == upper){
+			pars.defaultStatus = PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP;
+		}
+	}
+	setOption(pars.corePars_.primIdsPars.overlapStatusFnp_, "--overlapStatusFnp",
+			"A file with two columns, target,status; status column should contain 1 of 3 values (capitalization doesn't matter): r1BegOverR2End,r1EndOverR2Beg,NoOverlap. r1BegOverR2End=target size < read length (causes read through),r1EndOverR2Beg= target size > read length less than 2 x read length, NoOverlap=target size > 2 x read length", !setDefaultOverlapStatus, "Post Processing");
+
+	setOption(pars.pairProcessorParams_.primerDimmerSize_, "--primerDimerSize", "Size of r1 begins in r2 stitched reads that should be considered primer dimers");
 
 	pars_.gapInfo_.gapOpen_ = 5;
 	pars_.gapInfo_.gapExtend_ = 1;

@@ -43,23 +43,23 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 				<< pars.technology << "\n";
 		setUp.addWarning(ss.str());
 	}
-	setUp.setOption(pars.samplesNamesFnp, "--samples",
-			"A file containing the samples names, columns should go target,sample,pcr1,pcr2 (optional) etc",
-			true, "ID Files");
-	setUp.setOption(pars.outDir, "--outDir", "Directory to setup for analysis",
-			true, "Output");
-	setUp.setOption(pars.inputDir, "--inputDir",
-			"Input Directory of raw data files", true, "Input");
-	setUp.setOption(pars.idFile, "--idFile",
-			"ID file containing primer and possible additional MIDs", true, "ID Files");
-	setUp.setOption(pars.byIndex, "--byIndex",
-			"If the input sample names are by index and not targets", false, "ID Files");
+	setUp.setOption(pars.outDir,   "--outDir",   "Directory to setup for analysis", true, "Output");
+	setUp.setOption(pars.inputDir, "--inputDir", "Input Directory of raw data files", true, "Input");
+	setUp.setOption(pars.idFile,   "--idFile",   "ID file containing primer and possible additional MIDs", true, "ID Files");
+
+
+	setUp.setOption(pars.samplesNamesFnp, "--samples", "A file containing the samples names, columns should go target,sample,pcr1,pcr2(optional)", true, "ID Files");
+	setUp.setOption(pars.overlapStatusFnp, "--overlapStatusFnp",
+			"A file with two columns, target,status; status column should contain 1 of 3 values (capitalization doesn't matter): r1BegOverR2End,r1EndOverR2Beg,NoOverlap. r1BegOverR2End=target size < read length (causes read through),r1EndOverR2Beg= target size > read length less than 2 x read length, NoOverlap=target size > 2 x read length",
+			pars.techIsIllumina(), "Illumina Stitching");
+
 	setUp.setOption(pars.targetsToIndexFnp, "--targetsToIndex",
 			"A tsv file with two columns named targets and index where targets in a comma separated value with the targets for the index in index",
 			false, "ID Files");
 
 	setUp.setOption(pars.numThreads, "--numThreads", "Number of CPUs to use");
 
+	// Extra arguments to give the sub programs
 	setUp.setOption(pars.extraExtractorCmds, "--extraExtractorCmds",
 			"Extra extractor cmds to add to the defaults", false, "Extra Commands");
 	setUp.setOption(pars.extraQlusterCmds, "--extraQlusterCmds",
@@ -70,20 +70,14 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	setUp.setOption(pars.conservative, "--conservativePopClus",
 			"Do conservative population clustering which skips possible artifact cleanup step", false, "processClusters");
 	setUp.setOption(pars.rescueFilteredHaplotypes, "--rescueFilteredHaplotypes", "Add on resuce of haplotypes that filtered due to low frequency or chimera filtering if it appears as a major haplotype in another sample", false, "processClusters");
-
-
 	setUp.setOption(pars.groupMeta, "--groupMeta", "Group Metadata", false, "Meta");
-
 	setUp.setOption(pars.lenCutOffsFnp, "--lenCutOffs",
-			"A file with 3 columns, target,minlen,maxlen to supply length cut off specifically for each target", false, "Extractor");
+			"A file with 3 columns, 1)target, 2)minlen, 3)maxlen to supply length cut off specifically for each target", false, "Extractor");
 	setUp.setOption(pars.refSeqsDir, "--refSeqsDir",
 			"A directory of fasta files where each file is named with the input target names", false, "Extractor");
 	if (pars.techIs454() || pars.techIsIonTorrent()) {
 		pars.inputFilePat = ".*.fastq";
 	}
-	setUp.setOption(pars.overlapStatusFnp, "--overlapStatusFnp",
-			"A file with two columns, target,status; status column should contain 1 of 3 values (capitalization doesn't matter): r1BegOverR2End,r1EndOverR2Beg,NoOverlap. r1BegOverR2End=target size < read length (causes read through),r1EndOverR2Beg= target size > read length less than 2 x read length, NoOverlap=target size > 2 x read length",
-			pars.techIsIllumina(), "Illumina Stitching");
 
 	setUp.setOption(pars.inputFilePat, "--inputFilePat",
 			"The input file pattern in the input directory to work on", false, "Input");
@@ -646,16 +640,14 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 		}
 	}
 
-	OutOptions extractorCmdsOpts(
+	OutputStream extractorCmdsFile(
 			njh::files::make_path(analysisSetup.dir_, "extractorCmds.txt"));
-	std::ofstream extractorCmdsFile;
-	openTextFile(extractorCmdsFile, extractorCmdsOpts);
+	njh::sort(extractorCmds);
 	printVector(extractorCmds, "\n", extractorCmdsFile);
 
-	OutOptions qlusterCmdsOpts(
+	OutputStream qlusterCmdsFile(
 			njh::files::make_path(analysisSetup.dir_, "qlusterCmds.txt"));
-	std::ofstream qlusterCmdsFile;
-	openTextFile(qlusterCmdsFile, qlusterCmdsOpts);
+	njh::sort(qlusterCmds);
 	printVector(qlusterCmds, "\n", qlusterCmdsFile);
 
 	//process cluster cmds

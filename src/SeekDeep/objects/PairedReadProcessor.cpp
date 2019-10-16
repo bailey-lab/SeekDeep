@@ -153,37 +153,37 @@ void PairedReadProcessor::ProcessorOutWriters::unsetWriters(){
 	overhangsWriter = nullptr;//(overhangsOpts);
 }
 
+void PairedReadProcessor::ProcessorOutWriters::closeAllOpenWriters(){
+	auto closeIfOpen = [](const std::unique_ptr<SeqOutput> & writer){
+		if(nullptr != writer && writer->outOpen()){
+			writer->closeOut();
+		}
+	};
+	closeIfOpen(perfectOverlapCombinedWriter);
+	closeIfOpen(r1EndsInR2CombinedWriter);
+	closeIfOpen(r1BeginsInR2CombinedWriter);
+	closeIfOpen(r1AllInR2CombinedWriter);
+	closeIfOpen(r2AllInR1CombinedWriter);
+	closeIfOpen(notCombinedWriter);
+	closeIfOpen(overhangsWriter);
+}
+
+
 void PairedReadProcessor::ProcessedResultsCounts::addOther(const ProcessedResultsCounts & otherCounts){
 	overlapFail+= otherCounts.overlapFail;
 	overhangFail+= otherCounts.overhangFail;
 	perfectOverlapCombined+= otherCounts.perfectOverlapCombined;
 	r1EndsInR2Combined+= otherCounts.r1EndsInR2Combined;
 	r1BeginsInR2Combined+= otherCounts.r1BeginsInR2Combined;
+	r1BeginsInR2CombinedAboveCutOff+= otherCounts.r1BeginsInR2CombinedAboveCutOff;
 	r1AllInR2Combined+= otherCounts.r1AllInR2Combined;
 	r2AllInR1Combined+= otherCounts.r2AllInR1Combined;
 	total+= otherCounts.total;
 }
 
 Json::Value PairedReadProcessor::ProcessedResultsCounts::toJson() const{
-	Json::Value outVal;
-	outVal["overlapFail"] = overlapFail;
-	outVal["overlapFailPerc"] = (overlapFail/static_cast<double>(total)) * 100;
-	outVal["overhangFail"] = overhangFail;
-	outVal["overhangFailPerc"] = (overhangFail/static_cast<double>(total)) * 100;
-	outVal["perfectOverlapCombined"] = perfectOverlapCombined;
-	outVal["perfectOverlapCombinedPerc"] = (perfectOverlapCombined/static_cast<double>(total)) * 100;
-	outVal["r1EndsInR2Combined"] = r1EndsInR2Combined;
-	outVal["r1EndsInR2CombinedPerc"] = (r1EndsInR2Combined/static_cast<double>(total)) *100;
-	outVal["r1BeginsInR2Combined"] = r1BeginsInR2Combined;
-	outVal["r1BeginsInR2CombinedPerc"] = (r1BeginsInR2Combined/static_cast<double>(total)) *100;
+	Json::Value outVal = toJsonCounts();
 
-	outVal["r1AllInR2Combined"] = r1AllInR2Combined;
-	outVal["r1AllInR2CombinedPerc"] = (r1AllInR2Combined/static_cast<double>(total)) *100;
-	outVal["r2AllInR1Combined"] = r2AllInR1Combined;
-	outVal["r2AllInR1CombinedPerc"] = (r2AllInR1Combined/static_cast<double>(total)) *100;
-
-
-	outVal["total"] = total;
 	if(nullptr != perfectOverlapCombinedOpts){
 		outVal["perfectOverlapCombinedOpts"] = njh::json::toJson(perfectOverlapCombinedOpts);
 	}
@@ -220,7 +220,8 @@ Json::Value PairedReadProcessor::ProcessedResultsCounts::toJsonCounts() const{
 	outVal["r1EndsInR2CombinedPerc"] = (r1EndsInR2Combined/static_cast<double>(total)) *100;
 	outVal["r1BeginsInR2Combined"] = r1BeginsInR2Combined;
 	outVal["r1BeginsInR2CombinedPerc"] = (r1BeginsInR2Combined/static_cast<double>(total)) *100;
-
+	outVal["r1BeginsInR2CombinedAboveCutOff"] = r1BeginsInR2CombinedAboveCutOff;
+	outVal["r1BeginsInR2CombinedAboveCutOffPerc"] = (r1BeginsInR2CombinedAboveCutOff/static_cast<double>(total)) *100;
 	outVal["r1AllInR2Combined"] = r1AllInR2Combined;
 	outVal["r1AllInR2CombinedPerc"] = (r1AllInR2Combined/static_cast<double>(total)) *100;
 	outVal["r2AllInR1Combined"] = r2AllInR1Combined;
@@ -466,6 +467,9 @@ PairedReadProcessor::ProcessedPairRes PairedReadProcessor::processPairedEnd(
 			ret.combinedSeq_ = std::make_shared<seqInfo>(seq.seqBase_.name_, cseq, quals);
 			ret.status_ = ReadPairOverLapStatus::R1BEGINSINR2;
 			++counts.r1BeginsInR2Combined;
+			if(len(*ret.combinedSeq_) > params_.primerDimmerSize_){
+				++counts.r1BeginsInR2CombinedAboveCutOff;
+			}
 			if(params_.debug_){
 				debugOutCache.add("r1BeginsInR2", alignerObj.alignObjectA_.seqBase_);
 				debugOutCache.add("r1BeginsInR2", alignerObj.alignObjectB_.seqBase_);

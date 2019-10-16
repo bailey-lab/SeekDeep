@@ -570,15 +570,15 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 				"outputInfo", setUp.pars_.refIoOptions_.firstName_.string(), alignerObj,
 				setUp.pars_.local_);
 	}
-	std::ofstream startingInfo;
-	openTextFile(startingInfo, setUp.pars_.directoryName_ + "startingInfo.txt", ".txt",
-			false, false);
-	startingInfo << "cluster\tstartingClusterName\tstartingSize" << std::endl;
-	for (const auto& clus : clusters) {
-		VecStr toks = tokenizeString(clus.firstReadName_, "_t");
-		startingInfo << clus.seqBase_.name_ << "\t" << clus.firstReadName_ << "\t"
-				<< toks.back() << std::endl;
-	}
+//	std::ofstream startingInfo;
+//	openTextFile(startingInfo, setUp.pars_.directoryName_ + "startingInfo.txt", ".txt",
+//			false, false);
+//	startingInfo << "cluster\tstartingClusterName\tstartingSize" << std::endl;
+//	for (const auto& clus : clusters) {
+//		VecStr toks = tokenizeString(clus.firstReadName_, "_t");
+//		startingInfo << clus.seqBase_.name_ << "\t" << clus.firstReadName_ << "\t"
+//				<< toks.back() << std::endl;
+//	}
 	if (pars.additionalOut) {
 		auto fnp = setUp.pars_.ioOptions_.firstName_.filename().string();
 		if(njh::endsWith(fnp, ".gz")){
@@ -752,7 +752,13 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 			clusMeta.addMeta("clusterName", clus.seqBase_.name_);
 			for( const auto & subClus : clus.reads_){
 				seqInfo subClusCopy = subClus->seqBase_;
-				clusMeta.resetMetaInName(subClusCopy.name_, subClusCopy.name_.find("_t"));
+				if(MetaDataInName::nameHasMetaData(subClusCopy.name_)){
+					MetaDataInName subSeqMeta(subClusCopy.name_);
+					subSeqMeta.addMeta("clusterName", clus.seqBase_.name_, true);
+					subSeqMeta.resetMetaInName(subClusCopy.name_);
+				}else{
+					clusMeta.resetMetaInName(subClusCopy.name_, subClusCopy.name_.find("_t"));
+				}
 				subClusterWriter.write(subClusCopy);
 			}
 		}
@@ -809,7 +815,13 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 						currentCompAmount += inSeq.cnt_;
 					}
 					if (pars.writeOutInitalSeqs) {
-						clusMeta.resetMetaInName(inSeq.name_);
+						if(MetaDataInName::nameHasMetaData(inSeq.name_)){
+							MetaDataInName inSeqMeta(inSeq.name_);
+							inSeqMeta.addMeta("clusterName", clus.seqBase_.name_, true);
+							inSeqMeta.resetMetaInName(inSeq.name_);
+						}else{
+							clusMeta.resetMetaInName(inSeq.name_);
+						}
 						subClusterWriter.write(inSeq);
 					}
 				}

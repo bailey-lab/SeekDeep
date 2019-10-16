@@ -57,7 +57,11 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 	//add in ref sequences if any
 	ids.initAllAddLenCutsRefs(pars.corePars_.primIdsPars);
 	//add in overlap status
-	ids.addOverLapStatuses(pars.corePars_.primIdsPars.overlapStatusFnp_);
+	if(PairedReadProcessor::ReadPairOverLapStatus::NONE != pars.defaultStatus){
+		ids.addOverLapStatuses(pars.defaultStatus);
+	}else{
+		ids.addOverLapStatuses(pars.corePars_.primIdsPars.overlapStatusFnp_);
+	}
 
 	if (pars.corePars_.noPrimers_) {
 		if (nullptr == ids.pDeterminator_
@@ -473,7 +477,7 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 					failedPrimer[barcodeName][forwardPrimerName][reversePrimerName][PairedReadProcessor::getOverlapStatusStr(mismatchedPairRes.status_)].emplace_back(0);
 				}
 				if(PairedReadProcessor::ReadPairOverLapStatus::R1BEGINSINR2 == mismatchedPairRes.status_ &&
-						len(*mismatchedPairRes.combinedSeq_)<= pars.primerDimerSize_){
+						len(*mismatchedPairRes.combinedSeq_)<= pars.pairProcessorParams_.primerDimmerSize_ ){
 					++mismatchedPrimersDimers;
 				}else{
 					++mismatchedPrimers;
@@ -581,6 +585,10 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 					processWriter.r1EndsInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOutGz(njh::files::make_path(unfilteredByPairsProcessedDir, name + "")));
 					processWriter.notCombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genPairedOutGz(njh::files::make_path(badDir, name + "_notCombined")));
 					processWriter.r1BeginsInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOutGz(njh::files::make_path(badDir, name + "_r1BeginsInR2")));
+				} else if(PairedReadProcessor::ReadPairOverLapStatus::AUTO == njh::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
+					processWriter.r1EndsInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOutGz(njh::files::make_path(badDir, name + "_r1EndsInR2")));
+					processWriter.notCombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genPairedOutGz(njh::files::make_path(badDir, name + "_notCombined")));
+					processWriter.r1BeginsInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOutGz(njh::files::make_path(badDir, name + "_r1BeginsInR2")));
 				}
 			}else{
 				processWriter.overhangsWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(njh::files::make_path(overHansDir, name + "_overhangs")));
@@ -599,9 +607,12 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 					processWriter.r1EndsInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(njh::files::make_path(unfilteredByPairsProcessedDir, name + "")));
 					processWriter.notCombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genPairedOut(njh::files::make_path(badDir, name + "_notCombined")));
 					processWriter.r1BeginsInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(njh::files::make_path(badDir, name + "_r1BeginsInR2")));
+				} else if(PairedReadProcessor::ReadPairOverLapStatus::AUTO == njh::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
+					processWriter.r1EndsInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(njh::files::make_path(badDir, name + "_r1EndsInR2")));
+					processWriter.notCombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genPairedOut(njh::files::make_path(badDir, name + "_notCombined")));
+					processWriter.r1BeginsInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(njh::files::make_path(badDir, name + "_r1BeginsInR2")));
 				}
 			}
-
 			currentPairOpts.revComplMate_ = true;
 			SeqInput currentReader(currentPairOpts);
 			currentReader.openIn();
@@ -612,12 +623,24 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 			if(setUp.pars_.verbose_){
 				std::cout << "Done Pair Processing for " << name << std::endl;
 			}
+			if(PairedReadProcessor::ReadPairOverLapStatus::AUTO == njh::mapAt(ids.targets_, extractedPrimer).overlapStatus_){
+				uint32_t highestCount = 0;
+				PairedReadProcessor::ReadPairOverLapStatus autoDetStat = PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP;
+				if(currentProcessResults.r1EndsInR2Combined > highestCount){
+					highestCount = currentProcessResults.r1EndsInR2Combined;
+					autoDetStat = PairedReadProcessor::ReadPairOverLapStatus::R1ENDSINR2;
+				}else if(currentProcessResults.r1BeginsInR2CombinedAboveCutOff > highestCount){
+					highestCount = currentProcessResults.r1BeginsInR2CombinedAboveCutOff;
+					autoDetStat = PairedReadProcessor::ReadPairOverLapStatus::R1BEGINSINR2;
+				}
+				njh::mapAt(ids.targets_, extractedPrimer).overlapStatus_ = autoDetStat;
+			}
 			resultsPerMidTarPair[name] = std::make_pair(extractedPrimer,currentProcessResults);
 		}
 	}
 
 	OutputStream outPairProcessOut(njh::files::make_path(setUp.pars_.directoryName_, "processPairsCounts.tab.txt"));
-	outPairProcessOut << "inputName\tName\ttarget\ttotal\tnotCombined\tperfectOverlapCombined\tr1BeginsInR2Combined\tr1EndsInR2Combined\tr1AllInR2Combined\tr2AllInR1Combined" << std::endl;;
+	outPairProcessOut << "inputName\tName\ttarget\ttotal\tnotCombined\tperfectOverlapCombined\tr1BeginsInR2Combined\tr1BeginsInR2CombinedAboveCutOff\tr1EndsInR2Combined\tr1AllInR2Combined\tr2AllInR1Combined" << std::endl;;
 	auto processedPairsKeys = njh::getVecOfMapKeys(resultsPerMidTarPair);
 	njh::sort(processedPairsKeys);
 
@@ -630,6 +653,7 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 				<< "\t" << getPercentageString(processedResults.second.overlapFail, processedResults.second.total)
 				<< "\t" << getPercentageString(processedResults.second.perfectOverlapCombined, processedResults.second.total)
 				<< "\t" << getPercentageString(processedResults.second.r1BeginsInR2Combined, processedResults.second.total)
+				<< "\t" << getPercentageString(processedResults.second.r1BeginsInR2CombinedAboveCutOff, processedResults.second.total)
 				<< "\t" << getPercentageString(processedResults.second.r1EndsInR2Combined, processedResults.second.total)
 				<< "\t" << getPercentageString(processedResults.second.r1AllInR2Combined, processedResults.second.total)
 				<< "\t" << getPercentageString(processedResults.second.r2AllInR1Combined, processedResults.second.total)

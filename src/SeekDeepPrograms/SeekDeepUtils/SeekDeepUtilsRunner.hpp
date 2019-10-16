@@ -46,6 +46,8 @@ class SeekDeepUtilsRunner : public njh::progutils::ProgramRunner {
 
 	static int benchmarkControlMixtures(const njh::progutils::CmdArgs & inputCommands);
 
+  static int gatherInfoOnTargetedAmpliconSeqFile(const njh::progutils::CmdArgs & inputCommands);
+
 };
 
 } // namespace njhseq

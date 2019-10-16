@@ -48,6 +48,8 @@ public:
 		bfs::path targetsToIndexFnp = "";
 		bool byIndex = false;
 
+		bool noAutoDetermine = false;
+
 		bool debug = false;
 		bool noGuessSampNames = false;
 

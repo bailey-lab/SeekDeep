@@ -135,6 +135,8 @@ public:
 
 	void addLenCutOffs(const bfs::path & lenCutOffsFnp);
 	void addOverLapStatuses(const bfs::path & overlapStatuses);
+	void addOverLapStatuses(const PairedReadProcessor::ReadPairOverLapStatus & allStatus);
+
 	void addRefSeqs(const bfs::path & refDirectory);
 	void setRefSeqsKInfos(uint32_t klen, bool setRevComp);
 
