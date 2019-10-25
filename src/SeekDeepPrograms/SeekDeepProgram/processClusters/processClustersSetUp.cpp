@@ -180,6 +180,9 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 
 
 	setOption(pars.fracCutoff, "--fracCutOff", "Final cluster Fraction Cut off", false, "Filtering");
+	if(pars.withinReplicateFracCutOff > pars.fracCutoff){
+		pars.withinReplicateFracCutOff = pars.fracCutoff;
+	}
 	setOption(pars.withinReplicateFracCutOff, "--withinReplicateFracCutOff", "Within Replicate Frac Cut Off, this is done before filtering sequences for appearing in all replicates", false, "Filtering");
 
 	pars.differentPar = setOption(pars.parametersPopulation, "--popPar",
