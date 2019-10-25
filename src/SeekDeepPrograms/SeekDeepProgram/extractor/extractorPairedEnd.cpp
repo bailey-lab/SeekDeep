@@ -208,7 +208,20 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 
 		if (ids.containsMids()) {
 			auto searchRes = ids.mDeterminator_->searchPairedEndRead(seq);
+
 			auto processRes = ids.mDeterminator_->processSearchPairedEndRead(seq, searchRes);
+//			if(MidDeterminator::ProcessedRes::PROCESSED_CASE::MISMATCHING_MIDS == processRes.case_){
+//				std::cout << seq.seqBase_.name_ << std::endl;
+//				std::cout << "Forward: ";
+//				for(const auto & f : searchRes.forward_){
+//					std::cout << f.toJson() << std::endl << std::endl;
+//				}
+//				std::cout << "Reverse: ";
+//				for(const auto & f : searchRes.reverse_){
+//					std::cout << f.toJson() << std::endl << std::endl;
+//				}
+//				exit(1);
+//			}
 			if(MidDeterminator::ProcessedRes::PROCESSED_CASE::MATCH == processRes.case_){
 				if (processRes.rcomplement_) {
 					++counts[processRes.midName_].second;

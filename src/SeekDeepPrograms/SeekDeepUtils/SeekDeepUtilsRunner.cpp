@@ -39,11 +39,40 @@ SeekDeepUtilsRunner::SeekDeepUtilsRunner() :
 					addFunc("genTargetInfoFromGenomes", genTargetInfoFromGenomes, false),
 					addFunc("benchmarkControlMixtures", benchmarkControlMixtures, false),
 					addFunc("gatherInfoOnTargetedAmpliconSeqFile", gatherInfoOnTargetedAmpliconSeqFile, false),
+					addFunc("getPossibleSampleNamesFromRawInput", getPossibleSampleNamesFromRawInput, false),
 				}, //
 				"SeekDeepUtils") {
 }
 
 //
+
+
+
+int SeekDeepUtilsRunner::getPossibleSampleNamesFromRawInput(const njh::progutils::CmdArgs & inputCommands) {
+	bfs::path inputDir = "./";
+	std::string inputFilePat = ".*.fastq.gz";
+
+	seqSetUp setUp(inputCommands);
+	setUp.processVerbose();
+	setUp.processDebug();
+
+	setUp.setOption(inputDir, "--inputDir", "Input Directory");
+	setUp.setOption(inputFilePat, "--inputFilePat", "Input File Pat");
+
+	setUp.finishSetUp(std::cout);
+	auto files = njh::files::listAllFiles(inputDir, false, { std::regex {
+			inputFilePat } });
+
+	ReadPairsOrganizer rpOrganizer(VecStr{});
+	rpOrganizer.processFiles(files);
+	for (const auto & samp : rpOrganizer.readPairsUnrecognized_) {
+		std::cout << "\tPossible Sample Name: " << samp.first << std::endl;
+		for (const auto & sampFiles : samp.second) {
+			std::cout << "\t\t" << sampFiles << std::endl;
+		}
+	}
+	return 0;
+}
 
 int SeekDeepUtilsRunner::genTargetInfoFromGenomes(const njh::progutils::CmdArgs & inputCommands) {
 	extractBetweenSeqsPars pars;

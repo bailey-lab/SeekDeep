@@ -15,14 +15,17 @@
 namespace njhseq {
 int SeekDeepUtilsRunner::gatherInfoOnTargetedAmpliconSeqFile(
 		const njh::progutils::CmdArgs & inputCommands) {
-	seqSetUp setUp(inputCommands);
-	setUp.processVerbose();
-	setUp.processDebug();
+
 	uint32_t unrecogBaseSampling = 20;
 	uint32_t precdingBaseFreqCutOff = 5;
 	bfs::path idFnp = "";
 	bool dontCollapsePossibleMIDs = false;
 	ExtractorPairedEndPars pars;
+	uint32_t testNumber = std::numeric_limits<uint32_t>::max();
+	seqSetUp setUp(inputCommands);
+	setUp.processVerbose();
+	setUp.processDebug();
+	setUp.setOption(testNumber, "--testNumber", "Just use this number of reads of the top of the file");
 	setUp.setOption(dontCollapsePossibleMIDs, "--dontCollapsePossibleMIDs",
 			"Don't Collapse Possible MIDs", false);
 	setUp.setOption(unrecogBaseSampling, "--unrecogBaseSampling",
@@ -82,6 +85,16 @@ int SeekDeepUtilsRunner::gatherInfoOnTargetedAmpliconSeqFile(
 			++readCount;
 			readVec::getMaxLength(seq.seqBase_, maxReadSize);
 			readVec::getMaxLength(seq.mateSeqBase_, maxReadSize);
+			if(setUp.pars_.verbose_ && readCount % 10000 == 0){
+				std::cout << "\r" << readCount;
+				std::cout.flush();
+			}
+			if(readCount >=testNumber){
+				break;
+			}
+		}
+		if(setUp.pars_.verbose_){
+			std::cout << std::endl;
 		}
 	} else {
 		seqInfo seq;
@@ -90,6 +103,16 @@ int SeekDeepUtilsRunner::gatherInfoOnTargetedAmpliconSeqFile(
 		while(reader.readNextRead(seq)){
 			++readCount;
 			readVec::getMaxLength(seq, maxReadSize);
+			if(setUp.pars_.verbose_ && readCount % 10000 == 0){
+				std::cout << "\r" << readCount;
+				std::cout.flush();
+			}
+			if(readCount >=testNumber){
+				break;
+			}
+		}
+		if(setUp.pars_.verbose_){
+			std::cout << std::endl;
 		}
 	}
 
@@ -122,7 +145,9 @@ int SeekDeepUtilsRunner::gatherInfoOnTargetedAmpliconSeqFile(
 		//key
 		std::unordered_map<std::string, std::unordered_map<std::string, uint32_t>> unrecognizedCounts;
 		njh::ProgressBar pBar(readCount);
+		uint32_t newReadCount = 0;
 		while(reader.readNextRead(seq)){
+			++newReadCount;
 			if(setUp.pars_.verbose_){
 				pBar.outputProgAdd(std::cout, 1, true);
 			}
@@ -216,6 +241,9 @@ int SeekDeepUtilsRunner::gatherInfoOnTargetedAmpliconSeqFile(
 				}
 			}else if(forwardPrimerName == reversePrimerName && "unrecognized" == forwardPrimerName){
 				unrecognizedCounts[seq.seqBase_.seq_.substr(0, unrecogBaseSampling)][seq.mateSeqBase_.seq_.substr(0, unrecogBaseSampling)] += seq.seqBase_.cnt_;
+			}
+			if(newReadCount >=testNumber){
+				break;
 			}
 		}
 
