@@ -70,8 +70,8 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 			"Write out the excluded Originals", false, "Additional Output");
 	setOption(pars.chiCutOff, "--chiCutOff",
 			"The Fraction of a cluster to determine if it chimeric", false, "Chimeras");
-	setOption(pars.recheckChimeras, "--recheckChimeras",
-			"Re Check chimeras after replicate comparison", false, "Chimeras");
+//	setOption(pars.recheckChimeras, "--recheckChimeras",
+//			"Re Check chimeras after replicate comparison", false, "Chimeras");
 	setOption(pars.eventBasedRef, "--eventBasedRef", "Do Event Based Ref Count");
 	setOption(pars.customCutOffs, "--custumCutOffs",
 			"Two Column Table, first column is sample name, second is a custom frac cut off, if sample not found will default to --fracCutOff", false, "Filtering");
@@ -196,7 +196,7 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 	setOption(popClusParsPars.hqMismatches, "--pop-hq", "Number of high quality mismatches to allow in population clustering", false, "Population");
 	setOption(popClusParsPars.stopAfter, "--pop-stopAfter", "Number of top haplotypes to check in population clustering", false, "Population");
 
-	setOption(pars_.chiOpts_.checkChimeras_, "--markChimeras", "Check Input sequences for possible Chimeras", false, "Chimeras");
+	setOption(pars_.chiOpts_.checkChimeras_, "--recheckChimeras", "Check Input sequences for possible Chimeras", false, "Chimeras");
 	setOption(pars.keepChimeras, "--keepChimeras", "KeepChimeras", false, "Chimeras");
 	setOption(pars_.chiOpts_.parentFreqs_, "--parFreqs", "Chimeric Parent Frequency multiplier cutoff", false, "Chimeras");
 

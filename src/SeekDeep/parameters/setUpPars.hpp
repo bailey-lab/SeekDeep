@@ -203,7 +203,7 @@ struct processClustersPars {
 
   bool keepChimeras = false;
   bool investigateChimeras = false;
-  bool recheckChimeras = false;
+ // bool recheckChimeras = false;
   double chiCutOff = .40;
   std::string experimentName = "PopUID";
   std::string parametersPopulation = "";
