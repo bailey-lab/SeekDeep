@@ -234,6 +234,7 @@ struct processClustersPars {
 	uint32_t hqMismatches = 0;
 	uint32_t stopAfter = 100;
 
+	bool rescueExcludedLowFreqHaplotypes = false;
 	bool rescueExcludedOneOffLowFreqHaplotypes = false;
 	bool rescueExcludedChimericHaplotypes = false;
 	bool rescueMatchingExpected = false;

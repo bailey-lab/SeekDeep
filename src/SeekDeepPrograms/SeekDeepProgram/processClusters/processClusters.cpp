@@ -221,18 +221,15 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 				} else {
 					sampColl.sampleCollapses_.at(samp)->excludeBySampNum(sampColl.sampleCollapses_.at(samp)->input_.info_.infos_.size(), true);
 				}
-				sampColl.sampleCollapses_.at(samp)->excludeFractionAnyRep(customCutOffsMapPerRep.at(samp), true);
-				sampColl.sampleCollapses_.at(samp)->excludeFraction(customCutOffsMap.at(samp), true);
-				//sampColl.excludeOnFrac(samp, customCutOffsMap, pars.fracExcludeOnlyInFinalAverageFrac);
 				if(pars.collapseLowFreqOneOffs){
 					sampColl.sampleCollapses_.at(samp)->excludeLowFreqOneOffs(true, pars.lowFreqMultiplier, *currentAligner);
 				}
-
-
 				if (!pars.keepChimeras) {
-					//now exclude all marked chimeras, currently this will also remark chimeras unnecessarily
+					//now exclude all marked chimeras
 					sampColl.sampleCollapses_.at(samp)->excludeChimerasNoReMark(true);
 				}
+				sampColl.sampleCollapses_.at(samp)->excludeFractionAnyRep(customCutOffsMapPerRep.at(samp), true);
+				sampColl.sampleCollapses_.at(samp)->excludeFraction(customCutOffsMap.at(samp), true);
 
 				std::string sortBy = "fraction";
 				sampColl.sampleCollapses_.at(samp)->renameClusters(sortBy);
@@ -292,15 +289,23 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 	sampColl.doPopulationClustering(sampColl.createPopInput(),
 			alignerObj, collapserObj, pars.popIteratorMap);
 
-	if(pars.rescueExcludedChimericHaplotypes || pars.rescueExcludedOneOffLowFreqHaplotypes){
-		//firth gather major haplotypes
+	if(pars.rescueExcludedChimericHaplotypes || pars.rescueExcludedOneOffLowFreqHaplotypes || pars.rescueExcludedLowFreqHaplotypes){
+		//first gather major haplotypes
 		std::set<std::string> majorHaps;
+		std::set<std::string> majorHapsForChi;
+
 		for(const auto & sampleName : sampColl.passingSamples_){
+			if(njh::in(sampleName, pars.controlSamples)){
+				continue;
+			}
 			sampColl.setUpSampleFromPrevious(sampleName);
 			auto sampPtr = sampColl.sampleCollapses_.at(sampleName);
-			for(uint32_t clusPos = 0; clusPos < 2 && clusPos < sampPtr->collapsed_.clusters_.size(); ++clusPos){
+			for(uint32_t clusPos = 0;  clusPos < sampPtr->collapsed_.clusters_.size(); ++clusPos){
 				if(sampPtr->collapsed_.clusters_[clusPos].seqBase_.frac_ >= pars.majorHaplotypeFracForRescue){
 					majorHaps.emplace(sampColl.popCollapse_->collapsed_.clusters_[sampColl.popCollapse_->collapsed_.subClustersPositions_.at(sampPtr->collapsed_.clusters_[clusPos].getStubName(true))].seqBase_.name_);
+					if(clusPos < 2){
+						majorHapsForChi.emplace(sampColl.popCollapse_->collapsed_.clusters_[sampColl.popCollapse_->collapsed_.subClustersPositions_.at(sampPtr->collapsed_.clusters_[clusPos].getStubName(true))].seqBase_.name_);
+					}
 				}
 			}
 			sampColl.dumpSample(sampleName);
@@ -321,6 +326,8 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 					std::set<std::string> otherExcludedCriteria;
 					bool chimeriaExcludedRescue = false;
 					bool oneOffExcludedRescue = false;
+					bool lowFreqExcludedRescue = false;
+
 					for(const auto & excMeta : excludedMeta.meta_){
 						if(njh::beginsWith(excMeta.first, "Exclude") ){
 							bool other = true;
@@ -332,6 +339,10 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 								oneOffExcludedRescue = true;
 								other = false;
 							}
+							if(pars.rescueExcludedLowFreqHaplotypes && "ExcludeFailedFracCutOff" == excMeta.first){
+								lowFreqExcludedRescue = true;
+								other = false;
+							}
 							if(other){
 								otherExcludedCriteria.emplace(excMeta.first);
 							}
@@ -339,15 +350,26 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 					}
 					//check if it should be considered for rescue
 					//std::cout << excluded.seqBase_.name_ << " consider for rescue: " << njh::colorBool((chimeriaExcludedRescue || oneOffExcludedRescue) && otherExcludedCriteria.empty()) << std::endl;
-					if((chimeriaExcludedRescue || oneOffExcludedRescue) && otherExcludedCriteria.empty()){
+					if((chimeriaExcludedRescue || oneOffExcludedRescue || lowFreqExcludedRescue) && otherExcludedCriteria.empty()){
 						//see if it matches a major haplotype
 						bool rescue = false;
-						for(const auto & popHap : sampColl.popCollapse_->collapsed_.clusters_){
-							if(popHap.seqBase_.seq_ == excluded.seqBase_.seq_ &&
-									popHap.seqBase_.cnt_ > excluded.seqBase_.cnt_ &&
-									njh::in(popHap.seqBase_.name_, majorHaps)){
-								rescue = true;
-								break;
+						if(chimeriaExcludedRescue){
+							for(const auto & popHap : sampColl.popCollapse_->collapsed_.clusters_){
+								if(popHap.seqBase_.seq_ == excluded.seqBase_.seq_ &&
+										popHap.seqBase_.cnt_ > excluded.seqBase_.cnt_ &&
+										njh::in(popHap.seqBase_.name_, majorHapsForChi)){
+									rescue = true;
+									break;
+								}
+							}
+						}else{
+							for(const auto & popHap : sampColl.popCollapse_->collapsed_.clusters_){
+								if(popHap.seqBase_.seq_ == excluded.seqBase_.seq_ &&
+										popHap.seqBase_.cnt_ > excluded.seqBase_.cnt_ &&
+										njh::in(popHap.seqBase_.name_, majorHaps)){
+									rescue = true;
+									break;
+								}
 							}
 						}
 						if(rescue){
@@ -424,6 +446,8 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 					bool chimeriaExcludedRescue = false;
 					bool oneOffExcludedRescue = false;
 					bool commonlyLowExcludedRescue = false;
+					bool lowFreqExcludedRescue = false;
+
 					for(const auto & excMeta : excludedMeta.meta_){
 						if(njh::beginsWith(excMeta.first, "Exclude") ){
 							bool other = true;
@@ -435,8 +459,12 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 								oneOffExcludedRescue = true;
 								other = false;
 							}
-							if("ExcludeFailedFracCutOff" == excMeta.first){
+							if("ExcludeCommonlyLowFreq" == excMeta.first){
 								commonlyLowExcludedRescue = true;
+								other = false;
+							}
+							if("ExcludeFailedFracCutOff" == excMeta.first){
+								lowFreqExcludedRescue = true;
 								other = false;
 							}
 							if(other){
@@ -445,7 +473,7 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 						}
 					}
 					//check if it should be considered for resuce
-					if((chimeriaExcludedRescue || oneOffExcludedRescue || commonlyLowExcludedRescue) && otherExcludedCriteria.empty()){
+					if((chimeriaExcludedRescue || oneOffExcludedRescue || commonlyLowExcludedRescue || lowFreqExcludedRescue) && otherExcludedCriteria.empty()){
 						//see if it matches a major haplotype
 						bool rescue = false;
 						for(const auto & expectedHap : expectedSeqs){
