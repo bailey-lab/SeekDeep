@@ -199,7 +199,9 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 		alnPool.initAligners();
 		alnPool.outAlnDir_ = setUp.pars_.outAlnInfoDirName_;
 
-		auto setupClusterSamples = [&sampleQueue, &alnPool,&collapserObj,&pars, &setUp,&expectedSeqs,&sampColl,&customCutOffsMap,&customCutOffsMapPerRep](){
+		auto setupClusterSamples = [&sampleQueue, &alnPool,&collapserObj,&pars,&setUp,
+																&expectedSeqs,&sampColl,&customCutOffsMap,
+																&customCutOffsMapPerRep](){
 			std::string samp = "";
 			auto currentAligner = alnPool.popAligner();
 			while(sampleQueue.getVal(samp)){
@@ -221,15 +223,21 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 				} else {
 					sampColl.sampleCollapses_.at(samp)->excludeBySampNum(sampColl.sampleCollapses_.at(samp)->input_.info_.infos_.size(), true);
 				}
+
 				if(pars.collapseLowFreqOneOffs){
-					sampColl.sampleCollapses_.at(samp)->excludeLowFreqOneOffs(true, pars.lowFreqMultiplier, *currentAligner);
+					bool skipChimeras = true;
+					sampColl.sampleCollapses_.at(samp)->excludeLowFreqOneOffs(true, pars.lowFreqMultiplier, *currentAligner,
+							skipChimeras, customCutOffsMap.at(samp));
 				}
+
+				sampColl.sampleCollapses_.at(samp)->excludeFractionAnyRep(customCutOffsMapPerRep.at(samp), true);
+				sampColl.sampleCollapses_.at(samp)->excludeFraction(customCutOffsMap.at(samp), true);
+
 				if (!pars.keepChimeras) {
 					//now exclude all marked chimeras
 					sampColl.sampleCollapses_.at(samp)->excludeChimerasNoReMark(true);
 				}
-				sampColl.sampleCollapses_.at(samp)->excludeFractionAnyRep(customCutOffsMapPerRep.at(samp), true);
-				sampColl.sampleCollapses_.at(samp)->excludeFraction(customCutOffsMap.at(samp), true);
+
 
 				std::string sortBy = "fraction";
 				sampColl.sampleCollapses_.at(samp)->renameClusters(sortBy);
