@@ -234,12 +234,12 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 		std::cout << njh::bashCT::bold << "Output Files:" << njh::bashCT::reset
 				<< std::endl;
 		std::cout
-				<< "selectedClustersInfo.tab.txt: This contains the final haplotype information and replicate comparison results, it is a very large table, consult the SeekDeep (http://njh2.umassmed.edu/~hathawan/SeekDeep.html) website for details on what each column means"
+				<< "selectedClustersInfo.tab.txt.gz: This contains the final haplotype information and replicate comparison results, it is a very large table, consult the SeekDeep (http://njh2.umassmed.edu/~hathawan/SeekDeep.html) website for details on what each column means"
 				<< std::endl;
 		std::cout << "allClustersInfo.tab.txt: " << std::endl;
 		std::cout << "dotFiles: " << std::endl;
 		std::cout << "final: " << std::endl;
-		std::cout << "population/populationCluster.tab.txt: " << std::endl;
+		std::cout << "population/populationCluster.tab.txt.gz: " << std::endl;
 		std::cout << "population/PopUID.fastq: " << std::endl;
 		exit(0);
 	}

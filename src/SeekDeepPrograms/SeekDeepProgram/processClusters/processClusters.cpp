@@ -931,7 +931,7 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 	}
 	sampColl.printSampleCollapseInfo(
 			njh::files::make_path(sampColl.masterOutputDir_,
-					"selectedClustersInfo.tab.txt"));
+					"selectedClustersInfo.tab.txt.gz"));
 
 	if(pars.writeOutAllInfoFile){
 		sampColl.printAllSubClusterInfo(
@@ -941,26 +941,19 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 	sampColl.symlinkInSampleFinals();
 	sampColl.outputRepAgreementInfo();
 
+	table hapIdTab = sampColl.genHapIdTable();
+	hapIdTab.outPutContents(TableIOOpts::genTabFileOut(njh::files::make_path(sampColl.masterOutputDir_,
+			"hapIdTable.tab.txt.gz"), true));
+	sampColl.dumpPopulation();
 
-	//if(!pars.noPopulation){
-	if(true){
-		table hapIdTab = sampColl.genHapIdTable();
-		hapIdTab.outPutContents(TableIOOpts::genTabFileOut(njh::files::make_path(sampColl.masterOutputDir_,
-				"hapIdTable.tab.txt"), true));
-		sampColl.dumpPopulation();
+	SeqOutput::write(outPopSeqsPerSamp,SeqIOOptions(njh::files::make_path(sampColl.masterOutputDir_, "population", "popSeqsWithMetaWtihSampleName"), setUp.pars_.ioOptions_.outFormat_));
+
+	auto popMetaTable = seqsToMetaTable(outPopSeqsPerSamp);
+	for(auto & row : popMetaTable){
+		MetaDataInName::removeMetaDataInName(row[popMetaTable.getColPos("name")]);
 	}
-	//if(!pars.noPopulation){
-	if(true){
 
-		SeqOutput::write(outPopSeqsPerSamp,SeqIOOptions(njh::files::make_path(sampColl.masterOutputDir_, "population", "popSeqsWithMetaWtihSampleName"), setUp.pars_.ioOptions_.outFormat_));
-
-		auto popMetaTable = seqsToMetaTable(outPopSeqsPerSamp);
-		for(auto & row : popMetaTable){
-			MetaDataInName::removeMetaDataInName(row[popMetaTable.getColPos("name")]);
-		}
-
-		popMetaTable.outPutContents(TableIOOpts::genTabFileOut(njh::files::make_path(sampColl.masterOutputDir_, "population", "popSeqsWithMetaWtihSampleNameTable.tab.txt")));
-	}
+	popMetaTable.outPutContents(TableIOOpts::genTabFileOut(njh::files::make_path(sampColl.masterOutputDir_, "population", "popSeqsWithMetaWtihSampleNameTable.tab.txt.gz")));
 
 
 	if("" != pars.groupingsFile){
