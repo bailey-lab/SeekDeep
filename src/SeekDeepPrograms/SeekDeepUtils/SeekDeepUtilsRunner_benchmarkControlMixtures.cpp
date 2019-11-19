@@ -73,13 +73,29 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 	while(sampInfoReader.getNextRow(row)){
 		auto sample = row[sampInfoReader.header_.getColPos("s_Name")];
 		auto hapName = row[sampInfoReader.header_.getColPos("c_name")];
+		auto c_ReadCnt = njh::StrToNumConverter::stoToNum<double>(row[sampInfoReader.header_.getColPos("c_ReadCnt")]);
+		auto c_AveragedFrac = njh::StrToNumConverter::stoToNum<double>(row[sampInfoReader.header_.getColPos("c_AveragedFrac")]);
 		//auto c_Consensus = row[sampInfoReader.header_.getColPos("c_Consensus")];
 		auto readCnt = njh::StrToNumConverter::stoToNum<double>(row[sampInfoReader.header_.getColPos("c_ReadCnt")]);
 		readCountsPerHapPerSample[sample][hapName] = readCnt;
 		auto h_popUID = row[sampInfoReader.header_.getColPos("h_popUID")];
 		auto h_SampCnt = row[sampInfoReader.header_.getColPos("h_SampCnt")];
 		seqInfo clus(hapName, njh::mapAt(hPopUID_to_hConsensus, h_popUID));
-		allResultSeqs[sample].emplace_back(clus);
+		clus.cnt_ = c_ReadCnt;
+		clus.frac_ = c_AveragedFrac;
+		bool add = true;
+		for(auto & seq : allResultSeqs[sample]){
+			if(seq.seq_ == clus.seq_){
+				add = false;
+				seq.cnt_ += c_ReadCnt;
+				seq.frac_ += c_AveragedFrac;
+				break;
+			}
+		}
+		if(add){
+			allResultSeqs[sample].emplace_back(clus);
+		}
+
 		readVec::getMaxLength(clus, maxLen);
 		cNameToPopUID[hapName] = h_popUID;
 		cNamePopSampCnt[hapName] = njh::StrToNumConverter::stoToNum<uint32_t>(h_SampCnt);
