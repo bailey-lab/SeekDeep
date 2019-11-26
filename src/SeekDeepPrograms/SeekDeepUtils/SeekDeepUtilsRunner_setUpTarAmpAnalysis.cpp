@@ -13,8 +13,6 @@ namespace njhseq {
 
 
 
-
-
 int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 		const njh::progutils::CmdArgs & inputCommands) {
 	VecStr acceptableTechs{"454", "IonTorrent", "Illumina", "Illumina-SingleEnd"};
@@ -397,6 +395,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 		if(setUp.pars_.verbose_){
 			std::cout << "indexes" << std::endl;
 			printVector(indexes);
+
 		}
 		for (const auto & index : indexes) {
 			//if (njh::in(index, inputPassed)) {

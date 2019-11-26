@@ -160,7 +160,7 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 				std::cout << "Inserting: " << unRecName << std::endl;
 			}
 			readerOuts.addReader(unRecName, midOpts);
-			std::cout << "midOpts.outFormat_: " << SeqIOOptions::getOutFormat(midOpts.outFormat_) << std::endl;
+			//std::cout << "midOpts.outFormat_: " << SeqIOOptions::getOutFormat(midOpts.outFormat_) << std::endl;
 		}
 	}
 
