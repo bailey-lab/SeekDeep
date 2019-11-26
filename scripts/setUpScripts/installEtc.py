@@ -11,10 +11,10 @@ def parse_args():
 
 def main():
     args = parse_args()
-    allDirs = [x for x in os.walk(args.etcFolder[0])]
+    allDirs = [x for x in os.walk(args.etcFolder)]
     installEtcDest = os.path.join(args.dest,"etc");
     for dInfo in allDirs:
-        newDirName = dInfo[0].replace(args.etcFolder[0].rstrip('/'), args.installEtcDest.rstrip('/'))
+        newDirName = dInfo[0].replace(args.etcFolder.rstrip('/'), installEtcDest.rstrip('/'))
         #print newDirName
         if not os.path.exists(newDirName):
             os.mkdir(newDirName)
