@@ -179,6 +179,7 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 	setOption(pars.tech454, "--454", "Flag to indicate reads are 454", false, "Technology");
 	setOption(pars.illumina, "--illumina","Flag to indicate reads are Illumina", false, "Technology");
 	setOption(pars.illuminaAllowHomopolyers, "--illuminaAllowHomopolyers","Flag to indicate reads are Illumina but also handle homopolymer indels that may be from long polymers from SWGA TAQ", false, "Technology");
+	setOption(pars.illuminaAllLowMismatches, "--illuminaAllLowMismatches","Flag to collapse low quality and low frequency errors", false, "Technology");
 
 
 
@@ -195,7 +196,13 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 	setOption(pars.trimFront, "--trimFront", "Trim front of the input sequences by this much", false, "Pre-process");
 	setOption(pars.trimBack, "--trimBack", "Trim back of the input sequence by this much", false, "Pre-process");
 
+	//post process
+	pars.breakoutPars.hardCutOff = 10;
 
+	setOption(pars.breakoutClusters, "--breakoutClusters", "Breakout Internal Clusters In case of over collapsed haplotypes");
+
+	setOption(pars.breakoutPars.hardCutOff, "--snpBreakoutMinGroupSize", "A hard cut off for when breaking out clusters, clusters that larger(non-inclusive) than this are broken out");
+	setOption(pars.breakoutPars.snpFreqCutOff, "--snpFreqCutOff", "Cut off for when breaking out snp frequencies");
 
 	bool needsParFlag = true;
 
@@ -238,15 +245,26 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 			pars.intialParameters = CollapseIterations::genIlluminaDefaultParsWithHqs(100, 0);
 			pars.iteratorMap = CollapseIterations::genIlluminaDefaultParsWithHqs(100, pars.hq);
 		}else{
-			pars.binIteratorMap =  CollapseIterations::genIlluminaDefaultPars(100);
-			pars.intialParameters = CollapseIterations::genIlluminaDefaultPars(100);
-			pars.iteratorMap = CollapseIterations::genIlluminaDefaultPars(100);
+			if(pars.illuminaAllLowMismatches){
+				pars.binIteratorMap =  CollapseIterations::genIlluminaDefaultAllLowMismatchesPars(100);
+				pars.intialParameters = CollapseIterations::genIlluminaDefaultAllLowMismatchesPars(100);
+				pars.iteratorMap = CollapseIterations::genIlluminaDefaultAllLowMismatchesPars(100);
+			}else{
+				pars.binIteratorMap =  CollapseIterations::genIlluminaDefaultPars(100);
+				pars.intialParameters = CollapseIterations::genIlluminaDefaultPars(100);
+				pars.iteratorMap = CollapseIterations::genIlluminaDefaultPars(100);
+			}
 		}
 		if(pars.illuminaAllowHomopolyers){
-			pars.binIteratorMap =  CollapseIterations::genIlluminaDefaultParsCollapseHomopolymers(100);
-			pars.intialParameters = CollapseIterations::genIlluminaDefaultParsCollapseHomopolymers(100);
-			pars.iteratorMap = CollapseIterations::genIlluminaDefaultParsCollapseHomopolymers(100);
-
+			if(pars.illuminaAllLowMismatches){
+				pars.binIteratorMap =  CollapseIterations::genIlluminaDefaultParsAllLowMismatchesCollapseHomopolymers(100);
+				pars.intialParameters = CollapseIterations::genIlluminaDefaultParsAllLowMismatchesCollapseHomopolymers(100);
+				pars.iteratorMap = CollapseIterations::genIlluminaDefaultParsAllLowMismatchesCollapseHomopolymers(100);
+			}else{
+				pars.binIteratorMap =  CollapseIterations::genIlluminaDefaultParsCollapseHomopolymers(100);
+				pars.intialParameters = CollapseIterations::genIlluminaDefaultParsCollapseHomopolymers(100);
+				pars.iteratorMap = CollapseIterations::genIlluminaDefaultParsCollapseHomopolymers(100);
+			}
 			pars_.colOpts_.iTOpts_.weighHomopolyer_ = true;
 		}else{
 			pars_.colOpts_.iTOpts_.weighHomopolyer_ = false;
@@ -255,7 +273,6 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 		pars_.qScorePars_.primaryQual_ = 25;
 		pars_.qScorePars_.secondaryQual_ = 20;
 		pars_.qualThres_ = "25,20";
-
 	}
 	bool otuSet = setOption(pars.otuPerc, "--otu",
 			"Collapse on this OTU percentage, should be between (0,1)", false, "OTU Clustering");
@@ -325,6 +342,10 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 	setOption(pars_.colOpts_.kmerBinOpts_.kCompareLen_, "--kCompareLen", "kmer Compare Length for when bining by kmers first for when --useKmerBinning is used", false, "Clustering");
 	setOption(pars.leaveOutSinglets, "--leaveOutSinglets",
 			"Leave out singlet clusters out of all analysis", false, "Clustering");
+	setOption(pars.dontRecalLowFreqMismatchAndReRun, "--dontRecalLowFreqMismatchAndReRun",
+			"Don't Recal Low Freq Mismatch And Re-Run Clustering Step", false, "Clustering");
+
+
 	setOption(pars.onPerId, "--onPerId", "Cluster on Percent Identity Instead", false, "OTU Clustering");
 	pars_.colOpts_.iTOpts_.removeLowQualityBases_= setOption(pars_.colOpts_.iTOpts_.lowQualityBaseTrim_, "--qualTrim",
 			"Low Quality Cut Off", false, "Preprocessing");
@@ -332,6 +353,9 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 			"Per base quality score calculation for initial unique clusters collapse", false, "Preprocessing");
 	//setOption(pars.extra, "--extra", "Extra");
 	setOption(pars.writeOutFinalInternalSnps, "--writeOutFinalInternalSnps", "Write out Internal (within the clusters) SNP class, useful for debugging if over collapsing is happening", false, "Additional Output");
+	setOption(pars.writeOutFinalAllByAllComparison, "--writeOutFinalAllByAllComparison", "Write out all pairwise comparisons between all the final clusters", false, "Additional Output");
+
+
 
 	pars_.chiOpts_.checkChimeras_ = true;
 	pars_.chiOpts_.parentFreqs_ = 2;

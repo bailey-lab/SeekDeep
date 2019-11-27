@@ -75,6 +75,15 @@ void SeekDeepSetUp::setUpExtractorPairedEnd(ExtractorPairedEndPars & pars) {
 	setOption(pars.pairProcessorParams_.r2Trim_, "--r2Trim",
 			"Remove this many sequences off of the end of r2 reads", false, "Post Processing");
 
+
+	setOption(pars.pairProcessorParams_.qualWindowPar_.avgQualCutOff_, "--qWindowTrimAvgQualCutOff", "Quality Window Trim Avg Qual Cut Off");
+	setOption(pars.pairProcessorParams_.qualWindowPar_.windowSize_, "--qWindowSize", "Quality Window Trim Size");
+	setOption(pars.pairProcessorParams_.qualWindowPar_.windowStep_, "--qWindowStep", "Quality Window Trim Step");
+	bool noTrimLowQualWindows = false;
+	setOption(noTrimLowQualWindows, "--noTrimLowQualWindows", "Don't Trim Low Qual Windows");
+	pars.pairProcessorParams_.trimLowQaulWindows_ = !noTrimLowQualWindows;
+
+
 	std::string overlapStatus{"auto"};
 	std::set<std::string> allowableOverlapStatuses{"AUTO", "R1BEGINSINR2", "R1ENDSINR2", "NOOVERLAP"};
 

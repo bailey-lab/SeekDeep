@@ -284,7 +284,18 @@ PairedReadProcessor::ProcessedPairRes PairedReadProcessor::processPairedEnd(
 		PairedRead & seq,
 		ProcessedResultsCounts & counts,
 		aligner & alignerObj) const {
-
+	MultiSeqOutCache<seqInfo> debugOutCache;
+	if(params_.debug_){
+		auto failedOverLapOpts = SeqIOOptions::genFastqOut(bfs::path("tempAln_failedOverLap.fastq"));
+		failedOverLapOpts.out_.append_ = true;
+		debugOutCache.addReader("failedOverLap", failedOverLapOpts);
+		auto r1BeginsInR2LapOpts = SeqIOOptions::genFastqOut(bfs::path("tempAln_r1BeginsInR2.fastq"));
+		r1BeginsInR2LapOpts.out_.append_ = true;
+		debugOutCache.addReader("r1BeginsInR2", r1BeginsInR2LapOpts);
+		auto r1EndsInR2LapOpts = SeqIOOptions::genFastqOut(bfs::path("tempAln_r1EndsInR2.fastq"));
+		r1EndsInR2LapOpts.out_.append_ = true;
+		debugOutCache.addReader("r1EndsInR2", r1EndsInR2LapOpts);
+	}
 
 	ProcessedPairRes ret;
 	double percentId = 1 - params_.errorAllowed_ ;
@@ -308,18 +319,7 @@ PairedReadProcessor::ProcessedPairRes PairedReadProcessor::processPairedEnd(
 //	std::cout << "alignerObj.comp_.distances_.eventBasedIdentityHq_: " << alignerObj.comp_.distances_.eventBasedIdentityHq_<< std::endl;
 //	std::cout << "alignerObj.comp_.distances_.basesInAln_: " << alignerObj.comp_.distances_.basesInAln_ << std::endl;
 //	std::cout << "alignerObj.comp_.hqMismatches_: " << alignerObj.comp_.hqMismatches_ << std::endl;
-	MultiSeqOutCache<seqInfo> debugOutCache;
-	if(params_.debug_){
-		auto failedOverLapOpts = SeqIOOptions::genFastqOut(bfs::path("tempAln_failedOverLap.fastq"));
-		failedOverLapOpts.out_.append_ = true;
-		debugOutCache.addReader("failedOverLap", failedOverLapOpts);
-		auto r1BeginsInR2LapOpts = SeqIOOptions::genFastqOut(bfs::path("tempAln_r1BeginsInR2.fastq"));
-		r1BeginsInR2LapOpts.out_.append_ = true;
-		debugOutCache.addReader("r1BeginsInR2", r1BeginsInR2LapOpts);
-		auto r1EndsInR2LapOpts = SeqIOOptions::genFastqOut(bfs::path("tempAln_r1EndsInR2.fastq"));
-		r1EndsInR2LapOpts.out_.append_ = true;
-		debugOutCache.addReader("r1EndsInR2", r1EndsInR2LapOpts);
-	}
+
 
 //	OutOptions tempOutR1BEGINSINR2Opts(bfs::path("temp_failedOverLap.fastq"));
 //	tempOutR1BEGINSINR2Opts.append_ = true;
@@ -332,6 +332,65 @@ PairedReadProcessor::ProcessedPairRes PairedReadProcessor::processPairedEnd(
 //	std::cout << "alignerObj.comp_.hqMismatches_ + alignerObj.comp_.lqMismatches_ <= params_.hardMismatchCutOff_: " << njh::colorBool(alignerObj.comp_.hqMismatches_ + alignerObj.comp_.lqMismatches_ <= params_.hardMismatchCutOff_) << std::endl;
 //	std::cout << "alignerObj.comp_.hqMismatches_ <= params_.hqMismatchCutOff: " << njh::colorBool(alignerObj.comp_.hqMismatches_ <= params_.hqMismatchCutOff) << std::endl;
 //	std::cout << "alignerObj.comp_.lqMismatches_ <= params_.lqMismatchCutOff: " << njh::colorBool(alignerObj.comp_.lqMismatches_ <= params_.lqMismatchCutOff) << std::endl;
+
+	auto getFirstFailedWindow = [](const seqInfo & seq, const ProcessParams::QualWindowTrimPars & qPars, uint32_t startSearch = 0){
+		uint32_t ret = std::numeric_limits<uint32_t>::max();
+		if(len(seq) > qPars.windowSize_){
+			for(const auto pos : iter::range<uint32_t>(startSearch, len(seq) - qPars.windowSize_, qPars.windowStep_)){
+				double sum = 0;
+				for(const auto & qPos : iter::range(pos, pos + qPars.windowSize_)){
+					sum += seq.qual_[qPos];
+				}
+				if(sum/qPars.windowSize_ < qPars.avgQualCutOff_){
+					ret = pos;
+					break;
+				}
+			}
+		}
+		return ret;
+	};
+
+	auto getLastFailedWindow = [](const seqInfo & seq, const ProcessParams::QualWindowTrimPars & qPars, uint32_t stopSearch = std::numeric_limits<uint32_t>::max()){
+		uint32_t ret = 0;
+		uint32_t end = std::min<uint32_t>(len(seq), stopSearch);
+		if(end > qPars.windowSize_ + 1){
+			for(const auto pos : iter::range<uint32_t>(0, end - qPars.windowSize_ - 1, qPars.windowStep_)){
+				uint32_t truePos = end - qPars.windowSize_ - pos - 1;
+				double sum = 0;
+				for(const auto & qPos : iter::range(truePos, truePos + qPars.windowSize_)){
+					sum += seq.qual_[qPos];
+				}
+				if(sum/qPars.windowSize_ < qPars.avgQualCutOff_){
+					ret = truePos;
+					break;
+				}
+			}
+		}
+		return ret;
+	};
+	if(params_.trimLowQaulWindows_ && !(alignerObj.comp_.distances_.eventBasedIdentityHq_ >= percentId &&
+			alignerObj.comp_.distances_.basesInAln_ >= params_.minOverlap_ &&
+			alignerObj.comp_.hqMismatches_ + alignerObj.comp_.lqMismatches_ <= params_.hardMismatchCutOff_ &&
+			alignerObj.comp_.hqMismatches_ <= params_.hqMismatchCutOff &&
+			alignerObj.comp_.lqMismatches_ <= params_.lqMismatchCutOff)){
+		const uint32_t firstMateWindow = getFirstFailedWindow(seq.seqBase_, params_.qualWindowPar_);
+		const uint32_t secondMateWindow = getLastFailedWindow(seq.mateSeqBase_, params_.qualWindowPar_);
+
+		if((firstMateWindow != std::numeric_limits<uint32_t>::max() && firstMateWindow > 1) ||
+				(secondMateWindow != 0 && secondMateWindow + params_.qualWindowPar_.windowSize_ + 2 < len(seq.mateSeqBase_))){
+			auto copySeq = seq;
+			if(firstMateWindow != std::numeric_limits<uint32_t>::max() && firstMateWindow > 1){
+				copySeq.seqBase_ = seq.seqBase_.getSubRead(0, firstMateWindow);
+			}
+			if(secondMateWindow != 0 && secondMateWindow + params_.qualWindowPar_.windowSize_ + 2 < len(seq.mateSeqBase_)){
+				copySeq.mateSeqBase_ = seq.mateSeqBase_.getSubRead(secondMateWindow + params_.qualWindowPar_.windowSize_);
+			}
+			alignerObj.alignRegGlobalNoInternalGaps(copySeq.seqBase_, copySeq.mateSeqBase_);
+			alignerObj.profileAlignment(            copySeq.seqBase_, copySeq.mateSeqBase_, false, true, false);
+		}
+
+	}
+
 
 	if( alignerObj.comp_.distances_.eventBasedIdentityHq_ >= percentId &&
 			alignerObj.comp_.distances_.basesInAln_ >= params_.minOverlap_ &&

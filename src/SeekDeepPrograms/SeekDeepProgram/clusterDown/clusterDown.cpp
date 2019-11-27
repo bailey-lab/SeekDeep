@@ -477,6 +477,40 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 				setUp.pars_.ioOptions_, setUp.pars_.refIoOptions_, pars.snapShotsOpts_);
 	}
 
+	//run again with re-calculating kmer frequencies
+	if(!pars.dontRecalLowFreqMismatchAndReRun){
+		setUp.rLog_.logCurrentTime("Running poster clustering with re-calc k-mer frequencies");
+
+		KmerMaps recalcKmaps = indexKmers(clusters,
+				setUp.pars_.colOpts_.kmerOpts_.kLength_,
+				setUp.pars_.colOpts_.kmerOpts_.runCutOff_,
+				setUp.pars_.colOpts_.kmerOpts_.kmersByPosition_,
+				setUp.pars_.expandKmerPos_,
+				setUp.pars_.expandKmerSize_);
+		alignerObj.kMaps_ = recalcKmaps;
+		pars.snapShotsOpts_.snapShotsDirName_ = "thirdSnaps";
+		njh::for_each(clusters,[](cluster & clus){
+			clus.previousErrorChecks_.clear();
+		});
+		collapserObj.runFullClustering(clusters, pars.iteratorMap,
+				pars.binIteratorMap, alignerObj, setUp.pars_.directoryName_,
+				setUp.pars_.ioOptions_, setUp.pars_.refIoOptions_, pars.snapShotsOpts_);
+	}
+
+	if(pars.breakoutClusters){
+		std::vector<cluster> breakoutClusters;
+		for(auto & clus : clusters){
+			auto currentBreakOuts = clus.breakoutClustersBasedOnSnps(alignerObj, pars.breakoutPars);
+			addOtherVec(breakoutClusters, currentBreakOuts);
+		}
+		if(!breakoutClusters.empty()){
+			if(setUp.pars_.verbose_){
+				std::cout << "Broke out " << breakoutClusters.size() << " clusters" << std::endl;
+			}
+			addOtherVec(clusters, breakoutClusters);
+		}
+	}
+
 	//remove reads if they are made up of reads only in one direction
 	if (containsCompReads && pars.useCompPerCutOff) {
 		for (auto& clus : clusters) {
@@ -656,6 +690,87 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 							".tab.txt"), "\t", misTab.hasHeader_));
 		}
 	}
+
+	if (pars.writeOutFinalAllByAllComparison){
+		OutputStream allByAllCompJson(njh::files::make_path(setUp.pars_.directoryName_, "allByAllComp.json"));
+		OutputStream allByAllCompTable(njh::files::make_path(setUp.pars_.directoryName_, "allByAllComp.tab.txt"));
+		OutputStream allByAllCompCountsTable(njh::files::make_path(setUp.pars_.directoryName_, "allByAllCompCounts.tab.txt"));
+		allByAllCompCountsTable << "seq1\tseq2\talnScore\tscore\tscoreHq\t1BaseIndel\t2BaseIndel\t>2BaseIndel\tlqMismatch\thqMismatch\tlowKmerMismatch" << std::endl;
+		allByAllCompTable << "seq1\tseq2\terror\tvalue1\tpos1\tquality1\tvalue2\tpos2\tquality2\tkMerFreqByPos\tisHighQual" << std::endl;
+		Json::Value outComp;
+		for(const auto & seq : iter::reversed(clusters)){
+			for(const auto & otherSeq : clusters){
+				if(seq.seqBase_.name_ == otherSeq.seqBase_.name_){
+					break;
+				}
+				alignerObj.alignCacheGlobal(otherSeq, seq);
+				//count gaps and mismatches and get identity
+				alignerObj.profileAlignment(otherSeq, seq, true, true, false);
+				//Summarized info
+				allByAllCompCountsTable << otherSeq.seqBase_.name_
+							<< "\t" << seq.seqBase_.name_
+							<< "\t" << alignerObj.comp_.alnScore_
+							<< "\t" << alignerObj.comp_.distances_.eventBasedIdentity_
+							<< "\t" << alignerObj.comp_.distances_.eventBasedIdentityHq_
+							<< "\t" << alignerObj.comp_.oneBaseIndel_
+							<< "\t" << alignerObj.comp_.twoBaseIndel_
+							<< "\t" << alignerObj.comp_.largeBaseIndel_
+							<< "\t" << alignerObj.comp_.lqMismatches_
+							<< "\t" << alignerObj.comp_.hqMismatches_
+							<< "\t" << alignerObj.comp_.lowKmerMismatches_
+						<< std::endl;
+
+				//all the info
+				outComp[njh::pasteAsStr(otherSeq.seqBase_.name_, "-vs-", seq.seqBase_.name_)] = alignerObj.comp_.toJson();
+				//each
+				for(const auto & m : alignerObj.comp_.distances_.mismatches_){
+					allByAllCompTable << otherSeq.seqBase_.name_
+							<< "\t" << seq.seqBase_.name_
+							<< "\t" << "mismatch"
+							<< "\t" << m.second.refBase
+							<< "\t" << m.second.refBasePos
+							<< "\t" << m.second.refQual
+							<< "\t" << m.second.seqBase
+							<< "\t" << m.second.seqBasePos
+							<< "\t" << m.second.seqQual
+							<< "\t" << m.second.kMerFreqByPos
+							<< "\t" << njh::boolToStr(m.second.highQuality(alignerObj.qScorePars_))
+					<< std::endl;
+				}
+				for(const auto & m : alignerObj.comp_.distances_.lowKmerMismatches_){
+					allByAllCompTable << otherSeq.seqBase_.name_
+							<< "\t" << seq.seqBase_.name_
+							<< "\t" << "lowKmerMismatch"
+							<< "\t" << m.second.refBase
+							<< "\t" << m.second.refBasePos
+							<< "\t" << m.second.refQual
+							<< "\t" << m.second.seqBase
+							<< "\t" << m.second.seqBasePos
+							<< "\t" << m.second.seqQual
+							<< "\t" << m.second.kMerFreqByPos
+							<< "\t" << njh::boolToStr(m.second.highQuality(alignerObj.qScorePars_))
+					<< std::endl;
+				}
+				for(const auto & g : alignerObj.comp_.distances_.alignmentGaps_){
+					allByAllCompTable << otherSeq.seqBase_.name_
+							<< "\t" << seq.seqBase_.name_
+							<< "\t" << "gap-" << (g.second.ref_ ? "insertion" : "deletion")
+							<< "\t" << (g.second.ref_? std::string("") : g.second.gapedSequence_)
+							<< "\t" << (g.second.ref_? std::string("") : njh::conToStr(g.second.qualities_, ","))
+							<< "\t" << g.second.refPos_
+							<< "\t" << (g.second.ref_? g.second.gapedSequence_ : std::string("") )
+							<< "\t" << (g.second.ref_? njh::conToStr(g.second.qualities_, ","): std::string(""))
+							<< "\t" << g.second.refPos_
+							<< "\t" << ""
+							<< "\t" << ""
+					<< std::endl;
+				}
+			}
+		}
+
+		allByAllCompJson << outComp << std::endl;
+	}
+
 	if (pars.createMinTree) {
 		setUp.rLog_.logCurrentTime("Creating minimum spanning trees");
 		std::string minTreeDirname = njh::files::makeDir(setUp.pars_.directoryName_,

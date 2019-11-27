@@ -101,7 +101,7 @@ public:
 	struct ProcessParams{
 		uint32_t minOverlap_ = 10;
 		double errorAllowed_ = 0.01;
-		uint32_t hardMismatchCutOff_ = 10;
+		uint32_t hardMismatchCutOff_ = 20;
 		uint32_t lqMismatchCutOff = 10;
 		uint32_t hqMismatchCutOff = 10;
 
@@ -116,6 +116,15 @@ public:
 
 		uint32_t r1Trim_ = 0;
 		uint32_t r2Trim_ = 0;
+
+		struct QualWindowTrimPars{
+			uint32_t windowSize_ {5};
+			uint32_t windowStep_ {1};
+			double avgQualCutOff_{25};
+		};
+
+		QualWindowTrimPars qualWindowPar_;
+		bool trimLowQaulWindows_{true};
 
 	};
 
