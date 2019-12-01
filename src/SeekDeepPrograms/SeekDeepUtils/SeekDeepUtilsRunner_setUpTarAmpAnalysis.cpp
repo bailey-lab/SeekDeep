@@ -45,7 +45,6 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	setUp.setOption(pars.inputDir, "--inputDir", "Input Directory of raw data files", true, "Input");
 	setUp.setOption(pars.idFile,   "--idFile",   "ID file containing primer and possible additional MIDs", true, "ID Files");
 
-
 	setUp.setOption(pars.samplesNamesFnp, "--samples", "A file containing the samples names, columns should go target,sample,pcr1,pcr2(optional)", true, "ID Files");
 	setUp.setOption(pars.overlapStatusFnp, "--overlapStatusFnp",
 			"A file with two columns, target,status; status column should contain 1 of 3 values (capitalization doesn't matter): r1BegOverR2End,r1EndOverR2Beg,NoOverlap. r1BegOverR2End=target size < read length (causes read through),r1EndOverR2Beg= target size > read length less than 2 x read length, NoOverlap=target size > 2 x read length",
@@ -60,10 +59,12 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	// Extra arguments to give the sub programs
 	setUp.setOption(pars.extraExtractorCmds, "--extraExtractorCmds",
 			"Extra extractor cmds to add to the defaults", false, "Extra Commands");
-	setUp.setOption(pars.extraQlusterCmds, "--extraQlusterCmds",
-			"Extra qluster cmds to add to the defaults", false, "Extra Commands");
+	setUp.setOption(pars.extraQlusterCmds, "--extraQlusterCmds,--extraKcrushCmds",
+			"Extra qluster/kcrush cmds to add to the defaults", false, "Extra Commands");
 	setUp.setOption(pars.extraProcessClusterCmds, "--extraProcessClusterCmds",
 			"Extra process clusters cmds to add to the defaults", false, "Extra Commands");
+	setUp.setOption(pars.useKCrushClustering_, "--useKCrushClustering", "Use kmer clustering for high error rate sequences like nanopore and pacbio");
+
 
 	setUp.setOption(pars.conservative, "--conservativePopClus",
 			"Do conservative population clustering which skips possible artifact cleanup step", false, "processClusters");
@@ -384,6 +385,27 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 								"--alnInfoDir {TARGET}{MIDREP}_alnCache --overWriteDir "
 								"--additionalOut \"../popClustering/{TARGET}/locationByIndex/{INDEX}.tab.txt\" "
 								"--overWrite --dout {TARGET}{MIDREP}_qlusterOut ";
+
+		if(pars.useKCrushClustering_){
+			qlusterCmdTemplate =
+					"cd \"" + extractionDirs.string() + "\" && "
+							+ "if [ -f {TARGET}{MIDREP}.fastq.gz  ]; then "
+							+ " elucidatorlab "
+							+ " kmerClusteringRate "
+									"--fastqgz \"{TARGET}{MIDREP}.fastq.gz\" "
+									"--alnInfoDir {TARGET}{MIDREP}_alnCache --overWriteDir "
+									"--additionalOut \"../popClustering/{TARGET}/locationByIndex/{INDEX}.tab.txt\" "
+									"--overWrite --dout {TARGET}{MIDREP}_qlusterOut ";
+			qlusterCmdTemplate = "cd \"" + extractionDirs.string() + "\" && "
+					+ " if [ -f {TARGET}{MIDREP}.fastq.gz  ]; then "
+											+ " elucidatorlab "
+											+ " kmerClusteringRate "
+							"--fastqgz \"{TARGET}{MIDREP}.fastq.gz\" "
+							"--alnInfoDir {TARGET}{MIDREP}_alnCache --overWriteDir "
+							"--additionalOut ../popClustering/locationByIndex/{TARGET}.tab.txt "
+							"--overWrite --dout {TARGET}{MIDREP}_kcrushOut ";
+		}
+
 		if (analysisSetup.pars_.techIsIllumina() || analysisSetup.pars_.techIsIlluminaSingleEnd()) {
 			qlusterCmdTemplate += "--illumina --qualThres 25,20";
 		} else if (analysisSetup.pars_.techIs454()) {
@@ -516,6 +538,16 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 						"--alnInfoDir {TARGET}{MIDREP}_alnCache --overWriteDir "
 						"--additionalOut ../popClustering/locationByIndex/{TARGET}.tab.txt "
 						"--overWrite --dout {TARGET}{MIDREP}_qlusterOut ";
+		if(pars.useKCrushClustering_){
+			qlusterCmdTemplate = "cd \"" + extractionDirs.string() + "\" && "
+					+ " if [ -f {TARGET}{MIDREP}.fastq.gz  ]; then "
+											+ " elucidatorlab "
+											+ " kmerClusteringRate "
+							"--fastqgz \"{TARGET}{MIDREP}.fastq.gz\" "
+							"--alnInfoDir {TARGET}{MIDREP}_alnCache --overWriteDir "
+							"--additionalOut ../popClustering/locationByIndex/{TARGET}.tab.txt "
+							"--overWrite --dout {TARGET}{MIDREP}_kcrushOut ";
+		}
 		if (analysisSetup.pars_.techIsIllumina() || analysisSetup.pars_.techIsIlluminaSingleEnd()) {
 			qlusterCmdTemplate += "--illumina --qualThres 25,20";
 		} else if (analysisSetup.pars_.techIs454()) {

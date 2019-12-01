@@ -69,6 +69,7 @@ public:
 		std::string extraQlusterCmds = "";
 		std::string extraProcessClusterCmds = "";
 
+		bool useKCrushClustering_{false};
 
 		//checks
 
