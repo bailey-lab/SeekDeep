@@ -100,7 +100,8 @@ public:
 	static benchResults benchmark(const std::vector<RESULTSEQ> & resultSeqs, const std::vector<REFSEQ> & expectedSeqs,
 	const std::unordered_map<std::string, double> & expectedSeqFracs,
 	const std::unordered_map<std::string, std::string> & expectedSeqNameKey,
-	aligner & alignerObj){
+	aligner & alignerObj,
+	const comparison & allowableError = comparison{} ){
 		benchResults ret;
 		ret.expectedHapCnt_ = expectedSeqs.size();
 		std::unordered_set<std::string> matchingRefs;
@@ -110,7 +111,10 @@ public:
 			double expectedFrac = 0;
 			for(const auto & expectedSeq : expectedSeqs){
 				const auto & expSeq = getSeqBase(expectedSeq);
-				if(resSeq.seq_ == expSeq.seq_){
+				alignerObj.alignCacheGlobal(expSeq, resSeq);
+				alignerObj.profileAlignment(expSeq, resSeq, false, false, false);
+				//consider doing best matching reference
+				if(allowableError.passErrorProfile(alignerObj.comp_)){
 					matchingRef =  njh::mapAt(expectedSeqNameKey,expSeq.name_);
 					expectedFrac = njh::mapAt(expectedSeqFracs,expSeq.name_);
 					break;

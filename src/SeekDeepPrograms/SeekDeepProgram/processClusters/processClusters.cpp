@@ -220,6 +220,7 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 
 				if (0 != pars.runsRequired) {
 					sampColl.sampleCollapses_.at(samp)->excludeBySampNum(pars.runsRequired, true);
+
 				} else {
 					sampColl.sampleCollapses_.at(samp)->excludeBySampNum(sampColl.sampleCollapses_.at(samp)->input_.info_.infos_.size(), true);
 				}

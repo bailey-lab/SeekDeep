@@ -21,6 +21,7 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 	bfs::path metaFnp = "";
 	bool skipMissingSamples = false;
 	bfs::path popSeqsFnp = "";
+	comparison allowableError;
 	seqSetUp setUp(inputCommands);
 	setUp.processVerbose();
 	setUp.processDebug();
@@ -33,6 +34,7 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 	setUp.setOption(conBenchPars.samplesToMixFnp_, "--sampleToMixture", "Sample To Mixture, 2 columns 1)sample, 2)MixName", true);
 	setUp.setOption(conBenchPars.mixSetUpFnp_, "--mixtureSetUp", "Mixture Set Up, 3 columns 1)MixName, 2)strain, 3)relative_abundance", true);
 	setUp.setOption(skipMissingSamples, "--skipMissingSamples", "Skip Samples if they are missing");
+	setUp.processComparison(allowableError);
 	setUp.processAlignerDefualts();
 	setUp.processDirectoryOutputName(name + "_benchmarkControlMixtures_TODAY", true);
 	setUp.finishSetUp(std::cout);
@@ -290,7 +292,7 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 
 		auto res = bencher.benchmark(resultSeqs, currentExpectedSeqs,
 				currentExpectedSeqsFrac,
-				expSeqsKey, alignerObj);
+				expSeqsKey, alignerObj, allowableError);
 		double total = 0;
 
 
