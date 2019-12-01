@@ -44,6 +44,8 @@ void CoreExtractorPars::setCorePars(seqSetUp & setUp){
 			"Number Of One base indels to allow in primers", false, "Primer");
 	setUp.setOption(pDetPars.allowable_.twoBaseIndel_, "--primerTwoBaseIndels",
 			"Number Of Two base indels to allow in primers", false, "Primer");
+	setUp.setOption(pDetPars.allowable_.largeBaseIndel_, "--primerMoreThan2BaseIndels",
+			"Number Of greater than two base indels to allow in primers", false, "Primer");
 	setUp.setOption(sampleName, "--sampleName",
 			"A name to append to the output files",
 			false, "Output Naming");

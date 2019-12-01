@@ -15,7 +15,7 @@ namespace njhseq {
 
 int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 		const njh::progutils::CmdArgs & inputCommands) {
-	VecStr acceptableTechs{"454", "IonTorrent", "Illumina", "Illumina-SingleEnd"};
+	VecStr acceptableTechs{"454", "IonTorrent", "Illumina", "Illumina-SingleEnd", "Nanopore"};
 
 	TarAmpAnalysisSetup::TarAmpPars pars;
 	seqSetUp setUp(inputCommands);

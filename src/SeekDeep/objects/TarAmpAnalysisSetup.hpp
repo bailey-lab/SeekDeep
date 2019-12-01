@@ -166,6 +166,7 @@ public:
 	VecStr getIndexes() const;
 
 	void addSamplesNames(const bfs::path & samplesNamesFnp);
+	void addSamplesNames(const table & samplesNamesTab);
 
 	void addIndexToTargetsNames(const bfs::path & targetsToIndexFnp);
 

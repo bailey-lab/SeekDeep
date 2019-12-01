@@ -395,11 +395,8 @@ VecStr TarAmpAnalysisSetup::getIndexes() const {
 	return njh::getVecOfMapKeys(samples_);
 }
 
-
-
-void TarAmpAnalysisSetup::addSamplesNames(const bfs::path & samplesNamesFnp){
+void TarAmpAnalysisSetup::addSamplesNames(const table & samplesNamesInputTab){
 	VecStr warnings;
-	table samplesNamesInputTab(samplesNamesFnp.string());
 	std::vector<VecStr> finalSamps;
 	uint32_t rowCount = 0;
 	for(const auto & row : samplesNamesInputTab.content_){
@@ -446,40 +443,57 @@ void TarAmpAnalysisSetup::addSamplesNames(const bfs::path & samplesNamesFnp){
 	std::regex pat{"(^MID)([0-9]+$)"};
 	std::smatch match;
 	for (const auto & row : finalSamps) {
-		std::string target = row[0];
+		std::string targetRaw = row[0];
+
+		VecStr targets{targetRaw};
+		if("all" == njh::strToLowerRet(targetRaw)){
+			if(nullptr == idsMids_){
+				std::stringstream ss;
+				ss << __PRETTY_FUNCTION__ << ", error " << "error, idsMids_ cannot be nullptr"<< "\n";
+				throw std::runtime_error{ss.str()};
+			}
+			targets = idsMids_->getTargets();
+		}
 		std::string sample = row[1];
 		VecStr reps = getSubVector(row, 2);
-		if(pars_.byIndex){
-			for(const auto & rep : reps){
-				if(!std::regex_match(rep, match, pat)){
-					errorStream << "Error for " << sample << " in " << target << "rep name needs begins with MID and end with a number" << "\n";
-					errorStream << "Failed: " << njh::bashCT::red << rep << njh::bashCT::reset << "\n";
-					failed = true;
-				}
-			}
-		}
-		for (const auto & rep : reps) {
-			for (const auto & tar : samples_) {
-				if(tar.first != target){
-					continue;
-				}
-				for (const auto & samp : tar.second.samples_) {
-					if (njh::in(rep, samp.second.reps_)) {
-						errorStream << __PRETTY_FUNCTION__ << " : Error for " << sample << " in " << target << ", already have " << rep
-								<< " in " << samp.first << "\n";
+		for(const auto & target : targets){
+			if(pars_.byIndex){
+				for(const auto & rep : reps){
+					if(!std::regex_match(rep, match, pat)){
+						errorStream << "Error for " << sample << " in " << target << "rep name needs begins with MID and end with a number" << "\n";
+						errorStream << "Failed: " << njh::bashCT::red << rep << njh::bashCT::reset << "\n";
+						failed = true;
 					}
 				}
 			}
+			for (const auto & rep : reps) {
+				for (const auto & tar : samples_) {
+					if(tar.first != target){
+						continue;
+					}
+					for (const auto & samp : tar.second.samples_) {
+						if (njh::in(rep, samp.second.reps_)) {
+							errorStream << __PRETTY_FUNCTION__ << " : Error for " << sample << " in " << target << ", already have " << rep
+									<< " in " << samp.first << "\n";
+						}
+					}
+				}
+			}
+			auto search = samples_.find(target);
+			if(samples_.end() == search){
+				samples_.emplace(target, Samples(target));
+			}
+			samples_.at(target).addSample(sample, reps);
 		}
-		auto search = samples_.find(target);
-		if(samples_.end() == search){
-			samples_.emplace(target, Samples(target));
-		}
-		samples_.at(target).addSample(sample, reps);
 	}
 	if(failed){
 		throw std::runtime_error{errorStream.str()};
 	}
+}
+
+void TarAmpAnalysisSetup::addSamplesNames(const bfs::path & samplesNamesFnp){
+	table samplesNamesInputTab(samplesNamesFnp.string());
+	addSamplesNames(samplesNamesInputTab);
 }
 
 
