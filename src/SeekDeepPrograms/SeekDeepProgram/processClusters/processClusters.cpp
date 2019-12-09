@@ -546,17 +546,15 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 	uint32_t totalPopCount = 0;
 	std::set<std::string> samplesCount;
 	//if(!pars.noPopulation){
-	if(true){
-		popSeqsPerSamp = sampColl.genOutPopSeqsPerSample();
-		outPopSeqsPerSamp = popSeqsPerSamp;
-		for(const auto & popClus : sampColl.popCollapse_->collapsed_.clusters_){
-			sampCountsForPopHaps[popClus.seqBase_.name_] = popClus.sampleClusters().size();
-			totalPopCount += popClus.sampleClusters().size();
-		}
-		for(const auto & seq : popSeqsPerSamp){
-			MetaDataInName seqMeta(seq.name_);
-			samplesCount.emplace(seqMeta.getMeta("sample"));
-		}
+	popSeqsPerSamp = sampColl.genOutPopSeqsPerSample();
+	outPopSeqsPerSamp = popSeqsPerSamp;
+	for(const auto & popClus : sampColl.popCollapse_->collapsed_.clusters_){
+		sampCountsForPopHaps[popClus.seqBase_.name_] = popClus.sampleClusters().size();
+		totalPopCount += popClus.sampleClusters().size();
+	}
+	for(const auto & seq : popSeqsPerSamp){
+		MetaDataInName seqMeta(seq.name_);
+		samplesCount.emplace(seqMeta.getMeta("sample"));
 	}
 
 	//if(!pars.noPopulation){
@@ -958,7 +956,15 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 
 
 	if("" != pars.groupingsFile){
-		sampColl.createGroupInfoFiles();
+		if(pars.noWriteGroupInfoFiles){
+			//still write the meta info for use with downstream analysis
+			auto groupsTopDir = njh::files::make_path(sampColl.masterOutputDir_, "groups");
+			njh::files::makeDir(njh::files::MkdirPar(groupsTopDir, true));
+			OutputStream groupMetaJsonFile(njh::files::make_path(groupsTopDir, "groupMetaData.json"));
+			groupMetaJsonFile << sampColl.groupMetaData_->toJson() << std::endl;
+		} else {
+			sampColl.createGroupInfoFiles();
+		}
 	}
 
 	sampColl.createCoreJsonFile();

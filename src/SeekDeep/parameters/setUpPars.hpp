@@ -228,6 +228,8 @@ struct processClustersPars {
   uint32_t lowQualityCutOff = 3;
   std::string customCutOffs = "";
   std::string groupingsFile = "";
+  bool noWriteGroupInfoFiles = false;
+
   bool onPerId = false;
   bool plotRepAgreement = false;
 

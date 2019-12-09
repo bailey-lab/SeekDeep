@@ -79,6 +79,9 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 	processComparison(pars.previousPopErrors, "previousPop");
 	setOption(pars.groupingsFile, "--groupingsFile",
 			"A file to sort samples into different groups", false, "Meta");
+	setOption(pars.noWriteGroupInfoFiles, "--noWriteGroupInfoFiles",
+			"Don't write out the info files for the sub groupings, just add the meta to output directories", false, "Meta");
+
 	setOption(pars.investigateChimeras, "--investigateChimeras",
 			"Check to see if a chimera appears as a high variant in another sample", false, "Chimeras");
 	processDebug();
