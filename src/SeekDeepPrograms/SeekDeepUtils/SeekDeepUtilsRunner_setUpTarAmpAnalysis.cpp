@@ -88,6 +88,8 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 
 	VecStr warnings;
 
+
+
 	pars.allChecks(warnings);
 
 	if (!warnings.empty()) {
@@ -224,6 +226,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 
 	auto files = njh::files::listAllFiles(pars.inputDir.string(), false, {
 			std::regex { analysisSetup.pars_.inputFilePat } });
+
 	if (setUp.pars_.debug_) {
 		std::cout << "Files: " << std::endl;
 		printOutMapContents(files, "\t", std::cout);
@@ -240,8 +243,8 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	//VecStr samplesEmpty;
 	Json::Value logs;
 	std::mutex logsMut;
-	std::unordered_map<std::string, std::pair<VecStr, VecStr>> readsByPairs ;
-	std::unordered_map<std::string, bfs::path> filesByPossibleName;
+	std::map<std::string, std::pair<VecStr, VecStr>> readsByPairs ;
+	std::map<std::string, bfs::path> filesByPossibleName;
 	ReadPairsOrganizer rpOrganizer(expectedSamples);
 	rpOrganizer.doNotGuessSampleNames_ = pars.noGuessSampNames;
 	if (analysisSetup.pars_.techIsIllumina()) {

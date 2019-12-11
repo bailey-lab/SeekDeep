@@ -49,27 +49,102 @@ SeekDeepUtilsRunner::SeekDeepUtilsRunner() :
 
 
 int SeekDeepUtilsRunner::getPossibleSampleNamesFromRawInput(const njh::progutils::CmdArgs & inputCommands) {
-	bfs::path inputDir = "./";
-	std::string inputFilePat = ".*.fastq.gz";
-
+	TarAmpAnalysisSetup::TarAmpPars pars;
+	std::string replicatePattern = "";
 	seqSetUp setUp(inputCommands);
 	setUp.processVerbose();
 	setUp.processDebug();
 
-	setUp.setOption(inputDir, "--inputDir", "Input Directory");
-	setUp.setOption(inputFilePat, "--inputFilePat", "Input File Pat");
+	setUp.setOption(pars.inputDir, "--inputDir", "Input Directory", true);
+	setUp.setOption(pars.inputFilePat, "--inputFilePat", "Input File Pat");
+	setUp.setOption(pars.technology, "--technology", "Technology");
+	setUp.setOption(replicatePattern, "--replicatePattern", "Replicate Pattern to match on to indicate replicates when guessing sample names, should have two groups e.g. (.*)(-rep.*)");
 
 	setUp.finishSetUp(std::cout);
-	auto files = njh::files::listAllFiles(inputDir, false, { std::regex {
-			inputFilePat } });
+	{
+		table sampleNames(VecStr{"#target", "sample", "run1"});
+		std::regex inputfilePatReg{ pars.inputFilePat };
+		auto files = njh::files::listAllFiles(pars.inputDir.string(), false, {
+				inputfilePatReg});
 
-	ReadPairsOrganizer rpOrganizer(VecStr{});
-	rpOrganizer.processFiles(files);
-	for (const auto & samp : rpOrganizer.readPairsUnrecognized_) {
-		std::cout << "\tPossible Sample Name: " << samp.first << std::endl;
-		for (const auto & sampFiles : samp.second) {
-			std::cout << "\t\t" << sampFiles << std::endl;
+		if("" != replicatePattern){
+			std::regex replicatePatternReg{ replicatePattern };
+			std::cout << "replicatePatternReg.mark_count(): " << replicatePatternReg.mark_count() << std::endl;
+			std::map<std::string, VecStr> replicates;
+
+			if (pars.techIsIllumina()) {
+				ReadPairsOrganizer rpOrganizer(VecStr{});
+				rpOrganizer.processFiles(files);
+				for(const auto & samp : rpOrganizer.readPairsUnrecognized_){
+					std::smatch match;
+					if(std::regex_match(samp.first, match, replicatePatternReg)){
+						std::cout << match[1] << ": " << match[2] << std::endl;
+						replicates[match[1]].emplace_back(samp.first);
+					}else{
+						std::stringstream ss;
+						ss << __PRETTY_FUNCTION__ << ", error " << "failed to find replicate pattern: " << replicatePattern << " in " << samp.first<< "\n";
+						throw std::runtime_error{ss.str()};
+					}
+				}
+			} else {
+				VecStr samplesFiles;
+				for(const auto & f : files){
+					samplesFiles.emplace_back(f.first.filename().string());
+				}
+				for(const auto & sf : samplesFiles){
+					auto sampName = sf.substr(0, sf.rfind(".fast"));
+					std::smatch match;
+					if(std::regex_match(sampName, match, replicatePatternReg)){
+						std::cout << match[1] << ": " << match[2] << std::endl;
+						replicates[match[1]].emplace_back(sampName);
+					}else{
+						std::stringstream ss;
+						ss << __PRETTY_FUNCTION__ << ", error " << "failed to find replicate pattern: " << replicatePattern << " in " << sampName<< "\n";
+						throw std::runtime_error{ss.str()};
+					}
+				}
+			}
+			uint32_t maxReplicate = 1;
+			for(auto & rep : replicates){
+				njh::sort(rep.second);
+				maxReplicate = std::max<uint32_t>(maxReplicate, rep.second.size());
+			}
+			VecStr colNames{"#target", "sample"};
+			for(uint32_t run = 1; run <= maxReplicate; ++run){
+				colNames.emplace_back(njh::pasteAsStr("run", run));
+			}
+			sampleNames = table(colNames);
+			for(const auto & rep : replicates){
+				VecStr rowToAdd{"all", rep.first};
+				for(const auto & repName : rep.second){
+					rowToAdd.emplace_back(repName);
+				}
+				for(uint32_t rest = 0; rest < maxReplicate - rep.second.size(); ++rest){
+					rowToAdd.emplace_back("");
+				}
+				sampleNames.addRow(rowToAdd);
+			}
+
+		}else{
+			if (pars.techIsIllumina()) {
+				ReadPairsOrganizer rpOrganizer(VecStr{});
+				rpOrganizer.processFiles(files);
+				for(const auto & samp : rpOrganizer.readPairsUnrecognized_){
+					sampleNames.addRow("all", samp.first, samp.first);
+				}
+			} else {
+				VecStr samplesFiles;
+				for(const auto & f : files){
+					samplesFiles.emplace_back(f.first.filename().string());
+				}
+				for(const auto & sf : samplesFiles){
+					auto sampName = sf.substr(0, sf.rfind(".fast"));
+					sampleNames.addRow("all", sampName, sampName);
+				}
+			}
 		}
+
+		sampleNames.outPutContents(std::cout, "\t");
 	}
 	return 0;
 }

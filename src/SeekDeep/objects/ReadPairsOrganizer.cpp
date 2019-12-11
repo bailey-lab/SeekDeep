@@ -100,8 +100,8 @@ void ReadPairsOrganizer::processFiles(const std::map<bfs::path, bool> & files) {
 	}
 }
 
-std::unordered_map<std::string, std::pair<VecStr, VecStr>> ReadPairsOrganizer::processReadPairs() {
-	std::unordered_map<std::string, std::pair<VecStr, VecStr>> readsByPairs;
+std::map<std::string, std::pair<VecStr, VecStr>> ReadPairsOrganizer::processReadPairs() {
+	std::map<std::string, std::pair<VecStr, VecStr>> readsByPairs;
 	for (const auto & reads : readPairs_) {
 		for (const auto & read : reads.second) {
 			auto filename = bfs::path(read).filename().string();
