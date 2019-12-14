@@ -735,7 +735,9 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 				tempWriter.openOut();
 				tempOuts[name] = SeqIOOptions::genPairedIn(tempWriter.getPrimaryOutFnp(),
 						tempWriter.getSecondaryOutFnp());
-				while(processedReader.readNextRead(filteringSeq)){
+				while(processedReader.readNextRead(filteringSeq)
+						|| filteringSeq.seqBase_.seq_.size() <= pars.corePars_.primIdsPars.compKmerLen_
+						|| filteringSeq.mateSeqBase_.seq_.size() <= pars.corePars_.primIdsPars.compKmerLen_){
 					bool pass = false;
 					if(ids.targets_.at(extractedPrimer).refs_.empty()){
 						pass = true;
@@ -845,8 +847,9 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 				tempWriter.openOut();
 				tempOuts[name] = SeqIOOptions::genFastqIn(tempWriter.getPrimaryOutFnp());
 				while(processedReader.readNextRead(filteringSeq)){
+
 					bool pass = false;
-					if(ids.targets_.at(extractedPrimer).refs_.empty()){
+					if(ids.targets_.at(extractedPrimer).refs_.empty() || filteringSeq.seq_.size() <= pars.corePars_.primIdsPars.compKmerLen_){
 						pass = true;
 					}else{
 						kmerInfo seqKInfo(filteringSeq.seq_, pars.corePars_.primIdsPars.compKmerLen_, false);
