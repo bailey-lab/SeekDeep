@@ -399,7 +399,9 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 	setUp.rLog_.logCurrentTime("Creating aligner");
 	// create aligner class object
 	aligner alignerObj(maxSize,
-			setUp.pars_.gapInfo_, setUp.pars_.scoring_, kMaps,
+			setUp.pars_.gapInfo_,
+			setUp.pars_.scoring_,
+			kMaps,
 			setUp.pars_.qScorePars_,
 			setUp.pars_.colOpts_.alignOpts_.countEndGaps_,
 			setUp.pars_.colOpts_.iTOpts_.weighHomopolyer_);

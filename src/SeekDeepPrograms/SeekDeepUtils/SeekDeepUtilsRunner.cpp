@@ -51,6 +51,7 @@ SeekDeepUtilsRunner::SeekDeepUtilsRunner() :
 int SeekDeepUtilsRunner::getPossibleSampleNamesFromRawInput(const njh::progutils::CmdArgs & inputCommands) {
 	TarAmpAnalysisSetup::TarAmpPars pars;
 	std::string replicatePattern = "";
+	VecStr ignoreSamples{"Undetermined"};
 	seqSetUp setUp(inputCommands);
 	setUp.processVerbose();
 	setUp.processDebug();
@@ -58,6 +59,8 @@ int SeekDeepUtilsRunner::getPossibleSampleNamesFromRawInput(const njh::progutils
 	setUp.setOption(pars.inputDir, "--inputDir", "Input Directory", true);
 	setUp.setOption(pars.inputFilePat, "--inputFilePat", "Input File Pat");
 	setUp.setOption(pars.technology, "--technology", "Technology");
+	setUp.setOption(ignoreSamples, "--ignoreSamples", "Ignore these Samples if found");
+
 	setUp.setOption(replicatePattern, "--replicatePattern", "Replicate Pattern to match on to indicate replicates when guessing sample names, should have two groups e.g. (.*)(-rep.*)");
 
 	setUp.finishSetUp(std::cout);
@@ -71,11 +74,13 @@ int SeekDeepUtilsRunner::getPossibleSampleNamesFromRawInput(const njh::progutils
 			std::regex replicatePatternReg{ replicatePattern };
 			std::cout << "replicatePatternReg.mark_count(): " << replicatePatternReg.mark_count() << std::endl;
 			std::map<std::string, VecStr> replicates;
-
 			if (pars.techIsIllumina()) {
 				ReadPairsOrganizer rpOrganizer(VecStr{});
 				rpOrganizer.processFiles(files);
 				for(const auto & samp : rpOrganizer.readPairsUnrecognized_){
+					if(njh::in(samp, ignoreSamples)){
+						continue;
+					}
 					std::smatch match;
 					if(std::regex_match(samp.first, match, replicatePatternReg)){
 						std::cout << match[1] << ": " << match[2] << std::endl;
@@ -93,6 +98,9 @@ int SeekDeepUtilsRunner::getPossibleSampleNamesFromRawInput(const njh::progutils
 				}
 				for(const auto & sf : samplesFiles){
 					auto sampName = sf.substr(0, sf.rfind(".fast"));
+					if(njh::in(sampName, ignoreSamples)){
+						continue;
+					}
 					std::smatch match;
 					if(std::regex_match(sampName, match, replicatePatternReg)){
 						std::cout << match[1] << ": " << match[2] << std::endl;
@@ -130,6 +138,9 @@ int SeekDeepUtilsRunner::getPossibleSampleNamesFromRawInput(const njh::progutils
 				ReadPairsOrganizer rpOrganizer(VecStr{});
 				rpOrganizer.processFiles(files);
 				for(const auto & samp : rpOrganizer.readPairsUnrecognized_){
+					if(njh::in(samp, ignoreSamples)){
+						continue;
+					}
 					sampleNames.addRow("all", samp.first, samp.first);
 				}
 			} else {
@@ -139,6 +150,9 @@ int SeekDeepUtilsRunner::getPossibleSampleNamesFromRawInput(const njh::progutils
 				}
 				for(const auto & sf : samplesFiles){
 					auto sampName = sf.substr(0, sf.rfind(".fast"));
+					if(njh::in(sampName, ignoreSamples)){
+						continue;
+					}
 					sampleNames.addRow("all", sampName, sampName);
 				}
 			}
