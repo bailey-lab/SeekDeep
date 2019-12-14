@@ -78,7 +78,7 @@ int SeekDeepUtilsRunner::getPossibleSampleNamesFromRawInput(const njh::progutils
 				ReadPairsOrganizer rpOrganizer(VecStr{});
 				rpOrganizer.processFiles(files);
 				for(const auto & samp : rpOrganizer.readPairsUnrecognized_){
-					if(njh::in(samp, ignoreSamples)){
+					if(njh::in(samp.first, ignoreSamples)){
 						continue;
 					}
 					std::smatch match;
@@ -138,7 +138,7 @@ int SeekDeepUtilsRunner::getPossibleSampleNamesFromRawInput(const njh::progutils
 				ReadPairsOrganizer rpOrganizer(VecStr{});
 				rpOrganizer.processFiles(files);
 				for(const auto & samp : rpOrganizer.readPairsUnrecognized_){
-					if(njh::in(samp, ignoreSamples)){
+					if(njh::in(samp.first, ignoreSamples)){
 						continue;
 					}
 					sampleNames.addRow("all", samp.first, samp.first);
