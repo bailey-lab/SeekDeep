@@ -179,20 +179,26 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 					auto bedDirectory = njh::files::makeDir(primerDirectory, njh::files::MkdirPar("genomeLocations"));
 					auto forwardOpts = SeqIOOptions::genFastaOut(njh::files::make_path(primerDirectory, "forwardPrimer"));
 					auto reverseOpts = SeqIOOptions::genFastaOut(njh::files::make_path(primerDirectory, "reversePrimer"));
-					auto forDegens = createDegenStrs(primerInfo.forwardPrimerInfo_.seq_);
-					auto revDegens = createDegenStrs(primerInfo.reversePrimerInfoForDir_.seq_);
+					VecStr forDegens;
+					for(const auto & fwd : primerInfo.fwds_){
+						addOtherVec(forDegens, createDegenStrs(fwd.info_.seq_));
+					}
+					VecStr revDegens;
+					for(const auto & rev : primerInfo.revs_){
+						addOtherVec(revDegens, createDegenStrs(rev.info_.seq_));
+					}
 					//
 					std::vector<seqInfo> forSeqs;
 					if(forDegens.size() == 1){
-						forSeqs.emplace_back(primerInfo.forwardPrimerInfo_);
+						forSeqs.emplace_back(primerInfo.fwds_.front().info_);
 					}else{
-						forSeqs = vecStrToReadObjs<seqInfo>(forDegens, primerInfo.forwardPrimerInfo_.name_);
+						forSeqs = vecStrToReadObjs<seqInfo>(forDegens, primerInfo.primerPairName_);
 					}
 					std::vector<seqInfo> revSeqs;
 					if(revDegens.size() == 1){
-						revSeqs.emplace_back(primerInfo.reversePrimerInfoForDir_);
+						revSeqs.emplace_back(primerInfo.revs_.front().info_);
 					}else{
-						revSeqs = vecStrToReadObjs<seqInfo>(revDegens, primerInfo.reversePrimerInfoForDir_.name_);
+						revSeqs = vecStrToReadObjs<seqInfo>(revDegens, primerInfo.primerPairName_);
 					}
 					SeqOutput::write(forSeqs, forwardOpts);
 					SeqOutput::write(revSeqs, reverseOpts);

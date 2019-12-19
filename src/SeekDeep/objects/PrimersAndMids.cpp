@@ -239,8 +239,8 @@ void PrimersAndMids::writeIdFile(const OutOptions & outOpts) const {
 	auto pKeys = getTargets();
 	njh::sort(pKeys);
 	for (const auto & pKey : pKeys) {
-		idFileOut << pKey << "\t" << targets_.at(pKey).info_.forwardPrimer_ << "\t"
-				<< targets_.at(pKey).info_.reversePrimer_ << "\n";
+		idFileOut << pKey << "\t" << targets_.at(pKey).info_.forwardPrimerRaw_ << "\t"
+				<< targets_.at(pKey).info_.reversePrimerRaw_ << "\n";
 	}
 	if (containsMids()) {
 		idFileOut << "id\tbarcode\n";
@@ -263,8 +263,8 @@ void PrimersAndMids::writeIdFile(const OutOptions & outOpts,
 	njh::sort(pKeys);
 	for (const auto & pKey : pKeys) {
 		if (njh::in(pKey, targets)) {
-			idFileOut << pKey << "\t" << targets_.at(pKey).info_.forwardPrimer_
-					<< "\t" << targets_.at(pKey).info_.reversePrimer_ << "\n";
+			idFileOut << pKey << "\t" << targets_.at(pKey).info_.forwardPrimerRaw_
+					<< "\t" << targets_.at(pKey).info_.reversePrimerRaw_ << "\n";
 		}
 	}
 	if (containsMids()) {
