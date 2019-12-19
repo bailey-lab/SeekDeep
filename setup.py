@@ -111,12 +111,14 @@ class CPPLibPackageVersion():
     def getIncludeFlags(self, localPath):
         ret = ""
         if(len(self.includePath_) > 0):
-            ret = "-isystem" + str(os.path.join(localPath, self.includePath_))
+            #ret = "-isystem" + str(os.path.join(localPath, self.includePath_))
+            ret = "-I" + str(os.path.join(localPath, self.includePath_))
         if len(self.additionalIncludePaths_) > 0:
             for addPath in self.additionalIncludePaths_:
                 if len(ret) > 0:
                     ret = ret + " "
-                ret = ret + "-isystem" + str(os.path.join(localPath, addPath))
+                #ret = ret + "-isystem" + str(os.path.join(localPath, addPath))
+                ret = ret + "-I" + str(os.path.join(localPath, addPath))
         if len(self.additionalIncludeFlags_) > 0:
             if len(ret)> 0:
                 ret = ret + " "
