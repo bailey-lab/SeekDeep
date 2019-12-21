@@ -800,6 +800,7 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 		{
 			//snps
 			OutputStream outSnpDepthPerSample(njh::files::make_path(variantInfoDir, njh::pasteAsStr("snpDepthPerSample.tab.txt")));
+			outSnpDepthPerSample << "AnalysisName\tsample\tchromosome\tposition\trefBAse\tbase\treadDepth" << std::endl;
 
 			for( auto & varPerChrom : translatedRes.seqVariants_){
 				auto snpsPositions = getVectorOfMapKeys(varPerChrom.second.snpsFinal);
@@ -932,12 +933,13 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 				}
 				//std::cout << __FILE__ << " " << __LINE__ << std::endl;
 				popMetaTable.outPutContents(TableIOOpts::genTabFileOut(njh::files::make_path(variantInfoDir, varPerChrom.first + "-popSeqsWithMetaAndVariableSNPInfoTable.tab.txt")));
-				outSnpDepthPerSample << "sample\tchromosome\tposition\trefBAse\tbase\treadDepth" << std::endl;
 				for(const auto & sample : snpsPerSampleDepth){
 					for(const auto & chrom : sample.second){
 						for(const auto & position : chrom.second){
 							for(const auto & snp : position.second){
-								outSnpDepthPerSample << sample.first
+								outSnpDepthPerSample
+										<< "\t" << pars.experimentName
+								    << "\t" << sample.first
 										<< "\t" << chrom.first
 										<< "\t" << position.first
 										<< "\t" << translatedRes.baseForPosition_[varPerChrom.first][position.first]
