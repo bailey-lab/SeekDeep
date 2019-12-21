@@ -800,7 +800,15 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 		{
 			//snps
 			OutputStream outSnpDepthPerSample(njh::files::make_path(variantInfoDir, njh::pasteAsStr("snpDepthPerSample.tab.txt")));
-			outSnpDepthPerSample << "AnalysisName\tsample\tchromosome\tposition\trefBAse\tbase\treadDepth" << std::endl;
+			outSnpDepthPerSample << "AnalysisName\tsample\tchromosome\tposition\trefBAse\tbase\treadDepth" ;
+			VecStr metaLevels;
+			if(nullptr != sampColl.groupMetaData_){
+				metaLevels = getVectorOfMapKeys(sampColl.groupMetaData_->groupData_);
+				for(const auto & meta : metaLevels){
+					outSnpDepthPerSample << "\t" << meta;
+				}
+			}
+			outSnpDepthPerSample << std::endl;
 
 			for( auto & varPerChrom : translatedRes.seqVariants_){
 				auto snpsPositions = getVectorOfMapKeys(varPerChrom.second.snpsFinal);
@@ -933,6 +941,8 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 				}
 				//std::cout << __FILE__ << " " << __LINE__ << std::endl;
 				popMetaTable.outPutContents(TableIOOpts::genTabFileOut(njh::files::make_path(variantInfoDir, varPerChrom.first + "-popSeqsWithMetaAndVariableSNPInfoTable.tab.txt")));
+
+
 				for(const auto & sample : snpsPerSampleDepth){
 					for(const auto & chrom : sample.second){
 						for(const auto & position : chrom.second){
@@ -944,7 +954,15 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 										<< "\t" << position.first
 										<< "\t" << translatedRes.baseForPosition_[varPerChrom.first][position.first]
 										<< "\t" << snp.first
-										<< "\t" << snp.second << std::endl;
+										<< "\t" << snp.second ;
+
+								if (nullptr != sampColl.groupMetaData_) {
+									auto metaForSample = sampColl.groupMetaData_->getMetaForSample(sample.first, metaLevels);
+									for (const auto & meta : metaLevels) {
+										outSnpDepthPerSample << "\t" << metaForSample.getMeta(meta);
+									}
+								}
+								outSnpDepthPerSample << std::endl;
 							}
 						}
 					}
