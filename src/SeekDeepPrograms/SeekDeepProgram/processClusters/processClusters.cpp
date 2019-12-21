@@ -948,7 +948,7 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 						for(const auto & position : chrom.second){
 							for(const auto & snp : position.second){
 								outSnpDepthPerSample
-										<< "\t" << pars.experimentName
+										<< pars.experimentName
 								    << "\t" << sample.first
 										<< "\t" << chrom.first
 										<< "\t" << position.first
