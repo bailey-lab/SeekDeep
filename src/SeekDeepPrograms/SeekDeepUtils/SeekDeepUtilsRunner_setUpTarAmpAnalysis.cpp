@@ -689,7 +689,9 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 			setUp.commands_.masterProgram_
 					+ " processClusters "
 							"--alnInfoDir alnCache --strictErrors --dout analysis --fastqgz output.fastq.gz --overWriteDir ";
-
+	if(pars.techIsIllumina() || pars.techIsIlluminaSingleEnd()){
+		processClusterTemplate  += " --illumina";
+	}
 	if (!analysisSetup.pars_.conservative) {
 		auto lowerCaseExtracProcessArgs = stringToLowerReturn(analysisSetup.pars_.extraProcessClusterCmds);
 		processClusterTemplate += " --removeOneSampOnlyOneOffHaps --excludeCommonlyLowFreqHaplotypes --excludeLowFreqOneOffs --rescueExcludedOneOffLowFreqHaplotypes";
