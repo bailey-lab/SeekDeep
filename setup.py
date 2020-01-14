@@ -952,7 +952,6 @@ class Packages():
             refs = pack.getGitRefs(url)
             for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
                 pack.addVersion(url, ref)
-                pack.versions_[ref].altLibName_ = "z"
             Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
                 pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
@@ -976,7 +975,6 @@ class Packages():
             refs = pack.getGitRefs(url)
             for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
                 pack.addVersion(url, ref)
-                pack.versions_[ref].altLibName_ = "z"
             Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
                 pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
