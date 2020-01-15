@@ -49,6 +49,9 @@ class SeekDeepUtilsRunner : public njh::progutils::ProgramRunner {
   static int gatherInfoOnTargetedAmpliconSeqFile(const njh::progutils::CmdArgs & inputCommands);
 
   static int getPossibleSampleNamesFromRawInput(const njh::progutils::CmdArgs & inputCommands);
+  static int SampleBarcodeFileToSeekDeepInput(const njh::progutils::CmdArgs & inputCommands);
+
+
 };
 
 } // namespace njhseq

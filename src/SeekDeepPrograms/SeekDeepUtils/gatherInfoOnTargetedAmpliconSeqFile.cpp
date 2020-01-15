@@ -31,12 +31,10 @@ int SeekDeepUtilsRunner::gatherInfoOnTargetedAmpliconSeqFile(
 	setUp.setOption(unrecogBaseSampling, "--unrecogBaseSampling",
 			"Number of bases to sample from file for unrecognized sequences", false);
 
-	setUp.setOption(precdingBaseFreqCutOff, "--precdingBaseFreqCutOff",
-			"Preceding Base Freq Cut Off", false);
+	setUp.setOption(precdingBaseFreqCutOff, "--precdingBaseFreqCutOff", "Preceding Base Freq Cut Off", false);
 
 	pars.corePars_.pDetPars.primerWithin_ = 30;
-	setUp.setOption(pars.corePars_.pDetPars.primerWithin_, "--primerWithin",
-			"Primer Within bases search", false, "Primer");
+	setUp.setOption(pars.corePars_.pDetPars.primerWithin_, "--primerWithin", "Primer Within bases search", false, "Primer");
 
 
 	bool primerToUpperCase = false;

@@ -40,6 +40,7 @@ SeekDeepUtilsRunner::SeekDeepUtilsRunner() :
 					addFunc("benchmarkControlMixtures", benchmarkControlMixtures, false),
 					addFunc("gatherInfoOnTargetedAmpliconSeqFile", gatherInfoOnTargetedAmpliconSeqFile, false),
 					addFunc("getPossibleSampleNamesFromRawInput", getPossibleSampleNamesFromRawInput, false),
+					addFunc("SampleBarcodeFileToSeekDeepInput", SampleBarcodeFileToSeekDeepInput, false),
 				}, //
 				"SeekDeepUtils") {
 }
