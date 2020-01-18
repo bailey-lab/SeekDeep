@@ -35,4 +35,5 @@
 #include "SeekDeep/objects/ControlBenchmarking.h"
 #include "SeekDeep/objects/IlluminaNameFormatDecoder.hpp"
 
+#include "SeekDeep/objects/SampleFileNameGenerator.hpp"
 
