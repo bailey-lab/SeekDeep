@@ -29,14 +29,15 @@
 //
 
 #include <njhseq.h>
-#include "SeekDeep/objects/PrimersAndMids.hpp"
-#include "SeekDeep/objects/PairedReadProcessor.hpp"
+#include "SeekDeep/objects/TarAmpSetupUtils/PrimersAndMids.hpp"
+#include "SeekDeep/objects/IlluminaUtils/PairedReadProcessor.hpp"
 
 namespace njhseq {
 
 class TarAmpAnalysisSetup {
 public:
 	struct TarAmpPars{
+		bfs::path samplesNamesWithBarcodeInfoFnp = "";
 		bfs::path samplesNamesFnp = "";
 		bfs::path outDir = "";
 		bfs::path inputDir = "";
@@ -47,6 +48,9 @@ public:
 		bfs::path overlapStatusFnp = "";
 		bfs::path targetsToIndexFnp = "";
 		bool byIndex = false;
+
+		std::string replicatePattern = "";
+		VecStr ignoreSamples{"Undetermined"};
 
 		bool noAutoDetermine = false;
 
@@ -63,6 +67,7 @@ public:
 
 		std::string inputFilePat = ".*.fastq.gz";
 
+	  std::vector<PairedReadProcessor::ReadPairOverLapStatus> defaultStatuses_;//{PairedReadProcessor::ReadPairOverLapStatus::NONE};
 
 
 		std::string extraExtractorCmds = "";
@@ -86,6 +91,7 @@ public:
 		bool techIsIllumina() const;
 		bool techIsIlluminaSingleEnd() const;
 		bool techIsIonTorrent() const;
+		bool teschIsNanopore() const;
 /*
  * pars.technology != "454" && pars.technology != "iontorrent" && pars.technology != "illumina"
  */
@@ -187,6 +193,14 @@ public:
 	void setUpPopClusteringDirs(bool verbose = false) const;
 
 };
+
+
+
+
+table GuessPossibleSamps(const TarAmpAnalysisSetup::TarAmpPars & pars);
+
+
+
 
 
 }  // namespace njhseq

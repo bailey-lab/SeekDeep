@@ -48,11 +48,9 @@ SeekDeepUtilsRunner::SeekDeepUtilsRunner() :
 //
 
 
-
 int SeekDeepUtilsRunner::getPossibleSampleNamesFromRawInput(const njh::progutils::CmdArgs & inputCommands) {
 	TarAmpAnalysisSetup::TarAmpPars pars;
-	std::string replicatePattern = "";
-	VecStr ignoreSamples{"Undetermined"};
+	auto tabOutOpts = TableIOOpts::genTabFileOut("", true);
 	seqSetUp setUp(inputCommands);
 	setUp.processVerbose();
 	setUp.processDebug();
@@ -60,113 +58,19 @@ int SeekDeepUtilsRunner::getPossibleSampleNamesFromRawInput(const njh::progutils
 	setUp.setOption(pars.inputDir, "--inputDir", "Input Directory", true);
 	setUp.setOption(pars.inputFilePat, "--inputFilePat", "Input File Pat");
 	setUp.setOption(pars.technology, "--technology", "Technology");
-	setUp.setOption(ignoreSamples, "--ignoreSamples", "Ignore these Samples if found");
-
-	setUp.setOption(replicatePattern, "--replicatePattern", "Replicate Pattern to match on to indicate replicates when guessing sample names, should have two groups e.g. (.*)(-rep.*)");
-
+	setUp.setOption(pars.ignoreSamples, "--ignoreSamples", "Ignore these Samples if found");
+	setUp.setOption(pars.replicatePattern, "--replicatePattern", "Replicate Pattern to match on to indicate replicates when guessing sample names, should have two groups e.g. (.*)(-rep.*)");
+	setUp.processWritingOptions(tabOutOpts.out_);
 	setUp.finishSetUp(std::cout);
-	{
-		table sampleNames(VecStr{"#target", "sample", "run1"});
-		std::regex inputfilePatReg{ pars.inputFilePat };
-		auto files = njh::files::listAllFiles(pars.inputDir.string(), false, {
-				inputfilePatReg});
 
-		if("" != replicatePattern){
-			std::regex replicatePatternReg{ replicatePattern };
-			std::cout << "replicatePatternReg.mark_count(): " << replicatePatternReg.mark_count() << std::endl;
-			std::map<std::string, VecStr> replicates;
-			if (pars.techIsIllumina()) {
-				ReadPairsOrganizer rpOrganizer(VecStr{});
-				rpOrganizer.processFiles(files);
-				for(const auto & samp : rpOrganizer.readPairsUnrecognized_){
-					if(njh::in(samp.first, ignoreSamples)){
-						continue;
-					}
-					std::smatch match;
-					if(std::regex_match(samp.first, match, replicatePatternReg)){
-						std::cout << match[1] << ": " << match[2] << std::endl;
-						replicates[match[1]].emplace_back(samp.first);
-					}else{
-						std::stringstream ss;
-						ss << __PRETTY_FUNCTION__ << ", error " << "failed to find replicate pattern: " << replicatePattern << " in " << samp.first<< "\n";
-						throw std::runtime_error{ss.str()};
-					}
-				}
-			} else {
-				VecStr samplesFiles;
-				for(const auto & f : files){
-					samplesFiles.emplace_back(f.first.filename().string());
-				}
-				for(const auto & sf : samplesFiles){
-					auto sampName = sf.substr(0, sf.rfind(".fast"));
-					if(njh::in(sampName, ignoreSamples)){
-						continue;
-					}
-					std::smatch match;
-					if(std::regex_match(sampName, match, replicatePatternReg)){
-						std::cout << match[1] << ": " << match[2] << std::endl;
-						replicates[match[1]].emplace_back(sampName);
-					}else{
-						std::stringstream ss;
-						ss << __PRETTY_FUNCTION__ << ", error " << "failed to find replicate pattern: " << replicatePattern << " in " << sampName<< "\n";
-						throw std::runtime_error{ss.str()};
-					}
-				}
-			}
-			uint32_t maxReplicate = 1;
-			for(auto & rep : replicates){
-				njh::sort(rep.second);
-				maxReplicate = std::max<uint32_t>(maxReplicate, rep.second.size());
-			}
-			VecStr colNames{"#target", "sample"};
-			for(uint32_t run = 1; run <= maxReplicate; ++run){
-				colNames.emplace_back(njh::pasteAsStr("run", run));
-			}
-			sampleNames = table(colNames);
-			for(const auto & rep : replicates){
-				VecStr rowToAdd{"all", rep.first};
-				for(const auto & repName : rep.second){
-					rowToAdd.emplace_back(repName);
-				}
-				for(uint32_t rest = 0; rest < maxReplicate - rep.second.size(); ++rest){
-					rowToAdd.emplace_back("");
-				}
-				sampleNames.addRow(rowToAdd);
-			}
-
-		}else{
-			if (pars.techIsIllumina()) {
-				ReadPairsOrganizer rpOrganizer(VecStr{});
-				rpOrganizer.processFiles(files);
-				for(const auto & samp : rpOrganizer.readPairsUnrecognized_){
-					if(njh::in(samp.first, ignoreSamples)){
-						continue;
-					}
-					sampleNames.addRow("all", samp.first, samp.first);
-				}
-			} else {
-				VecStr samplesFiles;
-				for(const auto & f : files){
-					samplesFiles.emplace_back(f.first.filename().string());
-				}
-				for(const auto & sf : samplesFiles){
-					auto sampName = sf.substr(0, sf.rfind(".fast"));
-					if(njh::in(sampName, ignoreSamples)){
-						continue;
-					}
-					sampleNames.addRow("all", sampName, sampName);
-				}
-			}
-		}
-
-		sampleNames.outPutContents(std::cout, "\t");
-	}
+	auto sampleNames = GuessPossibleSamps(pars);
+	sampleNames.outPutContents(std::cout, "\t");
 	return 0;
 }
 
 int SeekDeepUtilsRunner::genTargetInfoFromGenomes(const njh::progutils::CmdArgs & inputCommands) {
 	extractBetweenSeqsPars pars;
-
+	uint32_t minOverlap  = 10;
 	seqSetUp setUp(inputCommands);
 	setUp.processVerbose();
 	setUp.processDebug();
@@ -174,7 +78,7 @@ int SeekDeepUtilsRunner::genTargetInfoFromGenomes(const njh::progutils::CmdArgs 
 	pars.verbose_ = setUp.pars_.verbose_;
 	pars.debug_ = setUp.pars_.debug_;
 	pars.setUpCoreOptions(setUp, true);
-
+	setUp.setOption(minOverlap, "--minOverlap", "Minimum overlap for stitching");
 	setUp.finishSetUp(std::cout);
 
 	njh::sys::requireExternalProgramThrow("bowtie2");
@@ -239,17 +143,27 @@ int SeekDeepUtilsRunner::genTargetInfoFromGenomes(const njh::progutils::CmdArgs 
 				lenCutOffsOut << tar
 						<< "\t" << (minlen > pars.lenCutOffSizeExpand ? minlen - pars.lenCutOffSizeExpand : 0)
 						<< "\t" << maxlen + pars.lenCutOffSizeExpand << std::endl;
-				uint32_t finalSize = maxlen + pars.barcodeSize;
-				if(finalSize > pars.pairedEndLength && finalSize < (2* pars.pairedEndLength - 10)){
-					overlapStatusOut << tar
-							<< "\t" << "R1EndsInR2" << std::endl;
-				} else if(finalSize < pars.pairedEndLength){
-					overlapStatusOut << tar
-							<< "\t" << "R1BeginsInR2" << std::endl;
-				} else {
-					overlapStatusOut << tar
-							<< "\t" << "NoOverLap" << std::endl;
+				uint32_t finalMaxSize = maxlen + pars.barcodeSize;
+				uint32_t finalMinSize = minlen + pars.barcodeSize;
+
+				uint32_t maxInsertSize = 2* pars.pairedEndLength - minOverlap;
+
+				std::string status = "";
+				VecStr statuses;
+				if(finalMaxSize > maxInsertSize){
+					statuses.emplace_back("NoOverLap");
+				}else{
+					if(finalMaxSize >= pars.pairedEndLength){
+						statuses.emplace_back("R1EndsInR2");
+					}
+					if(finalMinSize < pars.pairedEndLength){
+						if(!statuses.empty()){
+							statuses.emplace_back("PerfectOverlap");
+						}
+						statuses.emplace_back("R1BeginsInR2");
+					}
 				}
+				overlapStatusOut << tar << "\t" << njh::conToStr(statuses, ",") << std::endl;
 			}
 		}else{
 			std::cerr << "Warning, no sequences extracted for " << tar << std::endl;

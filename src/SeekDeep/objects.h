@@ -28,12 +28,8 @@
 //
 
 
-#include "SeekDeep/objects/TarAmpAnalysisSetup.hpp"
-#include "SeekDeep/objects/PrimersAndMids.hpp"
-#include "SeekDeep/objects/ReadPairsOrganizer.hpp"
-#include "SeekDeep/objects/PairedReadProcessor.hpp"
-#include "SeekDeep/objects/ControlBenchmarking.h"
-#include "SeekDeep/objects/IlluminaNameFormatDecoder.hpp"
 
-#include "SeekDeep/objects/SampleFileNameGenerator.hpp"
+#include "SeekDeep/objects/ControlBenchmarking.h"
+#include "SeekDeep/objects/TarAmpSetupUtils.h"
+#include "SeekDeep/objects/IlluminaUtils.h"
 

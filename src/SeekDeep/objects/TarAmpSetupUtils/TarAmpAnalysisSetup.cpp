@@ -26,7 +26,8 @@
 // along with SeekDeep.  If not, see <http://www.gnu.org/licenses/>.
 //
 #include "TarAmpAnalysisSetup.hpp"
-
+#include "SeekDeep/objects/IlluminaUtils/ReadPairsOrganizer.hpp"
+#include "SeekDeep/objects/TarAmpSetupUtils/SampleFileNameGenerator.hpp"
 
 namespace njhseq {
 
@@ -74,17 +75,20 @@ bool TarAmpAnalysisSetup::TarAmpPars::techIsIonTorrent() const {
 	return "iontorrent" == technology;
 }
 
+bool TarAmpAnalysisSetup::TarAmpPars::teschIsNanopore() const {
+	return "nanopore" == technology;
+}
+
 
 bool TarAmpAnalysisSetup::TarAmpPars::checkForRequiredFnpPars(
 		VecStr & warnings) const {
 	bool status = true;
 	status = status && checkForOutDir(warnings);
-	status = status && checkIfFnpExists(samplesNamesFnp, warnings);
+	if("" != samplesNamesFnp){
+		status = status && checkIfFnpExists(samplesNamesFnp, warnings);
+	}
 	status = status && checkIfFnpExists(inputDir, warnings);
 	status = status && checkIfFnpExists(idFile, warnings);
-//	if (byIndex) {
-//		status = status && checkIfFnpExists(targetsToIndexFnp, warnings);
-//	}
 	return status;
 }
 
@@ -92,8 +96,6 @@ bool TarAmpAnalysisSetup::TarAmpPars::allChecks(VecStr & warnings) const {
 	bool status = true;
 	status = status && checkForRequiredFnpPars(warnings);
 	status = status && checkForOptionalFnpPars(warnings);
-	//status = status && checkForStitcher(warnings);
-	//status = status && checkForZcat(warnings);
 	return status;
 }
 
@@ -122,22 +124,48 @@ bool TarAmpAnalysisSetup::TarAmpPars::checkForOptionalFnpPars(VecStr & warnings)
 
 
 
-TarAmpAnalysisSetup::TarAmpAnalysisSetup(const TarAmpPars & pars) :
-		pars_(pars) {
-	dir_ = pars.outDir;
+TarAmpAnalysisSetup::TarAmpAnalysisSetup(const TarAmpPars & inputPars) :
+		pars_(inputPars) {
+	dir_ = pars_.outDir;
 	njh::files::makeDir(njh::files::MkdirPar(dir_.string()));
+	VecStr warnings;
+
+
+
 	infoDir_ = njh::files::makeDir(dir_.string(), njh::files::MkdirPar("info"));
 	logsDir_ = njh::files::makeDir(dir_.string(), njh::files::MkdirPar("logs"));
 	idsDir_ = njh::files::makeDir(infoDir_.string(), njh::files::MkdirPar("ids"));
 	refsDir_ = njh::files::makeDir(infoDir_.string(), njh::files::MkdirPar("refs"));
-	reportsDir_ = njh::files::makeDir(dir_.string(),
-			njh::files::MkdirPar("reports"));
+	reportsDir_ = njh::files::makeDir(dir_.string(),njh::files::MkdirPar("reports"));
 	serverConfigsDir_ = njh::files::makeDir(dir_.string(), njh::files::MkdirPar("serverConfigs"));
+
+	if("" == pars_.samplesNamesFnp){
+		if("" != pars_.samplesNamesWithBarcodeInfoFnp){
+			//
+			SampleFileNameGenerator fileGen(pars_.idFile, pars_.samplesNamesWithBarcodeInfoFnp);
+			//sample name file
+			OutOptions sampleNamesOutOpts(njh::files::make_path(infoDir_, "input_sampleNames.tab.txt"));
+			fileGen.writeSampleNameFile(sampleNamesOutOpts);
+			pars_.samplesNamesFnp = sampleNamesOutOpts.outFilename_;
+			//barcode/primer file
+			OutOptions idFileOutOpts(njh::files::make_path(infoDir_, "input_ids.tab.txt"));
+			fileGen.writeBarcodePrimerFile(idFileOutOpts);
+			pars_.idFile = idFileOutOpts.outFilename_;
+		} else {
+			//if samples fnp not set, try to guess samples
+			auto samps = GuessPossibleSamps(pars_);
+			auto guessSamplesFnp = njh::files::make_path(infoDir_, "guessedSamples.tab.txt");
+			OutputStream guessedSamplesOut(guessSamplesFnp);
+			samps.outPutContents(guessedSamplesOut,"\t");
+			pars_.samplesNamesFnp = guessSamplesFnp;
+		}
+	}
 
 	//add ids and primers
 	idsMids_ = std::make_unique<PrimersAndMids>(pars_.idFile);
-	// set this automatically
+
 	if(idsMids_->containsMids()){
+		// set this automatically
 		pars_.byIndex = true;
 	}
 	if(idsMids_->containsMids()){
@@ -180,22 +208,24 @@ TarAmpAnalysisSetup::TarAmpAnalysisSetup(const TarAmpPars & pars) :
 //	}
 
 	//add meta data if available
-	if("" != pars.groupMeta){
-		addGroupingMetaData(pars.groupMeta);
+	if("" != pars_.groupMeta){
+		addGroupingMetaData(pars_.groupMeta);
 		bfs::copy_file(groupMetaData_->groupingsFile_,
 				njh::files::make_path(infoDir_, "groupMeta.tab.txt"));
 	}
 	//add ref seqs if provided
-	if("" != pars.refSeqsDir){
-		addRefSeqs(pars.refSeqsDir);
+	if("" != pars_.refSeqsDir){
+		addRefSeqs(pars_.refSeqsDir);
 	}
 	//add len cut offs if provided
-	if("" != pars.lenCutOffsFnp){
-		addLenCutOffs(pars.lenCutOffsFnp);
+	if("" != pars_.lenCutOffsFnp){
+		addLenCutOffs(pars_.lenCutOffsFnp);
 	}
 	//add overlap status
-	if("" != pars.overlapStatusFnp){
-		addOverlapStatus(pars.overlapStatusFnp);
+	if("" != pars_.overlapStatusFnp){
+		addOverlapStatus(pars_.overlapStatusFnp);
+	}else if(!pars_.defaultStatuses_.empty()){
+		idsMids_->addOverLapStatuses(pars_.defaultStatuses_);
 	}
 
 	auto targets = getTargets();
@@ -643,6 +673,105 @@ void TarAmpAnalysisSetup::setUpPopClusteringDirs(bool verbose) const {
 							njh::files::make_path(infoDir_, "sampNames.tab.txt").string(),
 							njh::files::make_path(dir_, "popClustering").string(), true, verbose);
 	}
+}
+
+
+
+table GuessPossibleSamps(const TarAmpAnalysisSetup::TarAmpPars & pars){
+	table sampleNames(VecStr{"#target", "sample", "run1"});
+	std::regex inputfilePatReg{ pars.inputFilePat };
+	auto files = njh::files::listAllFiles(pars.inputDir.string(), false, {inputfilePatReg});
+
+	if("" != pars.replicatePattern){
+		std::regex replicatePatternReg{ pars.replicatePattern };
+		std::cout << "replicatePatternReg.mark_count(): " << replicatePatternReg.mark_count() << std::endl;
+		std::map<std::string, VecStr> replicates;
+		if (pars.techIsIllumina()) {
+			ReadPairsOrganizer rpOrganizer(VecStr{});
+			rpOrganizer.processFiles(files);
+			for(const auto & samp : rpOrganizer.readPairsUnrecognized_){
+				if(njh::in(samp.first, pars.ignoreSamples)){
+					continue;
+				}
+				std::smatch match;
+				if(std::regex_match(samp.first, match, replicatePatternReg)){
+					std::cout << match[1] << ": " << match[2] << std::endl;
+					replicates[match[1]].emplace_back(samp.first);
+				}else{
+					std::stringstream ss;
+					ss << __PRETTY_FUNCTION__ << ", error " << "failed to find replicate pattern: " << pars.replicatePattern << " in " << samp.first<< "\n";
+					throw std::runtime_error{ss.str()};
+				}
+			}
+		} else {
+			VecStr samplesFiles;
+			for(const auto & f : files){
+				samplesFiles.emplace_back(f.first.filename().string());
+			}
+			for(const auto & sf : samplesFiles){
+				auto sampName = sf.substr(0, sf.rfind(".fast"));
+				if(njh::in(sampName, pars.ignoreSamples)){
+					continue;
+				}
+				std::smatch match;
+				if(std::regex_match(sampName, match, replicatePatternReg)){
+					std::cout << match[1] << ": " << match[2] << std::endl;
+					replicates[match[1]].emplace_back(sampName);
+				}else{
+					std::stringstream ss;
+					ss << __PRETTY_FUNCTION__ << ", error " << "failed to find replicate pattern: " << pars.replicatePattern << " in " << sampName<< "\n";
+					throw std::runtime_error{ss.str()};
+				}
+			}
+		}
+		uint32_t maxReplicate = 1;
+		for(auto & rep : replicates){
+			njh::sort(rep.second);
+			maxReplicate = std::max<uint32_t>(maxReplicate, rep.second.size());
+		}
+		VecStr colNames{"#target", "sample"};
+		for(uint32_t run = 1; run <= maxReplicate; ++run){
+			colNames.emplace_back(njh::pasteAsStr("run", run));
+		}
+		sampleNames = table(colNames);
+		for(const auto & rep : replicates){
+			VecStr rowToAdd{"all", rep.first};
+			for(const auto & repName : rep.second){
+				rowToAdd.emplace_back(repName);
+			}
+			for(uint32_t rest = 0; rest < maxReplicate - rep.second.size(); ++rest){
+				rowToAdd.emplace_back("");
+			}
+			sampleNames.addRow(rowToAdd);
+		}
+
+	}else{
+		if (pars.techIsIllumina()) {
+			ReadPairsOrganizer rpOrganizer(VecStr{});
+			rpOrganizer.processFiles(files);
+			for(const auto & samp : rpOrganizer.readPairsUnrecognized_){
+				if(njh::in(samp.first, pars.ignoreSamples)){
+					continue;
+				}
+				sampleNames.addRow("all", samp.first, samp.first);
+			}
+		} else {
+			VecStr samplesFiles;
+			for(const auto & f : files){
+				samplesFiles.emplace_back(f.first.filename().string());
+			}
+			for(const auto & sf : samplesFiles){
+				auto sampName = sf.substr(0, sf.rfind(".fast"));
+				if(njh::in(sampName, pars.ignoreSamples)){
+					continue;
+				}
+				sampleNames.addRow("all", sampName, sampName);
+			}
+		}
+	}
+
+	//sampleNames.outPutContents(std::cout, "\t");
+	return sampleNames;
 }
 
 

@@ -8,6 +8,7 @@
 #include "SeekDeepUtilsRunner.hpp"
 
 #include <njhseq/ProgramRunners.h>
+#include <njhseq/programUtils/seqSetUp.hpp>
 
 namespace njhseq {
 
@@ -16,7 +17,6 @@ namespace njhseq {
 int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 		const njh::progutils::CmdArgs & inputCommands) {
 	VecStr acceptableTechs{"454", "IonTorrent", "Illumina", "Illumina-SingleEnd", "Nanopore"};
-
 	TarAmpAnalysisSetup::TarAmpPars pars;
 	seqSetUp setUp(inputCommands);
 	setUp.processVerbose();
@@ -45,10 +45,50 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	setUp.setOption(pars.inputDir, "--inputDir", "Input Directory of raw data files", true, "Input");
 	setUp.setOption(pars.idFile,   "--idFile",   "ID file containing primer and possible additional MIDs", true, "ID Files");
 
-	setUp.setOption(pars.samplesNamesFnp, "--samples", "A file containing the samples names, columns should go target,sample,pcr1,pcr2(optional)", true, "ID Files");
+	setUp.setOption(pars.samplesNamesFnp, "--samples", "A file containing the samples names, columns should go target,sample,pcr1,pcr2(optional)",
+			false, "ID Files");
+
+	std::string overlapStatus{"auto"};
+	std::set<std::string> allowableOverlapStatuses{"AUTO", "R1BEGINSINR2", "R1ENDSINR2", "NOOVERLAP", "ALL"};
+
+	std::function<njh::progutils::ProgramSetUp::FlagCheckResult(const std::string&)> overlapStatusCheck = [allowableOverlapStatuses](const std::string & flagSet){
+		bool success = true;
+		std::string mess = "";
+		std::string upper = njh::strToUpperRet(flagSet);
+		if(!njh::in(upper, allowableOverlapStatuses)){
+			success = false;
+			mess = njh::pasteAsStr("--defaultOverlapStatus needs to be one of the following (case insensitive) ", njh::conToStr(allowableOverlapStatuses, ","), " not ", upper);
+		}
+		return njh::progutils::ProgramSetUp::FlagCheckResult{success, mess};
+	};
+
+	bool setDefaultOverlapStatus = setUp.setOption(overlapStatus,
+			"--defaultOverlapStatus",
+			"Set a overlap status for all targets, can be 1 of 5 values(case insensitive), AUTO, R1BEGINSINR2, R1ENDSINR2, NOOVERLAP, ALL. ALL=(R1BEGINSINR2 and R1ENDSINR2). Setting to auto will go with the status was most commonly found for a target, this can be dangerous as with unspecific amplification this can end up being set as the incorrect status",
+			false, overlapStatusCheck);
+	if(setDefaultOverlapStatus){
+		std::string upper = njh::strToUpperRet(overlapStatus);
+		if("ALL" == upper){
+			pars.defaultStatuses_.emplace_back(
+					PairedReadProcessor::ReadPairOverLapStatus::R1BEGINSINR2);
+			pars.defaultStatuses_.emplace_back(
+					PairedReadProcessor::ReadPairOverLapStatus::R1ENDSINR2);
+			pars.defaultStatuses_.emplace_back(
+					PairedReadProcessor::ReadPairOverLapStatus::PERFECTOVERLAP);
+		} else if("AUTO" == upper){
+			pars.defaultStatuses_.emplace_back(PairedReadProcessor::ReadPairOverLapStatus::AUTO);
+		} else if("R1BEGINSINR2" == upper){
+			pars.defaultStatuses_.emplace_back(PairedReadProcessor::ReadPairOverLapStatus::R1BEGINSINR2);
+		}else if("R1ENDSINR2" == upper){
+			pars.defaultStatuses_.emplace_back(PairedReadProcessor::ReadPairOverLapStatus::R1ENDSINR2);
+		}else if("NOOVERLAP" == upper){
+			pars.defaultStatuses_.emplace_back(PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP);
+		}
+	}
+
 	setUp.setOption(pars.overlapStatusFnp, "--overlapStatusFnp",
 			"A file with two columns, target,status; status column should contain 1 of 3 values (capitalization doesn't matter): r1BegOverR2End,r1EndOverR2Beg,NoOverlap. r1BegOverR2End=target size < read length (causes read through),r1EndOverR2Beg= target size > read length less than 2 x read length, NoOverlap=target size > 2 x read length",
-			pars.techIsIllumina(), "Illumina Stitching");
+			pars.techIsIllumina() && !setDefaultOverlapStatus, "Illumina Stitching");
 
 	setUp.setOption(pars.targetsToIndexFnp, "--targetsToIndex",
 			"A tsv file with two columns named targets and index where targets in a comma separated value with the targets for the index in index",
@@ -63,7 +103,8 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 			"Extra qluster/kcrush cmds to add to the defaults", false, "Extra Commands");
 	setUp.setOption(pars.extraProcessClusterCmds, "--extraProcessClusterCmds",
 			"Extra process clusters cmds to add to the defaults", false, "Extra Commands");
-	setUp.setOption(pars.useKCrushClustering_, "--useKCrushClustering", "Use kmer clustering for high error rate sequences like nanopore and pacbio");
+	setUp.setOption(pars.useKCrushClustering_, "--useKCrushClustering",
+			"Use kmer clustering for high error rate sequences like nanopore and pacbio");
 
 
 	setUp.setOption(pars.conservative, "--conservativePopClus",
@@ -83,15 +124,23 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 
 	setUp.setOption(pars.noGuessSampNames, "--noGuessSampNames",
 			"Don't guess the sample names from the raw fastq directory input", false, "Input");
-
+	if("" == pars.samplesNamesFnp){
+		if(!setUp.setOption(pars.samplesNamesWithBarcodeInfoFnp, "--samplesNamesWithBarcodeInfo",
+				"Sample file 3 or 4 required columns 1)library,2)sample,3)fbarcode,4(optional))rbarcode."
+			"\n\t\t\t1) name of input file without extension/illumina info e.g. Sample1 for Sample1_S2_R1_001.fastq.gz"
+			"\n\t\t\t2) sample name to be given to this barcode in this sample"
+			"\n\t\t\t3) barcode sequence associated with forward primer"
+			"\n\t\t\t4) if sample is dual barcoded, barcode associated with reverse primer", false, "Input")){
+			setUp.setOption(pars.ignoreSamples, "--ignoreSamplesWhenGuessing",
+					"Ignore Samples with these names", false, "Input");
+			setUp.setOption(pars.replicatePattern, "--replicatePatternWhenGuessing",
+							"Replicate name regex pattern when guessing samples to order samples into replicates, should be two regex group, the first being sample, the 2nd being the replicate, e.g. --replicatePatternWhenGuessing\"(.*)(-rep.*)\"", false, "Input");
+		}
+	}
 	setUp.finishSetUp(std::cout);
 
 	VecStr warnings;
-
-
-
 	pars.allChecks(warnings);
-
 	if (!warnings.empty()) {
 		std::stringstream ss;
 		if (1 == warnings.size()) {

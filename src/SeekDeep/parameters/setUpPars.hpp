@@ -27,9 +27,9 @@
 // along with SeekDeep.  If not, see <http://www.gnu.org/licenses/>.
 //
 #include <njhseq.h>
-#include "SeekDeep/objects/PairedReadProcessor.hpp"
-#include "SeekDeep/objects/PrimersAndMids.hpp"
-#include "SeekDeep/objects/IlluminaNameFormatDecoder.hpp"
+#include "SeekDeep/objects/IlluminaUtils/PairedReadProcessor.hpp"
+#include "SeekDeep/objects/TarAmpSetupUtils/PrimersAndMids.hpp"
+#include "SeekDeep/objects/IlluminaUtils/IlluminaNameFormatDecoder.hpp"
 
 namespace njhseq {
 
@@ -95,7 +95,7 @@ struct ExtractorPairedEndPars{
 
 
   PairedReadProcessor::ProcessParams pairProcessorParams_;
-  PairedReadProcessor::ReadPairOverLapStatus defaultStatus{PairedReadProcessor::ReadPairOverLapStatus::NONE};
+  std::vector<PairedReadProcessor::ReadPairOverLapStatus> defaultStatuses_;//{PairedReadProcessor::ReadPairOverLapStatus::NONE};
 
 };
 
