@@ -49,6 +49,11 @@ public:
 		bfs::path targetsToIndexFnp = "";
 		bool byIndex = false;
 
+
+		bool doNotGuessRecFlags = false;
+		uint32_t numberOfFilesToInvestigate = 10;
+		uint32_t testNumberOfReadsToInvestigate = 10000;
+
 		std::string replicatePattern = "";
 		VecStr ignoreSamples{"Undetermined"};
 

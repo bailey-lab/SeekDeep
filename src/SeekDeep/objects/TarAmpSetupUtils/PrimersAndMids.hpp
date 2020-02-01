@@ -142,6 +142,9 @@ public:
 
 	void addDefaultLengthCutOffs(uint32_t minLength, uint32_t maxLength);
 
+
+	uint32_t getMaxMIDSize() const;
+
 };
 
 }  // namespace njhseq

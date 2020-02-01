@@ -606,5 +606,19 @@ void PrimersAndMids::addDefaultLengthCutOffs(uint32_t minLength, uint32_t maxLen
 	}
 }
 
+uint32_t PrimersAndMids::getMaxMIDSize() const{
+	uint32_t maxSize = 0;
+	for(const auto & mid : mids_){
+		if(nullptr != mid.second.forwardBar_ && mid.second.forwardBar_->bar_->size() > maxSize){
+			maxSize = mid.second.forwardBar_->bar_->size();
+		}
+		if(nullptr != mid.second.reverseBar_ && mid.second.reverseBar_->bar_->size() > maxSize){
+			maxSize = mid.second.reverseBar_->bar_->size();
+		}
+	}
+
+	return maxSize;
+}
+
 
 }  // namespace njhseq

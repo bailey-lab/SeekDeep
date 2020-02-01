@@ -53,8 +53,14 @@ void CoreExtractorPars::setCorePars(seqSetUp & setUp){
 			false, "Output Naming");
 
 	setUp.setOption(primIdsPars.mPars_.allowableErrors_ , "--barcodeErrors", "Errors Allowed in Barcode", false, "Barcodes");
+	primIdsPars.mPars_.checkForShorten_ = true;
 	setUp.setOption(primIdsPars.mPars_.checkForShorten_, "--checkShortenBars",
 			"Check for shorten Barcodes if the first base may have been trimmed off", false, "Barcodes");
+	bool noCheckForShortenBars = false;
+	setUp.setOption(noCheckForShortenBars, "--noCheckForShortenBars",
+			"Don't Check for shorten Barcodes if the first base may have been trimmed off", false, "Barcodes");
+	primIdsPars.mPars_.checkForShorten_ = !noCheckForShortenBars;
+
 	setUp.setOption(primIdsPars.mPars_.searchStop_, "--midWithinStart,--midSearchStop",
 			"By default the primer or barcodes are searched at the very beginning of seq, use this flag to extended the search, should be kept low to cut down on false positives",
 			false, "Barcodes");

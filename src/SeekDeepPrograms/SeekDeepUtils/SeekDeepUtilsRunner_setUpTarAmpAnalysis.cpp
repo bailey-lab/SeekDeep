@@ -137,6 +137,11 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 							"Replicate name regex pattern when guessing samples to order samples into replicates, should be two regex group, the first being sample, the 2nd being the replicate, e.g. --replicatePatternWhenGuessing\"(.*)(-rep.*)\"", false, "Input");
 		}
 	}
+
+	setUp.setOption(pars.doNotGuessRecFlags, "--doNotGuessRecFlags", "Don't guess at additional SeekDeep extractor/extratorPairedEnd flags by investigating input sequence files", false, "Extra Commands");
+	setUp.setOption(pars.numberOfFilesToInvestigate, "--numberOfFilesToInvestigate", "Number of files to investigate when adding additional recommended flags", false, "Extra Commands");
+	setUp.setOption(pars.testNumberOfReadsToInvestigate, "--testNumberOfReadsToInvestigate", "Number of reads per file to investigate when adding additional recommended flags", false, "Extra Commands");
+
 	setUp.finishSetUp(std::cout);
 
 	VecStr warnings;
@@ -294,8 +299,10 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	std::mutex logsMut;
 	std::map<std::string, std::pair<VecStr, VecStr>> readsByPairs ;
 	std::map<std::string, bfs::path> filesByPossibleName;
+
 	ReadPairsOrganizer rpOrganizer(expectedSamples);
 	rpOrganizer.doNotGuessSampleNames_ = pars.noGuessSampNames;
+
 	if (analysisSetup.pars_.techIsIllumina()) {
 		rpOrganizer.processFiles(files);
 		readsByPairs = rpOrganizer.processReadPairs();
@@ -384,8 +391,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 
 
 
-	OutOptions wrningsOpts(
-			njh::files::make_path(analysisSetup.dir_, "WARNINGS_PLEASE_READ.txt"));
+	OutOptions wrningsOpts(njh::files::make_path(analysisSetup.dir_, "WARNINGS_PLEASE_READ.txt"));
 	if (foundErrors) {
 		std::ofstream outWarnings;
 		openTextFile(outWarnings, wrningsOpts);
@@ -397,6 +403,94 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 
 	VecStr extractorCmds;
 	VecStr qlusterCmds;
+
+
+	//investigate input seq files to recommend
+	if(!pars.doNotGuessRecFlags){
+		std::vector<SeqIOOptions> filesToInvestigate;
+		/**@todo consider doing random selection here*/
+		if(pars.techIsIllumina()){
+			for(const auto & pair : readsByPairs){
+				if(njh::endsWith(pair.second.first.front(), ".gz")){
+					filesToInvestigate.emplace_back(SeqIOOptions::genPairedInGz(bfs::path(pair.second.first.front()), bfs::path(pair.second.second.front())));
+				}else{
+					filesToInvestigate.emplace_back(SeqIOOptions::genPairedIn(bfs::path(pair.second.first.front()), bfs::path(pair.second.second.front())));
+				}
+				if(filesToInvestigate.size() > pars.numberOfFilesToInvestigate){
+					break;
+				}
+			}
+		}else{
+			for(const auto & file : filesByPossibleName){
+				filesToInvestigate.emplace_back(SeqIOOptions(file.second, SeqIOOptions::getInFormatFromFnp(file.second), false));
+				if(filesToInvestigate.size() > pars.numberOfFilesToInvestigate){
+					break;
+				}
+			}
+		}
+		TarAmpSeqInvestigator::TarAmpSeqInvestigatorPars investPars;
+		investPars.idFnp = analysisSetup.pars_.idFile;
+		investPars.testNumber = analysisSetup.pars_.testNumberOfReadsToInvestigate;
+		investPars.pars.corePars_.pDetPars.primerWithin_ = 40;
+
+		TarAmpSeqInvestigator masterInvestigator(investPars);
+		std::mutex masterInvesMut;
+		if(setUp.pars_.verbose_){
+			std::cout << "Investigating files for additional recommended extractor flags which will be automatically added" << std::endl;
+		}
+
+		njh::concurrent::LockableQueue<SeqIOOptions> optsQueue(filesToInvestigate);
+		bool verbose = setUp.pars_.verbose_;
+		std::function<void()> investigateFile = [&optsQueue,&investPars,&masterInvesMut,&masterInvestigator,&verbose](){
+			SeqIOOptions seqOpts;
+			TarAmpSeqInvestigator investigator(investPars);
+
+			while(optsQueue.getVal(seqOpts)){
+				if(verbose){
+					std::cout << "Investigating " << seqOpts.firstName_ << " " << ("" ==seqOpts.secondName_ ? std::string("") : seqOpts.secondName_.string()) << std::endl;
+				}
+				investigator.investigateFile(seqOpts, verbose);
+			}
+			{
+				std::lock_guard<std::mutex> lock(masterInvesMut);
+				masterInvestigator.addOtherCounts(investigator);
+			}
+		};
+		njh::concurrent::runVoidFunctionThreaded(investigateFile, analysisSetup.pars_.numThreads);
+
+		masterInvestigator.processCounts();
+
+
+		auto recFlags = masterInvestigator.recommendSeekDeepExtractorFlags();
+
+		VecStr flagsToAdd;
+		auto currentExtraExtractorCmds = njh::strToLowerRet(analysisSetup.pars_.extraExtractorCmds);
+
+		for(const auto & recFlag : recFlags){
+			auto rflag = njh::strToLowerRet(recFlag);
+			trimAtFirstWhitespace(rflag);
+			njh::lstrip(rflag, '-');
+			if(std::string::npos == currentExtraExtractorCmds.find(rflag)){
+				flagsToAdd.emplace_back(recFlag);
+			} else {
+				if(setUp.pars_.verbose_){
+					std::cout << "Already have " << recFlag << " no need to add" << std::endl;
+				}
+			}
+		}
+		if(!flagsToAdd.empty()){
+			auto addingStr = njh::conToStr(flagsToAdd, " ");
+			if(setUp.pars_.verbose_){
+				std::cout << "Adding " << addingStr << std::endl;
+			}
+			analysisSetup.pars_.extraExtractorCmds.append(" ");
+			analysisSetup.pars_.extraExtractorCmds.append(addingStr);
+		}
+		auto investDir = njh::files::make_path(analysisSetup.reportsDir_, "fileInvestigationCounts");
+		njh::files::makeDir(njh::files::MkdirPar{investDir});
+		masterInvestigator.writeOutTables(investDir, true);
+	}
+
 	if (analysisSetup.pars_.byIndex) {
 		if(setUp.pars_.debug_){
 			std::cout << "Samples:" << std::endl;

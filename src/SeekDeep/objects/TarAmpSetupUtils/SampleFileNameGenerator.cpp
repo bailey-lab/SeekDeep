@@ -20,7 +20,7 @@ SampleFileNameGenerator::SampleFileNameGenerator(const bfs::path & idFnp,
 
 	table sampleTab(sampleFnp, "\t", true);
 	njh::for_each(sampleTab.columnNames_, [](std::string & col){
-		njh::strToLowerRet(col);
+		njh::strToLower(col);
 	});
 	sampleTab.setColNamePositions();
 	sampleTab.checkForColumnsThrow(VecStr{"library", "sample", "fbarcode"}, __PRETTY_FUNCTION__);
