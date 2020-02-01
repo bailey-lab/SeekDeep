@@ -128,7 +128,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 		if(!setUp.setOption(pars.samplesNamesWithBarcodeInfoFnp, "--samplesNamesWithBarcodeInfo",
 				"Sample file 3 or 4 required columns 1)library,2)sample,3)fbarcode,4(optional))rbarcode."
 			"\n\t\t\t1) name of input file without extension/illumina info e.g. Sample1 for Sample1_S2_R1_001.fastq.gz"
-			"\n\t\t\t2) sample name to be given to this barcode in this sample"
+			"\n\t\t\t2) sample name for this barcode in this library file, sample names can be duplicate to indicate replicates"
 			"\n\t\t\t3) barcode sequence associated with forward primer"
 			"\n\t\t\t4) if sample is dual barcoded, barcode associated with reverse primer", false, "Input")){
 			setUp.setOption(pars.ignoreSamples, "--ignoreSamplesWhenGuessing",
@@ -136,6 +136,10 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 			setUp.setOption(pars.replicatePattern, "--replicatePatternWhenGuessing",
 							"Replicate name regex pattern when guessing samples to order samples into replicates, should be two regex group, the first being sample, the 2nd being the replicate, e.g. --replicatePatternWhenGuessing\"(.*)(-rep.*)\"", false, "Input");
 		}
+		setUp.setOption(pars.samplesNamesByLibraryNameFnp, "--samplesNamesBySeqFileName",
+				"Sample file 2 required columns 1)library,2)sample."
+			"\n\t\t\t1) name of input file without extension/illumina info e.g. Sample1 for Sample1_S2_R1_001.fastq.gz, this cannot be duplicated as only one sample can be assoicated with an input file when there are no barcodes"
+			"\n\t\t\t2) sample name for library file, sample names can be duplicate to indicate replicates ", false, "Input");
 	}
 
 	setUp.setOption(pars.doNotGuessRecFlags, "--doNotGuessRecFlags", "Don't guess at additional SeekDeep extractor/extratorPairedEnd flags by investigating input sequence files", false, "Extra Commands");

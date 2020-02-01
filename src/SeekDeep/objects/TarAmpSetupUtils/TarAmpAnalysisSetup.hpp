@@ -38,6 +38,8 @@ class TarAmpAnalysisSetup {
 public:
 	struct TarAmpPars{
 		bfs::path samplesNamesWithBarcodeInfoFnp = "";
+		bfs::path samplesNamesByLibraryNameFnp = "";
+
 		bfs::path samplesNamesFnp = "";
 		bfs::path outDir = "";
 		bfs::path inputDir = "";

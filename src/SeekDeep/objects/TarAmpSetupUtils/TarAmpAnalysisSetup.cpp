@@ -151,6 +151,12 @@ TarAmpAnalysisSetup::TarAmpAnalysisSetup(const TarAmpPars & inputPars) :
 			OutOptions idFileOutOpts(njh::files::make_path(infoDir_, "input_ids.tab.txt"));
 			fileGen.writeBarcodePrimerFile(idFileOutOpts);
 			pars_.idFile = idFileOutOpts.outFilename_;
+		} else if("" != pars_.samplesNamesByLibraryNameFnp){
+			SampleFileNameGenerator fileGen(pars_.idFile, pars_.samplesNamesByLibraryNameFnp, true);
+			//sample name file
+			OutOptions sampleNamesOutOpts(njh::files::make_path(infoDir_, "input_sampleNames.tab.txt"));
+			fileGen.writeSampleNameFile(sampleNamesOutOpts);
+			pars_.samplesNamesFnp = sampleNamesOutOpts.outFilename_;
 		} else {
 			//if samples fnp not set, try to guess samples
 			auto samps = GuessPossibleSamps(pars_);
