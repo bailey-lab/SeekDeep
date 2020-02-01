@@ -55,8 +55,10 @@ void SeekDeepSetUp::setUpExtractorPairedEnd(ExtractorPairedEndPars & pars) {
 	pars.corePars_.pDetPars.useMotif_ = !useAlnPrimerSearch;
 	//paired end specific stuff
 	pars.pairProcessorParams_.verbose_ = pars_.verbose_;
-	setOption(pars.corePars_.primIdsPars.noOverlapProcessForNoOverlapStatusTargets_, "--noOverlapProcessForNoOverlapStatusTargets,--noOverlapProcessForNoOverlapStatusTargets_", "By default, indicating NoOverlap in overlap status file assumes anything that does overlap isn't wanted, even just simple de-multiplexing is wanted without stitching you use this flag to skip this",
+	bool processNoOverlapStatus = false;
+	setOption(processNoOverlapStatus, "--processNoOverlapStatus", "Process targets that have been indicated as no overlap, this can help to eliminate artifact",
 			false, "Post-Processing-PairProcessing");
+	pars.corePars_.primIdsPars.noOverlapProcessForNoOverlapStatusTargets_ = !processNoOverlapStatus;
 	setOption(pars.pairProcessorParams_.errorAllowed_, "--overLapErrorAllowed",
 			"The amount of error to allow in the overlap processing", false, "Post-Processing-PairProcessing");
 	setOption(pars.pairProcessorParams_.hardMismatchCutOff_, "--hardMismatchCutOff",
@@ -74,10 +76,57 @@ void SeekDeepSetUp::setUpExtractorPairedEnd(ExtractorPairedEndPars & pars) {
 			"Remove this many sequences off of the end of r1 reads", false, "Post Processing");
 	setOption(pars.pairProcessorParams_.r2Trim_, "--r2Trim",
 			"Remove this many sequences off of the end of r2 reads", false, "Post Processing");
-	setOption(pars.corePars_.primIdsPars.overlapStatusFnp_, "--overlapStatusFnp",
-			"A file with two columns, target,status; status column should contain 1 of 3 values (capitalization doesn't matter): r1BegOverR2End,r1EndOverR2Beg,NoOverlap. r1BegOverR2End=target size < read length (causes read through),r1EndOverR2Beg= target size > read length less than 2 x read length, NoOverlap=target size > 2 x read length", true, "Post Processing");
 
-	setOption(pars.primerDimerSize_, "--primerDimerSize", "Size of r1 begins in r2 stitched reads that should be considered primer dimers");
+
+	setOption(pars.pairProcessorParams_.qualWindowPar_.avgQualCutOff_, "--qWindowTrimAvgQualCutOff", "Quality Window Trim Avg Qual Cut Off");
+	setOption(pars.pairProcessorParams_.qualWindowPar_.windowSize_, "--qWindowSize", "Quality Window Trim Size");
+	setOption(pars.pairProcessorParams_.qualWindowPar_.windowStep_, "--qWindowStep", "Quality Window Trim Step");
+	bool noTrimLowQualWindows = false;
+	setOption(noTrimLowQualWindows, "--noTrimLowQualWindows", "Don't Trim Low Qual Windows");
+	pars.pairProcessorParams_.trimLowQaulWindows_ = !noTrimLowQualWindows;
+
+
+	std::string overlapStatus{"auto"};
+	std::set<std::string> allowableOverlapStatuses{"AUTO", "R1BEGINSINR2", "R1ENDSINR2", "NOOVERLAP", "ALL"};
+
+	std::function<FlagCheckResult(const std::string&)> overlapStatusCheck = [allowableOverlapStatuses](const std::string & flagSet){
+		bool success = true;
+		std::string mess = "";
+		std::string upper = njh::strToUpperRet(flagSet);
+		if(!njh::in(upper, allowableOverlapStatuses)){
+			success = false;
+			mess = njh::pasteAsStr("--defaultOverlapStatus needs to be one of the following (case insensitive) ", njh::conToStr(allowableOverlapStatuses, ","), " not ", upper);
+		}
+		return FlagCheckResult{success, mess};
+	};
+
+	bool setDefaultOverlapStatus = setOption(overlapStatus,
+			"--defaultOverlapStatus",
+			"Set a overlap status for all targets, can be 1 of 5 values(case insensitive), AUTO, R1BEGINSINR2, R1ENDSINR2, NOOVERLAP, ALL. ALL=(R1BEGINSINR2 and R1ENDSINR2). Setting to auto will go with the status was most commonly found for a target, this can be dangerous as with unspecific amplification this can end up being set as the incorrect status",
+			false, overlapStatusCheck);
+	if(setDefaultOverlapStatus){
+		std::string upper = njh::strToUpperRet(overlapStatus);
+		if("ALL" == upper){
+			pars.defaultStatuses_.emplace_back(
+					PairedReadProcessor::ReadPairOverLapStatus::R1BEGINSINR2);
+			pars.defaultStatuses_.emplace_back(
+					PairedReadProcessor::ReadPairOverLapStatus::R1ENDSINR2);
+			pars.defaultStatuses_.emplace_back(
+					PairedReadProcessor::ReadPairOverLapStatus::PERFECTOVERLAP);
+		} else if("AUTO" == upper){
+			pars.defaultStatuses_.emplace_back(PairedReadProcessor::ReadPairOverLapStatus::AUTO);
+		} else if("R1BEGINSINR2" == upper){
+			pars.defaultStatuses_.emplace_back(PairedReadProcessor::ReadPairOverLapStatus::R1BEGINSINR2);
+		}else if("R1ENDSINR2" == upper){
+			pars.defaultStatuses_.emplace_back(PairedReadProcessor::ReadPairOverLapStatus::R1ENDSINR2);
+		}else if("NOOVERLAP" == upper){
+			pars.defaultStatuses_.emplace_back(PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP);
+		}
+	}
+	setOption(pars.corePars_.primIdsPars.overlapStatusFnp_, "--overlapStatusFnp",
+			"A file with two columns, target,status; status column should contain 1 of 3 values (capitalization doesn't matter): r1BegOverR2End,r1EndOverR2Beg,NoOverlap. r1BegOverR2End=target size < read length (causes read through),r1EndOverR2Beg= target size > read length less than 2 x read length, NoOverlap=target size > 2 x read length", !setDefaultOverlapStatus, "Post Processing");
+
+	setOption(pars.pairProcessorParams_.primerDimmerSize_, "--primerDimerSize", "Size of r1 begins in r2 stitched reads that should be considered primer dimers");
 
 	pars_.gapInfo_.gapOpen_ = 5;
 	pars_.gapInfo_.gapExtend_ = 1;

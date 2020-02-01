@@ -8,6 +8,7 @@
 
 #include "SeekDeepUtilsRunner.hpp"
 #include "SeekDeep/objects/ControlBenchmarking.h"
+
 namespace njhseq {
 
 
@@ -20,6 +21,7 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 	bfs::path metaFnp = "";
 	bool skipMissingSamples = false;
 	bfs::path popSeqsFnp = "";
+	comparison allowableError;
 	seqSetUp setUp(inputCommands);
 	setUp.processVerbose();
 	setUp.processDebug();
@@ -32,6 +34,7 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 	setUp.setOption(conBenchPars.samplesToMixFnp_, "--sampleToMixture", "Sample To Mixture, 2 columns 1)sample, 2)MixName", true);
 	setUp.setOption(conBenchPars.mixSetUpFnp_, "--mixtureSetUp", "Mixture Set Up, 3 columns 1)MixName, 2)strain, 3)relative_abundance", true);
 	setUp.setOption(skipMissingSamples, "--skipMissingSamples", "Skip Samples if they are missing");
+	setUp.processComparison(allowableError);
 	setUp.processAlignerDefualts();
 	setUp.processDirectoryOutputName(name + "_benchmarkControlMixtures_TODAY", true);
 	setUp.finishSetUp(std::cout);
@@ -48,27 +51,54 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 	collapse::SampleCollapseCollection analysisMaster(coreJson);
 
 	std::unordered_map<std::string, std::unordered_map<std::string, double>> readCountsPerHapPerSample;
+	std::unordered_map<std::string, std::string> cNameToPopUID;
+	std::unordered_map<std::string, uint32_t> cNamePopSampCnt;
+	std::unordered_map<std::string, std::string> hPopUID_to_hConsensus;
+	{
+		auto popInfoFnp = analysisMaster.getPopInfoPath();
+		TableReader popInfoReader(TableIOOpts::genTabFileIn(popInfoFnp, true));
+		VecStr row;
+		while(popInfoReader.getNextRow(row)){
+			auto hapName = row[popInfoReader.header_.getColPos("h_popUID")];
+			auto h_Consensus = row[popInfoReader.header_.getColPos("h_Consesus")];
+			hPopUID_to_hConsensus[hapName] = h_Consensus;
+		}
+
+	}
+	uint64_t maxLen = 0;
 	auto sampInfoFnp = analysisMaster.getSampInfoPath();
 	TableReader sampInfoReader(TableIOOpts::genTabFileIn(sampInfoFnp, true));
 	VecStr row;
-	std::unordered_map<std::string, std::string> cNameToPopUID;
-	std::unordered_map<std::string, uint32_t> cNamePopSampCnt;
-
-	uint64_t maxLen = 0;
-
 	std::unordered_set<std::string> allSamplesInOutput;
+
+	std::unordered_map<std::string, std::vector<seqInfo>> allResultSeqs;
 	while(sampInfoReader.getNextRow(row)){
 		auto sample = row[sampInfoReader.header_.getColPos("s_Name")];
 		auto hapName = row[sampInfoReader.header_.getColPos("c_name")];
-		auto c_Consensus = row[sampInfoReader.header_.getColPos("c_Consensus")];
-		seqInfo clus(hapName, c_Consensus);
-		readVec::getMaxLength(clus, maxLen);
-
+		auto c_ReadCnt = njh::StrToNumConverter::stoToNum<double>(row[sampInfoReader.header_.getColPos("c_ReadCnt")]);
+		auto c_AveragedFrac = njh::StrToNumConverter::stoToNum<double>(row[sampInfoReader.header_.getColPos("c_AveragedFrac")]);
+		//auto c_Consensus = row[sampInfoReader.header_.getColPos("c_Consensus")];
 		auto readCnt = njh::StrToNumConverter::stoToNum<double>(row[sampInfoReader.header_.getColPos("c_ReadCnt")]);
 		readCountsPerHapPerSample[sample][hapName] = readCnt;
 		auto h_popUID = row[sampInfoReader.header_.getColPos("h_popUID")];
 		auto h_SampCnt = row[sampInfoReader.header_.getColPos("h_SampCnt")];
+		seqInfo clus(hapName, njh::mapAt(hPopUID_to_hConsensus, h_popUID));
+		clus.cnt_ = c_ReadCnt;
+		clus.frac_ = c_AveragedFrac;
+		bool add = true;
+		for(auto & seq : allResultSeqs[sample]){
+			if(seq.seq_ == clus.seq_){
+				add = false;
+				seq.cnt_ += c_ReadCnt;
+				seq.frac_ += c_AveragedFrac;
+				break;
+			}
+		}
+		if(add){
+			allResultSeqs[sample].emplace_back(clus);
+		}
 
+		readVec::getMaxLength(clus, maxLen);
 		cNameToPopUID[hapName] = h_popUID;
 		cNamePopSampCnt[hapName] = njh::StrToNumConverter::stoToNum<uint32_t>(h_SampCnt);
 		allSamplesInOutput.emplace(sample);
@@ -201,7 +231,7 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 		//read in result sequences
 		auto resultsSeqsFnp = analysisMaster.getSampleFinalHapsPath(sname);
 		if(!bfs::exists(resultsSeqsFnp) && skipMissingSamples){
-			OutOptions outOptsMissing(njh::files::make_path(setUp.pars_.directoryName_, "missingSamples"));
+			OutOptions outOptsMissing(njh::files::make_path(setUp.pars_.directoryName_, "missingSamples.txt"));
 			outOptsMissing.append_ = true;
 			OutputStream outMissing(outOptsMissing);
 			outMissing << sname << std::endl;
@@ -213,7 +243,9 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 		}
 
 		SeqIOOptions resultsSeqsOpts(resultsSeqsFnp, analysisMaster.inputOptions_.inFormat_, true);
-		auto resultSeqs = SeqInput::getSeqVec<seqInfo>(resultsSeqsOpts);
+		//auto resultSeqs = SeqInput::getSeqVec<seqInfo>(resultsSeqsOpts);
+		std::vector<seqInfo> resultSeqs = allResultSeqs[sname];
+
 		std::unordered_map<std::string, uint32_t> resSeqToPos;
 		double maxResFrac = 0;
 		for(const auto pos : iter::range(resultSeqs.size())){
@@ -234,6 +266,7 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 				maxExpFrac = expFrac.second;
 			}
 		}
+
 		std::unordered_map<std::string, std::string> expectedToMajorClass;
 		for(const auto & expFrac : currentExpectedSeqsFrac){
 			if(expFrac.second == maxExpFrac){
@@ -259,7 +292,7 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 
 		auto res = bencher.benchmark(resultSeqs, currentExpectedSeqs,
 				currentExpectedSeqsFrac,
-				expSeqsKey, alignerObj);
+				expSeqsKey, alignerObj, allowableError);
 		double total = 0;
 
 

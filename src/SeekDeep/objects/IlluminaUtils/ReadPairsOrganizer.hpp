@@ -42,11 +42,11 @@ public:
 	bool doNotGuessSampleNames_{false};
 	static std::regex illuminaPat_;
 
-	std::unordered_map<std::string, VecStr> readPairs_;
-	std::unordered_map<std::string, VecStr> readPairsUnrecognized_;
+	std::map<std::string, VecStr> readPairs_;
+	std::map<std::string, VecStr> readPairsUnrecognized_;
 
 	void processFiles(const std::map<bfs::path, bool> & files);
-	std::unordered_map<std::string, std::pair<VecStr, VecStr>> processReadPairs();
+	std::map<std::string, std::pair<VecStr, VecStr>> processReadPairs();
 };
 
 

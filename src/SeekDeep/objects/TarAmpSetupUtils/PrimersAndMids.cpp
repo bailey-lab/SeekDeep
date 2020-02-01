@@ -38,7 +38,7 @@ PrimersAndMids::Target::lenCutOffs::lenCutOffs(uint32_t minLen, uint32_t maxLen,
 PrimersAndMids::Target::Target(const std::string & name,
 		const std::string & forPrimer, const std::string & revPrimer) :
 		info_(name, forPrimer, revPrimer),
-		overlapStatus_(PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP) {
+		overlapStatuses_({PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP}) {
 }
 
 void PrimersAndMids::Target::addLenCutOff(uint32_t minLen, uint32_t maxLen,
@@ -239,8 +239,8 @@ void PrimersAndMids::writeIdFile(const OutOptions & outOpts) const {
 	auto pKeys = getTargets();
 	njh::sort(pKeys);
 	for (const auto & pKey : pKeys) {
-		idFileOut << pKey << "\t" << targets_.at(pKey).info_.forwardPrimer_ << "\t"
-				<< targets_.at(pKey).info_.reversePrimer_ << "\n";
+		idFileOut << pKey << "\t" << targets_.at(pKey).info_.forwardPrimerRaw_ << "\t"
+				<< targets_.at(pKey).info_.reversePrimerRaw_ << "\n";
 	}
 	if (containsMids()) {
 		idFileOut << "id\tbarcode\n";
@@ -263,8 +263,8 @@ void PrimersAndMids::writeIdFile(const OutOptions & outOpts,
 	njh::sort(pKeys);
 	for (const auto & pKey : pKeys) {
 		if (njh::in(pKey, targets)) {
-			idFileOut << pKey << "\t" << targets_.at(pKey).info_.forwardPrimer_
-					<< "\t" << targets_.at(pKey).info_.reversePrimer_ << "\n";
+			idFileOut << pKey << "\t" << targets_.at(pKey).info_.forwardPrimerRaw_
+					<< "\t" << targets_.at(pKey).info_.reversePrimerRaw_ << "\n";
 		}
 	}
 	if (containsMids()) {
@@ -305,8 +305,13 @@ table PrimersAndMids::genOverlapStatuses(const VecStr & targets) const {
 					<< std::endl;
 			throw std::runtime_error { ss.str() };
 		}
-		if(PairedReadProcessor::ReadPairOverLapStatus::NONE != targets_.at(tar).overlapStatus_){
-			ret.addRow(tar, PairedReadProcessor::getOverlapStatusStr(targets_.at(tar).overlapStatus_));
+		if(!targets_.at(tar).overlapStatuses_.empty()){
+			VecStr statusesStr;
+			for(const auto & status : targets_.at(tar).overlapStatuses_){
+				statusesStr.emplace_back(PairedReadProcessor::getOverlapStatusStr(status));
+			}
+			njh::sort(statusesStr);
+			ret.addRow(tar, njh::conToStr(statusesStr, ","));
 		}
 	}
 	return ret;
@@ -468,9 +473,17 @@ void PrimersAndMids::addLenCutOffs(const bfs::path & lenCutOffsFnp){
 	}
 }
 
+
+void PrimersAndMids::addOverLapStatuses(const std::vector<PairedReadProcessor::ReadPairOverLapStatus> & allStatus){
+	for(auto & tar : targets_){
+		tar.second.overlapStatuses_ = allStatus;
+	}
+}
+
 void PrimersAndMids::addOverLapStatuses(const bfs::path & overlapStatuses){
 	table overlapStatusTab(overlapStatuses, "whitespace", true);
-	std::unordered_map<std::string, PairedReadProcessor::ReadPairOverLapStatus> targetStatus;
+	std::unordered_map<std::string, std::vector<PairedReadProcessor::ReadPairOverLapStatus>> targetStatus;
+
 	njh::for_each(overlapStatusTab.columnNames_,
 			[](std::string & str) {stringToLower(str);});
 	overlapStatusTab.setColNamePositions();
@@ -485,30 +498,39 @@ void PrimersAndMids::addOverLapStatuses(const bfs::path & overlapStatuses){
 					<< " but it isn't a listed target in " << idFile_ << "\n";
 			errorStream << "options are: "
 					<< njh::conToStr(getVectorOfMapKeys(targets_), ", ") << "\n";
-		}else 	if (njh::in(row[overlapStatusTab.getColPos("target")], targetStatus)) {
+		}else if (njh::in(row[overlapStatusTab.getColPos("target")], targetStatus)) {
 			failedOverlapStatusProcessing = true;
 			errorStream << __PRETTY_FUNCTION__ << ", error already have "
 					<< row[overlapStatusTab.getColPos("target")] << " in table" << "\n";
 		} else {
-			if ("NOOVERLAP"
-					== njh::strToUpperRet(row[overlapStatusTab.getColPos("status")])) {
-				targetStatus[row[overlapStatusTab.getColPos("target")]] =
-						PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP;
-			} else if ("R1BEGINSINR2"
-					== njh::strToUpperRet(row[overlapStatusTab.getColPos("status")])) {
-				targetStatus[row[overlapStatusTab.getColPos("target")]] =
-						PairedReadProcessor::ReadPairOverLapStatus::R1BEGINSINR2;
-			} else if ("R1ENDSINR2"
-					== njh::strToUpperRet(row[overlapStatusTab.getColPos("status")])) {
-				targetStatus[row[overlapStatusTab.getColPos("target")]] =
-						PairedReadProcessor::ReadPairOverLapStatus::R1ENDSINR2;
-			} else {
-				failedOverlapStatusProcessing = true;
-				errorStream << __PRETTY_FUNCTION__
-						<< ", error status should be NOOVERLAP, R1StartsInR2, or R1EndsInR2, not "
-						<< njh::strToUpperRet(row[overlapStatusTab.getColPos("status")])
-						<< "\n";
+			auto statusStr = njh::strToUpperRet(row[overlapStatusTab.getColPos("status")]);
+			auto statuesToks = tokenizeString(statusStr, ",");
+			std::vector<PairedReadProcessor::ReadPairOverLapStatus> statusesForTar;
+			for (const auto & status : statuesToks) {
+				if ("NOOVERLAP" == status) {
+					statusesForTar.emplace_back(PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP);
+				} else if ("AUTO" == status) {
+					statusesForTar.emplace_back(PairedReadProcessor::ReadPairOverLapStatus::AUTO);
+				} else if ("R1BEGINSINR2" == status) {
+					statusesForTar.emplace_back(PairedReadProcessor::ReadPairOverLapStatus::R1BEGINSINR2);
+				} else if ("R1ENDSINR2" == status) {
+					statusesForTar.emplace_back(PairedReadProcessor::ReadPairOverLapStatus::R1ENDSINR2);
+				} else if ("PERFECTOVERLAP" == status) {
+					statusesForTar.emplace_back(PairedReadProcessor::ReadPairOverLapStatus::PERFECTOVERLAP);
+				} else {
+					failedOverlapStatusProcessing = true;
+					errorStream << __PRETTY_FUNCTION__
+							<< ", error status should be NOOVERLAP, R1BEGINSINR2, PERFECTOVERLAP, R1ENDSINR2, AUTO, not "
+							<< status << "\n";
+				}
 			}
+
+			if(njh::in(PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP, statusesForTar) && statusesForTar.size() > 1){
+				std::stringstream ss;
+				ss << __PRETTY_FUNCTION__ << ", error " << "can't combine NOOVERLAP with other overlap statuses" << "\n";
+				throw std::runtime_error{ss.str()};
+			}
+			targetStatus[row[overlapStatusTab.getColPos("target")]] = statusesForTar;
 		}
 	}
 	for(const auto & tar : getTargets()){
@@ -523,9 +545,10 @@ void PrimersAndMids::addOverLapStatuses(const bfs::path & overlapStatuses){
 	}
 
 	for(const auto & ts : targetStatus){
-		targets_.at(ts.first).overlapStatus_ = ts.second;
+		targets_.at(ts.first).overlapStatuses_ = ts.second;
 	}
 }
+
 void PrimersAndMids::setRefSeqsKInfos(uint32_t klen, bool setRevComp){
 	for(auto & tar : targets_){
 		tar.second.setRefKInfos(klen, setRevComp);
@@ -581,6 +604,20 @@ void PrimersAndMids::addDefaultLengthCutOffs(uint32_t minLength, uint32_t maxLen
 			tar.second.addLenCutOff(minLength, maxLength);
 		}
 	}
+}
+
+uint32_t PrimersAndMids::getMaxMIDSize() const{
+	uint32_t maxSize = 0;
+	for(const auto & mid : mids_){
+		if(nullptr != mid.second.forwardBar_ && mid.second.forwardBar_->bar_->size() > maxSize){
+			maxSize = mid.second.forwardBar_->bar_->size();
+		}
+		if(nullptr != mid.second.reverseBar_ && mid.second.reverseBar_->bar_->size() > maxSize){
+			maxSize = mid.second.reverseBar_->bar_->size();
+		}
+	}
+
+	return maxSize;
 }
 
 

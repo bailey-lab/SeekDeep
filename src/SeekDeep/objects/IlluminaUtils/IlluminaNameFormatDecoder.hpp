@@ -15,19 +15,25 @@ class IlluminaNameFormatDecoder{
 public:
 
 	IlluminaNameFormatDecoder(const std::string & name,
-			const std::string nameRegPat, const uint32_t sampleNumberPos) :
+			const std::string nameRegPat, const uint32_t sampleNumberPos) : name_(name) ,
 			nameRegPat_(nameRegPat), sampleNumberPos_(sampleNumberPos) {
-		std::regex_match(name, match_, nameRegPat_);
+		std::regex_match(name_, match_, nameRegPat_);
 	}
 
-	IlluminaNameFormatDecoder(const std::string & name) :
+	IlluminaNameFormatDecoder(const std::string & name):
 			IlluminaNameFormatDecoder(name, DefaultNameRegPatStr_,
 					DefaultSampleNumberPos_) {
+	}
+
+	IlluminaNameFormatDecoder(const IlluminaNameFormatDecoder & other): name_(other.name_) ,
+			nameRegPat_(other.nameRegPat_), sampleNumberPos_(other.sampleNumberPos_) {
+		std::regex_match(name_, match_, nameRegPat_);
 	}
 
 	static std::string DefaultNameRegPatStr_;
 	static uint32_t DefaultSampleNumberPos_;
 
+	const std::string name_;
 	std::regex nameRegPat_;
 	uint32_t sampleNumberPos_;
 

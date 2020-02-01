@@ -66,35 +66,60 @@ VecStr ControlMixSetUp::getStrains() const {
 	return njh::getVecOfMapKeys(rawRelativeAbundances_);
 }
 
-std::unordered_map<std::string, ControlMixSetUp> ControlMixSetUp::readInSetUps(const bfs::path & mixtureSetUpFnp){
-		//read in mixture setup
-		table mixtureSetupTab(mixtureSetUpFnp, "\t", true);
-		mixtureSetupTab.checkForColumnsThrow(VecStr{"MixName", "strain", "relative_abundance"}, __PRETTY_FUNCTION__);
+std::unordered_map<std::string, ControlMixSetUp> ControlMixSetUp::readInSetUps(
+		const bfs::path & mixtureSetUpFnp) {
+	//read in mixture setup
+	table mixtureSetupTab(mixtureSetUpFnp, "\t", true);
+	mixtureSetupTab.checkForColumnsThrow(VecStr { "MixName", "strain", "relative_abundance" }, __PRETTY_FUNCTION__);
 
-		if(mixtureSetupTab.empty()){
-			std::stringstream ss;
-			ss << __PRETTY_FUNCTION__ << ", error " << mixtureSetUpFnp << " is empty " << "\n";
-			throw std::runtime_error{ss.str()};
-		}
-
-		std::unordered_map<std::string, ControlMixSetUp> mixSetups;
-		std::unordered_map<std::string, std::unordered_map<std::string, double>> mixInfos;
-		for(const auto & row : mixtureSetupTab){
-			std::string mixname = row[mixtureSetupTab.getColPos("MixName")];
-			std::string strain = row[mixtureSetupTab.getColPos("strain")];
-			double relative_abundance  = njh::StrToNumConverter::stoToNum<double>(row[mixtureSetupTab.getColPos("relative_abundance")]);
-			if(njh::in(strain, mixInfos[mixname])){
-				std::stringstream ss;
-				ss << __PRETTY_FUNCTION__ << ", error " << " already have " << strain << " for mixture " << mixname<< "\n";
-				throw std::runtime_error{ss.str()};
-			}
-			mixInfos[mixname][strain] = relative_abundance;
-		}
-		for(const auto & mixInfo : mixInfos){
-			mixSetups.emplace(mixInfo.first, ControlMixSetUp(mixInfo.first, mixInfo.second));
-		}
-		return mixSetups;
+	if (mixtureSetupTab.empty()) {
+		std::stringstream ss;
+		ss << __PRETTY_FUNCTION__ << ", error " << mixtureSetUpFnp << " is empty "
+				<< "\n";
+		throw std::runtime_error { ss.str() };
 	}
+
+	std::unordered_map<std::string, ControlMixSetUp> mixSetups;
+	std::unordered_map<std::string, std::unordered_map<std::string, double>> mixInfos;
+	std::unordered_map<std::string, std::unordered_map<std::string, double>> mixInfosWithZeros;
+
+	for (const auto & row : mixtureSetupTab) {
+		std::string mixname = row[mixtureSetupTab.getColPos("MixName")];
+		std::string strain = row[mixtureSetupTab.getColPos("strain")];
+		double relative_abundance = njh::StrToNumConverter::stoToNum<double>(
+				row[mixtureSetupTab.getColPos("relative_abundance")]);
+		if (njh::in(strain, mixInfos[mixname])) {
+			std::stringstream ss;
+			ss << __PRETTY_FUNCTION__ << ", error " << " already have " << strain
+					<< " for mixture " << mixname << "\n";
+			throw std::runtime_error { ss.str() };
+		}
+		if (0 != relative_abundance) {
+			mixInfos[mixname][strain] = relative_abundance;
+		} else {
+			mixInfosWithZeros[mixname][strain] = relative_abundance;
+		}
+	}
+	std::set<std::string> mixturesNamesWithAllZeros;
+	for (const auto & mixInfo : mixInfosWithZeros) {
+		if (!njh::in(mixInfo.first, mixInfos)) {
+			mixturesNamesWithAllZeros.emplace(mixInfo.first);
+		}
+	}
+	if (!mixturesNamesWithAllZeros.empty()) {
+		std::stringstream ss;
+		ss << __PRETTY_FUNCTION__ << ", error "
+				<< "the following mixtures had strains all with relative abundances of 0: "
+				<< njh::conToStrEndSpecial(mixturesNamesWithAllZeros, ", ", " and ")
+				<< "\n";
+		throw std::runtime_error { ss.str() };
+	}
+	for (const auto & mixInfo : mixInfos) {
+		mixSetups.emplace(mixInfo.first,
+				ControlMixSetUp(mixInfo.first, mixInfo.second));
+	}
+	return mixSetups;
+}
 
 }  // namespace njhseq
 

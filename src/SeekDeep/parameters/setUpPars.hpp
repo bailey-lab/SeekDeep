@@ -27,9 +27,9 @@
 // along with SeekDeep.  If not, see <http://www.gnu.org/licenses/>.
 //
 #include <njhseq.h>
-#include "SeekDeep/objects/PairedReadProcessor.hpp"
-#include "SeekDeep/objects/PrimersAndMids.hpp"
-#include "SeekDeep/objects/IlluminaNameFormatDecoder.hpp"
+#include "SeekDeep/objects/IlluminaUtils/PairedReadProcessor.hpp"
+#include "SeekDeep/objects/TarAmpSetupUtils/PrimersAndMids.hpp"
+#include "SeekDeep/objects/IlluminaUtils/IlluminaNameFormatDecoder.hpp"
 
 namespace njhseq {
 
@@ -92,15 +92,17 @@ struct ExtractorPairedEndPars{
 	ExtractorPairedEndPars();
 	CoreExtractorPars corePars_;
 
-	uint32_t primerDimerSize_ = 5;
 
 
   PairedReadProcessor::ProcessParams pairProcessorParams_;
+  std::vector<PairedReadProcessor::ReadPairOverLapStatus> defaultStatuses_;//{PairedReadProcessor::ReadPairOverLapStatus::NONE};
 
 };
 
 struct clusterDownPars {
 
+	cluster::snpBreakoutPars breakoutPars;
+	bool breakoutClusters = false;
 	std::string qualRep = "median";
 	std::string sortBy = "totalCount";
 
@@ -115,7 +117,7 @@ struct clusterDownPars {
 	CollapseIterations iteratorMap;
 	CollapseIterations binIteratorMap;
 
-
+  bool dontRecalLowFreqMismatchAndReRun = false;
   bool startWithSingles = false;
   bool leaveOutSinglets = false;
   bool mapBackSinglets = false;
@@ -125,12 +127,15 @@ struct clusterDownPars {
   std::string diffCutOffStr = "0.1";
 
   bool writeOutFinalInternalSnps = false;
+  bool writeOutFinalAllByAllComparison = false;
+
 
   double compPerCutOff = .98;
   bool useCompPerCutOff = false;
   bool ionTorrent = false;
   bool illumina = false;
   bool illuminaAllowHomopolyers = false;
+  bool illuminaAllLowMismatches = false;
   bool tech454 = false;
   uint32_t hq = 0;
 
@@ -203,7 +208,7 @@ struct processClustersPars {
 
   bool keepChimeras = false;
   bool investigateChimeras = false;
-  bool recheckChimeras = false;
+ // bool recheckChimeras = false;
   double chiCutOff = .40;
   std::string experimentName = "PopUID";
   std::string parametersPopulation = "";
@@ -223,6 +228,8 @@ struct processClustersPars {
   uint32_t lowQualityCutOff = 3;
   std::string customCutOffs = "";
   std::string groupingsFile = "";
+  bool noWriteGroupInfoFiles = false;
+
   bool onPerId = false;
   bool plotRepAgreement = false;
 
@@ -234,6 +241,7 @@ struct processClustersPars {
 	uint32_t hqMismatches = 0;
 	uint32_t stopAfter = 100;
 
+	bool rescueExcludedLowFreqHaplotypes = false;
 	bool rescueExcludedOneOffLowFreqHaplotypes = false;
 	bool rescueExcludedChimericHaplotypes = false;
 	bool rescueMatchingExpected = false;

@@ -57,8 +57,6 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 		printVector(setUp.pars_.colOpts_.nucCompBinOpts_.diffCutOffVec_, ", ", std::cout);
 	}
 	setUp.rLog_.setCurrentLapName("initialSetUp");
-	setUp.rLog_.logCurrentTime("Reading In Sequences");
-
 	//write out clustering parameters
 
 	std::string parDir = njh::files::makeDir(setUp.pars_.directoryName_, njh::files::MkdirPar("pars")).string();
@@ -73,12 +71,13 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 	bool containsCompReads = false;
 	int compCount = 0;
 	// read in the sequences
-	setUp.rLog_.logCurrentTime("Various filtering and little modifications");
 	auto inputOpts = setUp.pars_.ioOptions_;
 
 	//
 	std::unordered_map<std::string, uint32_t> sampleNumberCounts;
+	std::vector<std::shared_ptr<IlluminaNameFormatDecoder>> decodedNames;
 	if(!pars.dontFilterToMostCommonIlluminaSampleNumber_){
+		setUp.rLog_.logCurrentTime("Filtering for illumina input name");
 		uint32_t totalInputCount = 0;
 		{
 			SeqInput counterIo(inputOpts);
@@ -89,15 +88,16 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 				if(njh::endsWith(name, "_Comp")){
 					name = name.substr(0, name.rfind("_Comp"));
 				}
-				IlluminaNameFormatDecoder decoder(name, pars.IlluminaSampleRegPatStr_, pars.IlluminaSampleNumberPos_);
-				if(0 == decoder.match_.size()){
-					decoder = IlluminaNameFormatDecoder(name, pars.BackUpIlluminaSampleRegPatStr_, pars.BackUpIlluminaSampleNumberPos_);
+				std::shared_ptr<IlluminaNameFormatDecoder> decoder=std::make_shared<IlluminaNameFormatDecoder>(name, pars.IlluminaSampleRegPatStr_, pars.IlluminaSampleNumberPos_);
+				if(0 == decoder->match_.size()){
+					decoder =std::make_shared<IlluminaNameFormatDecoder>(name, pars.BackUpIlluminaSampleRegPatStr_, pars.BackUpIlluminaSampleNumberPos_);
 				}
-				++sampleNumberCounts[decoder.getSampleNumber()];
+				decodedNames.emplace_back(decoder);
+				++sampleNumberCounts[decoder->getSampleNumber()];
 				++totalInputCount;
-				if(totalInputCount > pars.useCutOff){
-					break;
-				}
+//				if(totalInputCount > pars.useCutOff && !pars.useAllInput){
+//					break;
+//				}
 			}
 		}
 	}
@@ -113,27 +113,22 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 		});
 	}
 
-
+	bool downsampled = false;
 	//downsample input file to save on memory usage
 	bfs::path downsampledFnp;
 	if(!pars.useAllInput){
 		//for limiting large number of input sequences
 		uint32_t totalInputCount = 0;
+		setUp.rLog_.logCurrentTime("Counting input");
 		{
 			SeqInput counterIo(inputOpts);
 			counterIo.openIn();
 			seqInfo seq;
+			uint32_t seqIndex = 0;
 			while(counterIo.readNextRead(seq)){
+				++seqIndex;
 				if(!pars.dontFilterToMostCommonIlluminaSampleNumber_){
-					std::string name = seq.name_;
-					if(njh::endsWith(name, "_Comp")){
-						name = name.substr(0, name.rfind("_Comp"));
-					}
-					IlluminaNameFormatDecoder decoder(name, pars.IlluminaSampleRegPatStr_, pars.IlluminaSampleNumberPos_);
-					if(0 == decoder.match_.size()){
-						decoder = IlluminaNameFormatDecoder(name, pars.BackUpIlluminaSampleRegPatStr_, pars.BackUpIlluminaSampleNumberPos_);
-					}
-					if(decoder.getSampleNumber() != sampleNames.front()){
+					if(decodedNames[seqIndex - 1]->getSampleNumber() != sampleNames.front()){
 						continue;
 					}
 				}
@@ -144,7 +139,8 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 			std::cout << "totalInputCount: " << totalInputCount << std::endl;
 		}
 		if(totalInputCount > pars.useCutOff){
-
+			setUp.rLog_.logCurrentTime("Down sampling");
+			downsampled = true;
 			std::vector<uint32_t> randomSel;
 			{
 				njh::randomGenerator rGen;
@@ -161,18 +157,12 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 			reader.openIn();
 			uint32_t seqCount = 0;
 			seqInfo seq;
+			uint32_t seqIndex = 0;
 
 			while(reader.readNextRead(seq)){
+				++seqIndex;
 				if(!pars.dontFilterToMostCommonIlluminaSampleNumber_){
-					std::string name = seq.name_;
-					if(njh::endsWith(name, "_Comp")){
-						name = name.substr(0, name.rfind("_Comp"));
-					}
-					IlluminaNameFormatDecoder decoder(name, pars.IlluminaSampleRegPatStr_, pars.IlluminaSampleNumberPos_);
-					if(0 == decoder.match_.size()){
-						decoder = IlluminaNameFormatDecoder(name, pars.BackUpIlluminaSampleRegPatStr_, pars.BackUpIlluminaSampleNumberPos_);
-					}
-					if(decoder.getSampleNumber() != sampleNames.front()){
+					if(decodedNames[seqIndex - 1]->getSampleNumber() != sampleNames.front()){
 						continue;
 					}
 				}
@@ -189,6 +179,8 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 	bfs::path tempOutFnp;
 	if(setUp.pars_.ioOptions_.inFormat_ == SeqIOOptions::inFormats::FASTAGZ ||
 		 setUp.pars_.ioOptions_.inFormat_ == SeqIOOptions::inFormats::FASTQGZ){
+		setUp.rLog_.logCurrentTime("rewriting zipped input for file indexing");
+
 		if (setUp.pars_.ioOptions_.inFormat_ == SeqIOOptions::inFormats::FASTAGZ) {
 			inputOpts.inFormat_ = SeqIOOptions::inFormats::FASTA;
 			tempOutFnp =njh::files::make_path(setUp.pars_.directoryName_, "tempinput.fasta");
@@ -206,6 +198,7 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 	}
 
 
+	setUp.rLog_.logCurrentTime("collapsing input to unique sequences");
 
 	SeqInput reader(inputOpts);
 	reader.openIn();
@@ -219,20 +212,22 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 		SeqOutput smallWriter(smallSeqOpts);
 		seqInfo seq;
 		uint64_t fPos = reader.tellgPri();
+		std::unordered_map<std::string, uint32_t> allNameCounts;
+		uint32_t seqIndex = 0;
 		while(reader.readNextRead(seq)){
-			if(!pars.dontFilterToMostCommonIlluminaSampleNumber_){
-				std::string name = seq.name_;
-				if(njh::endsWith(name, "_Comp")){
-					name = name.substr(0, name.rfind("_Comp"));
-				}
-				IlluminaNameFormatDecoder decoder(name, pars.IlluminaSampleRegPatStr_, pars.IlluminaSampleNumberPos_);
-				if(0 == decoder.match_.size()){
-					decoder = IlluminaNameFormatDecoder(name, pars.BackUpIlluminaSampleRegPatStr_, pars.BackUpIlluminaSampleNumberPos_);
-				}
-				if(decoder.getSampleNumber() != sampleNames.front()){
+			++seqIndex;
+			if(!downsampled && !pars.dontFilterToMostCommonIlluminaSampleNumber_){
+				if(decodedNames[seqIndex - 1]->getSampleNumber() != sampleNames.front()){
 					fPos = reader.tellgPri();
 					continue;
 				}
+			}
+
+			if(njh::in(seq.name_, allNameCounts)){
+				++allNameCounts[seq.name_];
+				seq.name_.append(njh::pasteAsStr(".", allNameCounts[seq.name_]));
+			}else{
+				allNameCounts[seq.name_] = 0;
 			}
 			++counter;
 			if (setUp.pars_.colOpts_.iTOpts_.removeLowQualityBases_) {
@@ -276,6 +271,8 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 		}
 
 		reader.reOpenIn();
+		setUp.rLog_.logCurrentTime("calculating the quality values");
+
 		//now calculate the qualities if fastq
 		for(const auto & fPositions : filepositions){
 			if(setUp.pars_.ioOptions_.inFormat_ != SeqIOOptions::inFormats::FASTA && setUp.pars_.ioOptions_.inFormat_ != SeqIOOptions::inFormats::FASTAGZ){
@@ -289,9 +286,6 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 					}
 					if (setUp.pars_.colOpts_.iTOpts_.adjustHomopolyerRuns_) {
 						seq.adjustHomopolymerRunQualities();
-					}
-					if(std::string::npos != seq.name_.find("_Comp")){
-						++compCount;
 					}
 				  readVec::handelLowerCaseBases(seq, setUp.pars_.ioOptions_.lowerCaseBases_);
 				  if (setUp.pars_.ioOptions_.removeGaps_) {
@@ -345,10 +339,13 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 			clusterNameToFilePosKey[clusters[fPositions.first].seqBase_.name_] = fPositions.first;
 		}
 	}
+	setUp.rLog_.logCurrentTime("Clearing data");
+	decodedNames.clear();
 	if(!pars.countIlluminaSampleNumbers_ && !pars.writeOutInitalSeqs){
 		filepositions.clear();
 		clusterNameToFilePosKey.clear();
 	}
+	setUp.rLog_.logCurrentTime("Post processing after collapse");
 
 	if (compCount > 0) {
 		containsCompReads = true;
@@ -365,9 +362,6 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 	setUp.rLog_ << "Reading clusters from " << setUp.pars_.ioOptions_.firstName_ << " "
 			<< setUp.pars_.ioOptions_.secondName_ << "\n";
 	setUp.rLog_ << "Read in " << counter << " reads" << "\n";
-	setUp.rLog_.logCurrentTime("Collapsing to unique sequences");
-
-
 
 	if (setUp.pars_.verbose_) {
 		std::cout << "Unique clusters numbers: " << clusters.size() << std::endl;
@@ -405,7 +399,9 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 	setUp.rLog_.logCurrentTime("Creating aligner");
 	// create aligner class object
 	aligner alignerObj(maxSize,
-			setUp.pars_.gapInfo_, setUp.pars_.scoring_, kMaps,
+			setUp.pars_.gapInfo_,
+			setUp.pars_.scoring_,
+			kMaps,
 			setUp.pars_.qScorePars_,
 			setUp.pars_.colOpts_.alignOpts_.countEndGaps_,
 			setUp.pars_.colOpts_.iTOpts_.weighHomopolyer_);
@@ -481,6 +477,40 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 		collapserObj.runFullClustering(clusters, pars.iteratorMap,
 				pars.binIteratorMap, alignerObj, setUp.pars_.directoryName_,
 				setUp.pars_.ioOptions_, setUp.pars_.refIoOptions_, pars.snapShotsOpts_);
+	}
+
+	//run again with re-calculating kmer frequencies
+	if(!pars.dontRecalLowFreqMismatchAndReRun){
+		setUp.rLog_.logCurrentTime("Running poster clustering with re-calc k-mer frequencies");
+
+		KmerMaps recalcKmaps = indexKmers(clusters,
+				setUp.pars_.colOpts_.kmerOpts_.kLength_,
+				setUp.pars_.colOpts_.kmerOpts_.runCutOff_,
+				setUp.pars_.colOpts_.kmerOpts_.kmersByPosition_,
+				setUp.pars_.expandKmerPos_,
+				setUp.pars_.expandKmerSize_);
+		alignerObj.kMaps_ = recalcKmaps;
+		pars.snapShotsOpts_.snapShotsDirName_ = "thirdSnaps";
+		njh::for_each(clusters,[](cluster & clus){
+			clus.previousErrorChecks_.clear();
+		});
+		collapserObj.runFullClustering(clusters, pars.iteratorMap,
+				pars.binIteratorMap, alignerObj, setUp.pars_.directoryName_,
+				setUp.pars_.ioOptions_, setUp.pars_.refIoOptions_, pars.snapShotsOpts_);
+	}
+
+	if(pars.breakoutClusters){
+		std::vector<cluster> breakoutClusters;
+		for(auto & clus : clusters){
+			auto currentBreakOuts = clus.breakoutClustersBasedOnSnps(alignerObj, pars.breakoutPars);
+			addOtherVec(breakoutClusters, currentBreakOuts);
+		}
+		if(!breakoutClusters.empty()){
+			if(setUp.pars_.verbose_){
+				std::cout << "Broke out " << breakoutClusters.size() << " clusters" << std::endl;
+			}
+			addOtherVec(clusters, breakoutClusters);
+		}
 	}
 
 	//remove reads if they are made up of reads only in one direction
@@ -576,15 +606,15 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 				"outputInfo", setUp.pars_.refIoOptions_.firstName_.string(), alignerObj,
 				setUp.pars_.local_);
 	}
-	std::ofstream startingInfo;
-	openTextFile(startingInfo, setUp.pars_.directoryName_ + "startingInfo.txt", ".txt",
-			false, false);
-	startingInfo << "cluster\tstartingClusterName\tstartingSize" << std::endl;
-	for (const auto& clus : clusters) {
-		VecStr toks = tokenizeString(clus.firstReadName_, "_t");
-		startingInfo << clus.seqBase_.name_ << "\t" << clus.firstReadName_ << "\t"
-				<< toks.back() << std::endl;
-	}
+//	std::ofstream startingInfo;
+//	openTextFile(startingInfo, setUp.pars_.directoryName_ + "startingInfo.txt", ".txt",
+//			false, false);
+//	startingInfo << "cluster\tstartingClusterName\tstartingSize" << std::endl;
+//	for (const auto& clus : clusters) {
+//		VecStr toks = tokenizeString(clus.firstReadName_, "_t");
+//		startingInfo << clus.seqBase_.name_ << "\t" << clus.firstReadName_ << "\t"
+//				<< toks.back() << std::endl;
+//	}
 	if (pars.additionalOut) {
 		auto fnp = setUp.pars_.ioOptions_.firstName_.filename().string();
 		if(njh::endsWith(fnp, ".gz")){
@@ -662,6 +692,87 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 							".tab.txt"), "\t", misTab.hasHeader_));
 		}
 	}
+
+	if (pars.writeOutFinalAllByAllComparison){
+		OutputStream allByAllCompJson(njh::files::make_path(setUp.pars_.directoryName_, "allByAllComp.json"));
+		OutputStream allByAllCompTable(njh::files::make_path(setUp.pars_.directoryName_, "allByAllComp.tab.txt"));
+		OutputStream allByAllCompCountsTable(njh::files::make_path(setUp.pars_.directoryName_, "allByAllCompCounts.tab.txt"));
+		allByAllCompCountsTable << "seq1\tseq2\talnScore\tscore\tscoreHq\t1BaseIndel\t2BaseIndel\t>2BaseIndel\tlqMismatch\thqMismatch\tlowKmerMismatch" << std::endl;
+		allByAllCompTable << "seq1\tseq2\terror\tvalue1\tpos1\tquality1\tvalue2\tpos2\tquality2\tkMerFreqByPos\tisHighQual" << std::endl;
+		Json::Value outComp;
+		for(const auto & seq : iter::reversed(clusters)){
+			for(const auto & otherSeq : clusters){
+				if(seq.seqBase_.name_ == otherSeq.seqBase_.name_){
+					break;
+				}
+				alignerObj.alignCacheGlobal(otherSeq, seq);
+				//count gaps and mismatches and get identity
+				alignerObj.profileAlignment(otherSeq, seq, true, true, false);
+				//Summarized info
+				allByAllCompCountsTable << otherSeq.seqBase_.name_
+							<< "\t" << seq.seqBase_.name_
+							<< "\t" << alignerObj.comp_.alnScore_
+							<< "\t" << alignerObj.comp_.distances_.eventBasedIdentity_
+							<< "\t" << alignerObj.comp_.distances_.eventBasedIdentityHq_
+							<< "\t" << alignerObj.comp_.oneBaseIndel_
+							<< "\t" << alignerObj.comp_.twoBaseIndel_
+							<< "\t" << alignerObj.comp_.largeBaseIndel_
+							<< "\t" << alignerObj.comp_.lqMismatches_
+							<< "\t" << alignerObj.comp_.hqMismatches_
+							<< "\t" << alignerObj.comp_.lowKmerMismatches_
+						<< std::endl;
+
+				//all the info
+				outComp[njh::pasteAsStr(otherSeq.seqBase_.name_, "-vs-", seq.seqBase_.name_)] = alignerObj.comp_.toJson();
+				//each
+				for(const auto & m : alignerObj.comp_.distances_.mismatches_){
+					allByAllCompTable << otherSeq.seqBase_.name_
+							<< "\t" << seq.seqBase_.name_
+							<< "\t" << "mismatch"
+							<< "\t" << m.second.refBase
+							<< "\t" << m.second.refBasePos
+							<< "\t" << m.second.refQual
+							<< "\t" << m.second.seqBase
+							<< "\t" << m.second.seqBasePos
+							<< "\t" << m.second.seqQual
+							<< "\t" << m.second.kMerFreqByPos
+							<< "\t" << njh::boolToStr(m.second.highQuality(alignerObj.qScorePars_))
+					<< std::endl;
+				}
+				for(const auto & m : alignerObj.comp_.distances_.lowKmerMismatches_){
+					allByAllCompTable << otherSeq.seqBase_.name_
+							<< "\t" << seq.seqBase_.name_
+							<< "\t" << "lowKmerMismatch"
+							<< "\t" << m.second.refBase
+							<< "\t" << m.second.refBasePos
+							<< "\t" << m.second.refQual
+							<< "\t" << m.second.seqBase
+							<< "\t" << m.second.seqBasePos
+							<< "\t" << m.second.seqQual
+							<< "\t" << m.second.kMerFreqByPos
+							<< "\t" << njh::boolToStr(m.second.highQuality(alignerObj.qScorePars_))
+					<< std::endl;
+				}
+				for(const auto & g : alignerObj.comp_.distances_.alignmentGaps_){
+					allByAllCompTable << otherSeq.seqBase_.name_
+							<< "\t" << seq.seqBase_.name_
+							<< "\t" << "gap-" << (g.second.ref_ ? "insertion" : "deletion")
+							<< "\t" << (g.second.ref_? std::string("") : g.second.gapedSequence_)
+							<< "\t" << (g.second.ref_? std::string("") : njh::conToStr(g.second.qualities_, ","))
+							<< "\t" << g.second.refPos_
+							<< "\t" << (g.second.ref_? g.second.gapedSequence_ : std::string("") )
+							<< "\t" << (g.second.ref_? njh::conToStr(g.second.qualities_, ","): std::string(""))
+							<< "\t" << g.second.refPos_
+							<< "\t" << ""
+							<< "\t" << ""
+					<< std::endl;
+				}
+			}
+		}
+
+		allByAllCompJson << outComp << std::endl;
+	}
+
 	if (pars.createMinTree) {
 		setUp.rLog_.logCurrentTime("Creating minimum spanning trees");
 		std::string minTreeDirname = njh::files::makeDir(setUp.pars_.directoryName_,
@@ -715,11 +826,11 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 					if(njh::endsWith(name, "_Comp")){
 						name = name.substr(0, name.rfind("_Comp"));
 					}
-					IlluminaNameFormatDecoder nameDecoded(name, pars.IlluminaSampleRegPatStr_, pars.IlluminaSampleNumberPos_);
-					if(0 == nameDecoded.match_.size()){
-						nameDecoded = IlluminaNameFormatDecoder(name, pars.BackUpIlluminaSampleRegPatStr_, pars.BackUpIlluminaSampleNumberPos_);
+					std::shared_ptr<IlluminaNameFormatDecoder> nameDecoded=std::make_shared<IlluminaNameFormatDecoder>(name, pars.IlluminaSampleRegPatStr_, pars.IlluminaSampleNumberPos_);
+					if(0 == nameDecoded->match_.size()){
+						nameDecoded =std::make_shared<IlluminaNameFormatDecoder>(name, pars.BackUpIlluminaSampleRegPatStr_, pars.BackUpIlluminaSampleNumberPos_);
 					}
-					++sampleNumberCounts[nameDecoded.getSampleNumber()];
+					++sampleNumberCounts[nameDecoded->getSampleNumber()];
 					++total;
 				}
 			}
@@ -758,7 +869,13 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 			clusMeta.addMeta("clusterName", clus.seqBase_.name_);
 			for( const auto & subClus : clus.reads_){
 				seqInfo subClusCopy = subClus->seqBase_;
-				clusMeta.resetMetaInName(subClusCopy.name_, subClusCopy.name_.find("_t"));
+				if(MetaDataInName::nameHasMetaData(subClusCopy.name_)){
+					MetaDataInName subSeqMeta(subClusCopy.name_);
+					subSeqMeta.addMeta("clusterName", clus.seqBase_.name_, true);
+					subSeqMeta.resetMetaInName(subClusCopy.name_);
+				}else{
+					clusMeta.resetMetaInName(subClusCopy.name_, subClusCopy.name_.find("_t"));
+				}
 				subClusterWriter.write(subClusCopy);
 			}
 		}
@@ -815,7 +932,13 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 						currentCompAmount += inSeq.cnt_;
 					}
 					if (pars.writeOutInitalSeqs) {
-						clusMeta.resetMetaInName(inSeq.name_);
+						if(MetaDataInName::nameHasMetaData(inSeq.name_)){
+							MetaDataInName inSeqMeta(inSeq.name_);
+							inSeqMeta.addMeta("clusterName", clus.seqBase_.name_, true);
+							inSeqMeta.resetMetaInName(inSeq.name_);
+						}else{
+							clusMeta.resetMetaInName(inSeq.name_);
+						}
 						subClusterWriter.write(inSeq);
 					}
 				}

@@ -37,16 +37,40 @@ SeekDeepUtilsRunner::SeekDeepUtilsRunner() :
 					addFunc("replaceUnderscores", replaceUnderscores, false),
 				  addFunc("rBind", ManipulateTableRunner::rBind, false),
 					addFunc("genTargetInfoFromGenomes", genTargetInfoFromGenomes, false),
-					addFunc("benchmarkControlMixtures", benchmarkControlMixtures, false)
+					addFunc("benchmarkControlMixtures", benchmarkControlMixtures, false),
+					addFunc("gatherInfoOnTargetedAmpliconSeqFile", gatherInfoOnTargetedAmpliconSeqFile, false),
+					addFunc("getPossibleSampleNamesFromRawInput", getPossibleSampleNamesFromRawInput, false),
+					addFunc("SampleBarcodeFileToSeekDeepInput", SampleBarcodeFileToSeekDeepInput, false),
 				}, //
 				"SeekDeepUtils") {
 }
 
 //
 
+
+int SeekDeepUtilsRunner::getPossibleSampleNamesFromRawInput(const njh::progutils::CmdArgs & inputCommands) {
+	TarAmpAnalysisSetup::TarAmpPars pars;
+	auto tabOutOpts = TableIOOpts::genTabFileOut("", true);
+	seqSetUp setUp(inputCommands);
+	setUp.processVerbose();
+	setUp.processDebug();
+
+	setUp.setOption(pars.inputDir, "--inputDir", "Input Directory", true);
+	setUp.setOption(pars.inputFilePat, "--inputFilePat", "Input File Pat");
+	setUp.setOption(pars.technology, "--technology", "Technology");
+	setUp.setOption(pars.ignoreSamples, "--ignoreSamples", "Ignore these Samples if found");
+	setUp.setOption(pars.replicatePattern, "--replicatePattern", "Replicate Pattern to match on to indicate replicates when guessing sample names, should have two groups e.g. (.*)(-rep.*)");
+	setUp.processWritingOptions(tabOutOpts.out_);
+	setUp.finishSetUp(std::cout);
+
+	auto sampleNames = GuessPossibleSamps(pars);
+	sampleNames.outPutContents(std::cout, "\t");
+	return 0;
+}
+
 int SeekDeepUtilsRunner::genTargetInfoFromGenomes(const njh::progutils::CmdArgs & inputCommands) {
 	extractBetweenSeqsPars pars;
-
+	uint32_t minOverlap  = 10;
 	seqSetUp setUp(inputCommands);
 	setUp.processVerbose();
 	setUp.processDebug();
@@ -54,7 +78,7 @@ int SeekDeepUtilsRunner::genTargetInfoFromGenomes(const njh::progutils::CmdArgs 
 	pars.verbose_ = setUp.pars_.verbose_;
 	pars.debug_ = setUp.pars_.debug_;
 	pars.setUpCoreOptions(setUp, true);
-
+	setUp.setOption(minOverlap, "--minOverlap", "Minimum overlap for stitching");
 	setUp.finishSetUp(std::cout);
 
 	njh::sys::requireExternalProgramThrow("bowtie2");
@@ -119,17 +143,27 @@ int SeekDeepUtilsRunner::genTargetInfoFromGenomes(const njh::progutils::CmdArgs 
 				lenCutOffsOut << tar
 						<< "\t" << (minlen > pars.lenCutOffSizeExpand ? minlen - pars.lenCutOffSizeExpand : 0)
 						<< "\t" << maxlen + pars.lenCutOffSizeExpand << std::endl;
-				uint32_t finalSize = maxlen + pars.barcodeSize;
-				if(finalSize > pars.pairedEndLength && finalSize < (2* pars.pairedEndLength - 10)){
-					overlapStatusOut << tar
-							<< "\t" << "R1EndsInR2" << std::endl;
-				} else if(finalSize < pars.pairedEndLength){
-					overlapStatusOut << tar
-							<< "\t" << "R1BeginsInR2" << std::endl;
-				} else {
-					overlapStatusOut << tar
-							<< "\t" << "NoOverLap" << std::endl;
+				uint32_t finalMaxSize = maxlen + pars.barcodeSize;
+				uint32_t finalMinSize = minlen + pars.barcodeSize;
+
+				uint32_t maxInsertSize = 2* pars.pairedEndLength - minOverlap;
+
+				std::string status = "";
+				VecStr statuses;
+				if(finalMaxSize > maxInsertSize){
+					statuses.emplace_back("NoOverLap");
+				}else{
+					if(finalMaxSize >= pars.pairedEndLength){
+						statuses.emplace_back("R1EndsInR2");
+					}
+					if(finalMinSize < pars.pairedEndLength){
+						if(!statuses.empty()){
+							statuses.emplace_back("PerfectOverlap");
+						}
+						statuses.emplace_back("R1BeginsInR2");
+					}
 				}
+				overlapStatusOut << tar << "\t" << njh::conToStr(statuses, ",") << std::endl;
 			}
 		}else{
 			std::cerr << "Warning, no sequences extracted for " << tar << std::endl;

@@ -8,17 +8,15 @@
 #include "SeekDeepUtilsRunner.hpp"
 
 #include <njhseq/ProgramRunners.h>
+#include <njhseq/programUtils/seqSetUp.hpp>
 
 namespace njhseq {
 
 
 
-
-
 int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 		const njh::progutils::CmdArgs & inputCommands) {
-	VecStr acceptableTechs{"454", "IonTorrent", "Illumina", "Illumina-SingleEnd"};
-
+	VecStr acceptableTechs{"454", "IonTorrent", "Illumina", "Illumina-SingleEnd", "Nanopore"};
 	TarAmpAnalysisSetup::TarAmpPars pars;
 	seqSetUp setUp(inputCommands);
 	setUp.processVerbose();
@@ -43,60 +41,115 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 				<< pars.technology << "\n";
 		setUp.addWarning(ss.str());
 	}
-	setUp.setOption(pars.samplesNamesFnp, "--samples",
-			"A file containing the samples names, columns should go target,sample,pcr1,pcr2 (optional) etc",
-			true, "ID Files");
-	setUp.setOption(pars.outDir, "--outDir", "Directory to setup for analysis",
-			true, "Output");
-	setUp.setOption(pars.inputDir, "--inputDir",
-			"Input Directory of raw data files", true, "Input");
-	setUp.setOption(pars.idFile, "--idFile",
-			"ID file containing primer and possible additional MIDs", true, "ID Files");
-	setUp.setOption(pars.byIndex, "--byIndex",
-			"If the input sample names are by index and not targets", false, "ID Files");
+	setUp.setOption(pars.outDir,   "--outDir",   "Directory to setup for analysis", true, "Output");
+	setUp.setOption(pars.inputDir, "--inputDir", "Input Directory of raw data files", true, "Input");
+	setUp.setOption(pars.idFile,   "--idFile",   "ID file containing primer and possible additional MIDs", true, "ID Files");
+
+	setUp.setOption(pars.samplesNamesFnp, "--samples", "A file containing the samples names, columns should go target,sample,pcr1,pcr2(optional)",
+			false, "ID Files");
+
+	std::string overlapStatus{"auto"};
+	std::set<std::string> allowableOverlapStatuses{"AUTO", "R1BEGINSINR2", "R1ENDSINR2", "NOOVERLAP", "ALL"};
+
+	std::function<njh::progutils::ProgramSetUp::FlagCheckResult(const std::string&)> overlapStatusCheck = [allowableOverlapStatuses](const std::string & flagSet){
+		bool success = true;
+		std::string mess = "";
+		std::string upper = njh::strToUpperRet(flagSet);
+		if(!njh::in(upper, allowableOverlapStatuses)){
+			success = false;
+			mess = njh::pasteAsStr("--defaultOverlapStatus needs to be one of the following (case insensitive) ", njh::conToStr(allowableOverlapStatuses, ","), " not ", upper);
+		}
+		return njh::progutils::ProgramSetUp::FlagCheckResult{success, mess};
+	};
+
+	bool setDefaultOverlapStatus = setUp.setOption(overlapStatus,
+			"--defaultOverlapStatus",
+			"Set a overlap status for all targets, can be 1 of 5 values(case insensitive), AUTO, R1BEGINSINR2, R1ENDSINR2, NOOVERLAP, ALL. ALL=(R1BEGINSINR2 and R1ENDSINR2). Setting to auto will go with the status was most commonly found for a target, this can be dangerous as with unspecific amplification this can end up being set as the incorrect status",
+			false, overlapStatusCheck);
+	if(setDefaultOverlapStatus){
+		std::string upper = njh::strToUpperRet(overlapStatus);
+		if("ALL" == upper){
+			pars.defaultStatuses_.emplace_back(
+					PairedReadProcessor::ReadPairOverLapStatus::R1BEGINSINR2);
+			pars.defaultStatuses_.emplace_back(
+					PairedReadProcessor::ReadPairOverLapStatus::R1ENDSINR2);
+			pars.defaultStatuses_.emplace_back(
+					PairedReadProcessor::ReadPairOverLapStatus::PERFECTOVERLAP);
+		} else if("AUTO" == upper){
+			pars.defaultStatuses_.emplace_back(PairedReadProcessor::ReadPairOverLapStatus::AUTO);
+		} else if("R1BEGINSINR2" == upper){
+			pars.defaultStatuses_.emplace_back(PairedReadProcessor::ReadPairOverLapStatus::R1BEGINSINR2);
+		}else if("R1ENDSINR2" == upper){
+			pars.defaultStatuses_.emplace_back(PairedReadProcessor::ReadPairOverLapStatus::R1ENDSINR2);
+		}else if("NOOVERLAP" == upper){
+			pars.defaultStatuses_.emplace_back(PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP);
+		}
+	}
+
+	setUp.setOption(pars.overlapStatusFnp, "--overlapStatusFnp",
+			"A file with two columns, target,status; status column should contain 1 of 3 values (capitalization doesn't matter): r1BegOverR2End,r1EndOverR2Beg,NoOverlap. r1BegOverR2End=target size < read length (causes read through),r1EndOverR2Beg= target size > read length less than 2 x read length, NoOverlap=target size > 2 x read length",
+			pars.techIsIllumina() && !setDefaultOverlapStatus, "Illumina Stitching");
+
 	setUp.setOption(pars.targetsToIndexFnp, "--targetsToIndex",
 			"A tsv file with two columns named targets and index where targets in a comma separated value with the targets for the index in index",
 			false, "ID Files");
 
 	setUp.setOption(pars.numThreads, "--numThreads", "Number of CPUs to use");
 
+	// Extra arguments to give the sub programs
 	setUp.setOption(pars.extraExtractorCmds, "--extraExtractorCmds",
 			"Extra extractor cmds to add to the defaults", false, "Extra Commands");
-	setUp.setOption(pars.extraQlusterCmds, "--extraQlusterCmds",
-			"Extra qluster cmds to add to the defaults", false, "Extra Commands");
+	setUp.setOption(pars.extraQlusterCmds, "--extraQlusterCmds,--extraKcrushCmds",
+			"Extra qluster/kcrush cmds to add to the defaults", false, "Extra Commands");
 	setUp.setOption(pars.extraProcessClusterCmds, "--extraProcessClusterCmds",
 			"Extra process clusters cmds to add to the defaults", false, "Extra Commands");
+	setUp.setOption(pars.useKCrushClustering_, "--useKCrushClustering",
+			"Use kmer clustering for high error rate sequences like nanopore and pacbio");
+
 
 	setUp.setOption(pars.conservative, "--conservativePopClus",
 			"Do conservative population clustering which skips possible artifact cleanup step", false, "processClusters");
 	setUp.setOption(pars.rescueFilteredHaplotypes, "--rescueFilteredHaplotypes", "Add on resuce of haplotypes that filtered due to low frequency or chimera filtering if it appears as a major haplotype in another sample", false, "processClusters");
-
-
 	setUp.setOption(pars.groupMeta, "--groupMeta", "Group Metadata", false, "Meta");
-
 	setUp.setOption(pars.lenCutOffsFnp, "--lenCutOffs",
-			"A file with 3 columns, target,minlen,maxlen to supply length cut off specifically for each target", false, "Extractor");
+			"A file with 3 columns, 1)target, 2)minlen, 3)maxlen to supply length cut off specifically for each target", false, "Extractor");
 	setUp.setOption(pars.refSeqsDir, "--refSeqsDir",
 			"A directory of fasta files where each file is named with the input target names", false, "Extractor");
 	if (pars.techIs454() || pars.techIsIonTorrent()) {
 		pars.inputFilePat = ".*.fastq";
 	}
-	setUp.setOption(pars.overlapStatusFnp, "--overlapStatusFnp",
-			"A file with two columns, target,status; status column should contain 1 of 3 values (capitalization doesn't matter): r1BegOverR2End,r1EndOverR2Beg,NoOverlap. r1BegOverR2End=target size < read length (causes read through),r1EndOverR2Beg= target size > read length less than 2 x read length, NoOverlap=target size > 2 x read length",
-			pars.techIsIllumina(), "Illumina Stitching");
 
 	setUp.setOption(pars.inputFilePat, "--inputFilePat",
 			"The input file pattern in the input directory to work on", false, "Input");
 
 	setUp.setOption(pars.noGuessSampNames, "--noGuessSampNames",
 			"Don't guess the sample names from the raw fastq directory input", false, "Input");
+	if("" == pars.samplesNamesFnp){
+		if(!setUp.setOption(pars.samplesNamesWithBarcodeInfoFnp, "--samplesNamesWithBarcodeInfo",
+				"Sample file 3 or 4 required columns 1)library,2)sample,3)fbarcode,4(optional))rbarcode."
+			"\n\t\t\t1) name of input file without extension/illumina info e.g. Sample1 for Sample1_S2_R1_001.fastq.gz"
+			"\n\t\t\t2) sample name for this barcode in this library file, sample names can be duplicate to indicate replicates"
+			"\n\t\t\t3) barcode sequence associated with forward primer"
+			"\n\t\t\t4) if sample is dual barcoded, barcode associated with reverse primer", false, "Input")){
+			setUp.setOption(pars.ignoreSamples, "--ignoreSamplesWhenGuessing",
+					"Ignore Samples with these names", false, "Input");
+			setUp.setOption(pars.replicatePattern, "--replicatePatternWhenGuessing",
+							"Replicate name regex pattern when guessing samples to order samples into replicates, should be two regex group, the first being sample, the 2nd being the replicate, e.g. --replicatePatternWhenGuessing\"(.*)(-rep.*)\"", false, "Input");
+		}
+		setUp.setOption(pars.samplesNamesByLibraryNameFnp, "--samplesNamesBySeqFileName",
+				"Sample file 2 required columns 1)library,2)sample."
+			"\n\t\t\t1) name of input file without extension/illumina info e.g. Sample1 for Sample1_S2_R1_001.fastq.gz, this cannot be duplicated as only one sample can be assoicated with an input file when there are no barcodes"
+			"\n\t\t\t2) sample name for library file, sample names can be duplicate to indicate replicates ", false, "Input");
+	}
+
+	setUp.setOption(pars.doNotGuessRecFlags, "--doNotGuessRecFlags", "Don't guess at additional SeekDeep extractor/extratorPairedEnd flags by investigating input sequence files", false, "Extra Commands");
+	setUp.setOption(pars.numberOfFilesToInvestigate, "--numberOfFilesToInvestigate", "Number of files to investigate when adding additional recommended flags", false, "Extra Commands");
+	setUp.setOption(pars.testNumberOfReadsToInvestigate, "--testNumberOfReadsToInvestigate", "Number of reads per file to investigate when adding additional recommended flags", false, "Extra Commands");
 
 	setUp.finishSetUp(std::cout);
 
 	VecStr warnings;
-
 	pars.allChecks(warnings);
-
 	if (!warnings.empty()) {
 		std::stringstream ss;
 		if (1 == warnings.size()) {
@@ -231,6 +284,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 
 	auto files = njh::files::listAllFiles(pars.inputDir.string(), false, {
 			std::regex { analysisSetup.pars_.inputFilePat } });
+
 	if (setUp.pars_.debug_) {
 		std::cout << "Files: " << std::endl;
 		printOutMapContents(files, "\t", std::cout);
@@ -247,10 +301,12 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	//VecStr samplesEmpty;
 	Json::Value logs;
 	std::mutex logsMut;
-	std::unordered_map<std::string, std::pair<VecStr, VecStr>> readsByPairs ;
-	std::unordered_map<std::string, bfs::path> filesByPossibleName;
+	std::map<std::string, std::pair<VecStr, VecStr>> readsByPairs ;
+	std::map<std::string, bfs::path> filesByPossibleName;
+
 	ReadPairsOrganizer rpOrganizer(expectedSamples);
 	rpOrganizer.doNotGuessSampleNames_ = pars.noGuessSampNames;
+
 	if (analysisSetup.pars_.techIsIllumina()) {
 		rpOrganizer.processFiles(files);
 		readsByPairs = rpOrganizer.processReadPairs();
@@ -339,8 +395,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 
 
 
-	OutOptions wrningsOpts(
-			njh::files::make_path(analysisSetup.dir_, "WARNINGS_PLEASE_READ.txt"));
+	OutOptions wrningsOpts(njh::files::make_path(analysisSetup.dir_, "WARNINGS_PLEASE_READ.txt"));
 	if (foundErrors) {
 		std::ofstream outWarnings;
 		openTextFile(outWarnings, wrningsOpts);
@@ -352,6 +407,94 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 
 	VecStr extractorCmds;
 	VecStr qlusterCmds;
+
+
+	//investigate input seq files to recommend
+	if(!pars.doNotGuessRecFlags){
+		std::vector<SeqIOOptions> filesToInvestigate;
+		/**@todo consider doing random selection here*/
+		if(pars.techIsIllumina()){
+			for(const auto & pair : readsByPairs){
+				if(njh::endsWith(pair.second.first.front(), ".gz")){
+					filesToInvestigate.emplace_back(SeqIOOptions::genPairedInGz(bfs::path(pair.second.first.front()), bfs::path(pair.second.second.front())));
+				}else{
+					filesToInvestigate.emplace_back(SeqIOOptions::genPairedIn(bfs::path(pair.second.first.front()), bfs::path(pair.second.second.front())));
+				}
+				if(filesToInvestigate.size() > pars.numberOfFilesToInvestigate){
+					break;
+				}
+			}
+		}else{
+			for(const auto & file : filesByPossibleName){
+				filesToInvestigate.emplace_back(SeqIOOptions(file.second, SeqIOOptions::getInFormatFromFnp(file.second), false));
+				if(filesToInvestigate.size() > pars.numberOfFilesToInvestigate){
+					break;
+				}
+			}
+		}
+		TarAmpSeqInvestigator::TarAmpSeqInvestigatorPars investPars;
+		investPars.idFnp = analysisSetup.pars_.idFile;
+		investPars.testNumber = analysisSetup.pars_.testNumberOfReadsToInvestigate;
+		investPars.pars.corePars_.pDetPars.primerWithin_ = 40;
+
+		TarAmpSeqInvestigator masterInvestigator(investPars);
+		std::mutex masterInvesMut;
+		if(setUp.pars_.verbose_){
+			std::cout << "Investigating files for additional recommended extractor flags which will be automatically added" << std::endl;
+		}
+
+		njh::concurrent::LockableQueue<SeqIOOptions> optsQueue(filesToInvestigate);
+		bool verbose = setUp.pars_.verbose_;
+		std::function<void()> investigateFile = [&optsQueue,&investPars,&masterInvesMut,&masterInvestigator,&verbose](){
+			SeqIOOptions seqOpts;
+			TarAmpSeqInvestigator investigator(investPars);
+
+			while(optsQueue.getVal(seqOpts)){
+				if(verbose){
+					std::cout << "Investigating " << seqOpts.firstName_ << " " << ("" ==seqOpts.secondName_ ? std::string("") : seqOpts.secondName_.string()) << std::endl;
+				}
+				investigator.investigateFile(seqOpts, verbose);
+			}
+			{
+				std::lock_guard<std::mutex> lock(masterInvesMut);
+				masterInvestigator.addOtherCounts(investigator);
+			}
+		};
+		njh::concurrent::runVoidFunctionThreaded(investigateFile, analysisSetup.pars_.numThreads);
+
+		masterInvestigator.processCounts();
+
+
+		auto recFlags = masterInvestigator.recommendSeekDeepExtractorFlags();
+
+		VecStr flagsToAdd;
+		auto currentExtraExtractorCmds = njh::strToLowerRet(analysisSetup.pars_.extraExtractorCmds);
+
+		for(const auto & recFlag : recFlags){
+			auto rflag = njh::strToLowerRet(recFlag);
+			trimAtFirstWhitespace(rflag);
+			njh::lstrip(rflag, '-');
+			if(std::string::npos == currentExtraExtractorCmds.find(rflag)){
+				flagsToAdd.emplace_back(recFlag);
+			} else {
+				if(setUp.pars_.verbose_){
+					std::cout << "Already have " << recFlag << " no need to add" << std::endl;
+				}
+			}
+		}
+		if(!flagsToAdd.empty()){
+			auto addingStr = njh::conToStr(flagsToAdd, " ");
+			if(setUp.pars_.verbose_){
+				std::cout << "Adding " << addingStr << std::endl;
+			}
+			analysisSetup.pars_.extraExtractorCmds.append(" ");
+			analysisSetup.pars_.extraExtractorCmds.append(addingStr);
+		}
+		auto investDir = njh::files::make_path(analysisSetup.reportsDir_, "fileInvestigationCounts");
+		njh::files::makeDir(njh::files::MkdirPar{investDir});
+		masterInvestigator.writeOutTables(investDir, true);
+	}
+
 	if (analysisSetup.pars_.byIndex) {
 		if(setUp.pars_.debug_){
 			std::cout << "Samples:" << std::endl;
@@ -392,6 +535,27 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 								"--alnInfoDir {TARGET}{MIDREP}_alnCache --overWriteDir "
 								"--additionalOut \"../popClustering/{TARGET}/locationByIndex/{INDEX}.tab.txt\" "
 								"--overWrite --dout {TARGET}{MIDREP}_qlusterOut ";
+
+		if(pars.useKCrushClustering_){
+			qlusterCmdTemplate =
+					"cd \"" + extractionDirs.string() + "\" && "
+							+ "if [ -f {TARGET}{MIDREP}.fastq.gz  ]; then "
+							+ " elucidatorlab "
+							+ " kmerClusteringRate "
+									"--fastqgz \"{TARGET}{MIDREP}.fastq.gz\" "
+									"--alnInfoDir {TARGET}{MIDREP}_alnCache --overWriteDir "
+									"--additionalOut \"../popClustering/{TARGET}/locationByIndex/{INDEX}.tab.txt\" "
+									"--overWrite --dout {TARGET}{MIDREP}_qlusterOut ";
+			qlusterCmdTemplate = "cd \"" + extractionDirs.string() + "\" && "
+					+ " if [ -f {TARGET}{MIDREP}.fastq.gz  ]; then "
+											+ " elucidatorlab "
+											+ " kmerClusteringRate "
+							"--fastqgz \"{TARGET}{MIDREP}.fastq.gz\" "
+							"--alnInfoDir {TARGET}{MIDREP}_alnCache --overWriteDir "
+							"--additionalOut ../popClustering/locationByIndex/{TARGET}.tab.txt "
+							"--overWrite --dout {TARGET}{MIDREP}_kcrushOut ";
+		}
+
 		if (analysisSetup.pars_.techIsIllumina() || analysisSetup.pars_.techIsIlluminaSingleEnd()) {
 			qlusterCmdTemplate += "--illumina --qualThres 25,20";
 		} else if (analysisSetup.pars_.techIs454()) {
@@ -403,6 +567,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 		if(setUp.pars_.verbose_){
 			std::cout << "indexes" << std::endl;
 			printVector(indexes);
+
 		}
 		for (const auto & index : indexes) {
 			//if (njh::in(index, inputPassed)) {
@@ -523,6 +688,16 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 						"--alnInfoDir {TARGET}{MIDREP}_alnCache --overWriteDir "
 						"--additionalOut ../popClustering/locationByIndex/{TARGET}.tab.txt "
 						"--overWrite --dout {TARGET}{MIDREP}_qlusterOut ";
+		if(pars.useKCrushClustering_){
+			qlusterCmdTemplate = "cd \"" + extractionDirs.string() + "\" && "
+					+ " if [ -f {TARGET}{MIDREP}.fastq.gz  ]; then "
+											+ " elucidatorlab "
+											+ " kmerClusteringRate "
+							"--fastqgz \"{TARGET}{MIDREP}.fastq.gz\" "
+							"--alnInfoDir {TARGET}{MIDREP}_alnCache --overWriteDir "
+							"--additionalOut ../popClustering/locationByIndex/{TARGET}.tab.txt "
+							"--overWrite --dout {TARGET}{MIDREP}_kcrushOut ";
+		}
 		if (analysisSetup.pars_.techIsIllumina() || analysisSetup.pars_.techIsIlluminaSingleEnd()) {
 			qlusterCmdTemplate += "--illumina --qualThres 25,20";
 		} else if (analysisSetup.pars_.techIs454()) {
@@ -646,16 +821,14 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 		}
 	}
 
-	OutOptions extractorCmdsOpts(
+	OutputStream extractorCmdsFile(
 			njh::files::make_path(analysisSetup.dir_, "extractorCmds.txt"));
-	std::ofstream extractorCmdsFile;
-	openTextFile(extractorCmdsFile, extractorCmdsOpts);
+	njh::sort(extractorCmds);
 	printVector(extractorCmds, "\n", extractorCmdsFile);
 
-	OutOptions qlusterCmdsOpts(
+	OutputStream qlusterCmdsFile(
 			njh::files::make_path(analysisSetup.dir_, "qlusterCmds.txt"));
-	std::ofstream qlusterCmdsFile;
-	openTextFile(qlusterCmdsFile, qlusterCmdsOpts);
+	njh::sort(qlusterCmds);
 	printVector(qlusterCmds, "\n", qlusterCmdsFile);
 
 	//process cluster cmds
@@ -663,7 +836,9 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 			setUp.commands_.masterProgram_
 					+ " processClusters "
 							"--alnInfoDir alnCache --strictErrors --dout analysis --fastqgz output.fastq.gz --overWriteDir ";
-
+	if(pars.techIsIllumina() || pars.techIsIlluminaSingleEnd()){
+		processClusterTemplate  += " --illumina";
+	}
 	if (!analysisSetup.pars_.conservative) {
 		auto lowerCaseExtracProcessArgs = stringToLowerReturn(analysisSetup.pars_.extraProcessClusterCmds);
 		processClusterTemplate += " --removeOneSampOnlyOneOffHaps --excludeCommonlyLowFreqHaplotypes --excludeLowFreqOneOffs --rescueExcludedOneOffLowFreqHaplotypes";

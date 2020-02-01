@@ -70,8 +70,8 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 			"Write out the excluded Originals", false, "Additional Output");
 	setOption(pars.chiCutOff, "--chiCutOff",
 			"The Fraction of a cluster to determine if it chimeric", false, "Chimeras");
-	setOption(pars.recheckChimeras, "--recheckChimeras",
-			"Re Check chimeras after replicate comparison", false, "Chimeras");
+//	setOption(pars.recheckChimeras, "--recheckChimeras",
+//			"Re Check chimeras after replicate comparison", false, "Chimeras");
 	setOption(pars.eventBasedRef, "--eventBasedRef", "Do Event Based Ref Count");
 	setOption(pars.customCutOffs, "--custumCutOffs",
 			"Two Column Table, first column is sample name, second is a custom frac cut off, if sample not found will default to --fracCutOff", false, "Filtering");
@@ -79,6 +79,9 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 	processComparison(pars.previousPopErrors, "previousPop");
 	setOption(pars.groupingsFile, "--groupingsFile",
 			"A file to sort samples into different groups", false, "Meta");
+	setOption(pars.noWriteGroupInfoFiles, "--noWriteGroupInfoFiles",
+			"Don't write out the info files for the sub groupings, just add the meta to output directories", false, "Meta");
+
 	setOption(pars.investigateChimeras, "--investigateChimeras",
 			"Check to see if a chimera appears as a high variant in another sample", false, "Chimeras");
 	processDebug();
@@ -166,20 +169,18 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 	setOption(pars.oneSampOnlyHapsFrac, "--oneSampOnlyHapsFrac",
 			"Fraction for --removeOneSampOnlyHaps", false, "Filtering");
 
-
-	//setOption(pars.popSeqsFnp, "--popSeqsFnp", "popSeqsFnp", false, "Population");
-
-
-
-
 	setOption(pars.majorHaplotypeFracForRescue, "--majorHaplotypeFracForRescue", "In order to be considered a major haplotype in a sample for comparing during rescue");
 	setOption(pars.rescueExcludedChimericHaplotypes, "--rescueExcludedChimericHaplotypes", "Rescue Excluded chimeric Haplotypes if they appear as a major haplotype in another sample");
-	setOption(pars.rescueExcludedOneOffLowFreqHaplotypes, "--rescueExcludedOneOffLowFreqHaplotypes", "Rescue Excluded chimeric Haplotypes if they appear as a major haplotype in another sample");
+	setOption(pars.rescueExcludedOneOffLowFreqHaplotypes, "--rescueExcludedOneOffLowFreqHaplotypes", "Rescue Excluded one off low freq Haplotypes if they appear as a major haplotype in another sample");
+	setOption(pars.rescueExcludedLowFreqHaplotypes, "--rescueExcludedLowFreqHaplotypes", "Rescue Excluded Haplotypes for falling below frequency cut off if they appear as a major haplotype in another sample");
 	setOption(pars.rescueMatchingExpected, "--rescueMatchingExpected", "Rescue Haplotypes that match expected sequences if they have been read using --ref");
 
 
 
 	setOption(pars.fracCutoff, "--fracCutOff", "Final cluster Fraction Cut off", false, "Filtering");
+	if(pars.withinReplicateFracCutOff > pars.fracCutoff){
+		pars.withinReplicateFracCutOff = pars.fracCutoff;
+	}
 	setOption(pars.withinReplicateFracCutOff, "--withinReplicateFracCutOff", "Within Replicate Frac Cut Off, this is done before filtering sequences for appearing in all replicates", false, "Filtering");
 
 	pars.differentPar = setOption(pars.parametersPopulation, "--popPar",
@@ -196,7 +197,7 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 	setOption(popClusParsPars.hqMismatches, "--pop-hq", "Number of high quality mismatches to allow in population clustering", false, "Population");
 	setOption(popClusParsPars.stopAfter, "--pop-stopAfter", "Number of top haplotypes to check in population clustering", false, "Population");
 
-	setOption(pars_.chiOpts_.checkChimeras_, "--markChimeras", "Check Input sequences for possible Chimeras", false, "Chimeras");
+	setOption(pars_.chiOpts_.checkChimeras_, "--recheckChimeras", "Check Input sequences for possible Chimeras", false, "Chimeras");
 	setOption(pars.keepChimeras, "--keepChimeras", "KeepChimeras", false, "Chimeras");
 	setOption(pars_.chiOpts_.parentFreqs_, "--parFreqs", "Chimeric Parent Frequency multiplier cutoff", false, "Chimeras");
 
@@ -236,12 +237,12 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 		std::cout << njh::bashCT::bold << "Output Files:" << njh::bashCT::reset
 				<< std::endl;
 		std::cout
-				<< "selectedClustersInfo.tab.txt: This contains the final haplotype information and replicate comparison results, it is a very large table, consult the SeekDeep (http://njh2.umassmed.edu/~hathawan/SeekDeep.html) website for details on what each column means"
+				<< "selectedClustersInfo.tab.txt.gz: This contains the final haplotype information and replicate comparison results, it is a very large table, consult the SeekDeep (http://njh2.umassmed.edu/~hathawan/SeekDeep.html) website for details on what each column means"
 				<< std::endl;
 		std::cout << "allClustersInfo.tab.txt: " << std::endl;
 		std::cout << "dotFiles: " << std::endl;
 		std::cout << "final: " << std::endl;
-		std::cout << "population/populationCluster.tab.txt: " << std::endl;
+		std::cout << "population/populationCluster.tab.txt.gz: " << std::endl;
 		std::cout << "population/PopUID.fastq: " << std::endl;
 		exit(0);
 	}

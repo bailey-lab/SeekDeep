@@ -153,37 +153,37 @@ void PairedReadProcessor::ProcessorOutWriters::unsetWriters(){
 	overhangsWriter = nullptr;//(overhangsOpts);
 }
 
+void PairedReadProcessor::ProcessorOutWriters::closeAllOpenWriters(){
+	auto closeIfOpen = [](const std::unique_ptr<SeqOutput> & writer){
+		if(nullptr != writer && writer->outOpen()){
+			writer->closeOut();
+		}
+	};
+	closeIfOpen(perfectOverlapCombinedWriter);
+	closeIfOpen(r1EndsInR2CombinedWriter);
+	closeIfOpen(r1BeginsInR2CombinedWriter);
+	closeIfOpen(r1AllInR2CombinedWriter);
+	closeIfOpen(r2AllInR1CombinedWriter);
+	closeIfOpen(notCombinedWriter);
+	closeIfOpen(overhangsWriter);
+}
+
+
 void PairedReadProcessor::ProcessedResultsCounts::addOther(const ProcessedResultsCounts & otherCounts){
 	overlapFail+= otherCounts.overlapFail;
 	overhangFail+= otherCounts.overhangFail;
 	perfectOverlapCombined+= otherCounts.perfectOverlapCombined;
 	r1EndsInR2Combined+= otherCounts.r1EndsInR2Combined;
 	r1BeginsInR2Combined+= otherCounts.r1BeginsInR2Combined;
+	r1BeginsInR2CombinedAboveCutOff+= otherCounts.r1BeginsInR2CombinedAboveCutOff;
 	r1AllInR2Combined+= otherCounts.r1AllInR2Combined;
 	r2AllInR1Combined+= otherCounts.r2AllInR1Combined;
 	total+= otherCounts.total;
 }
 
 Json::Value PairedReadProcessor::ProcessedResultsCounts::toJson() const{
-	Json::Value outVal;
-	outVal["overlapFail"] = overlapFail;
-	outVal["overlapFailPerc"] = (overlapFail/static_cast<double>(total)) * 100;
-	outVal["overhangFail"] = overhangFail;
-	outVal["overhangFailPerc"] = (overhangFail/static_cast<double>(total)) * 100;
-	outVal["perfectOverlapCombined"] = perfectOverlapCombined;
-	outVal["perfectOverlapCombinedPerc"] = (perfectOverlapCombined/static_cast<double>(total)) * 100;
-	outVal["r1EndsInR2Combined"] = r1EndsInR2Combined;
-	outVal["r1EndsInR2CombinedPerc"] = (r1EndsInR2Combined/static_cast<double>(total)) *100;
-	outVal["r1BeginsInR2Combined"] = r1BeginsInR2Combined;
-	outVal["r1BeginsInR2CombinedPerc"] = (r1BeginsInR2Combined/static_cast<double>(total)) *100;
+	Json::Value outVal = toJsonCounts();
 
-	outVal["r1AllInR2Combined"] = r1AllInR2Combined;
-	outVal["r1AllInR2CombinedPerc"] = (r1AllInR2Combined/static_cast<double>(total)) *100;
-	outVal["r2AllInR1Combined"] = r2AllInR1Combined;
-	outVal["r2AllInR1CombinedPerc"] = (r2AllInR1Combined/static_cast<double>(total)) *100;
-
-
-	outVal["total"] = total;
 	if(nullptr != perfectOverlapCombinedOpts){
 		outVal["perfectOverlapCombinedOpts"] = njh::json::toJson(perfectOverlapCombinedOpts);
 	}
@@ -220,7 +220,8 @@ Json::Value PairedReadProcessor::ProcessedResultsCounts::toJsonCounts() const{
 	outVal["r1EndsInR2CombinedPerc"] = (r1EndsInR2Combined/static_cast<double>(total)) *100;
 	outVal["r1BeginsInR2Combined"] = r1BeginsInR2Combined;
 	outVal["r1BeginsInR2CombinedPerc"] = (r1BeginsInR2Combined/static_cast<double>(total)) *100;
-
+	outVal["r1BeginsInR2CombinedAboveCutOff"] = r1BeginsInR2CombinedAboveCutOff;
+	outVal["r1BeginsInR2CombinedAboveCutOffPerc"] = (r1BeginsInR2CombinedAboveCutOff/static_cast<double>(total)) *100;
 	outVal["r1AllInR2Combined"] = r1AllInR2Combined;
 	outVal["r1AllInR2CombinedPerc"] = (r1AllInR2Combined/static_cast<double>(total)) *100;
 	outVal["r2AllInR1Combined"] = r2AllInR1Combined;
@@ -283,7 +284,18 @@ PairedReadProcessor::ProcessedPairRes PairedReadProcessor::processPairedEnd(
 		PairedRead & seq,
 		ProcessedResultsCounts & counts,
 		aligner & alignerObj) const {
-
+	MultiSeqOutCache<seqInfo> debugOutCache;
+	if(params_.debug_){
+		auto failedOverLapOpts = SeqIOOptions::genFastqOut(bfs::path("tempAln_failedOverLap.fastq"));
+		failedOverLapOpts.out_.append_ = true;
+		debugOutCache.addReader("failedOverLap", failedOverLapOpts);
+		auto r1BeginsInR2LapOpts = SeqIOOptions::genFastqOut(bfs::path("tempAln_r1BeginsInR2.fastq"));
+		r1BeginsInR2LapOpts.out_.append_ = true;
+		debugOutCache.addReader("r1BeginsInR2", r1BeginsInR2LapOpts);
+		auto r1EndsInR2LapOpts = SeqIOOptions::genFastqOut(bfs::path("tempAln_r1EndsInR2.fastq"));
+		r1EndsInR2LapOpts.out_.append_ = true;
+		debugOutCache.addReader("r1EndsInR2", r1EndsInR2LapOpts);
+	}
 
 	ProcessedPairRes ret;
 	double percentId = 1 - params_.errorAllowed_ ;
@@ -300,28 +312,85 @@ PairedReadProcessor::ProcessedPairRes PairedReadProcessor::processPairedEnd(
 	//std::cout << __PRETTY_FUNCTION__ << " " << __LINE__ <<  std::endl;
 	alignerObj.alignRegGlobalNoInternalGaps(seq.seqBase_, seq.mateSeqBase_);
 	//std::cout << __PRETTY_FUNCTION__ << " " << __LINE__ <<  std::endl;
-	alignerObj.profileAlignment(seq.seqBase_, seq.mateSeqBase_, false, true, true);
+	//alignerObj.profileAlignment(seq.seqBase_, seq.mateSeqBase_, false, true, true);
+	alignerObj.profileAlignment(seq.seqBase_, seq.mateSeqBase_, false, true, false);
+
 	//std::cout << __PRETTY_FUNCTION__ << " " << __LINE__ <<  std::endl;
 //	std::cout << "alignerObj.comp_.distances_.eventBasedIdentityHq_: " << alignerObj.comp_.distances_.eventBasedIdentityHq_<< std::endl;
 //	std::cout << "alignerObj.comp_.distances_.basesInAln_: " << alignerObj.comp_.distances_.basesInAln_ << std::endl;
 //	std::cout << "alignerObj.comp_.hqMismatches_: " << alignerObj.comp_.hqMismatches_ << std::endl;
-	MultiSeqOutCache<seqInfo> debugOutCache;
-	if(params_.debug_){
-		auto failedOverLapOpts = SeqIOOptions::genFastqOut(bfs::path("tempAln_failedOverLap.fastq"));
-		failedOverLapOpts.out_.append_ = true;
-		debugOutCache.addReader("failedOverLap", failedOverLapOpts);
-		auto r1BeginsInR2LapOpts = SeqIOOptions::genFastqOut(bfs::path("tempAln_r1BeginsInR2.fastq"));
-		r1BeginsInR2LapOpts.out_.append_ = true;
-		debugOutCache.addReader("r1BeginsInR2", r1BeginsInR2LapOpts);
-		auto r1EndsInR2LapOpts = SeqIOOptions::genFastqOut(bfs::path("tempAln_r1EndsInR2.fastq"));
-		r1EndsInR2LapOpts.out_.append_ = true;
-		debugOutCache.addReader("r1EndsInR2", r1EndsInR2LapOpts);
-	}
+
 
 //	OutOptions tempOutR1BEGINSINR2Opts(bfs::path("temp_failedOverLap.fastq"));
 //	tempOutR1BEGINSINR2Opts.append_ = true;
 //	OutputStream tempOutR1BEGINSINR2(tempOutR1BEGINSINR2Opts);
 //
+
+//	std::cout << "alignerObj.comp_.distances_.eventBasedIdentityHq_: " << alignerObj.comp_.distances_.eventBasedIdentityHq_ << std::endl;
+//	std::cout << "alignerObj.comp_.distances_.eventBasedIdentityHq_ >= percentId: " << njh::colorBool(alignerObj.comp_.distances_.eventBasedIdentityHq_ >= percentId) << std::endl;
+//	std::cout << "alignerObj.comp_.distances_.basesInAln_ >= params_.minOverlap_: " << njh::colorBool(alignerObj.comp_.distances_.basesInAln_ >= params_.minOverlap_) << std::endl;
+//	std::cout << "alignerObj.comp_.hqMismatches_ + alignerObj.comp_.lqMismatches_ <= params_.hardMismatchCutOff_: " << njh::colorBool(alignerObj.comp_.hqMismatches_ + alignerObj.comp_.lqMismatches_ <= params_.hardMismatchCutOff_) << std::endl;
+//	std::cout << "alignerObj.comp_.hqMismatches_ <= params_.hqMismatchCutOff: " << njh::colorBool(alignerObj.comp_.hqMismatches_ <= params_.hqMismatchCutOff) << std::endl;
+//	std::cout << "alignerObj.comp_.lqMismatches_ <= params_.lqMismatchCutOff: " << njh::colorBool(alignerObj.comp_.lqMismatches_ <= params_.lqMismatchCutOff) << std::endl;
+
+	auto getFirstFailedWindow = [](const seqInfo & seq, const ProcessParams::QualWindowTrimPars & qPars, uint32_t startSearch = 0){
+		uint32_t ret = std::numeric_limits<uint32_t>::max();
+		if(len(seq) > qPars.windowSize_){
+			for(const auto pos : iter::range<uint32_t>(startSearch, len(seq) - qPars.windowSize_, qPars.windowStep_)){
+				double sum = 0;
+				for(const auto & qPos : iter::range(pos, pos + qPars.windowSize_)){
+					sum += seq.qual_[qPos];
+				}
+				if(sum/qPars.windowSize_ < qPars.avgQualCutOff_){
+					ret = pos;
+					break;
+				}
+			}
+		}
+		return ret;
+	};
+
+	auto getLastFailedWindow = [](const seqInfo & seq, const ProcessParams::QualWindowTrimPars & qPars, uint32_t stopSearch = std::numeric_limits<uint32_t>::max()){
+		uint32_t ret = 0;
+		uint32_t end = std::min<uint32_t>(len(seq), stopSearch);
+		if(end > qPars.windowSize_ + 1){
+			for(const auto pos : iter::range<uint32_t>(0, end - qPars.windowSize_ - 1, qPars.windowStep_)){
+				uint32_t truePos = end - qPars.windowSize_ - pos - 1;
+				double sum = 0;
+				for(const auto & qPos : iter::range(truePos, truePos + qPars.windowSize_)){
+					sum += seq.qual_[qPos];
+				}
+				if(sum/qPars.windowSize_ < qPars.avgQualCutOff_){
+					ret = truePos;
+					break;
+				}
+			}
+		}
+		return ret;
+	};
+	if(params_.trimLowQaulWindows_ && !(alignerObj.comp_.distances_.eventBasedIdentityHq_ >= percentId &&
+			alignerObj.comp_.distances_.basesInAln_ >= params_.minOverlap_ &&
+			alignerObj.comp_.hqMismatches_ + alignerObj.comp_.lqMismatches_ <= params_.hardMismatchCutOff_ &&
+			alignerObj.comp_.hqMismatches_ <= params_.hqMismatchCutOff &&
+			alignerObj.comp_.lqMismatches_ <= params_.lqMismatchCutOff)){
+		const uint32_t firstMateWindow = getFirstFailedWindow(seq.seqBase_, params_.qualWindowPar_);
+		const uint32_t secondMateWindow = getLastFailedWindow(seq.mateSeqBase_, params_.qualWindowPar_);
+
+		if((firstMateWindow != std::numeric_limits<uint32_t>::max() && firstMateWindow > 1) ||
+				(secondMateWindow != 0 && secondMateWindow + params_.qualWindowPar_.windowSize_ + 2 < len(seq.mateSeqBase_))){
+			auto copySeq = seq;
+			if(firstMateWindow != std::numeric_limits<uint32_t>::max() && firstMateWindow > 1){
+				copySeq.seqBase_ = seq.seqBase_.getSubRead(0, firstMateWindow);
+			}
+			if(secondMateWindow != 0 && secondMateWindow + params_.qualWindowPar_.windowSize_ + 2 < len(seq.mateSeqBase_)){
+				copySeq.mateSeqBase_ = seq.mateSeqBase_.getSubRead(secondMateWindow + params_.qualWindowPar_.windowSize_);
+			}
+			alignerObj.alignRegGlobalNoInternalGaps(copySeq.seqBase_, copySeq.mateSeqBase_);
+			alignerObj.profileAlignment(            copySeq.seqBase_, copySeq.mateSeqBase_, false, true, false);
+		}
+
+	}
+
 
 	if( alignerObj.comp_.distances_.eventBasedIdentityHq_ >= percentId &&
 			alignerObj.comp_.distances_.basesInAln_ >= params_.minOverlap_ &&
@@ -457,6 +526,9 @@ PairedReadProcessor::ProcessedPairRes PairedReadProcessor::processPairedEnd(
 			ret.combinedSeq_ = std::make_shared<seqInfo>(seq.seqBase_.name_, cseq, quals);
 			ret.status_ = ReadPairOverLapStatus::R1BEGINSINR2;
 			++counts.r1BeginsInR2Combined;
+			if(len(*ret.combinedSeq_) > params_.primerDimmerSize_){
+				++counts.r1BeginsInR2CombinedAboveCutOff;
+			}
 			if(params_.debug_){
 				debugOutCache.add("r1BeginsInR2", alignerObj.alignObjectA_.seqBase_);
 				debugOutCache.add("r1BeginsInR2", alignerObj.alignObjectB_.seqBase_);

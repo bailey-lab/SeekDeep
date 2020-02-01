@@ -111,12 +111,14 @@ class CPPLibPackageVersion():
     def getIncludeFlags(self, localPath):
         ret = ""
         if(len(self.includePath_) > 0):
-            ret = "-isystem" + str(os.path.join(localPath, self.includePath_))
+            #ret = "-isystem" + str(os.path.join(localPath, self.includePath_))
+            ret = "-I" + str(os.path.join(localPath, self.includePath_))
         if len(self.additionalIncludePaths_) > 0:
             for addPath in self.additionalIncludePaths_:
                 if len(ret) > 0:
                     ret = ret + " "
-                ret = ret + "-isystem" + str(os.path.join(localPath, addPath))
+                #ret = ret + "-isystem" + str(os.path.join(localPath, addPath))
+                ret = ret + "-I" + str(os.path.join(localPath, addPath))
         if len(self.additionalIncludeFlags_) > 0:
             if len(ret)> 0:
                 ret = ret + " "
@@ -308,6 +310,10 @@ class Packages():
             self.packages_["zlib-ng"] = self.__zlibng()
         if "openblas" in libsNeeded:
             self.packages_["openblas"] = self.__openblas()
+        if "unqlite" in libsNeeded:
+            self.packages_["unqlite"] = self.__unqlite()
+            
+            
         #njh setup
         if "njhseq" in libsNeeded:
             self.packages_["njhseq"] = self.__njhseq()
@@ -946,7 +952,29 @@ class Packages():
             refs = pack.getGitRefs(url)
             for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
                 pack.addVersion(url, ref)
-                pack.versions_[ref].altLibName_ = "z"
+            Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
+                pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
+        return pack
+    
+    def __unqlite(self):
+        name = "unqlite"
+        url = "https://github.com/symisc/unqlite.git"
+        buildCmd = "mkdir -p build && cd build && CC={CC} CXX={CXX} cmake -DCMAKE_INSTALL_PREFIX:PATH={local_dir} .. && make UNQLITE_ENABLE_THREADS=true -j {num_cores} install"
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v1.1.9")
+
+        if self.args.noInternet:
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                pack = pickle.load(inputPkl)
+                pack.defaultBuildCmd_ = buildCmd
+        elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                    pack = pickle.load(inputPkl)
+                    pack.defaultBuildCmd_ = buildCmd
+        else:
+            refs = pack.getGitRefs(url)
+            for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
+                pack.addVersion(url, ref)
             Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
                 pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
@@ -1175,7 +1203,7 @@ class Packages():
         return pack
     
     def __twobit(self):
-        url = "https://github.com/weng-lab/TwoBit.git"
+        url = "https://github.com/nickjhathaway/TwoBit.git"
         name = "TwoBit"
         buildCmd = self.__njhProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v2.0.1")
@@ -1802,6 +1830,7 @@ class Setup:
                        "bcftools": self.bcftools,
                        "hts": self.hts,
                        "restbed": self.restbed,
+                       "unqlite": self.unqlite,
                        "eigen": self.eigen,
                        "glpk": self.glpk,
                        "cmake": self.cmake,
@@ -2447,6 +2476,9 @@ class Setup:
         
     def restbed(self, version):
         self.__defaultBuild("restbed", version)   
+
+    def unqlite(self, version):
+        self.__defaultBuild("unqlite", version)          
         
     def eigen(self, version):
         self.__defaultBuild("eigen", version)  

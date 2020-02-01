@@ -316,6 +316,11 @@ int SeekDeepRunner::extractor(const njh::progutils::CmdArgs & inputCommands) {
 	// create aligner for primer identification
 	auto scoreMatrix = substituteMatrix::createDegenScoreMatrixNoNInRef(
 			setUp.pars_.generalMatch_, setUp.pars_.generalMismatch_);
+	setUp.pars_.gapInfo_.gapLeftRefOpen_ = 5;
+	setUp.pars_.gapInfo_.gapLeftRefExtend_ = 1;
+	setUp.pars_.gapInfo_.gapRightRefOpen_ = 5;
+	setUp.pars_.gapInfo_.gapRightRefExtend_ = 1;
+
 	gapScoringParameters gapPars(setUp.pars_.gapInfo_);
 	KmerMaps emptyMaps;
 	bool countEndGaps = false;
@@ -328,7 +333,7 @@ int SeekDeepRunner::extractor(const njh::progutils::CmdArgs & inputCommands) {
 		maxReadSize =  maxPrimerSize * 4 + pars.corePars_.pDetPars.primerWithin_;
 	}
 
-	aligner alignObj = aligner(maxReadSize, gapPars, scoreMatrix, emptyMaps, setUp.pars_.qScorePars_, countEndGaps, false);
+	aligner alignObj(maxReadSize, gapPars, scoreMatrix, emptyMaps, setUp.pars_.qScorePars_, countEndGaps, false);
 	alignObj.processAlnInfoInput(setUp.pars_.alnInfoDirName_);
 	bfs::path smallDir = "";
 	if (pars.filterOffSmallReadCounts) {

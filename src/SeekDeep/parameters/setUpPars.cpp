@@ -44,6 +44,8 @@ void CoreExtractorPars::setCorePars(seqSetUp & setUp){
 			"Number Of One base indels to allow in primers", false, "Primer");
 	setUp.setOption(pDetPars.allowable_.twoBaseIndel_, "--primerTwoBaseIndels",
 			"Number Of Two base indels to allow in primers", false, "Primer");
+	setUp.setOption(pDetPars.allowable_.largeBaseIndel_, "--primerMoreThan2BaseIndels",
+			"Number Of greater than two base indels to allow in primers", false, "Primer");
 	setUp.setOption(sampleName, "--sampleName",
 			"A name to append to the output files",
 			false, "Output Naming");
@@ -51,8 +53,14 @@ void CoreExtractorPars::setCorePars(seqSetUp & setUp){
 			false, "Output Naming");
 
 	setUp.setOption(primIdsPars.mPars_.allowableErrors_ , "--barcodeErrors", "Errors Allowed in Barcode", false, "Barcodes");
+	primIdsPars.mPars_.checkForShorten_ = true;
 	setUp.setOption(primIdsPars.mPars_.checkForShorten_, "--checkShortenBars",
 			"Check for shorten Barcodes if the first base may have been trimmed off", false, "Barcodes");
+	bool noCheckForShortenBars = false;
+	setUp.setOption(noCheckForShortenBars, "--noCheckForShortenBars",
+			"Don't Check for shorten Barcodes if the first base may have been trimmed off", false, "Barcodes");
+	primIdsPars.mPars_.checkForShorten_ = !noCheckForShortenBars;
+
 	setUp.setOption(primIdsPars.mPars_.searchStop_, "--midWithinStart,--midSearchStop",
 			"By default the primer or barcodes are searched at the very beginning of seq, use this flag to extended the search, should be kept low to cut down on false positives",
 			false, "Barcodes");
@@ -128,7 +136,7 @@ ExtractorPairedEndPars::ExtractorPairedEndPars(){
 	pairProcessorParams_.r1Trim_ = 1;
 	pairProcessorParams_.r2Trim_ = 1;
 
-
+	pairProcessorParams_.minOverlap_ = 8;
 	pairProcessorParams_.errorAllowed_ = 0.01;
 //	pairProcessorParams_.errorAllowed_ = 0.03;
 

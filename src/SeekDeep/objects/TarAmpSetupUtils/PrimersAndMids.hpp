@@ -28,7 +28,7 @@
 //
 #include <njhseq.h>
 
-#include "SeekDeep/objects/PairedReadProcessor.hpp"
+#include "SeekDeep/objects/IlluminaUtils/PairedReadProcessor.hpp"
 
 namespace njhseq {
 
@@ -77,7 +77,7 @@ public:
 
 		void setRefKInfos(uint32_t klen, bool setRevComp);
 
-		PairedReadProcessor::ReadPairOverLapStatus overlapStatus_ {PairedReadProcessor::ReadPairOverLapStatus::NONE};
+		std::vector<PairedReadProcessor::ReadPairOverLapStatus> overlapStatuses_ {PairedReadProcessor::ReadPairOverLapStatus::NONE};
 
 	};
 
@@ -135,10 +135,15 @@ public:
 
 	void addLenCutOffs(const bfs::path & lenCutOffsFnp);
 	void addOverLapStatuses(const bfs::path & overlapStatuses);
+	void addOverLapStatuses(const std::vector<PairedReadProcessor::ReadPairOverLapStatus> & allStatus);
+
 	void addRefSeqs(const bfs::path & refDirectory);
 	void setRefSeqsKInfos(uint32_t klen, bool setRevComp);
 
 	void addDefaultLengthCutOffs(uint32_t minLength, uint32_t maxLength);
+
+
+	uint32_t getMaxMIDSize() const;
 
 };
 

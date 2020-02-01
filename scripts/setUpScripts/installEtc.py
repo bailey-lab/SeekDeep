@@ -11,11 +11,16 @@ def parse_args():
 
 def main():
     args = parse_args()
-    newDirName = os.path.join(args.dest,"etc")
-    if os.path.exists(newDirName) and args.rmDir:
-        shutil.rmtree(newDirName)
-    elif os.path.exists(newDirName):
-        raise Exception("Destination directory already exists, use -rmDir to overWrite")
-    shutil.copytree(args.etcFolder, newDirName)
-    
+    allDirs = [x for x in os.walk(args.etcFolder)]
+    installEtcDest = os.path.join(args.dest,"etc");
+    for dInfo in allDirs:
+        newDirName = dInfo[0].replace(args.etcFolder.rstrip('/'), installEtcDest.rstrip('/'))
+        #print newDirName
+        if not os.path.exists(newDirName):
+            os.mkdir(newDirName)
+        elif args.rmDir:
+            shutil.rmtree(newDirName)
+            os.mkdir(newDirName)
+        for f in dInfo[2]:
+            shutil.copy(os.path.join(dInfo[0], f), os.path.join(newDirName, f))
 main()
