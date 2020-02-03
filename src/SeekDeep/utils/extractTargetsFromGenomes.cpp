@@ -389,9 +389,46 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 						} //forward strand search
 						{
 							//add results
-							addOtherVec(resultsByTargetByGenome[primer.second.primerPairName_][genome.first].fPrimerPositions_, fPrimerPositions);
-							addOtherVec(resultsByTargetByGenome[primer.second.primerPairName_][genome.first].rPrimerPositions_, rPrimerPositions);
-							addOtherVec(resultsByTargetByGenome[primer.second.primerPairName_][genome.first].regions_, PrimerPairSearchResults::getPossibleGenomeExtracts(fPrimerPositions, rPrimerPositions, extractPars.sizeLimit));
+							std::vector<GenomicRegion> fPrimerPositionsUnique;
+							njh::sort(fPrimerPositions, [](const GenomicRegion & reg1, const GenomicRegion & reg2){
+								auto reg1Meta =MetaDataInName(reg1.uid_.substr(reg1.uid_.rfind("[")));
+								auto reg2Meta =MetaDataInName(reg2.uid_.substr(reg2.uid_.rfind("[")));
+								return reg1Meta.getMeta<uint32_t>("errors") < reg2Meta.getMeta<uint32_t>("errors");
+							});
+							for(const auto & fPrim : fPrimerPositions){
+								bool add = true;
+								for(const auto & alreadyAdded : fPrimerPositionsUnique){
+									if(alreadyAdded.sameRegion(fPrim)){
+										add = false;
+										break;
+									}
+								}
+								if(add){
+									fPrimerPositionsUnique.emplace_back(fPrim);
+								}
+							}
+							std::vector<GenomicRegion> rPrimerPositionsUnique;
+							njh::sort(rPrimerPositions, [](const GenomicRegion & reg1, const GenomicRegion & reg2){
+								auto reg1Meta =MetaDataInName(reg1.uid_.substr(reg1.uid_.rfind("[")));
+								auto reg2Meta =MetaDataInName(reg2.uid_.substr(reg2.uid_.rfind("[")));
+								return reg1Meta.getMeta<uint32_t>("errors") < reg2Meta.getMeta<uint32_t>("errors");
+							});
+							for(const auto & rPrim : rPrimerPositions){
+								bool add = true;
+								for(const auto & alreadyAdded : rPrimerPositionsUnique){
+									if(alreadyAdded.sameRegion(rPrim)){
+										add = false;
+										break;
+									}
+								}
+								if(add){
+									rPrimerPositionsUnique.emplace_back(rPrim);
+								}
+							}
+
+							addOtherVec(resultsByTargetByGenome[primer.second.primerPairName_][genome.first].fPrimerPositions_, fPrimerPositionsUnique);
+							addOtherVec(resultsByTargetByGenome[primer.second.primerPairName_][genome.first].rPrimerPositions_, rPrimerPositionsUnique);
+							addOtherVec(resultsByTargetByGenome[primer.second.primerPairName_][genome.first].regions_, PrimerPairSearchResults::getPossibleGenomeExtracts(fPrimerPositionsUnique, rPrimerPositionsUnique, extractPars.sizeLimit));
 						}
 					} //end of this primer's search
 				} //end of chromosome search
