@@ -668,9 +668,8 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 
 		comparison allowableErrors;
 		allowableErrors.hqMismatches_ = extractPars.errors;
-		auto extractPathway =
-				[&targetsQueue,&extractPars,&outputDir,&ids,&alignToGenome,&allowableErrors](
-						const std::unique_ptr<MultiGenomeMapper> & gMapper) {
+		std::function<void()> extractPathway =
+				[&targetsQueue,&extractPars,&outputDir,&ids,&alignToGenome,&allowableErrors,&gMapper]() {
 					std::string target;
 					while(targetsQueue.getVal(target)) {
 						const auto & primerInfo = ids.pDeterminator_->primers_.at(target);
@@ -707,15 +706,19 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 						njh::concurrent::LockableQueue<bfs::path> genomesQueue(gMapper->getGenomeFnps());
 						auto forOutFnp = forwardOpts.out_.outName();
 						auto revOutFnp = reverseOpts.out_.outName() ;
-						for(uint32_t t = 0; t < gMapper->pars_.numThreads_; ++t){
-							threads.emplace_back(std::thread(alignToGenome,
-									std::ref(genomesQueue),
-									std::cref(forOutFnp),
-									std::cref(revOutFnp),
-									std::cref(refAlignmentDir)));
-						}
-						for(auto & t : threads){
-							t.join();
+						if(gMapper->pars_.numThreads_ <=1){
+							alignToGenome(genomesQueue, forOutFnp, revOutFnp, refAlignmentDir);
+						}else{
+							for(uint32_t t = 0; t < gMapper->pars_.numThreads_; ++t){
+								threads.emplace_back(std::thread(alignToGenome,
+										std::ref(genomesQueue),
+										std::cref(forOutFnp),
+										std::cref(revOutFnp),
+										std::cref(refAlignmentDir)));
+							}
+							for(auto & t : threads){
+								t.join();
+							}
 						}
 
 						std::unordered_map<std::string, GenExtracRes> genomeExtractionsResults;
@@ -880,14 +883,8 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 					}
 				};
 
-		std::vector<std::thread> threads;
-		for(uint32_t t = 0; t < numThreads; ++t){
-			threads.emplace_back(std::thread(extractPathway,
-					std::cref(gMapper)));
-		}
-		for(auto & t : threads){
-			t.join();
-		}
+		njh::concurrent::runVoidFunctionThreaded(extractPathway, numThreads);
+
 	}
 
 

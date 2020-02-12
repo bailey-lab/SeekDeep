@@ -256,7 +256,7 @@ inline std::vector<njh::sys::RunOutput> runCmdsThreadedQueue(
 	std::mutex coutMut;
 	std::vector<njh::sys::RunOutput> ret;
 	njh::concurrent::LockableQueue<std::string> cmdsQueue(cmds);
-	auto runCmds = [&coutMut, &allOutputsMut, &ret, &verbose,&cmdsQueue]() {
+	std::function<void()> runCmds = [&coutMut, &allOutputsMut, &ret, &verbose,&cmdsQueue]() {
 		std::string cmd = "";
 		uint32_t cmdNum = 0;
 		std::vector<njh::sys::RunOutput> currentRets;
@@ -302,11 +302,7 @@ inline std::vector<njh::sys::RunOutput> runCmdsThreadedQueue(
 			}
 		}
 	};
-	std::vector<std::thread> threads;
-	for (uint32_t t = 0; t < numThreads; ++t) {
-		threads.emplace_back(std::thread(runCmds));
-	}
-	njh::concurrent::joinAllThreads(threads);
+	njh::concurrent::runVoidFunctionThreaded(runCmds, numThreads);
 	return ret;
 }
 

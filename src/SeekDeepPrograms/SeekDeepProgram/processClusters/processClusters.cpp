@@ -199,7 +199,7 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 		alnPool.initAligners();
 		alnPool.outAlnDir_ = setUp.pars_.outAlnInfoDirName_;
 
-		auto setupClusterSamples = [&sampleQueue, &alnPool,&collapserObj,&pars,&setUp,
+		std::function<void()> setupClusterSamples = [&sampleQueue, &alnPool,&collapserObj,&pars,&setUp,
 																&expectedSeqs,&sampColl,&customCutOffsMap,
 																&customCutOffsMapPerRep](){
 			std::string samp = "";
@@ -272,13 +272,7 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 				}
 			}
 		};
-		std::vector<std::thread> threads;
-		for(uint32_t t = 0; t < pars.numThreads; ++t){
-			threads.emplace_back(std::thread(setupClusterSamples));
-		}
-		for(auto & t : threads){
-			t.join();
-		}
+		njh::concurrent::runVoidFunctionThreaded(setupClusterSamples, pars.numThreads);
 	}
 
 	//read in the dump alignment cache
