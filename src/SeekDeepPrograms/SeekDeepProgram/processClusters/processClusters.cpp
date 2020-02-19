@@ -722,10 +722,6 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 						knownAATyped[popName][transcript] = njh::conToStr(aaPos, ":");
 					}
 				}
-
-
-
-
 				OutputStream outPopHapAminos(njh::files::make_path(variantInfoDir, njh::pasteAsStr(varPerTrans.first +  "-popHapToAmino.tab.txt")));
 				outPopHapAminos << "h_PopUID" ;
 				VecStr aminoPositionsHeader;
@@ -853,19 +849,19 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 				for(auto & seqName : translatedRes.seqAlns_){
 					for(const auto & variablePos : varPerChrom.second.snpsFinal){
 //						std::cout << __FILE__ << " " << __LINE__ << std::endl;
-//						std::cout << "seqName.second.front()->gRegion_.start_: " << seqName.second.front()->gRegion_.start_ << std::endl;
+//						std::cout << "seqName.second.front()->gRegion_.start_: " << seqName.second.front().gRegion_.start_ << std::endl;
 //						std::cout << "variablePos: " << variablePos.first << std::endl;
 						if(variablePos.first < seqName.second.front().gRegion_.start_ || variablePos.first >= seqName.second.front().gRegion_.end_){
 							snpMeta[seqName.first].addMeta(estd::to_string(variablePos.first), "X", false);
 						} else {
-							//std::cout << __FILE__ << " " << __LINE__ << std::endl;
+//							std::cout << __FILE__ << " " << __LINE__ << std::endl;
 							auto aa = seqName.second.front().querySeq_.seq_[getAlnPosForRealPos(seqName.second.front().alnRefSeq_.seq_, variablePos.first - seqName.second.front().gRegion_.start_)];
 							snpMeta[seqName.first].addMeta(estd::to_string(variablePos.first), aa, false);
-							//std::cout << __FILE__ << " " << __LINE__ << std::endl;
+//							std::cout << __FILE__ << " " << __LINE__ << std::endl;
 						}
 					}
 				}
-
+//				std::cout << __FILE__ << " " << __LINE__ << std::endl;
 				OutputStream outPopHapAminos(njh::files::make_path(variantInfoDir, njh::pasteAsStr(varPerChrom.first +  "-popHapToSNPs.tab.txt")));
 				outPopHapAminos << "h_PopUID" ;
 				VecStr aminoPositionsHeader;
@@ -900,7 +896,7 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 				}
 
 
-				//std::cout << __FILE__ << " " << __LINE__ << std::endl;
+//				std::cout << __FILE__ << " " << __LINE__ << std::endl;
 				auto popMetaTable = seqsToMetaTable(popSeqsPerSamp);
 				popMetaTable.deleteColumn("seq");
 				popMetaTable.deleteColumn("count");
@@ -921,13 +917,19 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 							}
 							auto sample = row[popMetaTable.getColPos("sample")];
 							auto chrom = aminoPositionsHeader[snpPosition].substr(0, aminoPositionsHeader[snpPosition].rfind("-"));
+//							std::cout << __FILE__ << " " << __LINE__ << std::endl;
+//							std::cout << "snpPosition: " << snpPosition << std::endl;
+//							std::cout << "aminoPositionsHeader[snpPosition]: " <<  aminoPositionsHeader[snpPosition] << std::endl;
+//							std::cout << "aminoPositionsHeader[snpPosition].substr(aminoPositionsHeader[snpPosition].rfind(\"-\") + 1): " << aminoPositionsHeader[snpPosition].substr(aminoPositionsHeader[snpPosition].rfind("-") + 1)<< std::endl;
+//							std::cout << "row[popMetaTable.getColPos(\"readCount\")]: " << row[popMetaTable.getColPos("readCount")] << std::endl;
+							//std::cout << aminoPositionsHeader[snpPosition].substr(aminoPositionsHeader[snpPosition].rfind("-") + 1) << std::endl;
 							auto position = njh::StrToNumConverter::stoToNum<uint32_t>(aminoPositionsHeader[snpPosition].substr(aminoPositionsHeader[snpPosition].rfind("-") + 1));
-							auto depth = njh::StrToNumConverter::stoToNum<uint32_t>(row[popMetaTable.getColPos("readCount")]);
-
+							double depth = njh::StrToNumConverter::stoToNum<double>(row[popMetaTable.getColPos("readCount")]);
+//							std::cout << __FILE__ << " " << __LINE__ << std::endl;
 							snpsPerSampleDepth[sample][chrom][position][snp] += depth;
 							++snpPosition;
 						}
-					}else{
+					} else {
 						//pop uid was untypable, didn't align
 						aminos = VecStr{aminoPositionsHeader.size(), std::string("NA")};
 					}
@@ -978,14 +980,18 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 	for(auto & clus : sampColl.popCollapse_->collapsed_.clusters_){
 		auto popName = clus.seqBase_.name_.substr(0, clus.seqBase_.name_.rfind("_f"));
 		std::string typed = "";
+//		std::cout << "clus.seqBase_.name_: " << clus.seqBase_.name_ << std::endl;
+//		std::cout << "clus.meta_.toJson(): " << clus.meta_.toJson() << std::endl;
+//		std::cout << "popName: " << popName << std::endl;
 		for(const auto & tran : fullAATyped[popName]){
 			if("" != typed){
 				typed += ";";
 			}
 			typed += tran.first + "=" + tran.second;
-//			std::cout << tran.second << std::endl;
-			clus.meta_.addMeta("h_AATyped", typed);
+//			std::cout << "\t" << tran.first << ":"<< tran.second << std::endl;
+//			std::cout << "\t" << "typed:" << typed << std::endl;
 		}
+		clus.meta_.addMeta("h_AATyped", typed);
 	}
 	sampColl.printSampleCollapseInfo(
 			njh::files::make_path(sampColl.masterOutputDir_,
