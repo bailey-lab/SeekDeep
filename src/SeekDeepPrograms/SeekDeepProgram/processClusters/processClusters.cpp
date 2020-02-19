@@ -542,11 +542,6 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 	//if(!pars.noPopulation){
 	popSeqsPerSamp = sampColl.genOutPopSeqsPerSample();
 	outPopSeqsPerSamp = popSeqsPerSamp;
-	std::unordered_map<std::string, uint32_t> popSeqsPosition;
-	for(const auto & popPos : iter::range(popSeqs.size())){
-		popSeqsPosition[popSeqs[popPos].name_] = popPos;
-	}
-
 	for(const auto & popClus : sampColl.popCollapse_->collapsed_.clusters_){
 		sampCountsForPopHaps[popClus.seqBase_.name_] = popClus.sampleClusters().size();
 		totalPopCount += popClus.sampleClusters().size();
