@@ -876,11 +876,10 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 					tempWriter.openOut();
 					tempOuts[name] = SeqIOOptions::genFastqIn(tempWriter.getPrimaryOutFnp());
 				}
+				SeqOutput contaminationWriter(contaminationOutOpts);
 				for(const auto & filterSeqOpts : allFilterSeqOpts){
 					seqInfo filteringSeq;
 					SeqInput processedReader(filterSeqOpts);
-
-					SeqOutput contaminationWriter(contaminationOutOpts);
 					processedReader.openIn();
 
 					while(processedReader.readNextRead(filteringSeq)){
