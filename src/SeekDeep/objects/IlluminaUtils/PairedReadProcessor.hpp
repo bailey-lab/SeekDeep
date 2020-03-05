@@ -125,6 +125,7 @@ public:
 
 		QualWindowTrimPars qualWindowPar_;
 		bool trimLowQaulWindows_{true};
+		double percentAfterTrimCutOff_ {.70};
 
 	};
 

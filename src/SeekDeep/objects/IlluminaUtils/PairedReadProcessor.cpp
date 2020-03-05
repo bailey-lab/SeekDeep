@@ -395,16 +395,19 @@ PairedReadProcessor::ProcessedPairRes PairedReadProcessor::processPairedEnd(
 		if((firstMateWindow != std::numeric_limits<uint32_t>::max() && firstMateWindow > 1) ||
 				(secondMateWindow != 0 && secondMateWindow + params_.qualWindowPar_.windowSize_ + 2 < len(seq.mateSeqBase_))){
 			auto copySeq = seq;
+
 			if(firstMateWindow != std::numeric_limits<uint32_t>::max() && firstMateWindow > 1){
 				copySeq.seqBase_ = seq.seqBase_.getSubRead(0, firstMateWindow);
 			}
 			if(secondMateWindow != 0 && secondMateWindow + params_.qualWindowPar_.windowSize_ + 2 < len(seq.mateSeqBase_)){
 				copySeq.mateSeqBase_ = seq.mateSeqBase_.getSubRead(secondMateWindow + params_.qualWindowPar_.windowSize_);
 			}
-			alignerObj.alignRegGlobalNoInternalGaps(copySeq.seqBase_, copySeq.mateSeqBase_);
-			alignerObj.profileAlignment(            copySeq.seqBase_, copySeq.mateSeqBase_, false, true, false);
+			if(static_cast<double>(len(copySeq.seqBase_))/len(seq.seqBase_) >= params_.percentAfterTrimCutOff_ &&
+					static_cast<double>(len(copySeq.mateSeqBase_))/len(seq.mateSeqBase_)  >= params_.percentAfterTrimCutOff_ ){
+				alignerObj.alignRegGlobalNoInternalGaps(copySeq.seqBase_, copySeq.mateSeqBase_);
+				alignerObj.profileAlignment(            copySeq.seqBase_, copySeq.mateSeqBase_, false, true, false);
+			}
 		}
-
 	}
 
 
