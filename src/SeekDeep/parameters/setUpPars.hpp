@@ -168,6 +168,7 @@ struct clusterDownPars {
 };
 
 struct processClustersPars {
+	bool keepSampleInfoInMemory_ = false;
 	bfs::path masterDir = ".";
   //bool noPopulation = false;
   std::string previousPopFilename = "";
@@ -189,7 +190,6 @@ struct processClustersPars {
   bfs::path knownAminoAcidChangesFnp;
 
 
-  VecStr controlSamples;
   bool extra = false;
   double fracCutoff = 0.005;
   double withinReplicateFracCutOff = 0.001;
@@ -200,17 +200,12 @@ struct processClustersPars {
   bool collapseLowFreqOneOffs = false;
   double lowFreqMultiplier = 10;
 
-  bool removeOneSampOnlyOneOffHaps = false;
-  double oneSampOnlyOneOffHapsFrac = 0.25;
-
-  bool removeOneSampOnlyHaps = false;
-  double oneSampOnlyHapsFrac = 0.25;
+  collapse::SampleCollapseCollection::performLowLevelFiltersPars lowLevelPopFiltPars_;
 
   bool keepChimeras = false;
-  bool investigateChimeras = false;
  // bool recheckChimeras = false;
   double chiCutOff = .40;
-  std::string experimentName = "PopUID";
+  PopNamesInfo experimentNames{"PopUID", VecStr{}, VecStr{} };
   std::string parametersPopulation = "";
   bool differentPar = false;
   bool popBoth = false;
@@ -241,16 +236,10 @@ struct processClustersPars {
 	uint32_t hqMismatches = 0;
 	uint32_t stopAfter = 100;
 
-	bool rescueExcludedLowFreqHaplotypes = false;
-	bool rescueExcludedOneOffLowFreqHaplotypes = false;
-	bool rescueExcludedChimericHaplotypes = false;
+
+	collapse::SampleCollapseCollection::conductResuceOperationsPars rescuePars_;
+
 	bool rescueMatchingExpected = false;
-
-	double majorHaplotypeFracForRescue = .10;
-
-	bool removeCommonlyLowFreqHaplotypes_ = false;      //
-	double lowFreqHaplotypeFracCutOff_ = 0.01; //remove haplotypes that on average appear below this fraction (0.01 == 1%)
-
 
 
 	VecStr excludeControlSamples_; //controls that shouldn't be included in frequency and population level cut offs

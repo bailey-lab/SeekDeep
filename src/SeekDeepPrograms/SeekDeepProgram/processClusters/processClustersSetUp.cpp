@@ -54,7 +54,7 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 	}
 
 
-
+	setOption(pars.keepSampleInfoInMemory_, "--keepSamplesInfoInMemory", "Rather than writing samples results and reading again for further processing, keep all samples info in memory");
 	setOption(pars.transPars.lzPars_.genomeFnp, "--genomeFnp",
 			"Genome file so final haplotypes can be mapped to a genome", false, "Additional Output");
 	setOption(pars.transPars.gffFnp_, "--gffFnp",
@@ -81,13 +81,12 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 			"A file to sort samples into different groups", false, "Meta");
 	setOption(pars.noWriteGroupInfoFiles, "--noWriteGroupInfoFiles",
 			"Don't write out the info files for the sub groupings, just add the meta to output directories", false, "Meta");
-
-	setOption(pars.investigateChimeras, "--investigateChimeras",
-			"Check to see if a chimera appears as a high variant in another sample", false, "Chimeras");
 	processDebug();
 	processVerbose();
 	pars_.colOpts_.verboseOpts_.verbose_ = pars_.verbose_;
 	pars_.colOpts_.verboseOpts_.debug_ = pars_.debug_;
+	pars.rescuePars_.debug_ = pars_.debug_;
+
 	setOption(pars.onPerId, "--onPerId", "Cluster on Percent Identity Instead", false, "Clustering");
 	processSkipOnNucComp();
 	// input file info
@@ -124,10 +123,10 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 		pars.preFiltCutOffs.sampleMinReadCount = pars.preFiltCutOffs.replicateMinReadCount;
 	}
 	setOption(pars.runsRequired, "--runsRequired", "Number of PCR runs Required for a haplotype to be kept", false, "Filtering");
-	setOption(pars.experimentName, "--experimentName", "Name given to the final population haplotypes", false, "Population");
-	if (njh::containsSubString(pars.experimentName, ".")) {
+	setOption(pars.experimentNames.populationName_, "--experimentName", "Name given to the final population haplotypes", false, "Population");
+	if (njh::containsSubString(pars.experimentNames.populationName_, ".")) {
 		addWarning("Error in populationCollapse::populationCollapse, populationName can't contain '.', "
-						+ pars.experimentName);
+						+ pars.experimentNames.populationName_);
 		failed_ = true;
 	}
 	pars.preFiltCutOffs.clusterSizeCutOff = 10;
@@ -137,9 +136,6 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 
 	setOption(pars.excludeSamples, "--excludeSamples", "Samples to Exclude from analysis", false, "Filtering");
 
-
-	setOption(pars.removeCommonlyLowFreqHaplotypes_, "--excludeCommonlyLowFreqHaplotypes", "Remove Commonly Low Freq Haplotypes", false, "Filtering");
-	setOption(pars.lowFreqHaplotypeFracCutOff_, "--lowFreqHaplotypeFracCutOff", "Low Freq Haplotype Frac Cut Off", false, "Filtering");
 
 
 
@@ -151,7 +147,7 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 //	setOption(pars.noPopulation, "--noPopulation",
 //			"Don't do Population Clustering", false, "Population");
 
-	setOption(pars.controlSamples, "--controlSamples", "Samples that shouldn't be included in frequency filtering calcs", false, "Filtering");
+	setOption(pars.experimentNames.controlSamples_, "--controlSamples", "Samples that shouldn't be included in frequency filtering calcs", false, "Filtering");
 
 
 	setOption(pars.collapseLowFreqOneOffs, "--excludeLowFreqOneOffs",
@@ -159,20 +155,23 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 	setOption(pars.lowFreqMultiplier, "--oneOffLowFreqMultiplier",
 			"Low Freq Multiplier used for --excludeLowFreqOneOffs, considered low frequency if haplotype frac is less than its fraction times this number than the other haplotype", false, "Filtering");
 
-	setOption(pars.removeOneSampOnlyOneOffHaps, "--removeOneSampOnlyOneOffHaps",
+	setOption(pars.lowLevelPopFiltPars_.removeCommonlyLowFreqHaplotypes_, "--excludeCommonlyLowFreqHaplotypes", "Remove Commonly Low Freq Haplotypes", false, "Filtering");
+	setOption(pars.lowLevelPopFiltPars_.lowFreqHaplotypeFracCutOff_, "--lowFreqHaplotypeFracCutOff", "Low Freq Haplotype Frac Cut Off", false, "Filtering");
+
+	setOption(pars.lowLevelPopFiltPars_.removeOneSampOnlyOneOffHaps_, "--removeOneSampOnlyOneOffHaps",
 			"Remove haplotypes that are below --oneSampOnlyOneOffHapsFrac fraction(default 0.20) that only appear in one sample that is one off of another haplotype within sample", false, "Filtering");
-	setOption(pars.oneSampOnlyOneOffHapsFrac, "--oneSampOnlyOneOffHapsFrac",
+	setOption(pars.lowLevelPopFiltPars_.oneSampOnlyOneOffHapsFrac_, "--oneSampOnlyOneOffHapsFrac",
 			"Fraction for --removeOneSampOnlyOneOffHaps", false, "Filtering");
 
-	setOption(pars.removeOneSampOnlyHaps, "--removeOneSampOnlyHaps",
+	setOption(pars.lowLevelPopFiltPars_.removeOneSampOnlyHaps_, "--removeOneSampOnlyHaps",
 			"Remove haplotypes that are below --OneSampOnlyHapsFrac fraction(default 0.20) that only appear in one sample that is one off of another haplotype within sample", false, "Filtering");
-	setOption(pars.oneSampOnlyHapsFrac, "--oneSampOnlyHapsFrac",
+	setOption(pars.lowLevelPopFiltPars_.oneSampOnlyHapsFrac_, "--oneSampOnlyHapsFrac",
 			"Fraction for --removeOneSampOnlyHaps", false, "Filtering");
 
-	setOption(pars.majorHaplotypeFracForRescue, "--majorHaplotypeFracForRescue", "In order to be considered a major haplotype in a sample for comparing during rescue");
-	setOption(pars.rescueExcludedChimericHaplotypes, "--rescueExcludedChimericHaplotypes", "Rescue Excluded chimeric Haplotypes if they appear as a major haplotype in another sample");
-	setOption(pars.rescueExcludedOneOffLowFreqHaplotypes, "--rescueExcludedOneOffLowFreqHaplotypes", "Rescue Excluded one off low freq Haplotypes if they appear as a major haplotype in another sample");
-	setOption(pars.rescueExcludedLowFreqHaplotypes, "--rescueExcludedLowFreqHaplotypes", "Rescue Excluded Haplotypes for falling below frequency cut off if they appear as a major haplotype in another sample");
+	setOption(pars.rescuePars_.majorHaplotypeFracForRescue_, "--majorHaplotypeFracForRescue", "In order to be considered a major haplotype in a sample for comparing during rescue");
+	setOption(pars.rescuePars_.rescueExcludedChimericHaplotypes, "--rescueExcludedChimericHaplotypes", "Rescue Excluded chimeric Haplotypes if they appear as a major haplotype in another sample");
+	setOption(pars.rescuePars_.rescueExcludedOneOffLowFreqHaplotypes, "--rescueExcludedOneOffLowFreqHaplotypes", "Rescue Excluded one off low freq Haplotypes if they appear as a major haplotype in another sample");
+	setOption(pars.rescuePars_.rescueExcludedLowFreqHaplotypes, "--rescueExcludedLowFreqHaplotypes", "Rescue Excluded Haplotypes for falling below frequency cut off if they appear as a major haplotype in another sample");
 	setOption(pars.rescueMatchingExpected, "--rescueMatchingExpected", "Rescue Haplotypes that match expected sequences if they have been read using --ref");
 
 
@@ -308,8 +307,8 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 			pars.popIteratorMap = pars.iteratorMap;
 		}
 	}
-	finishSetUp(std::cout);
 
+	finishSetUp(std::cout);
 }
 
 
