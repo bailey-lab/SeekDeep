@@ -13,7 +13,7 @@ namespace njhseq {
 
 
 int SeekDeepUtilsRunner::benchmarkControlMixtures(
-		const njh::progutils::CmdArgs & inputCommands) {
+		const njh::progutils::CmdArgs &inputCommands) {
 	ControlBencher::ControlBencherPars conBenchPars;
 	bfs::path processClustersDir = "";
 	bfs::path expectedSeqsFnp = "";
@@ -30,7 +30,6 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 	setUp.setOption(name, "--name", "Name to give the current analysis", true);
 	setUp.setOption(metaFnp, "--metaFnp", "meta data for the control samples");
 	setUp.setOption(popSeqsFnp, "--popSeqsFnp", "Population Sequences");
-
 	setUp.setOption(conBenchPars.samplesToMixFnp_, "--sampleToMixture", "Sample To Mixture, 2 columns 1)sample, 2)MixName", true);
 	setUp.setOption(conBenchPars.mixSetUpFnp_, "--mixtureSetUp", "Mixture Set Up, 3 columns 1)MixName, 2)strain, 3)relative_abundance", true);
 	setUp.setOption(skipMissingSamples, "--skipMissingSamples", "Skip Samples if they are missing");
@@ -229,21 +228,20 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 			continue;
 		}
 		//read in result sequences
-		auto resultsSeqsFnp = analysisMaster.getSampleFinalHapsPath(sname);
-		if(!bfs::exists(resultsSeqsFnp) && skipMissingSamples){
+		//auto resultsSeqsFnp = analysisMaster.getSampleFinalHapsPath(sname);
+		if(!njh::in(sname, allSamplesInOutput) && skipMissingSamples){
 			OutOptions outOptsMissing(njh::files::make_path(setUp.pars_.directoryName_, "missingSamples.txt"));
 			outOptsMissing.append_ = true;
 			OutputStream outMissing(outOptsMissing);
 			outMissing << sname << std::endl;
 			continue;
-		} else if(!bfs::exists(resultsSeqsFnp)){
+		} else if(!njh::in(sname, allSamplesInOutput)){
 			std::stringstream ss;
 			ss << __PRETTY_FUNCTION__ << ", error " << "missing results for the following sample: " << sname << "\n";
 			throw std::runtime_error{ss.str()};
 		}
 
-		SeqIOOptions resultsSeqsOpts(resultsSeqsFnp, analysisMaster.inputOptions_.inFormat_, true);
-		//auto resultSeqs = SeqInput::getSeqVec<seqInfo>(resultsSeqsOpts);
+
 		std::vector<seqInfo> resultSeqs = allResultSeqs[sname];
 
 		std::unordered_map<std::string, uint32_t> resSeqToPos;
