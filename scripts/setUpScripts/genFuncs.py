@@ -15,7 +15,7 @@ class genHelper:
                           "TWOBIT", "SEQSERVER","NJHRINSIDE", "PSTREAMS",
                            "MONGOC", "MONGOCXX", "SHAREDMUTEX",
                            "MAGIC", "HTS", "RESTBED", "LIBPCA", "BOOST_FILESYSTEM", 
-                           "ELUCIDATOR", "ELUCIDATORLAB", "MIPWRANGLER", "EIGEN",
+                           "PATHWEAVER", "ELUCIDATOR", "ELUCIDATORLAB", "MIPWRANGLER", "EIGEN",
                             "ZLIB", "ZLIB-NG", "UNQLITE"]
         neededLibraries = {}
         for lib in neededLibs:
