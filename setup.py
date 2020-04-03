@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+f#!/usr/bin/env python3
 
 import subprocess, sys, os, argparse,shutil
 from collections import namedtuple, defaultdict
@@ -1344,7 +1344,7 @@ class Packages():
 
     def __pathweaver(self):
         url = "https://github.com/nickjhathaway/pathweaver.git"
-        name = "pathweaver"
+        name = "PathWeaver"
         buildCmd = self.__njhProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v2.3.3")
         pack.njhProject_ = True
