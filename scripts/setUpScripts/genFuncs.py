@@ -21,7 +21,7 @@ class genHelper:
         for lib in neededLibs:
             if ":" in lib:
                 libSplit = lib.split(":")
-                neededLibraries[libSplit[0].upper()] = libSplit[1]
+                neededLibraries[libSplit[0].upper()] = ":".join(libSplit[1:])
             else:
                 neededLibraries[lib.upper()] = ""
 
