@@ -12,6 +12,7 @@ import pickle, datetime, re, math
 #tuples
 BuildPaths = namedtuple("BuildPaths", 'url build_dir build_sub_dir local_dir')
 LibNameVer = namedtuple("LibNameVer", 'name version')
+LibNameVerCommit = namedtuple("LibNameVerCommit", 'name version commit')
 GitRefs = namedtuple("GitRefs", "branches tags")
 
 
@@ -87,10 +88,13 @@ class CPPLibPackageVersionR():
         return self.bPaths_.url
 
 
+
 class CPPLibPackageVersion():
-    def __init__(self, name, version, bPaths, depends):
+    def __init__(self, name, version, bPaths, depends, commit = ""):
         self.nameVer_ = LibNameVer(name, version)
-        self.depends_ = depends #should be a list of LibNameVer
+        if "" !=commit:
+            self.nameVer_ = LibNameVerCommit(name, version, commit)
+        self.depends_ = depends #should be a list of LibNameVer or LibNameVerCommit
         self.bPaths_ = bPaths
         self.includePath_ = os.path.join(joinNameVer(self.nameVer_), "include")
         self.additionalIncludeFlags_ = []
@@ -158,12 +162,12 @@ class CPPLibPackage():
 
     def addVersion(self, url, verName, depends=[]):
         verName = verName.replace("/", "__")
-        build_dir = os.path.join(self.externalLibDir_.ext_build, self.name_, verName)
-        fn = os.path.basename(url)
+        #fn = os.path.basename(url)
         #fn_noex = fn.replace(".tar.gz", "").replace(".tar.bz2", "").replace(".git", "")
+        build_dir = os.path.join(self.externalLibDir_.ext_build, self.name_, verName)
         build_sub_dir = os.path.join(self.externalLibDir_.ext_build, self.name_, verName, self.name_)
         local_dir = os.path.join(self.externalLibDir_.install_dir, self.name_, verName, self.name_)
-        self.versions_[verName] = CPPLibPackageVersion(self.name_, verName,BuildPaths(url, build_dir, build_sub_dir, local_dir), depends)
+        self.versions_[verName] = CPPLibPackageVersion(self.name_, verName, BuildPaths(url, build_dir, build_sub_dir, local_dir), depends)
 
     def addHeaderOnlyVersion(self, url, verName, depends=[]):
         '''set up for header only libraries, these just need
@@ -1682,17 +1686,25 @@ class Packages():
                     f.flush()
 
     def addPackage(self, packVers, packVer):
-        packVer = LibNameVer(packVer.name, packVer.version.replace("/", "__"))
+        if hasattr(packVer, "commit"):
+            packVer = LibNameVerCommit(packVer.name, packVer.version.replace("/", "__"), packVer.commit)
+        else:
+            packVer = LibNameVer(packVer.name, packVer.version.replace("/", "__"))
         if self.checkForPackVer(packVer):
             pack = self.package(packVer.name)
             for dep in pack.versions_[packVer.version].depends_:
                 self.setUpPackagesNeeded([str(dep.name).lower()])
-                self.addPackage(packVers, LibNameVer(str(dep.name).lower(), dep.version))
+                if hasattr(dep, "commit"):
+                    self.addPackage(packVers, LibNameVerCommit(str(dep.name).lower(), dep.version, dep.commit))
+                else:
+                    self.addPackage(packVers, LibNameVer(str(dep.name).lower(), dep.version))
             found = False
             for otherPackVer in packVers:
                 if otherPackVer.name == packVer.name:
                     if otherPackVer.version != packVer.version:
                         raise Exception("Version conflict for " + packVer.name + " already have " + otherPackVer.version + " and adding: " + packVer.version)
+                    elif hasattr(otherPackVer, "commit") and hasattr(packVer, "commit") and otherPackVer.commit != packVer.commit:
+                        raise Exception("Commit conflict for " + str(packVer.name) + " version: " + str(packVer.version) + " already have " + str(otherPackVer.commit) +  " and adding: " + str(packVer.commit))
                     else:
                         found = True
             if not found:
@@ -1781,6 +1793,7 @@ class Setup:
             self.packages_.addPackage(self.setUpsNeeded, setupFound)
 
 
+
     def setupPackages(self, packNames=[]):
         #if we have internet and the cache is more than a day old, clear it
         if Utils.connectedInternet:
@@ -1807,13 +1820,22 @@ class Setup:
             if not setUpNeeded.name in list(self.setUps.keys()):
                 print(CT.boldBlack( "Unrecognized option ") + CT.boldRed(setUpNeeded.name))
             else:
-                self.__setup(setUpNeeded.name, setUpNeeded.version)
+                if hasattr(setUpNeeded, "commit"):
+                    self.__setup(setUpNeeded.name, setUpNeeded.version, setUpNeeded.commit)
+                else:
+                    self.__setup(setUpNeeded.name, setUpNeeded.version)
 
         for p in self.installed:
-            print(p.name + ":" + str(p.version), CT.boldGreen("installed"))
+            if hasattr(p, "commit"):
+                print(p.name + ":" + str(p.version)+ ":" + str(p.commit), CT.boldGreen("installed"))
+            else:
+                print(p.name + ":" + str(p.version), CT.boldGreen("installed"))
 
         for p in self.failedInstall:
-            print(p.name + ":" + str(p.version), CT.boldRed("failed to install"))
+            if hasattr(p, "commit"):
+                print(p.name + ":" + str(p.version)+ ":" + str(p.commit), CT.boldRed("failed to install"))
+            else:
+                print(p.name + ":" + str(p.version), CT.boldRed("failed to install"))
 
     def __initSetUpFuncs(self):
         self.setUps = {"zi_lib": self.zi_lib,
@@ -1868,7 +1890,7 @@ class Setup:
                        "pathweaver": self.pathweaver
                        }
         if self.args.private:
-          self.setUps["elucidatorlab"] = self.elucidatorlab;
+            self.setUps["elucidatorlab"] = self.elucidatorlab;
         '''
         "mlpack": self.mlpack,
         "liblinear": self.liblinear,
@@ -1909,7 +1931,10 @@ class Setup:
                     raise Exception("Need to give version for " + lib)
                 else:
                     libSplit = lib.split(":")
-                    self.foundSetUpsNeeded.append(LibNameVer(libSplit[0].lower(), libSplit[1]));
+                    if 3 == len(libSplit):
+                        self.foundSetUpsNeeded.append(LibNameVerCommit(libSplit[0].lower(), libSplit[1], libSplit[2]));
+                    else:
+                        self.foundSetUpsNeeded.append(LibNameVer(libSplit[0].lower(), libSplit[1]));
                     #self.packages_.addPackage(self.setUpsNeeded,LibNameVer(libSplit[0].lower(), libSplit[1]))
         if self.args.compfile:
             self.parseSetUpNeeded(self.args.compfile[0])
@@ -1953,10 +1978,14 @@ class Setup:
                     if "#" in v:
                         valSplit = v.split("#")
                         if valSplit[0] == '1':
-                            self.foundSetUpsNeeded.append(LibNameVer(k[4:].lower(),valSplit[1]));
+                            if ":" in valSplit[1]:
+                                valSplitFurther = valSplit[1].split(":")
+                                self.foundSetUpsNeeded.append(LibNameVerCommit(k[4:].lower(), valSplitFurther[0], valSplitFurther[1]));
+                            else:
+                                self.foundSetUpsNeeded.append(LibNameVer(k[4:].lower(), valSplit[1]));
                             #self.packages_.addPackage(self.setUpsNeeded, LibNameVer(k[4:].lower(),valSplit[1]))
                     else:
-                        raise Exception("Need to supply version in compfile with USE_PACKAGE#Version")
+                        raise Exception("Need to supply version in compfile with USE_PACKAGE#Version[:commit]")
             elif "PRIVATE" == k and "TRUE" == v:
                 self.args.private = True;
 
@@ -2003,24 +2032,53 @@ class Setup:
     def __package(self, name):
         return self.packages_.package(name)
 
-    def __setup(self, name, version):
+    def __setup(self, name, version, commit = ""):
         version = version.replace("/", "__")
         pack = self.__package(name)
         if not pack.hasVersion(version):
             raise Exception("Package " + str(name) + " doesn't have version " + str(version))
+        if "" != commit and "git" != pack.libType_ and "git-headeronly" != pack.libType_:
+            raise Exception("Error for " + str(name) + ":" + str(version) + ":" + str(commit) + " set a commit but library type isn't git or git-headeronly")
+        
+        
+        if "" != commit:
+            pack.versions_[version].nameVer_ = LibNameVer(name, commit)
+            commit_local_dir = os.path.join(self.dirMaster_.install_dir, name, commit, name)
+            commit_build_dir = os.path.join(self.dirMaster_.ext_build, name, commit)
+            commit_build_sub_dir = os.path.join(self.dirMaster_.ext_build, name, commit, name)
+            commit_url = pack.versions_[version].bPaths_.url
+            pack.versions_[version].bPaths_ = BuildPaths(commit_url, commit_build_dir, commit_build_sub_dir, commit_local_dir)
+            pack.versions_[version].includePath_ = os.path.join(joinNameVer(pack.versions_[version].nameVer_), "include")
+            pack.versions_[version].libPath_ = os.path.join(joinNameVer(pack.versions_[version].nameVer_), "lib")
+            pack.versions_[commit] = pack.versions_[version]
         bPath = pack.versions_[version].bPaths_
         if os.path.exists(bPath.local_dir):
-            print(CT.boldGreen(name + ":" + version), "found at " + CT.boldBlue(bPath.local_dir))
+            if "" != commit:
+                print(CT.boldGreen(name + ":" + commit), "found at " + CT.boldBlue(bPath.local_dir))
+            else:
+                print(CT.boldGreen(name + ":" + version), "found at " + CT.boldBlue(bPath.local_dir))
         else:
-            print(CT.boldGreen(name + ":" + version), CT.boldRed("NOT"), "found; building...")
-            print("Not found @", bPath.local_dir)
-            try:
-                self.setUps[name](version)
-                self.installed.append(LibNameVer(name, version))
-            except Exception as inst:
-                print(inst)
-                print(CT.boldRed("failed to install ") + name + ":" + str(version))
-                self.failedInstall.append(LibNameVer(name, version))
+            if "" == commit:
+                print(CT.boldGreen(name + ":" + version), CT.boldRed("NOT"), "found; building...")
+                print("Not found @", bPath.local_dir)
+                try:
+                    self.setUps[name](version)
+                    self.installed.append(LibNameVer(name, version))
+                except Exception as inst:
+                    print(inst)
+                    print(CT.boldRed("failed to install ") + name + ":" + str(version))
+                    self.failedInstall.append(LibNameVer(name, version))
+            else:
+                print(CT.boldGreen(name + ":" + commit), CT.boldRed("NOT"), "found; building...")
+                print("Not found @", bPath.local_dir)
+                try:
+                    self.setUps[name](commit)
+                    self.installed.append(LibNameVerCommit(name, version, commit))
+                except Exception as inst:
+                    print(inst)
+                    print(CT.boldRed("failed to install ") + name + ":" + str(commit))
+                    self.failedInstall.append(LibNameVerCommit(name, version, commit))                      
+
 
     def num_cores(self):
         retCores = Utils.num_cores()
@@ -2710,4 +2768,7 @@ class SetupRunner:
                 return 0
 
 if __name__ == '__main__':
+    #setups = [LibNameVer("njhcpp", "develop"), LibNameVerCommit("njhseq", "develop", "9d63c89")]
+    #for s in setups:
+    #    print(hasattr(s, "commit"))
     SetupRunner.runSetup()
