@@ -158,15 +158,19 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 	setOption(pars.lowLevelPopFiltPars_.removeCommonlyLowFreqHaplotypes_, "--excludeCommonlyLowFreqHaplotypes", "Remove Commonly Low Freq Haplotypes", false, "Filtering");
 	setOption(pars.lowLevelPopFiltPars_.lowFreqHaplotypeFracCutOff_, "--lowFreqHaplotypeFracCutOff", "Low Freq Haplotype Frac Cut Off", false, "Filtering");
 
-	setOption(pars.lowLevelPopFiltPars_.removeOneSampOnlyOneOffHaps_, "--removeOneSampOnlyOneOffHaps",
-			"Remove haplotypes that are below --oneSampOnlyOneOffHapsFrac fraction(default 0.20) that only appear in one sample that is one off of another haplotype within sample", false, "Filtering");
 	setOption(pars.lowLevelPopFiltPars_.oneSampOnlyOneOffHapsFrac_, "--oneSampOnlyOneOffHapsFrac",
 			"Fraction for --removeOneSampOnlyOneOffHaps", false, "Filtering");
+	setOption(pars.lowLevelPopFiltPars_.removeOneSampOnlyOneOffHaps_, "--removeOneSampOnlyOneOffHaps",njh::pasteAsStr(
+			"Remove haplotypes that are below --oneSampOnlyOneOffHapsFrac fraction(default ", pars.lowLevelPopFiltPars_.oneSampOnlyOneOffHapsFrac_,
+			") that only appear in one sample that is one off of another haplotype within sample"), false, "Filtering");
 
-	setOption(pars.lowLevelPopFiltPars_.removeOneSampOnlyHaps_, "--removeOneSampOnlyHaps",
-			"Remove haplotypes that are below --OneSampOnlyHapsFrac fraction(default 0.20) that only appear in one sample that is one off of another haplotype within sample", false, "Filtering");
+
 	setOption(pars.lowLevelPopFiltPars_.oneSampOnlyHapsFrac_, "--oneSampOnlyHapsFrac",
 			"Fraction for --removeOneSampOnlyHaps", false, "Filtering");
+	setOption(pars.lowLevelPopFiltPars_.removeOneSampOnlyHaps_, "--removeOneSampOnlyHaps",
+			njh::pasteAsStr("Remove haplotypes that are below --OneSampOnlyHapsFrac fraction(default ", pars.lowLevelPopFiltPars_.oneSampOnlyHapsFrac_,
+					") that only appear in one sample that is one off of another haplotype within sample"), false, "Filtering");
+
 
 	setOption(pars.rescuePars_.majorHaplotypeFracForRescue_, "--majorHaplotypeFracForRescue", "In order to be considered a major haplotype in a sample for comparing during rescue");
 	setOption(pars.rescuePars_.rescueExcludedChimericHaplotypes, "--rescueExcludedChimericHaplotypes", "Rescue Excluded chimeric Haplotypes if they appear as a major haplotype in another sample");

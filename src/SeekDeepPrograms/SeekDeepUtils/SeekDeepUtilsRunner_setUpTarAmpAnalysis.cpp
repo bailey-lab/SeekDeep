@@ -837,10 +837,13 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 					+ " processClusters "
 							"--alnInfoDir alnCache --strictErrors --dout analysis --fastqgz output.fastq.gz --overWriteDir ";
 	if(pars.techIsIllumina() || pars.techIsIlluminaSingleEnd()){
-		processClusterTemplate  += " --illumina";
+		auto lowerCaseExtracProcessArgs = stringToLowerReturn(analysisSetup.pars_.extraProcessClusterCmds);
+		if(std::string::npos == lowerCaseExtracProcessArgs.find("--illumina")){
+			processClusterTemplate  += " --illumina";
+		}
 	}
 	if (!analysisSetup.pars_.conservative) {
-		auto lowerCaseExtracProcessArgs = stringToLowerReturn(analysisSetup.pars_.extraProcessClusterCmds);
+
 		processClusterTemplate += " --removeOneSampOnlyOneOffHaps --excludeCommonlyLowFreqHaplotypes --excludeLowFreqOneOffs --rescueExcludedOneOffLowFreqHaplotypes";
 		//processClusterTemplate += " --excludeCommonlyLowFreqHaplotypes --excludeLowFreqOneOffs --fracCutOff 0 ";
 	}
