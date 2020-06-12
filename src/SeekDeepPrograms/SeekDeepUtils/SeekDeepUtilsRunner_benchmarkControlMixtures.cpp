@@ -62,7 +62,6 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 			auto h_Consensus = row[popInfoReader.header_.getColPos("h_Consesus")];
 			hPopUID_to_hConsensus[hapName] = h_Consensus;
 		}
-
 	}
 	uint64_t maxLen = 0;
 	auto sampInfoFnp = analysisMaster.getSampInfoPath();
