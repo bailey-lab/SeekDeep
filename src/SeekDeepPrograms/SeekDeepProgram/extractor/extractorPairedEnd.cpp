@@ -290,8 +290,18 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 	}
 
 	// create aligner for primer identification
-	auto scoreMatrix = substituteMatrix::createDegenScoreMatrixNoNInRef(
+	if(setUp.pars_.debug_){
+		std::cout << "setUp.pars_.generalMatch_: " << setUp.pars_.generalMatch_ << std::endl;
+		std::cout << "setUp.pars_.generalMismatch_: " << setUp.pars_.generalMismatch_ << std::endl;
+	}
+
+
+	auto scoreMatrix = substituteMatrix::createDegenScoreMatrixLessN(
 			setUp.pars_.generalMatch_, setUp.pars_.generalMismatch_);
+
+//	auto scoreMatrix = substituteMatrix::createDegenScoreMatrixNoNInRef(
+//			setUp.pars_.generalMatch_, setUp.pars_.generalMismatch_);
+
 	gapScoringParameters gapPars(setUp.pars_.gapInfo_);
 	KmerMaps emptyMaps;
 	bool countEndGaps = false;
