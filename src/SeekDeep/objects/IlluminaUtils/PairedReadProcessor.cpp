@@ -354,7 +354,7 @@ PairedReadProcessor::ProcessedPairRes PairedReadProcessor::processPairedEnd(
 		if(len(seq) > qPars.windowSize_){
 			for(const auto pos : iter::range<uint32_t>(startSearch, len(seq) - qPars.windowSize_, qPars.windowStep_)){
 				double sum = 0;
-				for(const auto & qPos : iter::range(pos, pos + qPars.windowSize_)){
+				for(const auto qPos : iter::range(pos, pos + qPars.windowSize_)){
 					sum += seq.qual_[qPos];
 				}
 				if(sum/qPars.windowSize_ < qPars.avgQualCutOff_){
@@ -373,7 +373,7 @@ PairedReadProcessor::ProcessedPairRes PairedReadProcessor::processPairedEnd(
 			for(const auto pos : iter::range<uint32_t>(0, end - qPars.windowSize_ - 1, qPars.windowStep_)){
 				uint32_t truePos = end - qPars.windowSize_ - pos - 1;
 				double sum = 0;
-				for(const auto & qPos : iter::range(truePos, truePos + qPars.windowSize_)){
+				for(const auto qPos : iter::range(truePos, truePos + qPars.windowSize_)){
 					sum += seq.qual_[qPos];
 				}
 				if(sum/qPars.windowSize_ < qPars.avgQualCutOff_){

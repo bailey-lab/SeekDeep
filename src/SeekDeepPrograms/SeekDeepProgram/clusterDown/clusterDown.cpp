@@ -253,7 +253,7 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 				smallWriter.openWrite(seq);
 			}else{
 			  bool found = false;
-			  for(const auto & clusPos : iter::range(clusters.size())){
+			  for(const auto clusPos : iter::range(clusters.size())){
 			  	if(seq.seq_ == clusters[clusPos].seqBase_.seq_){
 			  		clusters[clusPos].seqBase_.cnt_ += seq.cnt_;
 			  		clusters[clusPos].firstReadCount_ += seq.cnt_;
@@ -416,9 +416,9 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 		openTextFile(scoreArrayFile, "scoreArrayTest.tab.txt", ".txt", true, false);
 		std::ofstream scoreMapFile;
 		openTextFile(scoreMapFile, "scoreMapFile.tab.txt", ".txt", true, false);
-		for (const auto & row : iter::range(len(alignerObj.parts_.scoring_.mat_))) {
+		for (const auto row : iter::range(len(alignerObj.parts_.scoring_.mat_))) {
 			std::vector<int32_t> currentRow;
-			for (const auto & col : iter::range(
+			for (const auto col : iter::range(
 					len(alignerObj.parts_.scoring_.mat_[row]))) {
 				currentRow.emplace_back(alignerObj.parts_.scoring_.mat_[row][col]);
 			}
@@ -653,11 +653,11 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 		setUp.rLog_.logCurrentTime("Calling internal snps");
 		std::string snpDir = njh::files::makeDir(setUp.pars_.directoryName_,
 				njh::files::MkdirPar("internalSnpInfo", false)).string();
-		for (const auto & readPos : iter::range(clusters.size())) {
+		for (const auto readPos : iter::range(clusters.size())) {
 			std::unordered_map<uint32_t,
 					std::unordered_map<char, std::vector<baseReadObject>>>mismatches;
 
-			for (const auto & subReadPos : iter::range(
+			for (const auto subReadPos : iter::range(
 							clusters[readPos].reads_.size())) {
 				const auto & subRead = clusters[readPos].reads_[subReadPos];
 				alignerObj.alignCacheGlobal(clusters[readPos], subRead);

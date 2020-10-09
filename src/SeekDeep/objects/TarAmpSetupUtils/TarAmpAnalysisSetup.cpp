@@ -451,7 +451,7 @@ void TarAmpAnalysisSetup::addSamplesNames(const table & samplesNamesInputTab){
 			continue;
 		}
 		std::vector<std::string> nonEmptyRow;
-		for(const auto & colPos : iter::range(row.size())){
+		for(const auto colPos : iter::range(row.size())){
 			if(colPos < 2 && row[colPos].empty()){
 				std::stringstream ss;
 				ss << __PRETTY_FUNCTION__ << ": error column " << colPos << " can't be an empty string" << "\n";

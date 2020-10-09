@@ -330,7 +330,7 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 		SeqInput popReader(popSeqsOpts);
 		auto popSeqs = popReader.readAllReads<seqInfo>();
 		std::unordered_map<std::string, uint32_t> popSeqsPosition;
-		for(const auto & popPos : iter::range(popSeqs.size())){
+		for(const auto popPos : iter::range(popSeqs.size())){
 			popSeqsPosition[popSeqs[popPos].name_] = popPos;
 		}
 		OutputStream popBedLocs(njh::files::make_path(variantInfoDir, "PopSeqs.bed"));
