@@ -25,7 +25,7 @@
 //  Created by Nicholas Hathaway on 8/11/13.
 //
 #include "SeekDeepPrograms/SeekDeepProgram/SeekDeepRunner.hpp"
-
+#include <njhseq/objects/Meta/MetaUtils.hpp>
 
 
 namespace njhseq {

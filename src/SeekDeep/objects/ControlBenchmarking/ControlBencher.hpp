@@ -8,8 +8,11 @@
  */
 
 
-#include <njhseq.h>
+#include <njhseq/common.h>
+#include <njhseq/alignment/aligner/aligner.hpp>
+
 #include "SeekDeep/objects/ControlBenchmarking/ControlMixSetUp.hpp"
+
 
 namespace njhseq {
 

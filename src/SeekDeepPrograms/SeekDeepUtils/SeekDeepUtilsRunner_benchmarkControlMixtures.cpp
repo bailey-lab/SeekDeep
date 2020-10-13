@@ -8,7 +8,7 @@
 
 #include "SeekDeepUtilsRunner.hpp"
 #include "SeekDeep/objects/ControlBenchmarking.h"
-
+#include <njhseq/objects/dataContainers/tables/TableReader.hpp>
 namespace njhseq {
 
 
@@ -159,7 +159,7 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 		}
 		expNames.emplace(expSeq->name_);
 		bool found = false;
-		for(const auto & otherSeqPos : iter::range(expSeqs.size())){
+		for(const auto otherSeqPos : iter::range(expSeqs.size())){
 			const auto & otherSeq = expSeqs[otherSeqPos];
 			if(otherSeq->seq_ == expSeq->seq_){
 				found = true;

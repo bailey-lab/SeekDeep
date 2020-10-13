@@ -28,7 +28,7 @@
 // along with SeekDeep.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-#include <njhseq.h>
+#include <njhseq/common.h>
 #include "SeekDeep/objects/TarAmpSetupUtils/PrimersAndMids.hpp"
 #include "SeekDeep/objects/IlluminaUtils/PairedReadProcessor.hpp"
 

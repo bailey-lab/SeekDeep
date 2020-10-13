@@ -8,6 +8,10 @@
 
 #include "extractTargetsFromGenomes.hpp"
 
+#include <njhseq/GenomeUtils/GenomeExtraction/ParsingAlignmentInfo/AlignmentResults.hpp>
+#include <njhseq/GenomeUtils/GenomeExtraction/ParsingAlignmentInfo/GenomeExtractResult.hpp>
+#include <njhseq/objects/Gene/GeneFromGffs.hpp>
+
 namespace njhseq {
 
 void extractBetweenSeqsPars::setUpCoreOptions(seqSetUp & setUp, bool needReadLength){

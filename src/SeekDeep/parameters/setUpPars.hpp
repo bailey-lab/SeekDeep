@@ -26,7 +26,16 @@
 // You should have received a copy of the GNU General Public License
 // along with SeekDeep.  If not, see <http://www.gnu.org/licenses/>.
 //
-#include <njhseq.h>
+#include <njhseq/common.h>
+
+#include <njhseq/programUtils/seqSetUp.hpp>
+#include <njhseq/objects/seqObjects/Clusters/cluster.hpp>
+#include <njhseq/objects/Gene/TranslatorByAlignment.hpp>
+#include <njhseq/objects/collapseObjects/SampleCollapseCollection.hpp>
+
+
+
+
 #include "SeekDeep/objects/IlluminaUtils/PairedReadProcessor.hpp"
 #include "SeekDeep/objects/TarAmpSetupUtils/PrimersAndMids.hpp"
 #include "SeekDeep/objects/IlluminaUtils/IlluminaNameFormatDecoder.hpp"

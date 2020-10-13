@@ -26,6 +26,10 @@
 //
 #include "SeekDeepPrograms/SeekDeepProgram/SeekDeepRunner.hpp"
 
+#include <njhseq/objects/seqObjects/Clusters/clusterUtils.hpp>
+#include <njhseq/helpers/clusterCollapser.hpp>
+
+
 namespace njhseq {
 
 

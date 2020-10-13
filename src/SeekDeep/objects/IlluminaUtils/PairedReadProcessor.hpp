@@ -25,7 +25,10 @@
 // You should have received a copy of the GNU General Public License
 // along with SeekDeep.  If not, see <http://www.gnu.org/licenses/>.
 //
-#include <njhseq.h>
+#include <njhseq/common.h>
+#include <njhseq/IO/SeqIO.h>
+#include <njhseq/alignment/aligner/aligner.hpp>
+
 namespace njhseq {
 
 class PairedReadProcessor{

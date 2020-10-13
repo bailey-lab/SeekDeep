@@ -9,7 +9,7 @@
 
 
 
-#include <njhseq.h>
+#include <njhseq/common.h>
 
 #include "SeekDeep/objects/TarAmpSetupUtils/PrimersAndMids.hpp"
 

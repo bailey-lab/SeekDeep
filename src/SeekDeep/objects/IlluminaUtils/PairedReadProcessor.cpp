@@ -27,6 +27,10 @@
 
 #include "PairedReadProcessor.hpp"
 
+#include <njhseq/readVectorManipulation/readVectorHelpers/readVecTrimmer.hpp>
+#include <njhseq/IO/SeqIO.h>
+
+
 namespace njhseq {
 
 
