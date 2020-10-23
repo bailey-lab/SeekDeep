@@ -11,6 +11,9 @@
 #include <njhseq/GenomeUtils/GenomeExtraction/ParsingAlignmentInfo/AlignmentResults.hpp>
 #include <njhseq/GenomeUtils/GenomeExtraction/ParsingAlignmentInfo/GenomeExtractResult.hpp>
 #include <njhseq/objects/Gene/GeneFromGffs.hpp>
+#include <njhseq/objects/dataContainers/tables/TableReader.hpp>
+
+
 
 namespace njhseq {
 
@@ -157,6 +160,8 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 	}
 	if(extractPars.errors > 0){
 		auto maxPrimerSize = ids.pDeterminator_->getMaxPrimerSize();
+		auto minPrimerSize = ids.pDeterminator_->getMinPrimerSize();
+
 		//setup directories
 		for(const auto & target : ids.pDeterminator_->primers_){
 			const auto & primerInfo = target.second;
@@ -312,7 +317,7 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 			auto names = globalTreader.sequenceNames();
 			njh::concurrent::LockableQueue<std::string> nameQueue(names);
 
-			std::function<void()> extractGenomicPositions = [&maxPrimerSize,&ids,
+			std::function<void()> extractGenomicPositions = [&maxPrimerSize,&minPrimerSize,&ids,
 																											 &resultsByTargetByGenomeMut,&resultsByTargetByGenome,
 																											 &extractPars,&genome,&nameQueue](){
 				//seqInfo seq;
@@ -330,7 +335,21 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 					auto chromName = seqName;
 
 					kmerInfo info(seq.seq_, maxPrimerSize, false);
+					if(minPrimerSize < maxPrimerSize && seq.seq_.size() > maxPrimerSize){
+						for(const auto pos : iter::range(minPrimerSize, maxPrimerSize)){
+							auto currentK = seq.seq_.substr(len(seq) - pos);
+
+							auto k = info.kmers_.find(currentK);
+							if (k != info.kmers_.end()) {
+								k->second.addPosition(len(seq) - pos);
+							} else {
+								info.kmers_.emplace(currentK, kmer(currentK, len(seq) - pos));
+							}
+						}
+					}
+
 					for(const auto & primer : ids.pDeterminator_->primers_){
+
 						std::vector<GenomicRegion> fPrimerPositions;
 						std::vector<GenomicRegion> rPrimerPositions;
 
@@ -429,7 +448,6 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 									rPrimerPositionsUnique.emplace_back(rPrim);
 								}
 							}
-
 							addOtherVec(resultsByTargetByGenome[primer.second.primerPairName_][genome.first].fPrimerPositions_, fPrimerPositionsUnique);
 							addOtherVec(resultsByTargetByGenome[primer.second.primerPairName_][genome.first].rPrimerPositions_, rPrimerPositionsUnique);
 							addOtherVec(resultsByTargetByGenome[primer.second.primerPairName_][genome.first].regions_, PrimerPairSearchResults::getPossibleGenomeExtracts(fPrimerPositionsUnique, rPrimerPositionsUnique, extractPars.sizeLimit));
@@ -891,6 +909,28 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 
 	}
 
+
+
+	{
+		auto extractionCountsCombinedOpts = njh::files::make_path(outputDir, "allExtractionCounts.bed");
+
+		OutputStream allExtCountOut(extractionCountsCombinedOpts);
+		uint32_t count = 0;
+		for(const auto & tar : ids.targets_){
+			auto extractionCountsFnp = njh::files::make_path(outputDir, tar.first, "extractionCounts.tab.txt");
+			if(bfs::exists(extractionCountsFnp)){
+				TableReader extReader(TableIOOpts::genTabFileIn(extractionCountsFnp, true));
+				if(0 == count){
+					extReader.header_.outPutContents(allExtCountOut, "\t");
+				}
+				VecStr row;
+				while(extReader.getNextRow(row)){
+					allExtCountOut << njh::conToStr(row, "\t") << "\n";
+				}
+				++count;
+			}
+		}
+	}
 
 	auto locationsCombined = njh::files::make_path(outputDir, "locationsByGenome");
 	njh::files::makeDir(njh::files::MkdirPar{locationsCombined});
