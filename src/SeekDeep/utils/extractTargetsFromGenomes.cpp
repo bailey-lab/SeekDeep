@@ -912,7 +912,7 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 
 
 	{
-		auto extractionCountsCombinedOpts = njh::files::make_path(outputDir, "allExtractionCounts.bed");
+		auto extractionCountsCombinedOpts = njh::files::make_path(outputDir, "allExtractionCounts.tab.txt");
 
 		OutputStream allExtCountOut(extractionCountsCombinedOpts);
 		uint32_t count = 0;
