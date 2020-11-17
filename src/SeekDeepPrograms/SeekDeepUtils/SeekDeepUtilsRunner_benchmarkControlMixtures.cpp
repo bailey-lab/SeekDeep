@@ -75,7 +75,6 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 		auto hapName = row[sampInfoReader.header_.getColPos("c_name")];
 		auto c_ReadCnt = njh::StrToNumConverter::stoToNum<double>(row[sampInfoReader.header_.getColPos("c_ReadCnt")]);
 		auto c_AveragedFrac = njh::StrToNumConverter::stoToNum<double>(row[sampInfoReader.header_.getColPos("c_AveragedFrac")]);
-		//auto c_Consensus = row[sampInfoReader.header_.getColPos("c_Consensus")];
 		auto readCnt = njh::StrToNumConverter::stoToNum<double>(row[sampInfoReader.header_.getColPos("c_ReadCnt")]);
 		readCountsPerHapPerSample[sample][hapName] = readCnt;
 		auto h_popUID = row[sampInfoReader.header_.getColPos("h_popUID")];
