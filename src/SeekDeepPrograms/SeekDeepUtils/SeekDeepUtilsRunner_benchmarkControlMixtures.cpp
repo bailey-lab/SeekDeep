@@ -20,6 +20,7 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 	std::string name = "";
 	bfs::path metaFnp = "";
 	bool skipMissingSamples = false;
+	bool fillInMissingSamples = false;
 	bfs::path popSeqsFnp = "";
 	comparison allowableError;
 	seqSetUp setUp(inputCommands);
@@ -33,6 +34,8 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 	setUp.setOption(conBenchPars.samplesToMixFnp_, "--sampleToMixture", "Sample To Mixture, 2 columns 1)sample, 2)MixName", true);
 	setUp.setOption(conBenchPars.mixSetUpFnp_, "--mixtureSetUp", "Mixture Set Up, 3 columns 1)MixName, 2)strain, 3)relative_abundance", true);
 	setUp.setOption(skipMissingSamples, "--skipMissingSamples", "Skip Samples if they are missing");
+	setUp.setOption(fillInMissingSamples, "--fillInMissingSamples", "Fill in missing Samples with placeholders");
+
 	setUp.processComparison(allowableError);
 	setUp.processAlignerDefualts();
 	setUp.processDirectoryOutputName(name + "_benchmarkControlMixtures_TODAY", true);
@@ -348,7 +351,6 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 				}
 			}
 			haplotypesClassified << std::endl;
-
 		}
 		//performance
 		performanceOut  << name
@@ -443,6 +445,103 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 			}
 		}
 	}
+
+	if(fillInMissingSamples){
+		for(const auto & sname : missingSamples){
+
+			std::vector<seqInfo> resultSeqs = allResultSeqs[sname];
+
+			std::unordered_map<std::string, uint32_t> resSeqToPos;
+			double maxResFrac = 0;
+			for(const auto pos : iter::range(resultSeqs.size())){
+				resSeqToPos[resultSeqs[pos].name_] = pos;
+				if(resultSeqs[pos].frac_ > maxResFrac){
+					maxResFrac = resultSeqs[pos].frac_;
+				}
+			}
+			//get current expected seqs
+			std::unordered_map<std::string, double> currentExpectedSeqsFrac;
+			double maxExpFrac = 0;
+
+			for(const auto & expSeqFrac : bencher.mixSetups_.at(bencher.samplesToMix_.at(sname)).relativeAbundances_){
+				currentExpectedSeqsFrac[expSeqs[initialExpSeqsPositions[expSeqFrac.first]]->name_] += expSeqFrac.second;
+			}
+			for(const auto & expFrac : currentExpectedSeqsFrac){
+				if(expFrac.second > maxExpFrac){
+					maxExpFrac = expFrac.second;
+				}
+			}
+
+			std::unordered_map<std::string, std::string> expectedToMajorClass;
+			for(const auto & expFrac : currentExpectedSeqsFrac){
+				if(expFrac.second == maxExpFrac){
+					expectedToMajorClass[expFrac.first] = "major";
+				}else{
+					expectedToMajorClass[expFrac.first] = "minor";
+				}
+			}
+			std::unordered_map<std::string, std::string> resultsToMajorClass;
+			for(const auto & res : resultSeqs){
+				if(res.frac_ == maxResFrac){
+					resultsToMajorClass[res.name_] = "major";
+				}else{
+					resultsToMajorClass[res.name_] = "minor";
+				}
+			}
+
+
+			std::vector<std::shared_ptr<seqInfo>> currentExpectedSeqs;
+			for(const auto & finalExp : currentExpectedSeqsFrac){
+				currentExpectedSeqs.push_back(expSeqs[finalExpSeqsPositions[finalExp.first]]);
+			}
+
+
+			//performance
+			performanceOut  << name
+					<< "\t" << sname
+					<< "\t" << bencher.samplesToMix_[sname]
+					<< "\t" << 0
+					<< "\t" << 0
+					<< "\t" << 0
+					<< "\t" << 0
+					<< "\t" << currentExpectedSeqs.size()
+					<< "\t" << 0
+					<< "\t" << 0
+					<< "\t" << njh::conToStr(readVec::getNames(currentExpectedSeqs), ";")
+					<< "\t" << 0;
+			if(nullptr != analysisMaster.groupMetaData_){
+				for(const auto & meta : metalevels){
+					performanceOut << "\t" << analysisMaster.groupMetaData_->groupData_[meta]->getGroupForSample(sname);
+				}
+			}
+			performanceOut << std::endl;
+			for(const auto & missing : readVec::getNames(currentExpectedSeqs)){
+				haplotypesClassified << name
+						<< "\t" << sname
+						<< "\t" << bencher.samplesToMix_[sname]
+						<< "\t" << "NA"
+						<< "\t" << "NA"
+						<< "\t" << "NA"
+						<< "\t" << "NA"
+						<< "\t" << "NA"
+						<< "\t" << "NA"
+						<< "\t" << missing
+						<< "\t" << currentExpectedSeqsFrac[missing]
+						<< "\t" << expectedToMajorClass[missing];
+
+				haplotypesClassified
+						<< "\t" << "NA"
+						<< "\t" << "NA";
+				if(nullptr != analysisMaster.groupMetaData_){
+					for(const auto & meta : metalevels){
+						haplotypesClassified << "\t" << analysisMaster.groupMetaData_->groupData_[meta]->getGroupForSample(sname);
+					}
+				}
+				haplotypesClassified << std::endl;
+			}
+		}
+	}
+
 	alignerObj.processAlnInfoOutput(setUp.pars_.outAlnInfoDirName_, false);
 
 	return 0;
