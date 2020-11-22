@@ -263,8 +263,8 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 			expectedSeqNameToCurrentSeqsKey[expSeqs[initialExpSeqsPositions[expSeqFrac.first]]->name_].emplace_back(expSeqFrac.first);
 		}
 		for(auto & key : expectedSeqNameToCurrentSeqsKey){
-			std::cout << "key: " << key.first << std::endl;
-			std::cout << "\t" << njh::conToStr(key.second, ",") << std::endl;
+//			std::cout << "key: " << key.first << std::endl;
+//			std::cout << "\t" << njh::conToStr(key.second, ",") << std::endl;
 			njh::sort(key.second);
 		}
 		for(const auto & expFrac : currentExpectedSeqsFrac){
@@ -473,9 +473,15 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 			//get current expected seqs
 			std::unordered_map<std::string, double> currentExpectedSeqsFrac;
 			double maxExpFrac = 0;
+			std::unordered_map<std::string, VecStr> expectedSeqNameToCurrentSeqsKey;
+
 
 			for(const auto & expSeqFrac : bencher.mixSetups_.at(bencher.samplesToMix_.at(sname)).relativeAbundances_){
 				currentExpectedSeqsFrac[expSeqs[initialExpSeqsPositions[expSeqFrac.first]]->name_] += expSeqFrac.second;
+				expectedSeqNameToCurrentSeqsKey[expSeqs[initialExpSeqsPositions[expSeqFrac.first]]->name_].emplace_back(expSeqFrac.first);
+			}
+			for(auto & key : expectedSeqNameToCurrentSeqsKey){
+				njh::sort(key.second);
 			}
 			for(const auto & expFrac : currentExpectedSeqsFrac){
 				if(expFrac.second > maxExpFrac){
@@ -505,8 +511,10 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 			for(const auto & finalExp : currentExpectedSeqsFrac){
 				currentExpectedSeqs.push_back(expSeqs[finalExpSeqsPositions[finalExp.first]]);
 			}
-
-
+			VecStr missingExpectedDecoded;
+			for(const auto & missing: currentExpectedSeqs){
+				missingExpectedDecoded.emplace_back(njh::conToStr(expectedSeqNameToCurrentSeqsKey[missing->name_], ","));
+			}
 			//performance
 			performanceOut  << name
 					<< "\t" << sname
@@ -536,7 +544,7 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 						<< "\t" << "NA"
 						<< "\t" << "NA"
 						<< "\t" << "NA"
-						<< "\t" << missing
+						<< "\t" << njh::conToStr(expectedSeqNameToCurrentSeqsKey[missing], ",")
 						<< "\t" << currentExpectedSeqsFrac[missing]
 						<< "\t" << expectedToMajorClass[missing];
 
