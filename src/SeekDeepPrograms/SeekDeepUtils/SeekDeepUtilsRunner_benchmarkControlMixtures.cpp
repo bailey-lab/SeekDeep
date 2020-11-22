@@ -263,6 +263,8 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 			expectedSeqNameToCurrentSeqsKey[expSeqs[initialExpSeqsPositions[expSeqFrac.first]]->name_].emplace_back(expSeqFrac.first);
 		}
 		for(auto & key : expectedSeqNameToCurrentSeqsKey){
+			std::cout << "key: " << key.first << std::endl;
+			std::cout << "\t" << njh::conToStr(key.second, ",") << std::endl;
 			njh::sort(key.second);
 		}
 		for(const auto & expFrac : currentExpectedSeqsFrac){
