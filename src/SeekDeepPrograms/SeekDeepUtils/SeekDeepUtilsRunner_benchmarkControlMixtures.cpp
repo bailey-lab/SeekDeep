@@ -314,7 +314,7 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 					<< "\t" << readCountsPerHapPerSample[sname][seq.name_]
 					<< "\t" << seq.frac_
 					<< "\t" << ("" == res.resSeqToExpSeq_[seq.name_] ? "FALSE": "TRUE")
-					<< "\t" << res.resSeqToExpSeq_[seq.name_]
+					<< "\t" << njh::conToStr(expectedSeqNameToCurrentSeqsKey[res.resSeqToExpSeq_[seq.name_]], ",")
 					<< "\t" << currentExpectedSeqsFrac[res.resSeqToExpSeq_[seq.name_]]
 					<< "\t" << expectedToMajorClass[res.resSeqToExpSeq_[seq.name_]];
 
@@ -526,7 +526,7 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 					<< "\t" << currentExpectedSeqs.size()
 					<< "\t" << 0
 					<< "\t" << 0
-					<< "\t" << njh::conToStr(readVec::getNames(currentExpectedSeqs), ";")
+					<< "\t" << njh::conToStr(missingExpectedDecoded, ";")
 					<< "\t" << 0;
 			if(nullptr != analysisMaster.groupMetaData_){
 				for(const auto & meta : metalevels){
