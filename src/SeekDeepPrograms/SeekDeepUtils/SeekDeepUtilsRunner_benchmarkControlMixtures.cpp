@@ -256,9 +256,14 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 		//get current expected seqs
 		std::unordered_map<std::string, double> currentExpectedSeqsFrac;
 		double maxExpFrac = 0;
+		std::unordered_map<std::string, VecStr> expectedSeqNameToCurrentSeqsKey;
 
 		for(const auto & expSeqFrac : bencher.mixSetups_.at(bencher.samplesToMix_.at(sname)).relativeAbundances_){
 			currentExpectedSeqsFrac[expSeqs[initialExpSeqsPositions[expSeqFrac.first]]->name_] += expSeqFrac.second;
+			expectedSeqNameToCurrentSeqsKey[expSeqs[initialExpSeqsPositions[expSeqFrac.first]]->name_].emplace_back(expSeqFrac.first);
+		}
+		for(auto & key : expectedSeqNameToCurrentSeqsKey){
+			njh::sort(key.second);
 		}
 		for(const auto & expFrac : currentExpectedSeqsFrac){
 			if(expFrac.second > maxExpFrac){
@@ -338,7 +343,7 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 					<< "\t" << "NA"
 					<< "\t" << "NA"
 					<< "\t" << "NA"
-					<< "\t" << missing
+					<< "\t" << njh::conToStr(expectedSeqNameToCurrentSeqsKey[missing], ",")
 					<< "\t" << currentExpectedSeqsFrac[missing]
 					<< "\t" << expectedToMajorClass[missing];
 
@@ -353,6 +358,10 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 			haplotypesClassified << std::endl;
 		}
 		//performance
+		VecStr missingExpectedDecoded;
+		for(const auto & missing: res.missingExpecteds_){
+			missingExpectedDecoded.emplace_back(njh::conToStr(expectedSeqNameToCurrentSeqsKey[missing], ","));
+		}
 		performanceOut  << name
 				<< "\t" << sname
 				<< "\t" << bencher.samplesToMix_[sname]
@@ -363,7 +372,7 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 				<< "\t" << res.expectedHapCnt_
 				<< "\t" << res.hapRecoveryRate()
 				<< "\t" << res.falseHapRate()
-				<< "\t" << njh::conToStr(res.missingExpecteds_, ";")
+				<< "\t" << njh::conToStr(missingExpectedDecoded, ";")
 				<< "\t" << res.RMSE();
 		if(nullptr != analysisMaster.groupMetaData_){
 			for(const auto & meta : metalevels){
