@@ -688,6 +688,7 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 			}
 		};
 
+
 		comparison allowableErrors;
 		allowableErrors.hqMismatches_ = extractPars.errors;
 		std::function<void()> extractPathway =
@@ -955,6 +956,8 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 	}
 
 	njh::concurrent::LockableQueue<std::string> genomeQueue(getVectorOfMapKeys(gMapper->genomes_));
+
+
 	std::function<void()> getOuterRegionInfos = [&genomeQueue,&gMapper,&extractPars,&locationsCombined,&outputDir,&ids](){
 		std::string genome;
 		while(genomeQueue.getVal(genome)){
@@ -968,6 +971,7 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 					addOtherVec(allRegions, locs);
 				}
 			}
+
 			if(!allRegions.empty()){
 				if("" != gMapper->genomes_.at(genome)->gffFnp_){
 					intersectBedLocsWtihGffRecordsPars pars(gMapper->genomes_.at(genome)->gffFnp_);
@@ -1033,6 +1037,7 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 	};
 	njh::concurrent::runVoidFunctionThreaded(getOuterRegionInfos, extractPars.pars.numThreads_);
 
+
 	struct InsertProteinInfo {
 		InsertProteinInfo(const std::string & id, uint32_t aaStart, uint32_t aaStop,
 				const std::string & desc) :
@@ -1043,6 +1048,7 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 		uint32_t aaStop_; //1-based
 		std::string description_;
 	};
+
 	std::unordered_map<std::string, std::vector<InsertProteinInfo>> proteinInsertInfoByName;
 	std::mutex proteinInsertInfoByNameMut;
 	njh::concurrent::LockableQueue<std::string> genomeQueueForInsert(getVectorOfMapKeys(gMapper->genomes_));
@@ -1062,6 +1068,7 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 					addOtherVec(allRegions, locs);
 				}
 			}
+
 			if(!allRegions.empty()){
 				if("" != gMapper->genomes_.at(genome)->gffFnp_){
 					intersectBedLocsWtihGffRecordsPars pars(gMapper->genomes_.at(genome)->gffFnp_);
@@ -1070,7 +1077,10 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 					auto jsonValues = intersectBedLocsWtihGffRecords(allRegions, pars);
 					auto geneIds = jsonValues.getMemberNames();
 					std::set<std::string> geneIdsSet(geneIds.begin(), geneIds.end());
+
 					auto genes = GeneFromGffs::getGenesFromGffForIds(gMapper->genomes_.at(genome)->gffFnp_,geneIdsSet);
+
+
 					for(const auto & reg : allRegions){
 						if(reg->extraFields_.empty()){
 							continue;
@@ -1088,6 +1098,7 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 							MetaDataInName geneMeta(geneTok);
 							TwoBit::TwoBitFile tReader(gMapper->genomes_.at(genome)->fnpTwoBit_);
 							auto infos = njh::mapAt(genes, geneMeta.getMeta("ID"))->generateGeneSeqInfo(tReader, false);
+							auto detailedName = njh::mapAt(genes, geneMeta.getMeta("ID"))->getGeneDetailedName();
 							for(const auto & info : infos){
 								auto posInfos = info.second->getInfosByGDNAPos();
 
@@ -1099,7 +1110,22 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 								auto aaStopPos =  std::max(posInfos[startPos].aaPos_, posInfos[stopPos].aaPos_) + 1;
 								geneMeta.addMeta(info.first + "-AAStart", aaStartPos );
 								geneMeta.addMeta(info.first + "-AAStop", aaStopPos );
-								proteinInsertInfoByNameCurrent[reg->name_].emplace_back(geneMeta.getMeta("ID"), aaStartPos, aaStopPos, geneMeta.getMeta("description"));
+								std::string description = "";
+								bool allNAs = true;
+								for(const auto & field : pars.extraAttributes_){
+									if("" != description){
+										description += "::";
+									}
+									if("NA" != geneMeta.getMeta(field)){
+										allNAs = false;
+									}
+									description += geneMeta.getMeta(field);
+								}
+								if(allNAs){
+									description = detailedName[info.first];
+									geneMeta.addMeta("detailedDescription", detailedName[info.first]);
+								}
+								proteinInsertInfoByNameCurrent[reg->name_].emplace_back(geneMeta.getMeta("ID"), aaStartPos, aaStopPos, description);
 							}
 							if("" != replacement){
 								replacement += ",";
