@@ -602,7 +602,7 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 							snpMeta[seqName.first].addMeta(estd::to_string(variablePos.first), "X", false);
 						} else {
 //							std::cout << __FILE__ << " " << __LINE__ << std::endl;
-							auto aa = seqName.second.front().querySeq_.seq_[getAlnPosForRealPos(seqName.second.front().alnRefSeq_.seq_, variablePos.first - seqName.second.front().gRegion_.start_)];
+							auto aa = seqName.second.front().alnQuerySeq_.seq_[getAlnPosForRealPos(seqName.second.front().alnRefSeq_.seq_, variablePos.first - seqName.second.front().gRegion_.start_)];
 							snpMeta[seqName.first].addMeta(estd::to_string(variablePos.first), aa, false);
 //							std::cout << __FILE__ << " " << __LINE__ << std::endl;
 						}
