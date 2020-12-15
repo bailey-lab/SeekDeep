@@ -274,7 +274,31 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 	}
 	//if ("" != pars.previousPopFilename && !pars.noPopulation) {
 	if ("" != pars.previousPopFilename) {
-		sampColl.renamePopWithSeqs(getSeqs<readObject>(pars.previousPopFilename), pars.previousPopErrors);
+		auto previousPopSeqsRaw = getSeqs<readObject>(pars.previousPopFilename);
+		//collapse indentical seqs
+		std::vector<readObject> previousPopSeqs;
+		std::vector<std::set<std::string>> allNamesForPreviousPops;
+		for(const auto & seq : previousPopSeqsRaw){
+			bool matchPrevious = false;
+			for(const auto  other : iter::enumerate(previousPopSeqs)){
+				if(other.element.seqBase_.seq_ == seq.seqBase_.seq_){
+					matchPrevious = true;
+					allNamesForPreviousPops[other.first].emplace(seq.seqBase_.name_);
+					break;
+				}
+			}
+			if(!matchPrevious){
+				previousPopSeqs.emplace_back(seq);
+				allNamesForPreviousPops.emplace_back(std::set<std::string>{seq.seqBase_.name_});
+			}
+		}
+		//rename
+		for(const auto  other : iter::enumerate(previousPopSeqs)){
+			if(allNamesForPreviousPops[other.index].size() > 1){
+				other.element.seqBase_.name_ = njh::conToStr(allNamesForPreviousPops[other.index], ":");
+			}
+		}
+		sampColl.renamePopWithSeqs(previousPopSeqs, pars.previousPopErrors);
 	}
 
 	if (!expectedSeqs.empty()) {
