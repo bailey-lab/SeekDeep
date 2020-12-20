@@ -62,7 +62,7 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 		VecStr row;
 		while(popInfoReader.getNextRow(row)){
 			auto hapName = row[popInfoReader.header_.getColPos("h_popUID")];
-			auto h_Consensus = row[popInfoReader.header_.getColPos("h_Consesus")];
+			auto h_Consensus = row[popInfoReader.header_.getColPos("h_Consensus")];
 			hPopUID_to_hConsensus[hapName] = h_Consensus;
 		}
 	}
