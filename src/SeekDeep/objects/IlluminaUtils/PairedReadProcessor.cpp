@@ -45,7 +45,7 @@ void PairedReadProcessor::setDefaultConsensusBuilderFunc(){
 			const seqInfo & r1,
 			const seqInfo & r2,
 			std::string & cseq,
-			std::vector<uint32_t> & cquals,
+			std::vector<uint8_t> & cquals,
 			aligner & alignerObj){
 		if('-' == r1.seq_[pos]){
 			//gap in r1
@@ -457,7 +457,7 @@ PairedReadProcessor::ProcessedPairRes PairedReadProcessor::processPairedEnd(
 			//no over hangs, perfect overlap
 			std::string cseq;
 			cseq.reserve(alignerObj.comp_.distances_.basesInAln_);
-			std::vector<uint32_t> quals;
+			std::vector<uint8_t> quals;
 			quals.reserve(alignerObj.comp_.distances_.basesInAln_);
 			for(const auto pos : iter::range(len(alignerObj.alignObjectA_))){
 				addToConsensus(pos,
@@ -481,7 +481,7 @@ PairedReadProcessor::ProcessedPairRes PairedReadProcessor::processPairedEnd(
 			//ideal situation, R1 end overlaps R2 beg
 			std::string cseq;
 			cseq.reserve(alignerObj.alignObjectA_.seqBase_.seq_.size());
-			std::vector<uint32_t> quals;
+			std::vector<uint8_t> quals;
 			quals.reserve(alignerObj.alignObjectA_.seqBase_.seq_.size());
 			uint32_t r1End = alignerObj.alignObjectA_.seqBase_.seq_.find_last_not_of('-') + 1;
 			uint32_t r2Start = alignerObj.alignObjectB_.seqBase_.seq_.find_first_not_of('-');
@@ -539,7 +539,7 @@ PairedReadProcessor::ProcessedPairRes PairedReadProcessor::processPairedEnd(
 
 			std::string cseq;
 			cseq.reserve(alignerObj.comp_.distances_.basesInAln_);
-			std::vector<uint32_t> quals;
+			std::vector<uint8_t> quals;
 			quals.reserve(alignerObj.comp_.distances_.basesInAln_);
 			//get consensus of middle
 			for(const auto pos : iter::range(r1Start, r2End)){
@@ -573,7 +573,7 @@ PairedReadProcessor::ProcessedPairRes PairedReadProcessor::processPairedEnd(
 			}
 			std::string cseq;
 			cseq.reserve(alignerObj.comp_.distances_.basesInAln_);
-			std::vector<uint32_t> quals;
+			std::vector<uint8_t> quals;
 			quals.reserve(alignerObj.comp_.distances_.basesInAln_);
 			//get consensus of middle
 			for(const auto pos : iter::range(r1Start, r2End)){
@@ -605,7 +605,7 @@ PairedReadProcessor::ProcessedPairRes PairedReadProcessor::processPairedEnd(
 			}
 			std::string cseq;
 			cseq.reserve(alignerObj.comp_.distances_.basesInAln_);
-			std::vector<uint32_t> quals;
+			std::vector<uint8_t> quals;
 			quals.reserve(alignerObj.comp_.distances_.basesInAln_);
 			//get consensus of middle
 			for(const auto pos : iter::range(r1Start, r2End)){

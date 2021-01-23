@@ -183,7 +183,7 @@ public:
 		Json::Value toJsonCounts() const;
 	};
 
-	std::function<void(uint32_t, const seqInfo&,const seqInfo&,std::string&,std::vector<uint32_t>&,aligner&)> addToConsensus;
+	std::function<void(uint32_t, const seqInfo&,const seqInfo&,std::string&,std::vector<uint8_t>&,aligner&)> addToConsensus;
 
 
 	ProcessedResultsCounts processPairedEnd(
