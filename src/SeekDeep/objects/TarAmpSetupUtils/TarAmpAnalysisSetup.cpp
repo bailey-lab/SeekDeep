@@ -496,7 +496,7 @@ void TarAmpAnalysisSetup::addSamplesNames(const table & samplesNamesInputTab){
 			if(pars_.byIndex){
 				for(const auto & rep : reps){
 					if(!std::regex_match(rep, match, pat)){
-						errorStream << "Error for " << sample << " in " << target << "rep name needs begins with MID and end with a number" << "\n";
+						errorStream << "Error for " << sample << " in " << target << " rep name needs begins with MID and end with a number" << "\n";
 						errorStream << "Failed: " << njh::bashCT::red << rep << njh::bashCT::reset << "\n";
 						failed = true;
 					}
