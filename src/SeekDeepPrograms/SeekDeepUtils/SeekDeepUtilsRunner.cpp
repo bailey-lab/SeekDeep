@@ -315,6 +315,8 @@ int SeekDeepUtilsRunner::runMultipleCommands(
 	uint32_t numThreads = 1;
 	bool raw = false;
 	bool noFilesInReplacementToks = false;
+	std::string additionalFields = "";
+	bool replaceFields = false;
 	seqSetUp setUp(inputCommands);
 	setUp.processVerbose();
 	setUp.processDebug();
@@ -328,6 +330,8 @@ int SeekDeepUtilsRunner::runMultipleCommands(
 			"If if the file is simply just a list of commands to run");
 	setUp.setOption(noFilesInReplacementToks, "--noFilesInReplacementToks",
 			"The replacement tokens are by default checked to see if there are files and more replacement strings are read in where each line is a replacement, this turns off that behavior");
+	setUp.setOption(additionalFields, "--additionalFields", "Additional fields to be replaced in the CMD: line, need to be given in format Key1:values;Key2:values");
+	setUp.setOption(replaceFields, "--replaceFields", "Replace Fields");
 
 	setUp.processWritingOptions();
 
@@ -376,8 +380,9 @@ int SeekDeepUtilsRunner::runMultipleCommands(
 	}
 	std::string cmd;
 	VecStr cmds;
-	std::string line;
+
 	if (raw) {
+		std::string line;
 		while (njh::files::crossPlatGetline(inFile, line)) {
 			if ("" == line || allWhiteSpaceStr(line) || njh::beginsWith(line, "#")) {
 				continue;
@@ -385,11 +390,13 @@ int SeekDeepUtilsRunner::runMultipleCommands(
 			cmds.emplace_back(line);
 		}
 	} else {
+		std::string line;
 		std::map<std::string, VecStr> replacements;
 		while (njh::files::crossPlatGetline(inFile, line)) {
 			if ("" == line || allWhiteSpaceStr(line) || njh::beginsWith(line, "#")) {
 				continue;
 			}
+
 			auto colonPos = line.find(":");
 
 			if (std::string::npos == colonPos) {
@@ -410,6 +417,41 @@ int SeekDeepUtilsRunner::runMultipleCommands(
 					VecStr finalReplacements;
 					for(const auto & tok : repToks){
 						addOtherVec(finalReplacements, getInputValues(tok, ","));
+					}
+					if(njh::in(toks.front(), replacements) && !replaceFields){
+						std::stringstream ss;
+						ss << __PRETTY_FUNCTION__ << ", error " << "already have key " << toks.front()<< "\n";
+						throw std::runtime_error{ss.str()};
+					}
+					replacements[toks.front()] = finalReplacements;
+				}
+			}
+		}
+		if("" != additionalFields){
+			auto addFieldToks = tokenizeString(additionalFields, ";");
+			for(const auto & addFieldTok : addFieldToks){
+				auto colonPos = addFieldTok.find(":");
+
+				if (std::string::npos == colonPos) {
+					std::stringstream ss;
+					ss << "Error in processing argument: " << njh::bashCT::boldRed(addFieldTok)
+							<< std::endl;
+					ss << "Need at least one colon" << std::endl;
+					throw std::runtime_error { ss.str() };
+				}
+				VecStr toks { addFieldTok.substr(0, colonPos), addFieldTok.substr(colonPos + 1) };
+				if(noFilesInReplacementToks){
+					replacements[toks.front()] = tokenizeString(toks.back(), ",");
+				}else{
+					auto repToks = tokenizeString(toks.back(), ",");
+					VecStr finalReplacements;
+					for(const auto & tok : repToks){
+						addOtherVec(finalReplacements, getInputValues(tok, ","));
+					}
+					if(njh::in(toks.front(), replacements) && !replaceFields){
+						std::stringstream ss;
+						ss << __PRETTY_FUNCTION__ << ", error " << "already have key " << toks.front()<< "\n";
+						throw std::runtime_error{ss.str()};
 					}
 					replacements[toks.front()] = finalReplacements;
 				}
