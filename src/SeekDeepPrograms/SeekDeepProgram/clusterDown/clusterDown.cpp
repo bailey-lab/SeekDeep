@@ -621,9 +621,16 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 //	}
 	if (pars.additionalOut) {
 		auto fnp = setUp.pars_.ioOptions_.firstName_.filename().string();
-		if(njh::endsWith(fnp, ".gz")){
+		if (njh::endsWith(fnp, ".gz")) {
 			fnp = fnp.substr(0, fnp.rfind(".gz"));
 		}
+		if (njh::endsWith(fnp, "_R1.fastq")){
+			fnp = fnp.substr(0, fnp.rfind("_R1.fastq")) + ".fastq";
+		}
+		if (njh::endsWith(fnp, "_R2.fastq")){
+			fnp = fnp.substr(0, fnp.rfind("_R2.fastq")) + ".fastq";
+		}
+
 		std::string additionalOutDir = findAdditonalOutLocation(
 				pars.additionalOutLocationFile, fnp);
 		if (additionalOutDir == "") {

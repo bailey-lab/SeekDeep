@@ -139,6 +139,9 @@ TarAmpAnalysisSetup::TarAmpAnalysisSetup(const TarAmpPars & inputPars) :
 	reportsDir_ = njh::files::makeDir(dir_.string(),njh::files::MkdirPar("reports"));
 	serverConfigsDir_ = njh::files::makeDir(dir_.string(), njh::files::MkdirPar("serverConfigs"));
 
+	//add ids and primers
+	idsMids_ = std::make_unique<PrimersAndMids>(pars_.idFile);
+
 	if("" == pars_.samplesNamesFnp){
 		if("" != pars_.samplesNamesWithBarcodeInfoFnp){
 			//
@@ -161,14 +164,28 @@ TarAmpAnalysisSetup::TarAmpAnalysisSetup(const TarAmpPars & inputPars) :
 			//if samples fnp not set, try to guess samples
 			auto samps = GuessPossibleSamps(pars_);
 			auto guessSamplesFnp = njh::files::make_path(infoDir_, "guessedSamples.tab.txt");
-			OutputStream guessedSamplesOut(guessSamplesFnp);
-			samps.outPutContents(guessedSamplesOut,"\t");
-			pars_.samplesNamesFnp = guessSamplesFnp;
+
+			if(idsMids_->containsMids()){
+				table guessedSamplesWithMids(VecStr{"#index", "sample", "run1"});
+				auto sampleCol = samps.getColPos("sample");
+				for(const auto & row : samps){
+					for(const auto & mid : idsMids_->getMids()){
+						guessedSamplesWithMids.addRow(row[sampleCol], njh::pasteAsStr(row[sampleCol], mid), mid);
+					}
+				}
+				auto guessSamplesWithMidsFnp = njh::files::make_path(infoDir_, "guessedSamplesWithMids.tab.txt");
+				OutputStream guessedSamplesWithMidsOut(guessSamplesWithMidsFnp);
+				guessedSamplesWithMids.outPutContents(guessedSamplesWithMidsOut,"\t");
+				pars_.samplesNamesFnp = guessSamplesWithMidsFnp;
+			}else{
+				OutputStream guessedSamplesOut(guessSamplesFnp);
+				samps.outPutContents(guessedSamplesOut,"\t");
+				pars_.samplesNamesFnp = guessSamplesFnp;
+			}
 		}
 	}
 
-	//add ids and primers
-	idsMids_ = std::make_unique<PrimersAndMids>(pars_.idFile);
+
 
 	if(idsMids_->containsMids()){
 		// set this automatically
@@ -177,6 +194,21 @@ TarAmpAnalysisSetup::TarAmpAnalysisSetup(const TarAmpPars & inputPars) :
 	if(idsMids_->containsMids()){
 		idsMids_->checkMidNamesThrow();
 	}
+	//add ref seqs if provided
+	if("" != pars_.refSeqsDir){
+		addRefSeqs(pars_.refSeqsDir);
+	}
+	//add len cut offs if provided
+	if("" != pars_.lenCutOffsFnp){
+		addLenCutOffs(pars_.lenCutOffsFnp);
+	}
+	//add overlap status
+	if("" != pars_.overlapStatusFnp){
+		addOverlapStatus(pars_.overlapStatusFnp);
+	}else if(!pars_.defaultStatuses_.empty()){
+		idsMids_->addOverLapStatuses(pars_.defaultStatuses_);
+	}
+
 	//add sample names
 	addSamplesNames(pars_.samplesNamesFnp);
 	writeSampleNamesFile();
@@ -219,20 +251,7 @@ TarAmpAnalysisSetup::TarAmpAnalysisSetup(const TarAmpPars & inputPars) :
 		bfs::copy_file(groupMetaData_->groupingsFile_,
 				njh::files::make_path(infoDir_, "groupMeta.tab.txt"));
 	}
-	//add ref seqs if provided
-	if("" != pars_.refSeqsDir){
-		addRefSeqs(pars_.refSeqsDir);
-	}
-	//add len cut offs if provided
-	if("" != pars_.lenCutOffsFnp){
-		addLenCutOffs(pars_.lenCutOffsFnp);
-	}
-	//add overlap status
-	if("" != pars_.overlapStatusFnp){
-		addOverlapStatus(pars_.overlapStatusFnp);
-	}else if(!pars_.defaultStatuses_.empty()){
-		idsMids_->addOverLapStatuses(pars_.defaultStatuses_);
-	}
+
 
 	auto targets = getTargets();
 	VecStr failedTargets;
@@ -398,21 +417,55 @@ void TarAmpAnalysisSetup::writeSampleNamesFile() const {
 					".tab.txt"));
 	auto keys = getVectorOfMapKeys(samples_);
 	njh::sort(keys);
+//	std::cout << __FILE__ << " " << __LINE__ << std::endl;
 	for (const auto & tarKey : keys) {
-		auto sampKeys = njh::getVecOfMapKeys(samples_.at(tarKey).samples_);
-		njh::sort(sampKeys);
-		for (const auto & sampKey : sampKeys) {
-			sampleNamesFile << tarKey << "\t" << sampKey;
-			for (auto rep : samples_.at(tarKey).samples_.at(sampKey).reps_) {
-				if (!njh::beginsWith(rep, "MID")) {
-					rep = "MID" + rep;
+		if(!pars_.byIndex && 1 == idsMids_->targets_.at(tarKey).overlapStatuses_.size()
+				&& PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP
+						== idsMids_->targets_.at(tarKey).overlapStatuses_.front())  {
+
+//			std::cout << tarKey << std::endl;
+//			std::cout << "\t" << idsMids_->targets_.at(tarKey).overlapStatuses_.size() << std::endl;
+//			std::cout << "\t" << static_cast<uint32_t>(idsMids_->targets_.at(tarKey).overlapStatuses_.front()) << std::endl;
+
+			auto sampKeys = njh::getVecOfMapKeys(samples_.at(tarKey).samples_);
+			njh::sort(sampKeys);
+
+			for (const auto & sampKey : sampKeys) {
+				sampleNamesFile << tarKey << "-R1" << "\t" << sampKey;
+				for (auto rep : samples_.at(tarKey).samples_.at(sampKey).reps_) {
+					if (!njh::beginsWith(rep, "MID")) {
+						rep = "MID" + rep;
+					}
+					sampleNamesFile << "\t" << rep;
 				}
-				sampleNamesFile << "\t" << rep;
+				sampleNamesFile << std::endl;
 			}
-			sampleNamesFile << std::endl;
+			for (const auto & sampKey : sampKeys) {
+				sampleNamesFile << tarKey<< "-R2" << "\t" << sampKey;
+				for (auto rep : samples_.at(tarKey).samples_.at(sampKey).reps_) {
+					if (!njh::beginsWith(rep, "MID")) {
+						rep = "MID" + rep;
+					}
+					sampleNamesFile << "\t" << rep;
+				}
+				sampleNamesFile << std::endl;
+			}
+		}else{
+			auto sampKeys = njh::getVecOfMapKeys(samples_.at(tarKey).samples_);
+			njh::sort(sampKeys);
+			for (const auto & sampKey : sampKeys) {
+				sampleNamesFile << tarKey << "\t" << sampKey;
+				for (auto rep : samples_.at(tarKey).samples_.at(sampKey).reps_) {
+					if (!njh::beginsWith(rep, "MID")) {
+						rep = "MID" + rep;
+					}
+					sampleNamesFile << "\t" << rep;
+				}
+				sampleNamesFile << std::endl;
+			}
 		}
 	}
-
+//	std::cout << __FILE__ << " " << __LINE__ << std::endl;
 }
 
 VecStr TarAmpAnalysisSetup::getTargets() const {
@@ -480,7 +533,6 @@ void TarAmpAnalysisSetup::addSamplesNames(const table & samplesNamesInputTab){
 	std::smatch match;
 	for (const auto & row : finalSamps) {
 		std::string targetRaw = row[0];
-
 		VecStr targets{targetRaw};
 		if("all" == njh::strToLowerRet(targetRaw)){
 			if(nullptr == idsMids_){
@@ -520,6 +572,7 @@ void TarAmpAnalysisSetup::addSamplesNames(const table & samplesNamesInputTab){
 				samples_.emplace(target, Samples(target));
 			}
 			samples_.at(target).addSample(sample, reps);
+			//std::cout << "target: " << target << ", sample: " << sample << ", reps: " << njh::conToStr(reps, ",") << std::endl;
 		}
 	}
 	if(failed){
@@ -670,9 +723,20 @@ void TarAmpAnalysisSetup::setUpPopClusteringDirs(bool verbose) const {
 		auto topPopDir = njh::files::makeDir(dir_.string(),
 				njh::files::MkdirPar("popClustering"));
 		for (const auto & tar : tars) {
-			setUpSampleDirs(
-					njh::files::make_path(infoDir_, "sampNames.tab.txt").string(),
-					njh::files::make_path(topPopDir, tar).string(), false, verbose);
+			if (1 == idsMids_->targets_.at(tar).overlapStatuses_.size()
+							&& PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP
+									== idsMids_->targets_.at(tar).overlapStatuses_.front()) {
+				setUpSampleDirs(
+						njh::files::make_path(infoDir_, "sampNames.tab.txt").string(),
+						njh::files::make_path(topPopDir, tar + "-R1").string(), false, verbose);
+				setUpSampleDirs(
+						njh::files::make_path(infoDir_, "sampNames.tab.txt").string(),
+						njh::files::make_path(topPopDir, tar + "-R2").string(), false, verbose);
+			}else{
+				setUpSampleDirs(
+						njh::files::make_path(infoDir_, "sampNames.tab.txt").string(),
+						njh::files::make_path(topPopDir, tar).string(), false, verbose);
+			}
 		}
 	} else {
 		setUpSampleDirs(
