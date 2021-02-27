@@ -802,6 +802,13 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 						|| filteringSeq.seqBase_.seq_.size() <= pars.corePars_.primIdsPars.compKmerLen_
 						|| filteringSeq.mateSeqBase_.seq_.size() <= pars.corePars_.primIdsPars.compKmerLen_){
 					bool pass = false;
+					if(pairProcessor.params_.r1Trim_ > 0 && pairProcessor.params_.r1Trim_ < len(filteringSeq.seqBase_)){
+						readVecTrimmer::trimOffEndBases(filteringSeq.seqBase_, pairProcessor.params_.r1Trim_);
+					}
+					if(pairProcessor.params_.r2Trim_ > 0 && pairProcessor.params_.r2Trim_ < len(filteringSeq.mateSeqBase_)){
+						readVecTrimmer::trimOffEndBases(filteringSeq.mateSeqBase_, pairProcessor.params_.r2Trim_);
+					}
+
 					if(ids.targets_.at(extractedPrimer).refs_.empty()){
 						pass = true;
 					}else{
