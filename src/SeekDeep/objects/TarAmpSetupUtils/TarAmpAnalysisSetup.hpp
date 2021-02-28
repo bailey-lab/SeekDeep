@@ -79,7 +79,12 @@ public:
 
 		std::string extraExtractorCmds = "";
 		std::string extraQlusterCmds = "";
+		bfs::path extraQlusterCmdsPerTargetFnp;
+		std::unordered_map<std::string, std::string> extraQlusterCmdsPerTarget;
+
 		std::string extraProcessClusterCmds = "";
+		bfs::path extraProcessClusterCmdsPerTargetFnp;
+		std::unordered_map<std::string, std::string> extraProcessClusterCmdsPerTarget;
 
 		bool useKCrushClustering_{false};
 

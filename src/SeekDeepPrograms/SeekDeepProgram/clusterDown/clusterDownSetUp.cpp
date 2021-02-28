@@ -197,6 +197,17 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 	setOption(pars.trimFront, "--trimFront", "Trim front of the input sequences by this much", false, "Pre-process");
 	setOption(pars.trimBack, "--trimBack", "Trim back of the input sequence by this much", false, "Pre-process");
 
+	setOption(pars.trimToLocal, "--trimToLocal", "When trimming to a set sequence use local alignment", false, "Pre-process");
+	setOption(pars.trimToWithin, "--trimToWithin", "When trimming to a set sequence, search within this many bases from the back", false, "Pre-process");
+	setOption(pars.trimToOnlyMatching, "--trimToOnlyMatching", "When trimming to a set sequence, trim to only matching seq", false, "Pre-process");
+	pars.trimmingToSeq = processSeq(pars.trimToSeq,"--trimToSeq", "Trim input to this sequence", false, "Pre-process");
+	pars.trimToSeqPars.alwaysTrim = !pars.trimToOnlyMatching;
+	pars.trimToSeqPars.local_ = pars.trimToLocal;
+	pars.trimToSeqPars.includeSequence_ = true;
+	pars.trimToSeqPars.within_ = pars.trimToWithin;
+
+
+
 	//post process
 	pars.breakoutPars.hardCutOff = 10;
 

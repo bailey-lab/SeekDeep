@@ -210,6 +210,15 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 	uint32_t counter = 0;
 	std::unordered_map<uint32_t, std::vector<uint64_t>> filepositions;
 	std::unordered_map<std::string, uint32_t> clusterNameToFilePosKey;
+
+	aligner alignerForTrimming ;
+	if(pars.trimmingToSeq){
+		alignerForTrimming = aligner(std::max<uint64_t>(pars.trimToSeqPars.within_ *2, len(pars.trimToSeq)),
+					gapScoringParameters(5,1,0,0,0,0),
+					substituteMatrix::createDegenScoreMatrixCaseInsensitive(2, -2));
+
+	}
+
 	{
 		SeqIOOptions smallSeqOpts(setUp.pars_.directoryName_ + "smallReads",
 						setUp.pars_.ioOptions_.outFormat_,setUp.pars_.ioOptions_.out_);
@@ -219,6 +228,10 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 		std::unordered_map<std::string, uint32_t> allNameCounts;
 		uint32_t seqIndex = 0;
 		while(reader.readNextRead(seq)){
+
+			if(pars.trimmingToSeq){
+				readVecTrimmer::trimAtSequence(seq, pars.trimToSeq, alignerForTrimming, comparison{}, pars.trimToSeqPars);
+			}
 			++seqIndex;
 			if(!downsampled && !pars.dontFilterToMostCommonIlluminaSampleNumber_){
 				if(decodedNames[seqIndex - 1]->getSampleNumber() != sampleNames.front()){
@@ -273,7 +286,6 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 			}
 			fPos = reader.tellgPri();
 		}
-
 		reader.reOpenIn();
 		setUp.rLog_.logCurrentTime("calculating the quality values");
 
@@ -285,6 +297,9 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 				for(const auto seqPos : fPositions.second){
 					reader.seekgPri(seqPos);
 					reader.readNextRead(seq);
+					if(pars.trimmingToSeq){
+						readVecTrimmer::trimAtSequence(seq, pars.trimToSeq, alignerForTrimming, comparison{}, pars.trimToSeqPars);
+					}
 					if (setUp.pars_.colOpts_.iTOpts_.removeLowQualityBases_) {
 						seq.removeLowQualityBases(setUp.pars_.colOpts_.iTOpts_.lowQualityBaseTrim_);
 					}
