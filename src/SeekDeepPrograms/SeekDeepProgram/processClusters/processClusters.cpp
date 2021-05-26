@@ -309,14 +309,15 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 	std::vector<seqInfo> popSeqsPerSamp;
 	std::vector<seqInfo> outPopSeqsPerSamp;
 
-	std::unordered_map<std::string, uint32_t> sampCountsForPopHaps;
+	std::unordered_map<std::string, std::unordered_set<std::string>> sampCountsForPopHaps;
 	uint32_t totalPopCount = 0;
 	std::set<std::string> samplesCount;
 
 	popSeqsPerSamp = sampColl.genOutPopSeqsPerSample();
 	outPopSeqsPerSamp = popSeqsPerSamp;
 	for(const auto & popClus : sampColl.popCollapse_->collapsed_.clusters_){
-		sampCountsForPopHaps[popClus.seqBase_.name_] = popClus.sampleClusters().size();
+		auto samples = njh::getVecOfMapKeys(popClus.sampleClusters());
+		sampCountsForPopHaps[popClus.seqBase_.name_].insert(samples.begin(), samples.end());
 		totalPopCount += popClus.sampleClusters().size();
 	}
 	for(const auto & seq : popSeqsPerSamp){
@@ -366,7 +367,7 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 
 		for(const auto & pop : popSeqs){
 			if(!njh::in(pop.name_, translatedRes.seqAlns_)){
-				totalPopCount -= sampCountsForPopHaps[pop.name_];
+				totalPopCount -= sampCountsForPopHaps[pop.name_].size();
 				popBedLocs << "*"
 						<< "\t" << "*"
 						<< "\t" << "*"
