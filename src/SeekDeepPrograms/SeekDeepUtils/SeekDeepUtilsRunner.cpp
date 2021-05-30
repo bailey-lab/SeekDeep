@@ -379,7 +379,9 @@ int SeekDeepUtilsRunner::runMultipleCommands(
 		throw std::runtime_error { ss.str() };
 	}
 	std::string cmd;
-	VecStr prepCmds;
+	VecStr rawPrepCmds;
+	VecStr finalPrepCmds;
+
 	VecStr cmds;
 
 	if (raw) {
@@ -411,7 +413,7 @@ int SeekDeepUtilsRunner::runMultipleCommands(
 			if (toks.front() == "CMD") {
 				cmd = toks.back();
 			}else if (toks.front() == "PREP") {
-				prepCmds.emplace_back(toks.back());
+				rawPrepCmds.emplace_back(toks.back());
 			} else {
 				if(noFilesInReplacementToks){
 					replacements[toks.front()] = tokenizeString(toks.back(), ",");
@@ -475,6 +477,23 @@ int SeekDeepUtilsRunner::runMultipleCommands(
 				cmds = newCmds;
 			}
 		}
+		if(!rawPrepCmds.empty()){
+			finalPrepCmds = rawPrepCmds;
+
+			for(const auto & r : replacements){
+				VecStr newPreps;
+				for(const auto & prep : finalPrepCmds){
+					if(std::string::npos != prep.find(r.first)){
+						for(const auto & subR : r.second){
+							newPreps.emplace_back(njh::replaceString(prep, r.first, subR));
+						}
+					}else{
+						newPreps.emplace_back(prep);
+					}
+				}
+				finalPrepCmds = newPreps;
+			}
+		}
 	}
 
 	if (setUp.pars_.verbose_) {
@@ -482,21 +501,26 @@ int SeekDeepUtilsRunner::runMultipleCommands(
 	}
 	Json::Value allLog;
 
-	if(!prepCmds.empty()){
+	if(!finalPrepCmds.empty()){
 		uint32_t prepCmdCount = 1;
-		for(const auto & prepCmd : prepCmds){
-			auto prepOut = njh::sys::run(VecStr{prepCmd});
-			if(!prepOut.success_){
-				std::stringstream ss;
-				ss << __PRETTY_FUNCTION__ << ", error " << "in running prep cmd: " << prepCmd << "\n";
-				ss << prepOut.stdOut_ << "\n";
-				ss << prepOut.stdErr_ << "\n";
-				throw std::runtime_error{ss.str()};
+		for(const auto & prepCmd : finalPrepCmds){
+			if(setUp.pars_.debug_){
+				std::cout << prepCmd << std::endl;
+			}else{
+				auto prepOut = njh::sys::run(VecStr{prepCmd});
+				if(!prepOut.success_){
+					std::stringstream ss;
+					ss << __PRETTY_FUNCTION__ << ", error " << "in running prep cmd: " << prepCmd << "\n";
+					ss << prepOut.stdOut_ << "\n";
+					ss << prepOut.stdErr_ << "\n";
+					throw std::runtime_error{ss.str()};
+				}
+				allLog[njh::pasteAsStr("00_PREP_CMD_", prepCmdCount)] = prepOut.toJson();
+				++prepCmdCount;
 			}
-			allLog[njh::pasteAsStr("00_PREP_CMD_", prepCmdCount)] = prepOut.toJson();
-			++prepCmdCount;
 		}
 	}
+
 	auto allRunOutputs = runCmdsThreadedQueue(cmds, numThreads, setUp.pars_.verbose_, setUp.pars_.debug_);
 
 	allLog["totalTime"] = setUp.timer_.totalTime();
