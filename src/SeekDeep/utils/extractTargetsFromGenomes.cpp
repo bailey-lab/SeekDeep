@@ -838,9 +838,7 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 								}
 								eSeq.name_ = name;
 								bool refFound = false;
-								if(extractPars.writeOutAllSeqsFile){
-									allSeqs.emplace_back(eSeq);
-								}
+								allSeqs.emplace_back(eSeq);
 								for(auto & rSeq : refSeqs){
 									if(rSeq.seq_ == eSeq.seq_){
 										refFound = true;
@@ -854,9 +852,7 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 								bool trimmed_refFound = false;
 								auto innerSeq = extract.gRegionInner_->extractSeq(tReader);
 								innerSeq.name_ = name;
-								if(extractPars.writeOutAllSeqsFile){
-									allSeqsTrimmedSeqs.emplace_back(innerSeq);
-								}
+								allSeqsTrimmedSeqs.emplace_back(innerSeq);
 								for(auto & rSeq : refTrimmedSeqs){
 									if(rSeq.seq_ == innerSeq.seq_){
 										trimmed_refFound = true;
@@ -871,13 +867,79 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 						}
 
 						if(!allSeqs.empty()){
-							auto fullSeqOpts = SeqIOOptions::genFastaOut(njh::files::make_path(primerDirectory, "all_" + primerInfo.primerPairName_ +".fasta"));
+							auto fullSeqOpts = SeqIOOptions::genFastaOut(njh::files::make_path(primerDirectory, "separated_" + primerInfo.primerPairName_ +".fasta"));
 							SeqOutput::write(allSeqs, fullSeqOpts);
+							//write out seq info
+							std::unordered_map<std::string, std::string> allSeqsSeqToNameKeys;
+							std::unordered_map<std::string, uint32_t> allSeqsCounts;
+							std::unordered_map<std::string, std::set<std::string>> allSeqsNames;
+
+							for(const auto & allSeq : allSeqs){
+								++allSeqsCounts[allSeq.seq_];
+								allSeqsNames[allSeq.seq_].emplace(allSeq.name_);
+							}
+							for(const auto & refSeq : refSeqs){
+								allSeqsSeqToNameKeys[refSeq.seq_] = refSeq.name_;
+							}
+							OutputStream collapsedSeqCountsOut(njh::files::make_path(primerDirectory, primerInfo.primerPairName_ + "_collapsed_counts.tab.txt"));
+							VecStr allRefSeqNames = njh::getVecOfMapKeys(allSeqsSeqToNameKeys);
+							//sort by counts
+							njh::sort(allRefSeqNames,[&allSeqsCounts](const std::string & n1, const std::string & n2){
+								if(allSeqsCounts[n1] == allSeqsCounts[n2]){
+									return n1 < n2;
+								}else{
+									return allSeqsCounts[n1] > allSeqsCounts[n2];
+								}
+							});
+							collapsedSeqCountsOut << "collapsedName\tcount\textractedName" << std::endl;
+							for(const auto & name : allRefSeqNames){
+								for(const auto & eName : allSeqsNames[name]){
+									collapsedSeqCountsOut
+									<< allSeqsSeqToNameKeys[name]
+											<< "\t" << allSeqsCounts[name]
+											<< "\t" << eName << std::endl;
+								}
+							}
 						}
+
+
 						if(!allSeqsTrimmedSeqs.empty()){
-							auto innerSeqOpts = SeqIOOptions::genFastaOut(njh::files::make_path(primerDirectory, "all_" + primerInfo.primerPairName_ +"_primersRemoved.fasta"));
+							auto innerSeqOpts = SeqIOOptions::genFastaOut(njh::files::make_path(primerDirectory, "separated_" + primerInfo.primerPairName_ +"_primersRemoved.fasta"));
 							SeqOutput::write(allSeqsTrimmedSeqs, innerSeqOpts);
+
+							//write out seq info
+							std::unordered_map<std::string, std::string> allSeqsSeqToNameKeys;
+							std::unordered_map<std::string, uint32_t> allSeqsCounts;
+							std::unordered_map<std::string, std::set<std::string>> allSeqsNames;
+
+							for(const auto & allSeq : allSeqsTrimmedSeqs){
+								++allSeqsCounts[allSeq.seq_];
+								allSeqsNames[allSeq.seq_].emplace(allSeq.name_);
+							}
+							for(const auto & refSeq : refTrimmedSeqs){
+								allSeqsSeqToNameKeys[refSeq.seq_] = refSeq.name_;
+							}
+							OutputStream collapsedSeqCountsOut(njh::files::make_path(primerDirectory, primerInfo.primerPairName_ + "_primersRemoved_collapsed_counts.tab.txt"));
+							VecStr allRefSeqNames = njh::getVecOfMapKeys(allSeqsSeqToNameKeys);
+							//sort by counts
+							njh::sort(allRefSeqNames,[&allSeqsCounts](const std::string & n1, const std::string & n2){
+								if(allSeqsCounts[n1] == allSeqsCounts[n2]){
+									return n1 < n2;
+								}else{
+									return allSeqsCounts[n1] > allSeqsCounts[n2];
+								}
+							});
+							collapsedSeqCountsOut << "collapsedName\tcount\textractedName" << std::endl;
+							for(const auto & name : allRefSeqNames){
+								for(const auto & eName : allSeqsNames[name]){
+									collapsedSeqCountsOut
+									<< allSeqsSeqToNameKeys[name]
+											<< "\t" << allSeqsCounts[name]
+											<< "\t" << eName << std::endl;
+								}
+							}
 						}
+
 
 						if(!refSeqs.empty()){
 							auto fullSeqOpts = SeqIOOptions::genFastaOut(njh::files::make_path(primerDirectory, primerInfo.primerPairName_ +".fasta"));
