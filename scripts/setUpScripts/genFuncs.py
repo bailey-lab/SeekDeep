@@ -14,7 +14,7 @@ class genHelper:
                          "NJHSEQDEV", "SEEKDEEPDEV", "CATCH", "JSONCPP",
                           "TWOBIT", "SEQSERVER","NJHRINSIDE", "PSTREAMS",
                            "MONGOC", "MONGOCXX", "SHAREDMUTEX",
-                           "MAGIC", "HTS", "RESTBED", "LIBPCA", "BOOST_FILESYSTEM", 
+                           "MAGIC", "HTS", "RESTBED", "LIBPCA", "BOOST_FILESYSTEM","BOOST_MATH", 
                            "PATHWEAVER", "ELUCIDATOR", "ELUCIDATORLAB", "MIPWRANGLER", "EIGEN",
                             "ZLIB", "ZLIB-NG", "UNQLITE"]
         neededLibraries = {}

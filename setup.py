@@ -290,6 +290,8 @@ class Packages():
             self.packages_["cmake"] = self.__cmake()
         if "boost_filesystem" in libsNeeded:
             self.packages_["boost_filesystem"] = self.__boost_filesystem()
+        if "boost_math" in libsNeeded:
+            self.packages_["boost_math"] = self.__boost_math()
         if "zlib" in libsNeeded:
             self.packages_["zlib"] = self.__zlib()
         if "bamtools" in libsNeeded:
@@ -1600,6 +1602,78 @@ class Packages():
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
                 pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
         return pack
+    
+    def __boost_math(self):
+        name = "boost_math"
+        buildCmd = ""
+        boostLibs = "math"
+        if Utils.isMac():
+            #print "here"
+            setUpDir = os.path.dirname(os.path.abspath(__file__))
+            gccJamLoc =  os.path.join(setUpDir, "scripts/etc/boost/gcc.jam")
+            gccJamOutLoc = "{build_sub_dir}/tools/build/src/tools/gcc.jam"
+            #print gccJamLoc
+            #print gccJamOutLoc
+            installNameToolCmd  = """
+            && install_name_tool -id {local_dir}/lib/libboost_math_c99.dylib {local_dir}/lib/libboost_math_c99.dylib
+            && install_name_tool -id {local_dir}/lib/libboost_math_c99f.dylib {local_dir}/lib/libboost_math_c99f.dylib
+            && install_name_tool -id {local_dir}/lib/libboost_math_c99l.dylib {local_dir}/lib/libboost_math_c99l.dylib
+            && install_name_tool -id {local_dir}/lib/libboost_math_tr1.dylib {local_dir}/lib/libboost_math_tr1.dylib
+            && install_name_tool -id {local_dir}/lib/libboost_math_tr1f.dylib {local_dir}/lib/libboost_math_tr1f.dylib
+            && install_name_tool -id {local_dir}/lib/libboost_math_tr1l.dylib {local_dir}/lib/libboost_math_tr1l.dylib
+            """
+            #print(installNameToolCmd)
+        if self.args.clang:
+            if Utils.isMac():
+                buildCmd = """./bootstrap.sh --with-toolset=clang --prefix={local_dir} --with-libraries=""" + boostLibs + """
+                  &&  ./b2 -d 0 toolset=clang cxxflags=\"-stdlib=libc++ -std=c++17\" linkflags=\"-stdlib=libc++\" -j {num_cores} install
+                  """ + installNameToolCmd
+            else:
+                buildCmd = """ln -s $(for x in $(which -a {CC}); do echo $(realpath $x); done | egrep clang | head -1) clang && PATH=$(realpath .):$PATH && ln -s $(for x in $(which -a {CXX}); do echo $(realpath $x); done | egrep clang | head -1) clang++ && ./bootstrap.sh --with-toolset=clang --prefix={local_dir}  --with-libraries=""" + boostLibs + """ &&  ./b2 -d 0 toolset=clang cxxflags=\"-std=c++17\" -j {num_cores} install && rm clang && rm clang++"""
+        elif "g++" in self.args.CXX:
+            if "-" in self.args.CXX:
+                gccVer = self.args.CXX[(self.args.CXX.find("-") + 1):]
+                if Utils.isMac():
+                    buildCmd = "cp " + gccJamLoc + "  " + gccJamOutLoc + """ && ./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
+                     && echo "using gcc : """ + str(gccVer) + """ : {CXX} : <linker-type>darwin ;" >> tools/build/src/user-config.jam
+                     && ./b2 -d 0 cxxflags=\"-std=c++17\" --toolset=gcc -""" + str(gccVer) +  """ -j {num_cores} install
+                     """ + installNameToolCmd
+                else:
+                    buildCmd = """./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
+                     && echo "using gcc : """ + str(gccVer) + """ : {CXX} ;" >> tools/build/src/user-config.jam
+                     && ./b2 -d 0 cxxflags=\"-std=c++17\" --toolset=gcc -""" + str(gccVer) +  """ -j {num_cores} install
+                     """
+            else:
+                if Utils.isMac():
+                    buildCmd = "cp " + gccJamLoc + "  " + gccJamOutLoc + """ && echo "using gcc :  : g++ : <linker-type>darwin ;" >> tools/build/src/user-config.jam
+                     && ./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
+                     && ./b2 -d 0 cxxflags=\"-std=c++17\" --toolset=gcc  -j {num_cores} install
+                     """ + installNameToolCmd
+                else:
+                    buildCmd = """./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
+                     && ./b2 -d 0 cxxflags=\"-std=c++17\" --toolset=gcc  -j {num_cores} install
+                     """
+        buildCmd = " ".join(buildCmd.split())
+        url = "https://github.com/nickjhathaway/boost_math.git"
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "1_75_0")
+        if self.args.noInternet:
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                pack = pickle.load(inputPkl)
+                pack.defaultBuildCmd_ = buildCmd
+        elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                pack = pickle.load(inputPkl)
+                pack.defaultBuildCmd_ = buildCmd
+        else:
+            refs = pack.getGitRefs(url)
+            for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
+                pack.addVersion(url, ref)
+                #pack.versions_[ref].additionalLdFlags_ = ["-lboost_math"]
+                pack.versions_[ref].libName_ = ""
+            Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
+                pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
+        return pack
 
     def getPackagesNames(self):
         return sorted(self.packages_.keys())
@@ -1841,6 +1915,8 @@ class Setup:
         self.setUps = {"zi_lib": self.zi_lib,
                        "boost": self.boost,
                        "boost_filesystem": self.boost_filesystem,
+                       "boost_math": self.boost_math,
+
                        "cppitertools": self.cppitertools,
                        "catch": self.catch,
                        "cppprogutils": self.cppprogutils,
@@ -2162,7 +2238,7 @@ class Setup:
         else:
             if os.path.exists(bPath.build_sub_dir):
                 print("pulling from {url}".format(url=bPath.url))
-                pCmd = "git checkout master && git pull && git checkout " + packVer.nameVer_.version + " && if [ -f .gitmodules ]; then git submodule init && git submodule update; fi"
+                pCmd = "git checkout master && git pull && git checkout " + packVer.nameVer_.version.replace("__", "/") + " && if [ -f .gitmodules ]; then git submodule init && git submodule update; fi"
                 try:
                     Utils.run_in_dir(pCmd, bPath.build_sub_dir)
                 except Exception as e:
@@ -2171,7 +2247,7 @@ class Setup:
                     sys.exit(1)
             else:
                 cCmd = "git clone {url} {d}".format(url=bPath.url, d=bPath.build_sub_dir)
-                tagCmd = "git checkout {tag} && if [ -f .gitmodules ]; then git submodule init && git submodule update; fi ".format(tag=packVer.nameVer_.version)
+                tagCmd = "git checkout {tag} && if [ -f .gitmodules ]; then git submodule init && git submodule update; fi ".format(tag=packVer.nameVer_.version.replace("__", "/"))
                 try:
                     Utils.run(cCmd)
                     Utils.run_in_dir(tagCmd, bPath.build_sub_dir)
@@ -2391,6 +2467,9 @@ class Setup:
 
     def boost_filesystem(self, version):
         self.__defaultBuild("boost_filesystem", version)
+        
+    def boost_math(self, version):
+        self.__defaultBuild("boost_math", version)
 
     def r(self, version):
         package = "r"
