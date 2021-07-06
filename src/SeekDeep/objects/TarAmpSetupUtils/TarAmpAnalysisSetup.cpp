@@ -194,20 +194,13 @@ TarAmpAnalysisSetup::TarAmpAnalysisSetup(const TarAmpPars & inputPars) :
 	if(idsMids_->containsMids()){
 		idsMids_->checkMidNamesThrow();
 	}
-	//add ref seqs if provided
-	if("" != pars_.refSeqsDir){
-		addRefSeqs(pars_.refSeqsDir);
-	}
-	//add len cut offs if provided
-	if("" != pars_.lenCutOffsFnp){
-		addLenCutOffs(pars_.lenCutOffsFnp);
-	}
 	//add overlap status
 	if("" != pars_.overlapStatusFnp){
 		addOverlapStatus(pars_.overlapStatusFnp);
 	}else if(!pars_.defaultStatuses_.empty()){
 		idsMids_->addOverLapStatuses(pars_.defaultStatuses_);
 	}
+
 
 	//add sample names
 	addSamplesNames(pars_.samplesNamesFnp);
@@ -225,8 +218,14 @@ TarAmpAnalysisSetup::TarAmpAnalysisSetup(const TarAmpPars & inputPars) :
 			bfs::copy_file(pars_.targetsToIndexFnp, njh::files::make_path(infoDir_, "indexToTargets.tab.txt"));
 		}
 	}
-
-
+	//add ref seqs if provided
+	if("" != pars_.refSeqsDir){
+		addRefSeqs(pars_.refSeqsDir);
+	}
+	//add len cut offs if provided
+	if("" != pars_.lenCutOffsFnp){
+		addLenCutOffs(pars_.lenCutOffsFnp);
+	}
 
 	//check for incompatible set ups
 //	if (!idsMids_->containsMids() && pars_.byIndex) {
@@ -720,19 +719,17 @@ VecStr TarAmpAnalysisSetup::getExpectantInputNames()const{
 void TarAmpAnalysisSetup::setUpPopClusteringDirs(bool verbose) const {
 	auto tars = getTargets();
 	if (pars_.byIndex) {
-		auto topPopDir = njh::files::makeDir(dir_.string(),
-				njh::files::MkdirPar("popClustering"));
+		auto topPopDir = njh::files::makeDir(dir_.string(), njh::files::MkdirPar("popClustering"));
 		for (const auto & tar : tars) {
 			if (1 == idsMids_->targets_.at(tar).overlapStatuses_.size()
-							&& PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP
-									== idsMids_->targets_.at(tar).overlapStatuses_.front()) {
+					&& PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP == idsMids_->targets_.at(tar).overlapStatuses_.front()) {
 				setUpSampleDirs(
 						njh::files::make_path(infoDir_, "sampNames.tab.txt").string(),
 						njh::files::make_path(topPopDir, tar + "-R1").string(), false, verbose);
 				setUpSampleDirs(
 						njh::files::make_path(infoDir_, "sampNames.tab.txt").string(),
 						njh::files::make_path(topPopDir, tar + "-R2").string(), false, verbose);
-			}else{
+			} else {
 				setUpSampleDirs(
 						njh::files::make_path(infoDir_, "sampNames.tab.txt").string(),
 						njh::files::make_path(topPopDir, tar).string(), false, verbose);
