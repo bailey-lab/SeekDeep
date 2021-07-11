@@ -380,49 +380,18 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 		{
 			//protein
 			for(auto & varPerTrans : translatedRes.proteinVariants_){
-				auto snpsPositions = getVectorOfMapKeys(varPerTrans.second.snpsFinal);
-				njh::sort(snpsPositions);
-				OutputStream snpTabOut(OutOptions(njh::files::make_path(variantInfoDir, njh::pasteAsStr(varPerTrans.first +  "-protein_aminoAcidVariable.tab.txt"))));
-				snpTabOut << "transcript\tposition(1-based)\trefAA\tAA\tcount\tfraction\talleleDepth\tsamples" << std::endl;
-				for(const auto & snpPos : snpsPositions){
-					for(const auto & aa : varPerTrans.second.allBases[snpPos]){
-						snpTabOut << varPerTrans.first
-								<< "\t" << snpPos + 1
-								<< "\t" << translatedRes.proteinForTranscript_[varPerTrans.first][snpPos]
-								<< "\t" << aa.first
-								<< "\t" << aa.second
-								<< "\t" << aa.second/static_cast<double>(totalPopCount)
-								<< "\t" << totalPopCount
-								<< "\t" << samplesCount.size() << std::endl;
-					}
-				}
+				varPerTrans.second.writeOutSNPsFinalInfo(njh::files::make_path(variantInfoDir, njh::pasteAsStr(varPerTrans.first +  "-protein_aminoAcidVariable.tab.txt")), varPerTrans.first, true	);
+				varPerTrans.second.writeOutSNPsAllInfo(njh::files::make_path(variantInfoDir, njh::pasteAsStr(varPerTrans.first +  "-protein_aminoAcidsAll.tab.txt")), varPerTrans.first, true	);
+
 				std::set<uint32_t> knownMutationsLocations;
-				OutputStream allAATabOut(OutOptions(njh::files::make_path(variantInfoDir, njh::pasteAsStr(varPerTrans.first +  "-protein_aminoAcidsAll.tab.txt"))));
-				allAATabOut << "transcript\tposition(1-based)\trefAA\tAA\tcount\tfraction\talleleDepth\tsamples" << std::endl;
 				for(const auto & snpPos : varPerTrans.second.allBases){
 					if(njh::in(snpPos.first + 1, knownMutationsLocationsMap[varPerTrans.first])){
 						knownMutationsLocations.emplace(snpPos.first);
 					}
-					for(const auto & aa : snpPos.second){
-						allAATabOut << varPerTrans.first
-								<< "\t" << snpPos.first + 1
-								<< "\t" << translatedRes.proteinForTranscript_[varPerTrans.first][snpPos.first]
-								<< "\t" << aa.first
-								<< "\t" << aa.second
-								<< "\t" << aa.second/static_cast<double>(totalPopCount)
-								<< "\t" << totalPopCount
-								<< "\t" << samplesCount.size() << std::endl;
-					}
 				}
 				if(!varPerTrans.second.variablePositons_.empty()){
-					uint32_t variableStart = vectorMinimum(std::vector<uint32_t>(varPerTrans.second.variablePositons_.begin(), varPerTrans.second.variablePositons_.end()));
-					uint32_t variableStop = vectorMaximum(std::vector<uint32_t>(varPerTrans.second.variablePositons_.begin(), varPerTrans.second.variablePositons_.end()));
-
-					GenomicRegion variableRegion;
-					variableRegion.chrom_ = varPerTrans.first;
-					variableRegion.start_ = variableStart +1;
-					variableRegion.end_ = variableStop;
-
+					GenomicRegion variableRegion = varPerTrans.second.getVariableRegion();
+					variableRegion.start_ = variableRegion.start_ +1;
 					OutputStream bedVariableRegionOut(OutOptions(njh::files::make_path(variantInfoDir, njh::pasteAsStr(varPerTrans.first +  "-protein_variableRegion.bed"))));
 					bedVariableRegionOut << variableRegion.genBedRecordCore().toDelimStrWithExtra() << std::endl;
 				}
@@ -470,20 +439,7 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 					}
 				}
 				if(!knownMutationsLocations.empty()){
-					OutputStream knownTabOut(OutOptions(njh::files::make_path(variantInfoDir, njh::pasteAsStr(varPerTrans.first +  "-protein_aminoAcidKnownMutations.tab.txt"))));
-					knownTabOut << "transcript\tposition(1-based)\trefAA\tAA\tcount\tfraction\talleleDepth\tsamples" << std::endl;
-					for(const auto & snpPos : knownMutationsLocations){
-						for(const auto & aa : varPerTrans.second.allBases[snpPos]){
-							knownTabOut << varPerTrans.first
-									<< "\t" << snpPos + 1
-									<< "\t" << translatedRes.proteinForTranscript_[varPerTrans.first][snpPos]
-									<< "\t" << aa.first
-									<< "\t" << aa.second
-									<< "\t" << aa.second/static_cast<double>(totalPopCount)
-									<< "\t" << totalPopCount
-									<< "\t" << samplesCount.size() << std::endl;
-						}
-					}
+					varPerTrans.second.writeOutSNPsInfo(njh::files::make_path(variantInfoDir, njh::pasteAsStr(varPerTrans.first +  "-protein_aminoAcidKnownMutations.tab.txt")), varPerTrans.first,knownMutationsLocations, true	);
 					for(const auto & pop : knownAAMeta){
 						std::string popName = pop.first;
 						std::string transcript = varPerTrans.first;
@@ -573,46 +529,10 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 			outSnpDepthPerSample << std::endl;
 
 			for( auto & varPerChrom : translatedRes.seqVariants_){
-				auto snpsPositions = getVectorOfMapKeys(varPerChrom.second.snpsFinal);
-				njh::sort(snpsPositions);
-				OutputStream snpTabOut(OutOptions(njh::files::make_path(variantInfoDir, njh::pasteAsStr(varPerChrom.first +  "-SNPs.tab.txt"))));
-				snpTabOut << "chromosome\tposition(0-based)\trefBase\tbase\tcount\tfraction\talleleDepth\tsamples" << std::endl;
-				for(const auto & snpPos : snpsPositions){
-					for(const auto & base : varPerChrom.second.allBases[snpPos]){
-						snpTabOut << varPerChrom.first
-								<< "\t" << snpPos
-								<< "\t" << translatedRes.baseForPosition_[varPerChrom.first][snpPos]
-								<< "\t" << base.first
-								<< "\t" << base.second
-								<< "\t" << base.second/static_cast<double>(totalPopCount)
-								<< "\t" << totalPopCount
-								<< "\t" << samplesCount.size() << std::endl;
-					}
-				}
-				OutputStream allBasesTabOut(OutOptions(njh::files::make_path(variantInfoDir, njh::pasteAsStr(varPerChrom.first +  "-allBases.tab.txt"))));
-				allBasesTabOut << "chromosome\tposition(0-based)\trefBase\tbase\tcount\tfraction\talleleDepth\tsamples" << std::endl;
-				for(const auto & snpPos : varPerChrom.second.allBases){
-					for(const auto & base : snpPos.second){
-						allBasesTabOut << varPerChrom.first
-								<< "\t" << snpPos.first
-								<< "\t" << translatedRes.baseForPosition_[varPerChrom.first][snpPos.first]
-								<< "\t" << base.first
-								<< "\t" << base.second
-								<< "\t" << base.second/static_cast<double>(totalPopCount)
-								<< "\t" << totalPopCount
-								<< "\t" << samplesCount.size() << std::endl;
-					}
-				}
-
+				varPerChrom.second.writeOutSNPsFinalInfo(njh::files::make_path(variantInfoDir, njh::pasteAsStr(varPerChrom.first +  "-SNPs.tab.txt")), varPerChrom.first, false);
+				varPerChrom.second.writeOutSNPsAllInfo(  njh::files::make_path(variantInfoDir, njh::pasteAsStr(varPerChrom.first +  "-allBases.tab.txt")), varPerChrom.first, false);
 				if(!varPerChrom.second.variablePositons_.empty()){
-					uint32_t variableStart = vectorMinimum(std::vector<uint32_t>(varPerChrom.second.variablePositons_.begin(), varPerChrom.second.variablePositons_.end()));
-					uint32_t variableStop = vectorMaximum(std::vector<uint32_t>(varPerChrom.second.variablePositons_.begin(), varPerChrom.second.variablePositons_.end()));
-
-					GenomicRegion variableRegion;
-					variableRegion.chrom_ = varPerChrom.first;
-					variableRegion.start_ = variableStart;
-					variableRegion.end_ = variableStop;
-
+					GenomicRegion variableRegion = varPerChrom.second.getVariableRegion();
 					OutputStream bedVariableRegionOut(OutOptions(njh::files::make_path(variantInfoDir, njh::pasteAsStr(varPerChrom.first +  "-chromosome_variableRegion.bed"))));
 					bedVariableRegionOut << variableRegion.genBedRecordCore().toDelimStrWithExtra() << std::endl;
 				}
@@ -720,7 +640,7 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 								    << "\t" << sample.first
 										<< "\t" << chrom.first
 										<< "\t" << position.first
-										<< "\t" << translatedRes.baseForPosition_[varPerChrom.first][position.first]
+										<< "\t" << varPerChrom.second.getBaseForGenomicRegion(position.first) //translatedRes.baseForPosition_[varPerChrom.first][position.first]
 										<< "\t" << snp.first
 										<< "\t" << snp.second ;
 
