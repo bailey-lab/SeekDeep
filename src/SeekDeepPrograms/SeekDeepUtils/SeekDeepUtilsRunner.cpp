@@ -381,6 +381,8 @@ int SeekDeepUtilsRunner::runMultipleCommands(
 	std::string cmd;
 	VecStr rawPrepCmds;
 	VecStr finalPrepCmds;
+	VecStr rawPostCmds;
+	VecStr finalPostCmds;
 
 	VecStr cmds;
 
@@ -414,6 +416,8 @@ int SeekDeepUtilsRunner::runMultipleCommands(
 				cmd = toks.back();
 			}else if (toks.front() == "PREP") {
 				rawPrepCmds.emplace_back(toks.back());
+			} else if (toks.front() == "POST") {
+				rawPostCmds.emplace_back(toks.back());
 			} else {
 				if(noFilesInReplacementToks){
 					replacements[toks.front()] = tokenizeString(toks.back(), ",");
@@ -477,9 +481,9 @@ int SeekDeepUtilsRunner::runMultipleCommands(
 				cmds = newCmds;
 			}
 		}
+		//prep cmds
 		if(!rawPrepCmds.empty()){
 			finalPrepCmds = rawPrepCmds;
-
 			for(const auto & r : replacements){
 				VecStr newPreps;
 				for(const auto & prep : finalPrepCmds){
@@ -492,6 +496,23 @@ int SeekDeepUtilsRunner::runMultipleCommands(
 					}
 				}
 				finalPrepCmds = newPreps;
+			}
+		}
+		//post cmds
+		if(!rawPostCmds.empty()){
+			finalPostCmds = rawPostCmds;
+			for(const auto & r : replacements){
+				VecStr newPreps;
+				for(const auto & prep : finalPostCmds){
+					if(std::string::npos != prep.find(r.first)){
+						for(const auto & subR : r.second){
+							newPreps.emplace_back(njh::replaceString(prep, r.first, subR));
+						}
+					}else{
+						newPreps.emplace_back(prep);
+					}
+				}
+				finalPostCmds = newPreps;
 			}
 		}
 	}
@@ -531,6 +552,27 @@ int SeekDeepUtilsRunner::runMultipleCommands(
 	for (const auto & out : allRunOutputs) {
 		cmdsLog.append(out.toJson());
 	}
+
+	if(!finalPostCmds.empty()){
+		uint32_t postCmdCount = 1;
+		for(const auto & postCmd : finalPostCmds){
+			if(setUp.pars_.debug_){
+				std::cout << postCmd << std::endl;
+			}else{
+				auto postOut = njh::sys::run(VecStr{postCmd});
+				if(!postOut.success_){
+					std::stringstream ss;
+					ss << __PRETTY_FUNCTION__ << ", error " << "in running post cmd: " << postCmd << "\n";
+					ss << postOut.stdOut_ << "\n";
+					ss << postOut.stdErr_ << "\n";
+					throw std::runtime_error{ss.str()};
+				}
+				allLog[njh::pasteAsStr("ZZ_POST_CMD_", postCmdCount)] = postOut.toJson();
+				++postCmdCount;
+			}
+		}
+	}
+
 	if (!setUp.pars_.debug_) {
 		outFile << allLog << std::endl;
 	}
