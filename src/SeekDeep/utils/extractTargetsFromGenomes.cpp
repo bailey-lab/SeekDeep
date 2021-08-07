@@ -1042,7 +1042,23 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 					auto jsonValues = intersectBedLocsWtihGffRecords(allRegions, pars);
 					auto geneIds = jsonValues.getMemberNames();
 					std::set<std::string> geneIdsSet(geneIds.begin(), geneIds.end());
-					auto genes = GeneFromGffs::getGenesFromGffForIds(gMapper->genomes_.at(genome)->gffFnp_,geneIdsSet);
+
+					auto rawGenes = GeneFromGffs::getGenesFromGffForIds(gMapper->genomes_.at(genome)->gffFnp_,geneIdsSet);
+					std::unordered_map<std::string, std::shared_ptr<GeneFromGffs>> genes;
+
+
+					for(const auto & gene : rawGenes){
+						bool failFilter = false;
+						for(const auto & transcript : gene.second->mRNAs_){
+							if(njh::in(njh::strToLowerRet(transcript->type_), VecStr{"rrna", "trna", "snorna","snrna","ncrna"}) ){
+								failFilter = true;
+								break;
+							}
+						}
+						if(!failFilter){
+							genes[gene.first] = gene.second;
+						}
+					}
 					for(const auto & reg : allRegions){
 						if(reg->extraFields_.empty()){
 							continue;
