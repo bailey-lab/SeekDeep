@@ -1040,17 +1040,16 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 					pars.selectFeatures_ = VecStr{"gene"};
 					pars.extraAttributes_ = tokenizeString(extractPars.gffExtraAttributesStr, ",");
 					auto jsonValues = intersectBedLocsWtihGffRecords(allRegions, pars);
-					auto geneIds = jsonValues.getMemberNames();
-					std::set<std::string> geneIdsSet(geneIds.begin(), geneIds.end());
+					auto rawGeneIds = jsonValues.getMemberNames();
+					std::set<std::string> rawReneIdsSet(rawGeneIds.begin(), rawGeneIds.end());
 
-					auto rawGenes = GeneFromGffs::getGenesFromGffForIds(gMapper->genomes_.at(genome)->gffFnp_,geneIdsSet);
+					auto rawGenes = GeneFromGffs::getGenesFromGffForIds(gMapper->genomes_.at(genome)->gffFnp_,rawReneIdsSet);
 					std::unordered_map<std::string, std::shared_ptr<GeneFromGffs>> genes;
-
 
 					for(const auto & gene : rawGenes){
 						bool failFilter = false;
 						for(const auto & transcript : gene.second->mRNAs_){
-							if(njh::in(njh::strToLowerRet(transcript->type_), VecStr{"rrna", "trna", "snorna","snrna","ncrna"}) ){
+							if(njh::in(njh::strToLowerRet(transcript->type_), VecStr{"rrna", "trna", "snorna","snrna","ncrna"} ) ){
 								failFilter = true;
 								break;
 							}
@@ -1074,24 +1073,26 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 						std::string replacement = "";
 						for(const auto & geneTok : geneToks){
 							MetaDataInName geneMeta(geneTok);
-							TwoBit::TwoBitFile tReader(gMapper->genomes_.at(genome)->fnpTwoBit_);
-							auto infos = njh::mapAt(genes, geneMeta.getMeta("ID"))->generateGeneSeqInfo(tReader, false);
-							for(const auto & info : infos){
-								auto posInfos = info.second->getInfosByGDNAPos();
+							if(njh::in(geneMeta.getMeta("ID"), genes)){
+								TwoBit::TwoBitFile tReader(gMapper->genomes_.at(genome)->fnpTwoBit_);
+								auto infos = njh::mapAt(genes, geneMeta.getMeta("ID"))->generateGeneSeqInfo(tReader, false);
+								for(const auto & info : infos){
+									auto posInfos = info.second->getInfosByGDNAPos();
 
-								auto minPos = vectorMinimum(getVectorOfMapKeys(posInfos));
-								auto maxPos = vectorMaximum(getVectorOfMapKeys(posInfos));
-								auto startPos = std::max(minPos, reg->chromStart_);
-								auto stopPos =  std::min(maxPos, reg->chromEnd_);
-								auto aaStartPos = std::min(posInfos[startPos].aaPos_, posInfos[stopPos].aaPos_) + 1;
-								auto aaStopPos =  std::max(posInfos[startPos].aaPos_, posInfos[stopPos].aaPos_) + 1;
-								geneMeta.addMeta(info.first + "-AAStart", aaStartPos );
-								geneMeta.addMeta(info.first + "-AAStop", aaStopPos );
+									auto minPos = vectorMinimum(getVectorOfMapKeys(posInfos));
+									auto maxPos = vectorMaximum(getVectorOfMapKeys(posInfos));
+									auto startPos = std::max(minPos, reg->chromStart_);
+									auto stopPos =  std::min(maxPos, reg->chromEnd_);
+									auto aaStartPos = std::min(posInfos[startPos].aaPos_, posInfos[stopPos].aaPos_) + 1;
+									auto aaStopPos =  std::max(posInfos[startPos].aaPos_, posInfos[stopPos].aaPos_) + 1;
+									geneMeta.addMeta(info.first + "-AAStart", aaStartPos );
+									geneMeta.addMeta(info.first + "-AAStop", aaStopPos );
+								}
+								if("" != replacement){
+									replacement += ",";
+								}
+								replacement += geneMeta.createMetaName();
 							}
-							if("" != replacement){
-								replacement += ",";
-							}
-							replacement += geneMeta.createMetaName();
 						}
 						reg->extraFields_.back() = replacement;
 					}
@@ -1153,12 +1154,24 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 					pars.selectFeatures_ = VecStr{"gene"};
 					pars.extraAttributes_ = tokenizeString(extractPars.gffExtraAttributesStr, ",");
 					auto jsonValues = intersectBedLocsWtihGffRecords(allRegions, pars);
-					auto geneIds = jsonValues.getMemberNames();
-					std::set<std::string> geneIdsSet(geneIds.begin(), geneIds.end());
+					auto rawGeneIds = jsonValues.getMemberNames();
+					std::set<std::string> rawReneIdsSet(rawGeneIds.begin(), rawGeneIds.end());
 
-					auto genes = GeneFromGffs::getGenesFromGffForIds(gMapper->genomes_.at(genome)->gffFnp_,geneIdsSet);
+					auto rawGenes = GeneFromGffs::getGenesFromGffForIds(gMapper->genomes_.at(genome)->gffFnp_,rawReneIdsSet);
+					std::unordered_map<std::string, std::shared_ptr<GeneFromGffs>> genes;
 
-
+					for(const auto & gene : rawGenes){
+						bool failFilter = false;
+						for(const auto & transcript : gene.second->mRNAs_){
+							if(njh::in(njh::strToLowerRet(transcript->type_), VecStr{"rrna", "trna", "snorna","snrna","ncrna"} ) ){
+								failFilter = true;
+								break;
+							}
+						}
+						if(!failFilter){
+							genes[gene.first] = gene.second;
+						}
+					}
 					for(const auto & reg : allRegions){
 						if(reg->extraFields_.empty()){
 							continue;
@@ -1174,36 +1187,38 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 						std::string replacement = "";
 						for(const auto & geneTok : geneToks){
 							MetaDataInName geneMeta(geneTok);
-							TwoBit::TwoBitFile tReader(gMapper->genomes_.at(genome)->fnpTwoBit_);
-							auto infos = njh::mapAt(genes, geneMeta.getMeta("ID"))->generateGeneSeqInfo(tReader, false);
-							auto detailedName = njh::mapAt(genes, geneMeta.getMeta("ID"))->getGeneDetailedName();
-							for(const auto & info : infos){
-								auto posInfos = info.second->getInfosByGDNAPos();
+							if(njh::in(geneMeta.getMeta("ID"), genes)){
+								TwoBit::TwoBitFile tReader(gMapper->genomes_.at(genome)->fnpTwoBit_);
+								auto infos = njh::mapAt(genes, geneMeta.getMeta("ID"))->generateGeneSeqInfo(tReader, false);
+								auto detailedName = njh::mapAt(genes, geneMeta.getMeta("ID"))->getGeneDetailedName();
+								for(const auto & info : infos){
+									auto posInfos = info.second->getInfosByGDNAPos();
 
-								auto minPos = vectorMinimum(getVectorOfMapKeys(posInfos));
-								auto maxPos = vectorMaximum(getVectorOfMapKeys(posInfos));
-								auto startPos = std::max(minPos, reg->chromStart_);
-								auto stopPos =  std::min(maxPos, reg->chromEnd_);
-								auto aaStartPos = std::min(posInfos[startPos].aaPos_, posInfos[stopPos].aaPos_) + 1;
-								auto aaStopPos =  std::max(posInfos[startPos].aaPos_, posInfos[stopPos].aaPos_) + 1;
-								geneMeta.addMeta(info.first + "-AAStart", aaStartPos );
-								geneMeta.addMeta(info.first + "-AAStop", aaStopPos );
-								std::string description = "";
-								bool allNAs = true;
-								for(const auto & field : pars.extraAttributes_){
-									if("" != description){
-										description += "::";
+									auto minPos = vectorMinimum(getVectorOfMapKeys(posInfos));
+									auto maxPos = vectorMaximum(getVectorOfMapKeys(posInfos));
+									auto startPos = std::max(minPos, reg->chromStart_);
+									auto stopPos =  std::min(maxPos, reg->chromEnd_);
+									auto aaStartPos = std::min(posInfos[startPos].aaPos_, posInfos[stopPos].aaPos_) + 1;
+									auto aaStopPos =  std::max(posInfos[startPos].aaPos_, posInfos[stopPos].aaPos_) + 1;
+									geneMeta.addMeta(info.first + "-AAStart", aaStartPos );
+									geneMeta.addMeta(info.first + "-AAStop", aaStopPos );
+									std::string description = "";
+									bool allNAs = true;
+									for(const auto & field : pars.extraAttributes_){
+										if("" != description){
+											description += "::";
+										}
+										if("NA" != geneMeta.getMeta(field)){
+											allNAs = false;
+										}
+										description += geneMeta.getMeta(field);
 									}
-									if("NA" != geneMeta.getMeta(field)){
-										allNAs = false;
+									if(allNAs){
+										description = detailedName[info.first];
+										geneMeta.addMeta("detailedDescription", detailedName[info.first]);
 									}
-									description += geneMeta.getMeta(field);
+									proteinInsertInfoByNameCurrent[reg->name_].emplace_back(geneMeta.getMeta("ID"), aaStartPos, aaStopPos, description);
 								}
-								if(allNAs){
-									description = detailedName[info.first];
-									geneMeta.addMeta("detailedDescription", detailedName[info.first]);
-								}
-								proteinInsertInfoByNameCurrent[reg->name_].emplace_back(geneMeta.getMeta("ID"), aaStartPos, aaStopPos, description);
 							}
 							if("" != replacement){
 								replacement += ",";
