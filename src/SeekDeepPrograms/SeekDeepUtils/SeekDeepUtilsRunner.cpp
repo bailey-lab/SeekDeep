@@ -41,11 +41,60 @@ SeekDeepUtilsRunner::SeekDeepUtilsRunner() :
 					addFunc("gatherInfoOnTargetedAmpliconSeqFile", gatherInfoOnTargetedAmpliconSeqFile, false),
 					addFunc("getPossibleSampleNamesFromRawInput", getPossibleSampleNamesFromRawInput, false),
 					addFunc("SampleBarcodeFileToSeekDeepInput", SampleBarcodeFileToSeekDeepInput, false),
+					addFunc("primersToFasta", primersToFasta, false),
 				}, //
 				"SeekDeepUtils") {
 }
 
 //
+int SeekDeepUtilsRunner::primersToFasta(const njh::progutils::CmdArgs & inputCommands) {
+	TarAmpAnalysisSetup::TarAmpPars pars;
+
+	auto outOptions = SeqIOOptions::genFastaOut(bfs::path(""));
+	seqSetUp setUp(inputCommands);
+	setUp.processVerbose();
+	setUp.processDebug();
+	setUp.setOption(pars.idFile, "--primers", "Primers file", true);
+	setUp.processWritingOptions(outOptions.out_);
+	setUp.finishSetUp(std::cout);
+
+
+	PrimersAndMids primers(pars.idFile);
+	primers.initPrimerDeterminator();
+	SeqOutput writer(outOptions);
+	writer.openOut();
+	for(const auto & primer : primers.pDeterminator_->primers_){
+		{
+			uint32_t fwdCount = 0;
+			for(const auto & fwd : primer.second.fwds_){
+				std::string name = primer.first + "-fwd";
+
+				if(primer.second.fwds_.size() > 1){
+					name += njh::leftPadNumStr<uint32_t>(fwdCount, primer.second.fwds_.size());
+				}
+				seqInfo out(name, fwd.primer_);
+				writer.write(out);
+				++fwdCount;
+			}
+		}
+
+		{
+			uint32_t revCount = 0;
+			for(const auto & rev : primer.second.revs_){
+				std::string name = primer.first + "-rev";
+
+				if(primer.second.fwds_.size() > 1){
+					name += njh::leftPadNumStr<uint32_t>(revCount, primer.second.revs_.size());
+				}
+				seqInfo out(name, rev.primer_);
+				writer.write(out);
+				++revCount;
+			}
+		}
+	}
+
+	return 0;
+}
 
 
 int SeekDeepUtilsRunner::getPossibleSampleNamesFromRawInput(const njh::progutils::CmdArgs & inputCommands) {
