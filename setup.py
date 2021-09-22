@@ -1349,7 +1349,7 @@ class Packages():
         return pack
 
     def __pathweaver(self):
-        url = "https://github.com/nickjhathaway/pathweaver.git"
+        url = "https://github.com/nickjhathaway/PathWeaver.git"
         name = "PathWeaver"
         buildCmd = self.__njhProjectBuildCmd()
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v2.3.3")
