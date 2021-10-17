@@ -39,6 +39,7 @@
 #include "SeekDeep/objects/IlluminaUtils/PairedReadProcessor.hpp"
 #include "SeekDeep/objects/TarAmpSetupUtils/PrimersAndMids.hpp"
 #include "SeekDeep/objects/IlluminaUtils/IlluminaNameFormatDecoder.hpp"
+#include <njhseq/PopulationGeneticsUtils.h>
 
 namespace njhseq {
 
@@ -203,9 +204,9 @@ struct processClustersPars {
   VecStr excludeSamples;
 
 
-  TranslatorByAlignment::TranslatorByAlignmentPars transPars;
-  TranslatorByAlignment::RunPars variantCallerRunPars;
-  bfs::path knownAminoAcidChangesFnp;
+//  TranslatorByAlignment::TranslatorByAlignmentPars transPars;
+//  TranslatorByAlignment::RunPars variantCallerRunPars;
+//  bfs::path knownAminoAcidChangesFnp;
 
 
   bool extra = false;
@@ -263,6 +264,11 @@ struct processClustersPars {
 	VecStr excludeControlSamples_; //controls that shouldn't be included in frequency and population level cut offs
 
 	collapse::SampleCollapseCollection::PreFilteringCutOffs preFiltCutOffs;
+
+
+  CollapseAndCallVariantsPars collapseVarCallPars;
+
+
 
 };
 

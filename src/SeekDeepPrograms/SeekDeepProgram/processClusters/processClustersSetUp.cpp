@@ -55,12 +55,22 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 
 
 	setOption(pars.keepSampleInfoInMemory_, "--keepSamplesInfoInMemory", "Rather than writing samples results and reading again for further processing, keep all samples info in memory");
-	setOption(pars.transPars.lzPars_.genomeFnp, "--genomeFnp",
-			"Genome file so final haplotypes can be mapped to a genome", false, "Additional Output");
-	setOption(pars.transPars.gffFnp_, "--gffFnp",
-			"Gff file to intersect the final haplotypes with genes to get translations", false, "Additional Output");
-	setOption(pars.knownAminoAcidChangesFnp, "--knownAminoAcidChangesFnp",
-			"Known Amino Acid Changes, must have at least 2 columns, positions are 1-based, 1)TranscriptID, 2)AAPosition ", false, "Additional Output");
+//	setOption(pars.transPars.lzPars_.genomeFnp, "--genomeFnp",
+//			"Genome file so final haplotypes can be mapped to a genome", false, "Additional Output");
+//	setOption(pars.transPars.gffFnp_, "--gffFnp",
+//			"Gff file to intersect the final haplotypes with genes to get translations", false, "Additional Output");
+//	setOption(pars.knownAminoAcidChangesFnp, "--knownAminoAcidChangesFnp",
+//			"Known Amino Acid Changes, must have at least 2 columns, positions are 1-based, 1)TranscriptID, 2)AAPosition ", false, "Additional Output");
+
+  setOption(pars.collapseVarCallPars.variantCallerRunPars.occurrenceCutOff, "--occurrenceCutOff", "Occurrence Cut Off, don't report variants below this count");
+  setOption(pars.collapseVarCallPars.variantCallerRunPars.lowVariantCutOff, "--lowVariantCutOff", "Low Variant Cut Off, don't report variants below this fraction");
+  pars.collapseVarCallPars.calcPopMeasuresPars.lowVarFreq = pars.collapseVarCallPars.variantCallerRunPars.lowVariantCutOff;
+  pars.collapseVarCallPars.transPars.setOptions(*this);
+  setOption(pars.collapseVarCallPars.calcPopMeasuresPars.getPairwiseComps, "--getPairwiseComps", "get Pairwise comparison metrics");
+  bool noDiagAlnPairwiseComps = false;
+  setOption(pars.collapseVarCallPars.noDiagAlnPairwiseComps, "--noDiagAlnPairwiseComps", "Use diagonal Alignment for Pairwise Comparisons");
+  pars.collapseVarCallPars.calcPopMeasuresPars.diagAlnPairwiseComps = !noDiagAlnPairwiseComps;
+  //setOption(pars.collapseVarCallPars.ignoreSubFields, "--ignoreSubFields", "Meta Sub Field values to ignore when calculating variants, e.g. --ignoreSubFields \"isFieldSample:TRUE,PreferredSample:FALSE\"");
 
 	setOption(pars.masterDir, "--masterDir", "Master directory containing sample sequence files", false, "Input");
 	pars.masterDir = bfs::absolute(pars.masterDir);
@@ -129,7 +139,10 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 						+ pars.experimentNames.populationName_);
 		failed_ = true;
 	}
-	pars.preFiltCutOffs.clusterSizeCutOff = 10;
+
+  pars.collapseVarCallPars.identifier = pars.experimentNames.populationName_;
+
+  pars.preFiltCutOffs.clusterSizeCutOff = 10;
 	setOption(pars.preFiltCutOffs.clusterSizeCutOff, "--clusterCutOff", "Input Cluster Size Cut Off", false, "Filtering");
 	//setOption(pars.fracExcludeOnlyInFinalAverageFrac, "--fracExcludeOnlyInFinalAverageFrac", "By default fraction exclusion is done per rep, use fracExcludeOnlyInFinalAverageFrac to exclude only on the final averaged frac", false, "Filtering");
 
@@ -205,11 +218,14 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 	setOption(pars_.chiOpts_.parentFreqs_, "--parFreqs", "Chimeric Parent Frequency multiplier cutoff", false, "Chimeras");
 
 	setOption(pars.numThreads, "--numThreads", "Number of threads to use");
+
+  pars.collapseVarCallPars.calcPopMeasuresPars.numThreads = pars.numThreads;
 	setOption(pars.writeOutAllInfoFile, "--writeOutAllInfoFile", "Write Out All Info File that contains information on all clusters including excluded ones");
 
 	setOption(pars_.colOpts_.clusOpts_.converge_, "--converge", "Keep clustering at each iteration until there is no more collapsing, could increase run time significantly", false, "Clustering");
 	//setOption(pars.plotRepAgreement, "--plotRepAgreement", "Plot Rep Agreement");
 	processAlignerDefualts();
+  pars.collapseVarCallPars.alnCacheDir = pars_.alnInfoDirName_;
 	if (needsHelp()) {
 		printFlags(std::cout);
 		std::cout << "Example input directory tree set up: " << std::endl;
