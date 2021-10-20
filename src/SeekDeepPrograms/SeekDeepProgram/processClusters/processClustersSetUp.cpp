@@ -43,6 +43,8 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 
 	setOption(pars.illumina, "--illumina",
 			"Flag to indicate reads are Illumina", false, "Technology");
+	setOption(pars.allowHomopolymerCollapse, "--allowHomopolymerCollapse",
+			"Allow Homopolymer slippage Collapse between clusters", false, "Technology");
 
 	setOption(pars.ionTorrent, "--ionTorrent",
 			"Flag to indicate reads are ion torrent and therefore turns on --adjustHomopolyerRuns and --qualTrim",
@@ -52,6 +54,7 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 		pars.removeLowQualBases = true;
 		pars_.colOpts_.iTOpts_.adjustHomopolyerRuns_ = true;
 	}
+
 
 
 	setOption(pars.keepSampleInfoInMemory_, "--keepSamplesInfoInMemory", "Rather than writing samples results and reading again for further processing, keep all samples info in memory");
@@ -291,6 +294,14 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 		} else if (pars.strictErrorsSet) {
 			pars.iteratorMap = CollapseIterations::genStrictDefaultParsWithHqs(
 					pars.stopAfter, pars.hqMismatches, pars.illumina);
+		}
+
+		if(pars.allowHomopolymerCollapse){
+			pars.binIteratorMap =  CollapseIterations::genIlluminaDefaultParsCollapseHomopolymers(pars.stopAfter);
+			pars.iteratorMap = CollapseIterations::genIlluminaDefaultParsCollapseHomopolymers(pars.stopAfter);
+			pars_.colOpts_.iTOpts_.weighHomopolyer_ = true;
+		}else{
+			pars_.colOpts_.iTOpts_.weighHomopolyer_ = false;
 		}
 
 		if (pars.binParameters != "") {

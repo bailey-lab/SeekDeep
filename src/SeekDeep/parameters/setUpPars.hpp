@@ -236,7 +236,7 @@ struct processClustersPars {
   bool writeExcludedOriginals = false;
 
   bool illumina = false;
-
+  bool allowHomopolymerCollapse = false;
   bool ionTorrent = false;
   bool removeLowQualBases = false;
   uint32_t lowQualityCutOff = 3;
