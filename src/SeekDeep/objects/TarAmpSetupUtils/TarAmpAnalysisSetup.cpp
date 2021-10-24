@@ -420,7 +420,8 @@ void TarAmpAnalysisSetup::writeSampleNamesFile() const {
 	for (const auto & tarKey : keys) {
 		if(!pars_.byIndex && 1 == idsMids_->targets_.at(tarKey).overlapStatuses_.size()
 				&& PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP
-						== idsMids_->targets_.at(tarKey).overlapStatuses_.front())  {
+						== idsMids_->targets_.at(tarKey).overlapStatuses_.front() &&
+						pars_.techIsIllumina())  {
 
 //			std::cout << tarKey << std::endl;
 //			std::cout << "\t" << idsMids_->targets_.at(tarKey).overlapStatuses_.size() << std::endl;
@@ -721,8 +722,9 @@ void TarAmpAnalysisSetup::setUpPopClusteringDirs(bool verbose) const {
 	if (pars_.byIndex) {
 		auto topPopDir = njh::files::makeDir(dir_.string(), njh::files::MkdirPar("popClustering"));
 		for (const auto & tar : tars) {
-			if (1 == idsMids_->targets_.at(tar).overlapStatuses_.size()
-					&& PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP == idsMids_->targets_.at(tar).overlapStatuses_.front()) {
+			if (1 == idsMids_->targets_.at(tar).overlapStatuses_.size() &&
+					PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP == idsMids_->targets_.at(tar).overlapStatuses_.front() &&
+					pars_.techIsIllumina() ) {
 				setUpSampleDirs(
 						njh::files::make_path(infoDir_, "sampNames.tab.txt").string(),
 						njh::files::make_path(topPopDir, tar + "-R1").string(), false, verbose);

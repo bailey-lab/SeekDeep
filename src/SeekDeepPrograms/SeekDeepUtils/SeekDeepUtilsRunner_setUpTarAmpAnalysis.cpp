@@ -695,7 +695,8 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 						if (1
 								== analysisSetup.idsMids_->targets_.at(tar).overlapStatuses_.size()
 								&& PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP
-										== analysisSetup.idsMids_->targets_.at(tar).overlapStatuses_.front()) {
+										== analysisSetup.idsMids_->targets_.at(tar).overlapStatuses_.front() &&
+										analysisSetup.pars_.techIsIllumina()) {
 							//by default will analyze R1 and R2 as two separate targets
 							currentQlusterCmdTemplate = qlusterCmdSepMatesTemplate;
 						}
@@ -704,10 +705,11 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 							currentQlusterCmdTemplate += " "
 									+ analysisSetup.pars_.extraQlusterCmds;
 						}
-						if (1
-								== analysisSetup.idsMids_->targets_.at(tar).overlapStatuses_.size()
-								&& PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP
-										== analysisSetup.idsMids_->targets_.at(tar).overlapStatuses_.front()) {
+
+						if (1 == analysisSetup.idsMids_->targets_.at(tar).overlapStatuses_.size() &&
+								PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP == analysisSetup.idsMids_->targets_.at(tar).overlapStatuses_.front() &&
+								analysisSetup.pars_.techIsIllumina()
+										) {
 							if(njh::in(tar + "-R1", analysisSetup.pars_.extraQlusterCmdsPerTarget)){
 								currentQlusterCmdTemplate += " {EXTRAR1ARGS}";
 							}
@@ -732,7 +734,8 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 						if (1
 								== analysisSetup.idsMids_->targets_.at(tar).overlapStatuses_.size()
 								&& PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP
-										== analysisSetup.idsMids_->targets_.at(tar).overlapStatuses_.front()) {
+										== analysisSetup.idsMids_->targets_.at(tar).overlapStatuses_.front() &&
+										analysisSetup.pars_.techIsIllumina()) {
 							auto r1TemplateCmd = njh::replaceString(
 									currentQlusterCmdTemplate, "{MATEFILE}", "R1");
 							auto r2TemplateCmd = njh::replaceString(
@@ -924,7 +927,8 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 					std::string currentQlusterCmdTemplate = qlusterCmdTemplate;
 					if(1 == analysisSetup.idsMids_->targets_.at(tar).overlapStatuses_.size()
 							&& PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP
-									== analysisSetup.idsMids_->targets_.at(tar).overlapStatuses_.front()){
+									== analysisSetup.idsMids_->targets_.at(tar).overlapStatuses_.front()&&
+									analysisSetup.pars_.techIsIllumina()){
 						currentQlusterCmdTemplate = qlusterCmdSepMatesTemplate;
 					}
 
@@ -936,7 +940,8 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 					if (1
 							== analysisSetup.idsMids_->targets_.at(tar).overlapStatuses_.size()
 							&& PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP
-									== analysisSetup.idsMids_->targets_.at(tar).overlapStatuses_.front()) {
+									== analysisSetup.idsMids_->targets_.at(tar).overlapStatuses_.front()&&
+									analysisSetup.pars_.techIsIllumina()) {
 						if(njh::in(tar + "-R1", analysisSetup.pars_.extraQlusterCmdsPerTarget)){
 							currentQlusterCmdTemplate += " {EXTRAR1ARGS}";
 						}
@@ -959,7 +964,8 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 							currentQlusterCmdTemplate, "{TARGET}", tar);
 					if(1 == analysisSetup.idsMids_->targets_.at(tar).overlapStatuses_.size()
 												&& PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP
-														== analysisSetup.idsMids_->targets_.at(tar).overlapStatuses_.front()){
+														== analysisSetup.idsMids_->targets_.at(tar).overlapStatuses_.front()&&
+														analysisSetup.pars_.techIsIllumina()){
 						auto r1TemplateCmd = njh::replaceString(
 								currentQlusterCmdTemplate, "{MATEFILE}", "R1");
 						auto r2TemplateCmd = njh::replaceString(
@@ -1035,7 +1041,8 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	for (const auto & tar : targets) {
 		if (1 == analysisSetup.idsMids_->targets_.at(tar).overlapStatuses_.size()
 				&& PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP
-						== analysisSetup.idsMids_->targets_.at(tar).overlapStatuses_.front()) {
+						== analysisSetup.idsMids_->targets_.at(tar).overlapStatuses_.front()&&
+						analysisSetup.pars_.techIsIllumina()) {
 			//by default will analyze R1 and R2 as two separate targets
 			for(const auto & mate : VecStr{"-R1", "-R2"}){
 				if(njh::in(tar + mate, analysisSetup.pars_.extraProcessClusterCmdsPerTarget)){
@@ -1081,7 +1088,8 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	for (const auto & tar : targets) {
 		if (1 == analysisSetup.idsMids_->targets_.at(tar).overlapStatuses_.size()
 				&& PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP
-						== analysisSetup.idsMids_->targets_.at(tar).overlapStatuses_.front()) {
+						== analysisSetup.idsMids_->targets_.at(tar).overlapStatuses_.front()&&
+						analysisSetup.pars_.techIsIllumina()) {
 			//by default will analyze R1 and R2 as two separate targets
 			genConfigCmds.emplace_back(
 					njh::replaceString(

@@ -639,28 +639,33 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 		if (njh::endsWith(fnp, ".gz")) {
 			fnp = fnp.substr(0, fnp.rfind(".gz"));
 		}
-		if (njh::endsWith(fnp, "_R1.fastq")){
-			fnp = fnp.substr(0, fnp.rfind("_R1.fastq")) + ".fastq";
-		}
-		if (njh::endsWith(fnp, "_R2.fastq")){
-			fnp = fnp.substr(0, fnp.rfind("_R2.fastq")) + ".fastq";
-		}
-
-		std::string additionalOutDir = findAdditonalOutLocation(
-				pars.additionalOutLocationFile, fnp);
+		std::string additionalOutDir = findAdditonalOutLocation(pars.additionalOutLocationFile, fnp);
 		if (additionalOutDir == "") {
-			std::cerr << njh::bashCT::red << njh::bashCT::bold;
-			std::cerr << "No additional out directory found for: "
-					<< setUp.pars_.ioOptions_.firstName_ << std::endl;
-			std::cerr << njh::bashCT::reset;
-			std::cerr << processFileNameForID(setUp.pars_.ioOptions_.firstName_.string())<< std::endl;
-			std::cerr << "Options:" << std::endl;
-			table inTab(pars.additionalOutLocationFile, "\t");
-		  MapStrStr additionalOutNames;
-		  for (const auto& fIter : inTab.content_) {
-		    additionalOutNames[makeIDNameComparable(fIter[0])] = fIter[1];
-		  }
-		  std::cerr << njh::conToStr(njh::getVecOfMapKeys(additionalOutNames)) << std::endl;
+			auto fnp = setUp.pars_.ioOptions_.firstName_.filename().string();
+			if (njh::endsWith(fnp, ".gz")) {
+				fnp = fnp.substr(0, fnp.rfind(".gz"));
+			}
+			if (njh::endsWith(fnp, "_R1.fastq")){
+				fnp = fnp.substr(0, fnp.rfind("_R1.fastq")) + ".fastq";
+			}
+			if (njh::endsWith(fnp, "_R2.fastq")){
+				fnp = fnp.substr(0, fnp.rfind("_R2.fastq")) + ".fastq";
+			}
+			std::string additionalOutDir = findAdditonalOutLocation(pars.additionalOutLocationFile, fnp);
+			if (additionalOutDir == "") {
+				std::cerr << njh::bashCT::red << njh::bashCT::bold;
+				std::cerr << "No additional out directory found for: "
+						<< setUp.pars_.ioOptions_.firstName_ << std::endl;
+				std::cerr << njh::bashCT::reset;
+				std::cerr << processFileNameForID(fnp)<< std::endl;
+				std::cerr << "Options:" << std::endl;
+				table inTab(pars.additionalOutLocationFile, "\t");
+			  MapStrStr additionalOutNames;
+			  for (const auto& fIter : inTab.content_) {
+			    additionalOutNames[makeIDNameComparable(fIter[0])] = fIter[1];
+			  }
+			  std::cerr << njh::conToStr(njh::getVecOfMapKeys(additionalOutNames)) << std::endl;
+			}
 		} else {
 			SeqOutput::write(clusters, SeqIOOptions(additionalOutDir + setUp.pars_.ioOptions_.out_.outFilename_.string(),
 					setUp.pars_.ioOptions_.outFormat_,setUp.pars_.ioOptions_.out_));
