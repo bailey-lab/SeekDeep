@@ -28,7 +28,7 @@
 // along with SeekDeep.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-#include <njhseq.h>
+#include <njhseq/common.h>
 #include "SeekDeep/objects/TarAmpSetupUtils/PrimersAndMids.hpp"
 #include "SeekDeep/objects/IlluminaUtils/PairedReadProcessor.hpp"
 
@@ -79,7 +79,12 @@ public:
 
 		std::string extraExtractorCmds = "";
 		std::string extraQlusterCmds = "";
+		bfs::path extraQlusterCmdsPerTargetFnp;
+		std::unordered_map<std::string, std::string> extraQlusterCmdsPerTarget;
+
 		std::string extraProcessClusterCmds = "";
+		bfs::path extraProcessClusterCmdsPerTargetFnp;
+		std::unordered_map<std::string, std::string> extraProcessClusterCmdsPerTarget;
 
 		bool useKCrushClustering_{false};
 

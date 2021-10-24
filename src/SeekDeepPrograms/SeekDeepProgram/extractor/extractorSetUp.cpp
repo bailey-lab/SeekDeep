@@ -49,10 +49,17 @@ void SeekDeepSetUp::setUpExtractorPairedEnd(ExtractorPairedEndPars & pars) {
 	processReadInNames(VecStr{"--fastq1", "--fastq1gz", "--fastq2", "--fastq2gz"},true);
 	bool mustMakeDirectory = true;
 	processDirectoryOutputName(mustMakeDirectory);
-	bool useAlnPrimerSearch = false;
-	setOption(useAlnPrimerSearch, "--useAlnPrimerSearch",
-			"Use alignment to search for primers rather than motif search, motif search is faster but alignment search allows indels which might be good for SWGA", false, "Primer");
-	pars.corePars_.pDetPars.useMotif_ = !useAlnPrimerSearch;
+	if (!pars.corePars_.pDetPars.useMotif_) {
+		setOption(pars.corePars_.pDetPars.useMotif_, "--useMotif",
+				"Use motif search, motif search is faster but alignment search allows indels which might be good for SWGA",
+				false, "Primer");
+	} else {
+		bool useAlnPrimerSearch = false;
+		setOption(useAlnPrimerSearch, "--useAlnPrimerSearch",
+				"Use alignment to search for primers rather than motif search, motif search is faster but alignment search allows indels which might be good for SWGA",
+				false, "Primer");
+		pars.corePars_.pDetPars.useMotif_ = !useAlnPrimerSearch;
+	}
 	//paired end specific stuff
 	pars.pairProcessorParams_.verbose_ = pars_.verbose_;
 	bool processNoOverlapStatus = false;
@@ -196,7 +203,7 @@ void SeekDeepSetUp::setUpExtractor(extractorPars & pars) {
 		pars.corePars_.pDetPars.allowable_.largeBaseIndel_ = 0.99;
 		pars.corePars_.pDetPars.allowable_.oneBaseIndel_ = 0.5;
 		pars.corePars_.pDetPars.allowable_.twoBaseIndel_ = 0.5;
-
+		pars.corePars_.pDetPars.useMotif_ = true;
 	}
 
 	//core

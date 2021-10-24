@@ -26,7 +26,10 @@
 // You should have received a copy of the GNU General Public License
 // along with SeekDeep.  If not, see <http://www.gnu.org/licenses/>.
 //
-#include <njhseq.h>
+#include <njhseq/common.h>
+#include <njhseq/seqToolsUtils/determinators/MidDeterminator.hpp>
+#include <njhseq/seqToolsUtils/determinators/PrimerDeterminator.hpp>
+#include <njhseq/readVectorManipulation/readVectorHelpers/readChecker.hpp>
 
 #include "SeekDeep/objects/IlluminaUtils/PairedReadProcessor.hpp"
 

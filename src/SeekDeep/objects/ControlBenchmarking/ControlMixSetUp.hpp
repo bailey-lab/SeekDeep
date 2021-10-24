@@ -7,7 +7,9 @@
  *      Author: nicholashathaway
  */
 
-#include <njhseq.h>
+#include <njhseq/common.h>
+
+#include <njhseq/objects/Meta/MetaDataInName.hpp>
 
 namespace njhseq {
 

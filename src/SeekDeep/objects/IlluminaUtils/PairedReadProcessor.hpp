@@ -25,7 +25,10 @@
 // You should have received a copy of the GNU General Public License
 // along with SeekDeep.  If not, see <http://www.gnu.org/licenses/>.
 //
-#include <njhseq.h>
+#include <njhseq/common.h>
+#include <njhseq/IO/SeqIO.h>
+#include <njhseq/alignment/aligner/aligner.hpp>
+
 namespace njhseq {
 
 class PairedReadProcessor{
@@ -125,6 +128,7 @@ public:
 
 		QualWindowTrimPars qualWindowPar_;
 		bool trimLowQaulWindows_{true};
+		double percentAfterTrimCutOff_ {.70};
 
 	};
 
@@ -179,7 +183,7 @@ public:
 		Json::Value toJsonCounts() const;
 	};
 
-	std::function<void(uint32_t, const seqInfo&,const seqInfo&,std::string&,std::vector<uint32_t>&,aligner&)> addToConsensus;
+	std::function<void(uint32_t, const seqInfo&,const seqInfo&,std::string&,std::vector<uint8_t>&,aligner&)> addToConsensus;
 
 
 	ProcessedResultsCounts processPairedEnd(

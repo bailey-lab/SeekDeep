@@ -25,9 +25,9 @@
 // along with SeekDeep.  If not, see <http://www.gnu.org/licenses/>.
 //
 //
-#include <njhseq.h>
+#include <njhseq/common.h>
 #include <njhseq/programUtils/seqSetUp.hpp>
-#include <njhcpp.h>
+//#include <njhcpp.h>
 namespace njhseq {
 
 class SeekDeepUtilsSetUp : public seqSetUp {

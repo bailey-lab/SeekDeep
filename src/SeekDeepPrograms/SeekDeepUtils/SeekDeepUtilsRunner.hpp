@@ -51,6 +51,8 @@ class SeekDeepUtilsRunner : public njh::progutils::ProgramRunner {
   static int getPossibleSampleNamesFromRawInput(const njh::progutils::CmdArgs & inputCommands);
   static int SampleBarcodeFileToSeekDeepInput(const njh::progutils::CmdArgs & inputCommands);
 
+  static int primersToFasta(const njh::progutils::CmdArgs & inputCommands);
+
 
 };
 

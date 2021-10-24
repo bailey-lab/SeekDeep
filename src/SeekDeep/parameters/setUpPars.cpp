@@ -116,7 +116,7 @@ extractorPars::extractorPars(){
 //  rPrimerErrors.oneBaseIndel_ = 2;
 //  rPrimerErrors.twoBaseIndel_ = 1;
 
-  corePars_.pDetPars.allowable_.hqMismatches_ = 2;
+  corePars_.pDetPars.allowable_.hqMismatches_ = 3;
   corePars_.pDetPars.allowable_.distances_.query_.coverage_ = .90;
   corePars_.pDetPars.allowable_.largeBaseIndel_ = .99;
   corePars_.pDetPars.allowable_.oneBaseIndel_ = 2;
@@ -126,7 +126,7 @@ extractorPars::extractorPars(){
 
 ExtractorPairedEndPars::ExtractorPairedEndPars(){
 
-	corePars_.pDetPars.allowable_.hqMismatches_ = 2;
+	corePars_.pDetPars.allowable_.hqMismatches_ = 3;
 	corePars_.pDetPars.allowable_.lqMismatches_ = 5; /**@todo incorporate this*/
 	corePars_.pDetPars.allowable_.distances_.query_.coverage_ = .90;
 	corePars_.pDetPars.allowable_.largeBaseIndel_ = 0.99;

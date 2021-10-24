@@ -8,6 +8,9 @@
 
 
 #include "ControlBencher.hpp"
+
+#include <njhseq/objects/dataContainers/tables.h>
+
 namespace njhseq {
 ControlBencher::ControlBencher(const ControlBencherPars & pars):pars_(pars){
 	//read in mixture set ups

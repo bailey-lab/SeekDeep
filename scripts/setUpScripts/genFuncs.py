@@ -14,14 +14,14 @@ class genHelper:
                          "NJHSEQDEV", "SEEKDEEPDEV", "CATCH", "JSONCPP",
                           "TWOBIT", "SEQSERVER","NJHRINSIDE", "PSTREAMS",
                            "MONGOC", "MONGOCXX", "SHAREDMUTEX",
-                           "MAGIC", "HTS", "RESTBED", "LIBPCA", "BOOST_FILESYSTEM", 
-                           "ELUCIDATOR", "ELUCIDATORLAB", "MIPWRANGLER", "EIGEN",
+                           "MAGIC", "HTS", "RESTBED", "LIBPCA", "BOOST_FILESYSTEM","BOOST_MATH", 
+                           "PATHWEAVER", "ELUCIDATOR", "ELUCIDATORLAB", "MIPWRANGLER", "EIGEN",
                             "ZLIB", "ZLIB-NG", "UNQLITE"]
         neededLibraries = {}
         for lib in neededLibs:
             if ":" in lib:
                 libSplit = lib.split(":")
-                neededLibraries[libSplit[0].upper()] = libSplit[1]
+                neededLibraries[libSplit[0].upper()] = ":".join(libSplit[1:])
             else:
                 neededLibraries[lib.upper()] = ""
 
@@ -61,7 +61,7 @@ class genHelper:
 
 
     @staticmethod            
-    def determineCC(args, defaultCC = "gcc-7"):
+    def determineCC(args, defaultCC = "gcc-9"):
         if Utils.isMac():
             defaultCC = "clang"
         if not args.CC:
@@ -73,7 +73,7 @@ class genHelper:
         return defaultCC
     
     @staticmethod
-    def determineCXX(args, defaultCXX = "g++-7"):
+    def determineCXX(args, defaultCXX = "g++-9"):
         if Utils.isMac():
             defaultCXX = "clang++"
         if not args.CXX:

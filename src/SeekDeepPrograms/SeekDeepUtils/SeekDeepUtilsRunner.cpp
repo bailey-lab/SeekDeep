@@ -41,11 +41,60 @@ SeekDeepUtilsRunner::SeekDeepUtilsRunner() :
 					addFunc("gatherInfoOnTargetedAmpliconSeqFile", gatherInfoOnTargetedAmpliconSeqFile, false),
 					addFunc("getPossibleSampleNamesFromRawInput", getPossibleSampleNamesFromRawInput, false),
 					addFunc("SampleBarcodeFileToSeekDeepInput", SampleBarcodeFileToSeekDeepInput, false),
+					addFunc("primersToFasta", primersToFasta, false),
 				}, //
 				"SeekDeepUtils") {
 }
 
 //
+int SeekDeepUtilsRunner::primersToFasta(const njh::progutils::CmdArgs & inputCommands) {
+	TarAmpAnalysisSetup::TarAmpPars pars;
+
+	auto outOptions = SeqIOOptions::genFastaOut(bfs::path(""));
+	seqSetUp setUp(inputCommands);
+	setUp.processVerbose();
+	setUp.processDebug();
+	setUp.setOption(pars.idFile, "--primers", "Primers file", true);
+	setUp.processWritingOptions(outOptions.out_);
+	setUp.finishSetUp(std::cout);
+
+
+	PrimersAndMids primers(pars.idFile);
+	primers.initPrimerDeterminator();
+	SeqOutput writer(outOptions);
+	writer.openOut();
+	for(const auto & primer : primers.pDeterminator_->primers_){
+		{
+			uint32_t fwdCount = 0;
+			for(const auto & fwd : primer.second.fwds_){
+				std::string name = primer.first + "-fwd";
+
+				if(primer.second.fwds_.size() > 1){
+					name += njh::leftPadNumStr<uint32_t>(fwdCount, primer.second.fwds_.size());
+				}
+				seqInfo out(name, fwd.primer_);
+				writer.write(out);
+				++fwdCount;
+			}
+		}
+
+		{
+			uint32_t revCount = 0;
+			for(const auto & rev : primer.second.revs_){
+				std::string name = primer.first + "-rev";
+
+				if(primer.second.fwds_.size() > 1){
+					name += njh::leftPadNumStr<uint32_t>(revCount, primer.second.revs_.size());
+				}
+				seqInfo out(name, rev.primer_);
+				writer.write(out);
+				++revCount;
+			}
+		}
+	}
+
+	return 0;
+}
 
 
 int SeekDeepUtilsRunner::getPossibleSampleNamesFromRawInput(const njh::progutils::CmdArgs & inputCommands) {
@@ -182,7 +231,7 @@ int SeekDeepUtilsRunner::dryRunQualityFiltering(
 	std::string qualWindow;
 	uint32_t qualityWindowLength;
 	uint32_t qualityWindowStep;
-	uint32_t qualityWindowThres;
+	uint8_t qualityWindowThres;
 	if (setUp.setOption(qualWindow, "--qualWindow", "SlidingQualityWindow")) {
 		seqUtil::processQualityWindowString(qualWindow, qualityWindowLength,
 				qualityWindowStep, qualityWindowThres);
@@ -256,7 +305,7 @@ inline std::vector<njh::sys::RunOutput> runCmdsThreadedQueue(
 	std::mutex coutMut;
 	std::vector<njh::sys::RunOutput> ret;
 	njh::concurrent::LockableQueue<std::string> cmdsQueue(cmds);
-	auto runCmds = [&coutMut, &allOutputsMut, &ret, &verbose,&cmdsQueue]() {
+	std::function<void()> runCmds = [&coutMut, &allOutputsMut, &ret, &verbose,&cmdsQueue]() {
 		std::string cmd = "";
 		uint32_t cmdNum = 0;
 		std::vector<njh::sys::RunOutput> currentRets;
@@ -302,11 +351,7 @@ inline std::vector<njh::sys::RunOutput> runCmdsThreadedQueue(
 			}
 		}
 	};
-	std::vector<std::thread> threads;
-	for (uint32_t t = 0; t < numThreads; ++t) {
-		threads.emplace_back(std::thread(runCmds));
-	}
-	njh::concurrent::joinAllThreads(threads);
+	njh::concurrent::runVoidFunctionThreaded(runCmds, numThreads);
 	return ret;
 }
 
@@ -319,6 +364,8 @@ int SeekDeepUtilsRunner::runMultipleCommands(
 	uint32_t numThreads = 1;
 	bool raw = false;
 	bool noFilesInReplacementToks = false;
+	std::string additionalFields = "";
+	bool replaceFields = false;
 	seqSetUp setUp(inputCommands);
 	setUp.processVerbose();
 	setUp.processDebug();
@@ -332,6 +379,8 @@ int SeekDeepUtilsRunner::runMultipleCommands(
 			"If if the file is simply just a list of commands to run");
 	setUp.setOption(noFilesInReplacementToks, "--noFilesInReplacementToks",
 			"The replacement tokens are by default checked to see if there are files and more replacement strings are read in where each line is a replacement, this turns off that behavior");
+	setUp.setOption(additionalFields, "--additionalFields", "Additional fields to be replaced in the CMD: line, need to be given in format Key1:values;Key2:values");
+	setUp.setOption(replaceFields, "--replaceFields", "Replace Fields");
 
 	setUp.processWritingOptions();
 
@@ -379,9 +428,15 @@ int SeekDeepUtilsRunner::runMultipleCommands(
 		throw std::runtime_error { ss.str() };
 	}
 	std::string cmd;
+	VecStr rawPrepCmds;
+	VecStr finalPrepCmds;
+	VecStr rawPostCmds;
+	VecStr finalPostCmds;
+
 	VecStr cmds;
-	std::string line;
+
 	if (raw) {
+		std::string line;
 		while (njh::files::crossPlatGetline(inFile, line)) {
 			if ("" == line || allWhiteSpaceStr(line) || njh::beginsWith(line, "#")) {
 				continue;
@@ -389,11 +444,13 @@ int SeekDeepUtilsRunner::runMultipleCommands(
 			cmds.emplace_back(line);
 		}
 	} else {
+		std::string line;
 		std::map<std::string, VecStr> replacements;
 		while (njh::files::crossPlatGetline(inFile, line)) {
 			if ("" == line || allWhiteSpaceStr(line) || njh::beginsWith(line, "#")) {
 				continue;
 			}
+
 			auto colonPos = line.find(":");
 
 			if (std::string::npos == colonPos) {
@@ -406,6 +463,10 @@ int SeekDeepUtilsRunner::runMultipleCommands(
 			VecStr toks { line.substr(0, colonPos), line.substr(colonPos + 1) };
 			if (toks.front() == "CMD") {
 				cmd = toks.back();
+			}else if (toks.front() == "PREP") {
+				rawPrepCmds.emplace_back(toks.back());
+			} else if (toks.front() == "POST") {
+				rawPostCmds.emplace_back(toks.back());
 			} else {
 				if(noFilesInReplacementToks){
 					replacements[toks.front()] = tokenizeString(toks.back(), ",");
@@ -414,6 +475,41 @@ int SeekDeepUtilsRunner::runMultipleCommands(
 					VecStr finalReplacements;
 					for(const auto & tok : repToks){
 						addOtherVec(finalReplacements, getInputValues(tok, ","));
+					}
+					if(njh::in(toks.front(), replacements) && !replaceFields){
+						std::stringstream ss;
+						ss << __PRETTY_FUNCTION__ << ", error " << "already have key " << toks.front()<< "\n";
+						throw std::runtime_error{ss.str()};
+					}
+					replacements[toks.front()] = finalReplacements;
+				}
+			}
+		}
+		if("" != additionalFields){
+			auto addFieldToks = tokenizeString(additionalFields, ";");
+			for(const auto & addFieldTok : addFieldToks){
+				auto colonPos = addFieldTok.find(":");
+
+				if (std::string::npos == colonPos) {
+					std::stringstream ss;
+					ss << "Error in processing argument: " << njh::bashCT::boldRed(addFieldTok)
+							<< std::endl;
+					ss << "Need at least one colon" << std::endl;
+					throw std::runtime_error { ss.str() };
+				}
+				VecStr toks { addFieldTok.substr(0, colonPos), addFieldTok.substr(colonPos + 1) };
+				if(noFilesInReplacementToks){
+					replacements[toks.front()] = tokenizeString(toks.back(), ",");
+				}else{
+					auto repToks = tokenizeString(toks.back(), ",");
+					VecStr finalReplacements;
+					for(const auto & tok : repToks){
+						addOtherVec(finalReplacements, getInputValues(tok, ","));
+					}
+					if(njh::in(toks.front(), replacements) && !replaceFields){
+						std::stringstream ss;
+						ss << __PRETTY_FUNCTION__ << ", error " << "already have key " << toks.front()<< "\n";
+						throw std::runtime_error{ss.str()};
 					}
 					replacements[toks.front()] = finalReplacements;
 				}
@@ -434,14 +530,68 @@ int SeekDeepUtilsRunner::runMultipleCommands(
 				cmds = newCmds;
 			}
 		}
+		//prep cmds
+		if(!rawPrepCmds.empty()){
+			finalPrepCmds = rawPrepCmds;
+			for(const auto & r : replacements){
+				VecStr newPreps;
+				for(const auto & prep : finalPrepCmds){
+					if(std::string::npos != prep.find(r.first)){
+						for(const auto & subR : r.second){
+							newPreps.emplace_back(njh::replaceString(prep, r.first, subR));
+						}
+					}else{
+						newPreps.emplace_back(prep);
+					}
+				}
+				finalPrepCmds = newPreps;
+			}
+		}
+		//post cmds
+		if(!rawPostCmds.empty()){
+			finalPostCmds = rawPostCmds;
+			for(const auto & r : replacements){
+				VecStr newPreps;
+				for(const auto & prep : finalPostCmds){
+					if(std::string::npos != prep.find(r.first)){
+						for(const auto & subR : r.second){
+							newPreps.emplace_back(njh::replaceString(prep, r.first, subR));
+						}
+					}else{
+						newPreps.emplace_back(prep);
+					}
+				}
+				finalPostCmds = newPreps;
+			}
+		}
 	}
 
 	if (setUp.pars_.verbose_) {
 		printVector(cmds, "\n");
 	}
+	Json::Value allLog;
+
+	if(!finalPrepCmds.empty()){
+		uint32_t prepCmdCount = 1;
+		for(const auto & prepCmd : finalPrepCmds){
+			if(setUp.pars_.debug_){
+				std::cout << prepCmd << std::endl;
+			}else{
+				auto prepOut = njh::sys::run(VecStr{prepCmd});
+				if(!prepOut.success_){
+					std::stringstream ss;
+					ss << __PRETTY_FUNCTION__ << ", error " << "in running prep cmd: " << prepCmd << "\n";
+					ss << prepOut.stdOut_ << "\n";
+					ss << prepOut.stdErr_ << "\n";
+					throw std::runtime_error{ss.str()};
+				}
+				allLog[njh::pasteAsStr("00_PREP_CMD_", prepCmdCount)] = prepOut.toJson();
+				++prepCmdCount;
+			}
+		}
+	}
 
 	auto allRunOutputs = runCmdsThreadedQueue(cmds, numThreads, setUp.pars_.verbose_, setUp.pars_.debug_);
-	Json::Value allLog;
 
 	allLog["totalTime"] = setUp.timer_.totalTime();
 	allLog["cmdsfile"] = njh::json::toJson(bfs::absolute(filename));
@@ -451,6 +601,27 @@ int SeekDeepUtilsRunner::runMultipleCommands(
 	for (const auto & out : allRunOutputs) {
 		cmdsLog.append(out.toJson());
 	}
+
+	if(!finalPostCmds.empty()){
+		uint32_t postCmdCount = 1;
+		for(const auto & postCmd : finalPostCmds){
+			if(setUp.pars_.debug_){
+				std::cout << postCmd << std::endl;
+			}else{
+				auto postOut = njh::sys::run(VecStr{postCmd});
+				if(!postOut.success_){
+					std::stringstream ss;
+					ss << __PRETTY_FUNCTION__ << ", error " << "in running post cmd: " << postCmd << "\n";
+					ss << postOut.stdOut_ << "\n";
+					ss << postOut.stdErr_ << "\n";
+					throw std::runtime_error{ss.str()};
+				}
+				allLog[njh::pasteAsStr("ZZ_POST_CMD_", postCmdCount)] = postOut.toJson();
+				++postCmdCount;
+			}
+		}
+	}
+
 	if (!setUp.pars_.debug_) {
 		outFile << allLog << std::endl;
 	}

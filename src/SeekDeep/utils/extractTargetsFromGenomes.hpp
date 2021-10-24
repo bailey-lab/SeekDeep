@@ -6,7 +6,10 @@
  *      Author: nick
  */
 
-#include <njhseq.h>
+#include <njhseq/common.h>
+#include <njhseq/GenomeUtils/GenomeMapping/MultiGenomeMapper.hpp>
+#include <njhseq/programUtils/seqSetUp.hpp>
+
 #include "SeekDeep/objects/TarAmpSetupUtils/PrimersAndMids.hpp"
 
 

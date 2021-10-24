@@ -28,7 +28,7 @@
 
 
 
-#include <njhcpp.h>
+//#include <njhcpp.h>
 #include "SeekDeepPrograms/SeekDeepProgram/SeekDeepSetUp.hpp"
 
 namespace njhseq {

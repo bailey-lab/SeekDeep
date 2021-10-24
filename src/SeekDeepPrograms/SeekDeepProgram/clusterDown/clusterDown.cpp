@@ -26,6 +26,10 @@
 //
 #include "SeekDeepPrograms/SeekDeepProgram/SeekDeepRunner.hpp"
 
+#include <njhseq/objects/seqObjects/Clusters/clusterUtils.hpp>
+#include <njhseq/helpers/clusterCollapser.hpp>
+
+
 namespace njhseq {
 
 
@@ -206,6 +210,15 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 	uint32_t counter = 0;
 	std::unordered_map<uint32_t, std::vector<uint64_t>> filepositions;
 	std::unordered_map<std::string, uint32_t> clusterNameToFilePosKey;
+
+	aligner alignerForTrimming ;
+	if(pars.trimmingToSeq){
+		alignerForTrimming = aligner(std::max<uint64_t>(pars.trimToSeqPars.within_ *2, len(pars.trimToSeq)),
+					gapScoringParameters(5,1,0,0,0,0),
+					substituteMatrix::createDegenScoreMatrixCaseInsensitive(2, -2));
+
+	}
+
 	{
 		SeqIOOptions smallSeqOpts(setUp.pars_.directoryName_ + "smallReads",
 						setUp.pars_.ioOptions_.outFormat_,setUp.pars_.ioOptions_.out_);
@@ -215,6 +228,10 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 		std::unordered_map<std::string, uint32_t> allNameCounts;
 		uint32_t seqIndex = 0;
 		while(reader.readNextRead(seq)){
+
+			if(pars.trimmingToSeq){
+				readVecTrimmer::trimAtSequence(seq, pars.trimToSeq, alignerForTrimming, comparison{}, pars.trimToSeqPars);
+			}
 			++seqIndex;
 			if(!downsampled && !pars.dontFilterToMostCommonIlluminaSampleNumber_){
 				if(decodedNames[seqIndex - 1]->getSampleNumber() != sampleNames.front()){
@@ -253,7 +270,7 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 				smallWriter.openWrite(seq);
 			}else{
 			  bool found = false;
-			  for(const auto & clusPos : iter::range(clusters.size())){
+			  for(const auto clusPos : iter::range(clusters.size())){
 			  	if(seq.seq_ == clusters[clusPos].seqBase_.seq_){
 			  		clusters[clusPos].seqBase_.cnt_ += seq.cnt_;
 			  		clusters[clusPos].firstReadCount_ += seq.cnt_;
@@ -269,7 +286,6 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 			}
 			fPos = reader.tellgPri();
 		}
-
 		reader.reOpenIn();
 		setUp.rLog_.logCurrentTime("calculating the quality values");
 
@@ -281,6 +297,9 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 				for(const auto seqPos : fPositions.second){
 					reader.seekgPri(seqPos);
 					reader.readNextRead(seq);
+					if(pars.trimmingToSeq){
+						readVecTrimmer::trimAtSequence(seq, pars.trimToSeq, alignerForTrimming, comparison{}, pars.trimToSeqPars);
+					}
 					if (setUp.pars_.colOpts_.iTOpts_.removeLowQualityBases_) {
 						seq.removeLowQualityBases(setUp.pars_.colOpts_.iTOpts_.lowQualityBaseTrim_);
 					}
@@ -416,9 +435,9 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 		openTextFile(scoreArrayFile, "scoreArrayTest.tab.txt", ".txt", true, false);
 		std::ofstream scoreMapFile;
 		openTextFile(scoreMapFile, "scoreMapFile.tab.txt", ".txt", true, false);
-		for (const auto & row : iter::range(len(alignerObj.parts_.scoring_.mat_))) {
+		for (const auto row : iter::range(len(alignerObj.parts_.scoring_.mat_))) {
 			std::vector<int32_t> currentRow;
-			for (const auto & col : iter::range(
+			for (const auto col : iter::range(
 					len(alignerObj.parts_.scoring_.mat_[row]))) {
 				currentRow.emplace_back(alignerObj.parts_.scoring_.mat_[row][col]);
 			}
@@ -617,24 +636,36 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 //	}
 	if (pars.additionalOut) {
 		auto fnp = setUp.pars_.ioOptions_.firstName_.filename().string();
-		if(njh::endsWith(fnp, ".gz")){
+		if (njh::endsWith(fnp, ".gz")) {
 			fnp = fnp.substr(0, fnp.rfind(".gz"));
 		}
-		std::string additionalOutDir = findAdditonalOutLocation(
-				pars.additionalOutLocationFile, fnp);
+		std::string additionalOutDir = findAdditonalOutLocation(pars.additionalOutLocationFile, fnp);
 		if (additionalOutDir == "") {
-			std::cerr << njh::bashCT::red << njh::bashCT::bold;
-			std::cerr << "No additional out directory found for: "
-					<< setUp.pars_.ioOptions_.firstName_ << std::endl;
-			std::cerr << njh::bashCT::reset;
-			std::cerr << processFileNameForID(setUp.pars_.ioOptions_.firstName_.string())<< std::endl;
-			std::cerr << "Options:" << std::endl;
-			table inTab(pars.additionalOutLocationFile, "\t");
-		  MapStrStr additionalOutNames;
-		  for (const auto& fIter : inTab.content_) {
-		    additionalOutNames[makeIDNameComparable(fIter[0])] = fIter[1];
-		  }
-		  std::cerr << njh::conToStr(njh::getVecOfMapKeys(additionalOutNames)) << std::endl;
+			auto fnp = setUp.pars_.ioOptions_.firstName_.filename().string();
+			if (njh::endsWith(fnp, ".gz")) {
+				fnp = fnp.substr(0, fnp.rfind(".gz"));
+			}
+			if (njh::endsWith(fnp, "_R1.fastq")){
+				fnp = fnp.substr(0, fnp.rfind("_R1.fastq")) + ".fastq";
+			}
+			if (njh::endsWith(fnp, "_R2.fastq")){
+				fnp = fnp.substr(0, fnp.rfind("_R2.fastq")) + ".fastq";
+			}
+			std::string additionalOutDir = findAdditonalOutLocation(pars.additionalOutLocationFile, fnp);
+			if (additionalOutDir == "") {
+				std::cerr << njh::bashCT::red << njh::bashCT::bold;
+				std::cerr << "No additional out directory found for: "
+						<< setUp.pars_.ioOptions_.firstName_ << std::endl;
+				std::cerr << njh::bashCT::reset;
+				std::cerr << processFileNameForID(fnp)<< std::endl;
+				std::cerr << "Options:" << std::endl;
+				table inTab(pars.additionalOutLocationFile, "\t");
+			  MapStrStr additionalOutNames;
+			  for (const auto& fIter : inTab.content_) {
+			    additionalOutNames[makeIDNameComparable(fIter[0])] = fIter[1];
+			  }
+			  std::cerr << njh::conToStr(njh::getVecOfMapKeys(additionalOutNames)) << std::endl;
+			}
 		} else {
 			SeqOutput::write(clusters, SeqIOOptions(additionalOutDir + setUp.pars_.ioOptions_.out_.outFilename_.string(),
 					setUp.pars_.ioOptions_.outFormat_,setUp.pars_.ioOptions_.out_));
@@ -653,11 +684,11 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 		setUp.rLog_.logCurrentTime("Calling internal snps");
 		std::string snpDir = njh::files::makeDir(setUp.pars_.directoryName_,
 				njh::files::MkdirPar("internalSnpInfo", false)).string();
-		for (const auto & readPos : iter::range(clusters.size())) {
+		for (const auto readPos : iter::range(clusters.size())) {
 			std::unordered_map<uint32_t,
 					std::unordered_map<char, std::vector<baseReadObject>>>mismatches;
 
-			for (const auto & subReadPos : iter::range(
+			for (const auto subReadPos : iter::range(
 							clusters[readPos].reads_.size())) {
 				const auto & subRead = clusters[readPos].reads_[subReadPos];
 				alignerObj.alignCacheGlobal(clusters[readPos], subRead);

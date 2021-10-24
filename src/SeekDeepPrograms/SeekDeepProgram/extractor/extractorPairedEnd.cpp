@@ -290,8 +290,18 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 	}
 
 	// create aligner for primer identification
-	auto scoreMatrix = substituteMatrix::createDegenScoreMatrixNoNInRef(
+	if(setUp.pars_.debug_){
+		std::cout << "setUp.pars_.generalMatch_: " << setUp.pars_.generalMatch_ << std::endl;
+		std::cout << "setUp.pars_.generalMismatch_: " << setUp.pars_.generalMismatch_ << std::endl;
+	}
+
+
+	auto scoreMatrix = substituteMatrix::createDegenScoreMatrixLessN(
 			setUp.pars_.generalMatch_, setUp.pars_.generalMismatch_);
+
+//	auto scoreMatrix = substituteMatrix::createDegenScoreMatrixNoNInRef(
+//			setUp.pars_.generalMatch_, setUp.pars_.generalMismatch_);
+
 	gapScoringParameters gapPars(setUp.pars_.gapInfo_);
 	KmerMaps emptyMaps;
 	bool countEndGaps = false;
@@ -792,6 +802,13 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 						|| filteringSeq.seqBase_.seq_.size() <= pars.corePars_.primIdsPars.compKmerLen_
 						|| filteringSeq.mateSeqBase_.seq_.size() <= pars.corePars_.primIdsPars.compKmerLen_){
 					bool pass = false;
+					if(pairProcessor.params_.r1Trim_ > 0 && pairProcessor.params_.r1Trim_ < len(filteringSeq.seqBase_)){
+						readVecTrimmer::trimOffEndBases(filteringSeq.seqBase_, pairProcessor.params_.r1Trim_);
+					}
+					if(pairProcessor.params_.r2Trim_ > 0 && pairProcessor.params_.r2Trim_ < len(filteringSeq.mateSeqBase_)){
+						readVecTrimmer::trimOffEndBases(filteringSeq.mateSeqBase_, pairProcessor.params_.r2Trim_);
+					}
+
 					if(ids.targets_.at(extractedPrimer).refs_.empty()){
 						pass = true;
 					}else{
@@ -876,11 +893,10 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 					tempWriter.openOut();
 					tempOuts[name] = SeqIOOptions::genFastqIn(tempWriter.getPrimaryOutFnp());
 				}
+				SeqOutput contaminationWriter(contaminationOutOpts);
 				for(const auto & filterSeqOpts : allFilterSeqOpts){
 					seqInfo filteringSeq;
 					SeqInput processedReader(filterSeqOpts);
-
-					SeqOutput contaminationWriter(contaminationOutOpts);
 					processedReader.openIn();
 
 					while(processedReader.readNextRead(filteringSeq)){

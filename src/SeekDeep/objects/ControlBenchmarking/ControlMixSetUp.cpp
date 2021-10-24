@@ -7,7 +7,7 @@
 
 
 #include "ControlMixSetUp.hpp"
-
+#include <njhseq/objects/dataContainers/tables.h>
 namespace njhseq {
 
 ControlMixSetUp::ControlMixSetUp(const std::string & name,

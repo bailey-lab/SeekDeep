@@ -27,9 +27,9 @@
 //
 #include <seqServer/apps/SeqApp.hpp>
 #include <seqServer/utils.h>
-#include <njhcpp.h>
-
-
+#include <njhseq/common.h>
+#include <njhseq/objects/dataContainers/tables/TableCache.hpp>
+#include <njhseq/objects/collapseObjects/SampleCollapseCollection.hpp>
 
 namespace njhseq {
 

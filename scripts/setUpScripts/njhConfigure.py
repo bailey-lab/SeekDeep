@@ -31,7 +31,7 @@ def main():
      -outFilename compfile.mk -externalLoc {external} -CC {CC} -CXX {CXX}
       -neededLibs {libs} -outname {name}"""
     if args.private:
-      cmd += " -private ";
+        cmd += " -private ";
     if args.prefix and args.prefix != "":
         prefix = args.prefix;
         cmd += " -prefix {prefix}"

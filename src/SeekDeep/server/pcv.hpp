@@ -28,7 +28,7 @@
 //
 #include <seqServer/apps/SeqApp.hpp>
 #include <seqServer/utils.h>
-#include <njhcpp.h>
+//#include <njhcpp.h>
 #include "SeekDeep/server/PopClusProject.hpp"
 
 

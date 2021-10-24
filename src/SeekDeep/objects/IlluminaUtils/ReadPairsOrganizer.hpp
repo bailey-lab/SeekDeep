@@ -27,7 +27,7 @@
 //
 
 
-#include <njhseq.h>
+#include <njhseq/common.h>
 
 
 namespace njhseq {

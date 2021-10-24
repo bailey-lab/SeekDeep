@@ -26,10 +26,20 @@
 // You should have received a copy of the GNU General Public License
 // along with SeekDeep.  If not, see <http://www.gnu.org/licenses/>.
 //
-#include <njhseq.h>
+#include <njhseq/common.h>
+
+#include <njhseq/programUtils/seqSetUp.hpp>
+#include <njhseq/objects/seqObjects/Clusters/cluster.hpp>
+#include <njhseq/objects/Gene/TranslatorByAlignment.hpp>
+#include <njhseq/objects/collapseObjects/SampleCollapseCollection.hpp>
+
+
+
+
 #include "SeekDeep/objects/IlluminaUtils/PairedReadProcessor.hpp"
 #include "SeekDeep/objects/TarAmpSetupUtils/PrimersAndMids.hpp"
 #include "SeekDeep/objects/IlluminaUtils/IlluminaNameFormatDecoder.hpp"
+#include <njhseq/PopulationGeneticsUtils.h>
 
 namespace njhseq {
 
@@ -148,6 +158,15 @@ struct clusterDownPars {
 	uint32_t trimFront = 0;
 	uint32_t trimBack = 0;
 
+	bool trimToLocal = false;
+	uint32_t trimToWithin = 100;
+	bool trimToOnlyMatching = false;
+	seqInfo trimToSeq;
+	bool trimmingToSeq = false;
+
+	FullTrimReadsPars::trimSeqPars trimToSeqPars;
+
+
 	bool useAllInput = false; // use all input reads even for large input
 	uint32_t useCutOff = 50000; // the cut off for input size, will down sample the file if more than this, helps to control memory usage
 	bool keepDownSampledFile = false; //keep the down sampled file;
@@ -168,6 +187,7 @@ struct clusterDownPars {
 };
 
 struct processClustersPars {
+	bool keepSampleInfoInMemory_ = false;
 	bfs::path masterDir = ".";
   //bool noPopulation = false;
   std::string previousPopFilename = "";
@@ -184,12 +204,11 @@ struct processClustersPars {
   VecStr excludeSamples;
 
 
-  TranslatorByAlignment::TranslatorByAlignmentPars transPars;
-  TranslatorByAlignment::RunPars variantCallerRunPars;
-  bfs::path knownAminoAcidChangesFnp;
+//  TranslatorByAlignment::TranslatorByAlignmentPars transPars;
+//  TranslatorByAlignment::RunPars variantCallerRunPars;
+//  bfs::path knownAminoAcidChangesFnp;
 
 
-  VecStr controlSamples;
   bool extra = false;
   double fracCutoff = 0.005;
   double withinReplicateFracCutOff = 0.001;
@@ -200,17 +219,12 @@ struct processClustersPars {
   bool collapseLowFreqOneOffs = false;
   double lowFreqMultiplier = 10;
 
-  bool removeOneSampOnlyOneOffHaps = false;
-  double oneSampOnlyOneOffHapsFrac = 0.25;
-
-  bool removeOneSampOnlyHaps = false;
-  double oneSampOnlyHapsFrac = 0.25;
+  collapse::SampleCollapseCollection::performLowLevelFiltersPars lowLevelPopFiltPars_;
 
   bool keepChimeras = false;
-  bool investigateChimeras = false;
  // bool recheckChimeras = false;
   double chiCutOff = .40;
-  std::string experimentName = "PopUID";
+  PopNamesInfo experimentNames{"PopUID", VecStr{}, VecStr{} };
   std::string parametersPopulation = "";
   bool differentPar = false;
   bool popBoth = false;
@@ -222,7 +236,7 @@ struct processClustersPars {
   bool writeExcludedOriginals = false;
 
   bool illumina = false;
-
+  bool allowHomopolymerCollapse = false;
   bool ionTorrent = false;
   bool removeLowQualBases = false;
   uint32_t lowQualityCutOff = 3;
@@ -241,21 +255,20 @@ struct processClustersPars {
 	uint32_t hqMismatches = 0;
 	uint32_t stopAfter = 100;
 
-	bool rescueExcludedLowFreqHaplotypes = false;
-	bool rescueExcludedOneOffLowFreqHaplotypes = false;
-	bool rescueExcludedChimericHaplotypes = false;
+
+	collapse::SampleCollapseCollection::conductResuceOperationsPars rescuePars_;
+
 	bool rescueMatchingExpected = false;
-
-	double majorHaplotypeFracForRescue = .10;
-
-	bool removeCommonlyLowFreqHaplotypes_ = false;      //
-	double lowFreqHaplotypeFracCutOff_ = 0.01; //remove haplotypes that on average appear below this fraction (0.01 == 1%)
-
 
 
 	VecStr excludeControlSamples_; //controls that shouldn't be included in frequency and population level cut offs
 
 	collapse::SampleCollapseCollection::PreFilteringCutOffs preFiltCutOffs;
+
+
+  CollapseAndCallVariantsPars collapseVarCallPars;
+
+
 
 };
 

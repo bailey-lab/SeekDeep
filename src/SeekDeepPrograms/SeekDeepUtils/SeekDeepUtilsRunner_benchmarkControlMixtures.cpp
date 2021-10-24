@@ -8,18 +8,19 @@
 
 #include "SeekDeepUtilsRunner.hpp"
 #include "SeekDeep/objects/ControlBenchmarking.h"
-
+#include <njhseq/objects/dataContainers/tables/TableReader.hpp>
 namespace njhseq {
 
 
 int SeekDeepUtilsRunner::benchmarkControlMixtures(
-		const njh::progutils::CmdArgs & inputCommands) {
+		const njh::progutils::CmdArgs &inputCommands) {
 	ControlBencher::ControlBencherPars conBenchPars;
 	bfs::path processClustersDir = "";
 	bfs::path expectedSeqsFnp = "";
 	std::string name = "";
 	bfs::path metaFnp = "";
 	bool skipMissingSamples = false;
+	bool fillInMissingSamples = false;
 	bfs::path popSeqsFnp = "";
 	comparison allowableError;
 	seqSetUp setUp(inputCommands);
@@ -30,10 +31,11 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 	setUp.setOption(name, "--name", "Name to give the current analysis", true);
 	setUp.setOption(metaFnp, "--metaFnp", "meta data for the control samples");
 	setUp.setOption(popSeqsFnp, "--popSeqsFnp", "Population Sequences");
-
 	setUp.setOption(conBenchPars.samplesToMixFnp_, "--sampleToMixture", "Sample To Mixture, 2 columns 1)sample, 2)MixName", true);
 	setUp.setOption(conBenchPars.mixSetUpFnp_, "--mixtureSetUp", "Mixture Set Up, 3 columns 1)MixName, 2)strain, 3)relative_abundance", true);
 	setUp.setOption(skipMissingSamples, "--skipMissingSamples", "Skip Samples if they are missing");
+	setUp.setOption(fillInMissingSamples, "--fillInMissingSamples", "Fill in missing Samples with placeholders");
+
 	setUp.processComparison(allowableError);
 	setUp.processAlignerDefualts();
 	setUp.processDirectoryOutputName(name + "_benchmarkControlMixtures_TODAY", true);
@@ -60,10 +62,9 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 		VecStr row;
 		while(popInfoReader.getNextRow(row)){
 			auto hapName = row[popInfoReader.header_.getColPos("h_popUID")];
-			auto h_Consensus = row[popInfoReader.header_.getColPos("h_Consesus")];
+			auto h_Consensus = row[popInfoReader.header_.getColPos("h_Consensus")];
 			hPopUID_to_hConsensus[hapName] = h_Consensus;
 		}
-
 	}
 	uint64_t maxLen = 0;
 	auto sampInfoFnp = analysisMaster.getSampInfoPath();
@@ -77,7 +78,6 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 		auto hapName = row[sampInfoReader.header_.getColPos("c_name")];
 		auto c_ReadCnt = njh::StrToNumConverter::stoToNum<double>(row[sampInfoReader.header_.getColPos("c_ReadCnt")]);
 		auto c_AveragedFrac = njh::StrToNumConverter::stoToNum<double>(row[sampInfoReader.header_.getColPos("c_AveragedFrac")]);
-		//auto c_Consensus = row[sampInfoReader.header_.getColPos("c_Consensus")];
 		auto readCnt = njh::StrToNumConverter::stoToNum<double>(row[sampInfoReader.header_.getColPos("c_ReadCnt")]);
 		readCountsPerHapPerSample[sample][hapName] = readCnt;
 		auto h_popUID = row[sampInfoReader.header_.getColPos("h_popUID")];
@@ -161,7 +161,7 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 		}
 		expNames.emplace(expSeq->name_);
 		bool found = false;
-		for(const auto & otherSeqPos : iter::range(expSeqs.size())){
+		for(const auto otherSeqPos : iter::range(expSeqs.size())){
 			const auto & otherSeq = expSeqs[otherSeqPos];
 			if(otherSeq->seq_ == expSeq->seq_){
 				found = true;
@@ -229,21 +229,20 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 			continue;
 		}
 		//read in result sequences
-		auto resultsSeqsFnp = analysisMaster.getSampleFinalHapsPath(sname);
-		if(!bfs::exists(resultsSeqsFnp) && skipMissingSamples){
+		//auto resultsSeqsFnp = analysisMaster.getSampleFinalHapsPath(sname);
+		if(!njh::in(sname, allSamplesInOutput) && skipMissingSamples){
 			OutOptions outOptsMissing(njh::files::make_path(setUp.pars_.directoryName_, "missingSamples.txt"));
 			outOptsMissing.append_ = true;
 			OutputStream outMissing(outOptsMissing);
 			outMissing << sname << std::endl;
 			continue;
-		} else if(!bfs::exists(resultsSeqsFnp)){
+		} else if(!njh::in(sname, allSamplesInOutput)){
 			std::stringstream ss;
 			ss << __PRETTY_FUNCTION__ << ", error " << "missing results for the following sample: " << sname << "\n";
 			throw std::runtime_error{ss.str()};
 		}
 
-		SeqIOOptions resultsSeqsOpts(resultsSeqsFnp, analysisMaster.inputOptions_.inFormat_, true);
-		//auto resultSeqs = SeqInput::getSeqVec<seqInfo>(resultsSeqsOpts);
+
 		std::vector<seqInfo> resultSeqs = allResultSeqs[sname];
 
 		std::unordered_map<std::string, uint32_t> resSeqToPos;
@@ -257,9 +256,16 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 		//get current expected seqs
 		std::unordered_map<std::string, double> currentExpectedSeqsFrac;
 		double maxExpFrac = 0;
+		std::unordered_map<std::string, VecStr> expectedSeqNameToCurrentSeqsKey;
 
 		for(const auto & expSeqFrac : bencher.mixSetups_.at(bencher.samplesToMix_.at(sname)).relativeAbundances_){
 			currentExpectedSeqsFrac[expSeqs[initialExpSeqsPositions[expSeqFrac.first]]->name_] += expSeqFrac.second;
+			expectedSeqNameToCurrentSeqsKey[expSeqs[initialExpSeqsPositions[expSeqFrac.first]]->name_].emplace_back(expSeqFrac.first);
+		}
+		for(auto & key : expectedSeqNameToCurrentSeqsKey){
+//			std::cout << "key: " << key.first << std::endl;
+//			std::cout << "\t" << njh::conToStr(key.second, ",") << std::endl;
+			njh::sort(key.second);
 		}
 		for(const auto & expFrac : currentExpectedSeqsFrac){
 			if(expFrac.second > maxExpFrac){
@@ -308,7 +314,7 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 					<< "\t" << readCountsPerHapPerSample[sname][seq.name_]
 					<< "\t" << seq.frac_
 					<< "\t" << ("" == res.resSeqToExpSeq_[seq.name_] ? "FALSE": "TRUE")
-					<< "\t" << res.resSeqToExpSeq_[seq.name_]
+					<< "\t" << njh::conToStr(expectedSeqNameToCurrentSeqsKey[res.resSeqToExpSeq_[seq.name_]], ",")
 					<< "\t" << currentExpectedSeqsFrac[res.resSeqToExpSeq_[seq.name_]]
 					<< "\t" << expectedToMajorClass[res.resSeqToExpSeq_[seq.name_]];
 
@@ -339,7 +345,7 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 					<< "\t" << "NA"
 					<< "\t" << "NA"
 					<< "\t" << "NA"
-					<< "\t" << missing
+					<< "\t" << njh::conToStr(expectedSeqNameToCurrentSeqsKey[missing], ",")
 					<< "\t" << currentExpectedSeqsFrac[missing]
 					<< "\t" << expectedToMajorClass[missing];
 
@@ -352,9 +358,12 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 				}
 			}
 			haplotypesClassified << std::endl;
-
 		}
 		//performance
+		VecStr missingExpectedDecoded;
+		for(const auto & missing: res.missingExpecteds_){
+			missingExpectedDecoded.emplace_back(njh::conToStr(expectedSeqNameToCurrentSeqsKey[missing], ","));
+		}
 		performanceOut  << name
 				<< "\t" << sname
 				<< "\t" << bencher.samplesToMix_[sname]
@@ -365,7 +374,7 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 				<< "\t" << res.expectedHapCnt_
 				<< "\t" << res.hapRecoveryRate()
 				<< "\t" << res.falseHapRate()
-				<< "\t" << njh::conToStr(res.missingExpecteds_, ";")
+				<< "\t" << njh::conToStr(missingExpectedDecoded, ";")
 				<< "\t" << res.RMSE();
 		if(nullptr != analysisMaster.groupMetaData_){
 			for(const auto & meta : metalevels){
@@ -447,6 +456,111 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 			}
 		}
 	}
+
+	if(fillInMissingSamples){
+		for(const auto & sname : missingSamples){
+
+			std::vector<seqInfo> resultSeqs = allResultSeqs[sname];
+
+			std::unordered_map<std::string, uint32_t> resSeqToPos;
+			double maxResFrac = 0;
+			for(const auto pos : iter::range(resultSeqs.size())){
+				resSeqToPos[resultSeqs[pos].name_] = pos;
+				if(resultSeqs[pos].frac_ > maxResFrac){
+					maxResFrac = resultSeqs[pos].frac_;
+				}
+			}
+			//get current expected seqs
+			std::unordered_map<std::string, double> currentExpectedSeqsFrac;
+			double maxExpFrac = 0;
+			std::unordered_map<std::string, VecStr> expectedSeqNameToCurrentSeqsKey;
+
+
+			for(const auto & expSeqFrac : bencher.mixSetups_.at(bencher.samplesToMix_.at(sname)).relativeAbundances_){
+				currentExpectedSeqsFrac[expSeqs[initialExpSeqsPositions[expSeqFrac.first]]->name_] += expSeqFrac.second;
+				expectedSeqNameToCurrentSeqsKey[expSeqs[initialExpSeqsPositions[expSeqFrac.first]]->name_].emplace_back(expSeqFrac.first);
+			}
+			for(auto & key : expectedSeqNameToCurrentSeqsKey){
+				njh::sort(key.second);
+			}
+			for(const auto & expFrac : currentExpectedSeqsFrac){
+				if(expFrac.second > maxExpFrac){
+					maxExpFrac = expFrac.second;
+				}
+			}
+
+			std::unordered_map<std::string, std::string> expectedToMajorClass;
+			for(const auto & expFrac : currentExpectedSeqsFrac){
+				if(expFrac.second == maxExpFrac){
+					expectedToMajorClass[expFrac.first] = "major";
+				}else{
+					expectedToMajorClass[expFrac.first] = "minor";
+				}
+			}
+			std::unordered_map<std::string, std::string> resultsToMajorClass;
+			for(const auto & res : resultSeqs){
+				if(res.frac_ == maxResFrac){
+					resultsToMajorClass[res.name_] = "major";
+				}else{
+					resultsToMajorClass[res.name_] = "minor";
+				}
+			}
+
+
+			std::vector<std::shared_ptr<seqInfo>> currentExpectedSeqs;
+			for(const auto & finalExp : currentExpectedSeqsFrac){
+				currentExpectedSeqs.push_back(expSeqs[finalExpSeqsPositions[finalExp.first]]);
+			}
+			VecStr missingExpectedDecoded;
+			for(const auto & missing: currentExpectedSeqs){
+				missingExpectedDecoded.emplace_back(njh::conToStr(expectedSeqNameToCurrentSeqsKey[missing->name_], ","));
+			}
+			//performance
+			performanceOut  << name
+					<< "\t" << sname
+					<< "\t" << bencher.samplesToMix_[sname]
+					<< "\t" << 0
+					<< "\t" << 0
+					<< "\t" << 0
+					<< "\t" << 0
+					<< "\t" << currentExpectedSeqs.size()
+					<< "\t" << 0
+					<< "\t" << 0
+					<< "\t" << njh::conToStr(missingExpectedDecoded, ";")
+					<< "\t" << 0;
+			if(nullptr != analysisMaster.groupMetaData_){
+				for(const auto & meta : metalevels){
+					performanceOut << "\t" << analysisMaster.groupMetaData_->groupData_[meta]->getGroupForSample(sname);
+				}
+			}
+			performanceOut << std::endl;
+			for(const auto & missing : readVec::getNames(currentExpectedSeqs)){
+				haplotypesClassified << name
+						<< "\t" << sname
+						<< "\t" << bencher.samplesToMix_[sname]
+						<< "\t" << "NA"
+						<< "\t" << "NA"
+						<< "\t" << "NA"
+						<< "\t" << "NA"
+						<< "\t" << "NA"
+						<< "\t" << "NA"
+						<< "\t" << njh::conToStr(expectedSeqNameToCurrentSeqsKey[missing], ",")
+						<< "\t" << currentExpectedSeqsFrac[missing]
+						<< "\t" << expectedToMajorClass[missing];
+
+				haplotypesClassified
+						<< "\t" << "NA"
+						<< "\t" << "NA";
+				if(nullptr != analysisMaster.groupMetaData_){
+					for(const auto & meta : metalevels){
+						haplotypesClassified << "\t" << analysisMaster.groupMetaData_->groupData_[meta]->getGroupForSample(sname);
+					}
+				}
+				haplotypesClassified << std::endl;
+			}
+		}
+	}
+
 	alignerObj.processAlnInfoOutput(setUp.pars_.outAlnInfoDirName_, false);
 
 	return 0;

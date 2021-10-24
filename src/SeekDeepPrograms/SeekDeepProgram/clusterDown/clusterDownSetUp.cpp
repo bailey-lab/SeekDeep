@@ -180,7 +180,8 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 	setOption(pars.illumina, "--illumina","Flag to indicate reads are Illumina", false, "Technology");
 	setOption(pars.illuminaAllowHomopolyers, "--illuminaAllowHomopolyers","Flag to indicate reads are Illumina but also handle homopolymer indels that may be from long polymers from SWGA TAQ", false, "Technology");
 	setOption(pars.illuminaAllLowMismatches, "--illuminaAllLowMismatches","Flag to collapse low quality and low frequency errors", false, "Technology");
-
+	uint32_t checkAmount = 100;
+	setOption(checkAmount, "--checkAmount", "Number of top clusters to check", false, "Clustering");
 
 
 	//name decoder
@@ -195,6 +196,17 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 	//pre-process
 	setOption(pars.trimFront, "--trimFront", "Trim front of the input sequences by this much", false, "Pre-process");
 	setOption(pars.trimBack, "--trimBack", "Trim back of the input sequence by this much", false, "Pre-process");
+
+	setOption(pars.trimToLocal, "--trimToLocal", "When trimming to a set sequence use local alignment", false, "Pre-process");
+	setOption(pars.trimToWithin, "--trimToWithin", "When trimming to a set sequence, search within this many bases from the back", false, "Pre-process");
+	setOption(pars.trimToOnlyMatching, "--trimToOnlyMatching", "When trimming to a set sequence, trim to only matching seq", false, "Pre-process");
+	pars.trimmingToSeq = processSeq(pars.trimToSeq,"--trimToSeq", "Trim input to this sequence", false, "Pre-process");
+	pars.trimToSeqPars.alwaysTrim = !pars.trimToOnlyMatching;
+	pars.trimToSeqPars.local_ = pars.trimToLocal;
+	pars.trimToSeqPars.includeSequence_ = true;
+	pars.trimToSeqPars.within_ = pars.trimToWithin;
+
+
 
 	//post process
 	pars.breakoutPars.hardCutOff = 10;
@@ -228,42 +240,42 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 
 	if(pars.tech454 || pars.ionTorrent){
 		if(pars.hq  > 0){
-			pars.binIteratorMap = CollapseIterations::gen454ItDefaultParsWithHqs(100, pars.hq);
-			pars.intialParameters = CollapseIterations::gen454ItDefaultParsWithHqs(100, 0);
-			pars.iteratorMap = CollapseIterations::gen454ItDefaultParsWithHqs(100, pars.hq);
+			pars.binIteratorMap = CollapseIterations::gen454ItDefaultParsWithHqs(checkAmount, pars.hq);
+			pars.intialParameters = CollapseIterations::gen454ItDefaultParsWithHqs(checkAmount, 0);
+			pars.iteratorMap = CollapseIterations::gen454ItDefaultParsWithHqs(checkAmount, pars.hq);
 		}else{
-			pars.binIteratorMap = CollapseIterations::gen454ItDefaultPars(100);
-			pars.intialParameters = CollapseIterations::gen454ItDefaultPars(100);
-			pars.iteratorMap = CollapseIterations::gen454ItDefaultPars(100);
+			pars.binIteratorMap = CollapseIterations::gen454ItDefaultPars(checkAmount);
+			pars.intialParameters = CollapseIterations::gen454ItDefaultPars(checkAmount);
+			pars.iteratorMap = CollapseIterations::gen454ItDefaultPars(checkAmount);
 		}
 		needsParFlag = false;
 	}
 
 	if(pars.illumina){
 		if(pars.hq  > 0){
-			pars.binIteratorMap = CollapseIterations::genIlluminaDefaultParsWithHqs(100, pars.hq);
-			pars.intialParameters = CollapseIterations::genIlluminaDefaultParsWithHqs(100, 0);
-			pars.iteratorMap = CollapseIterations::genIlluminaDefaultParsWithHqs(100, pars.hq);
+			pars.binIteratorMap = CollapseIterations::genIlluminaDefaultParsWithHqs(checkAmount, pars.hq);
+			pars.intialParameters = CollapseIterations::genIlluminaDefaultParsWithHqs(checkAmount, 0);
+			pars.iteratorMap = CollapseIterations::genIlluminaDefaultParsWithHqs(checkAmount, pars.hq);
 		}else{
 			if(pars.illuminaAllLowMismatches){
-				pars.binIteratorMap =  CollapseIterations::genIlluminaDefaultAllLowMismatchesPars(100);
-				pars.intialParameters = CollapseIterations::genIlluminaDefaultAllLowMismatchesPars(100);
-				pars.iteratorMap = CollapseIterations::genIlluminaDefaultAllLowMismatchesPars(100);
+				pars.binIteratorMap =  CollapseIterations::genIlluminaDefaultAllLowMismatchesPars(checkAmount);
+				pars.intialParameters = CollapseIterations::genIlluminaDefaultAllLowMismatchesPars(checkAmount);
+				pars.iteratorMap = CollapseIterations::genIlluminaDefaultAllLowMismatchesPars(checkAmount);
 			}else{
-				pars.binIteratorMap =  CollapseIterations::genIlluminaDefaultPars(100);
-				pars.intialParameters = CollapseIterations::genIlluminaDefaultPars(100);
-				pars.iteratorMap = CollapseIterations::genIlluminaDefaultPars(100);
+				pars.binIteratorMap =  CollapseIterations::genIlluminaDefaultPars(checkAmount);
+				pars.intialParameters = CollapseIterations::genIlluminaDefaultPars(checkAmount);
+				pars.iteratorMap = CollapseIterations::genIlluminaDefaultPars(checkAmount);
 			}
 		}
 		if(pars.illuminaAllowHomopolyers){
 			if(pars.illuminaAllLowMismatches){
-				pars.binIteratorMap =  CollapseIterations::genIlluminaDefaultParsAllLowMismatchesCollapseHomopolymers(100);
-				pars.intialParameters = CollapseIterations::genIlluminaDefaultParsAllLowMismatchesCollapseHomopolymers(100);
-				pars.iteratorMap = CollapseIterations::genIlluminaDefaultParsAllLowMismatchesCollapseHomopolymers(100);
+				pars.binIteratorMap =  CollapseIterations::genIlluminaDefaultParsAllLowMismatchesCollapseHomopolymers(checkAmount);
+				pars.intialParameters = CollapseIterations::genIlluminaDefaultParsAllLowMismatchesCollapseHomopolymers(checkAmount);
+				pars.iteratorMap = CollapseIterations::genIlluminaDefaultParsAllLowMismatchesCollapseHomopolymers(checkAmount);
 			}else{
-				pars.binIteratorMap =  CollapseIterations::genIlluminaDefaultParsCollapseHomopolymers(100);
-				pars.intialParameters = CollapseIterations::genIlluminaDefaultParsCollapseHomopolymers(100);
-				pars.iteratorMap = CollapseIterations::genIlluminaDefaultParsCollapseHomopolymers(100);
+				pars.binIteratorMap =  CollapseIterations::genIlluminaDefaultParsCollapseHomopolymers(checkAmount);
+				pars.intialParameters = CollapseIterations::genIlluminaDefaultParsCollapseHomopolymers(checkAmount);
+				pars.iteratorMap = CollapseIterations::genIlluminaDefaultParsCollapseHomopolymers(checkAmount);
 			}
 			pars_.colOpts_.iTOpts_.weighHomopolyer_ = true;
 		}else{
@@ -291,9 +303,9 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 			addWarning(ss.str());
 		}
 		pars.onPerId = true;
-		pars.binIteratorMap = CollapseIterations::genOtuPars(100, pars.otuPerc, pars.onHqPerId);
-		pars.iteratorMap = CollapseIterations::genOtuPars(100, pars.otuPerc, pars.onHqPerId);
-		pars.intialParameters = CollapseIterations::genOtuPars(100, pars.otuPerc, pars.onHqPerId);
+		pars.binIteratorMap = CollapseIterations::genOtuPars(checkAmount, pars.otuPerc, pars.onHqPerId);
+		pars.iteratorMap = CollapseIterations::genOtuPars(checkAmount, pars.otuPerc, pars.onHqPerId);
+		pars.intialParameters = CollapseIterations::genOtuPars(checkAmount, pars.otuPerc, pars.onHqPerId);
 		needsParFlag = false;
 		pars_.colOpts_.kmerOpts_.runCutOff_ = 1;
 		pars_.colOpts_.kmerOpts_.runCutOffString_ = "1";
@@ -426,8 +438,8 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 			pars.intialParameters = pars.iteratorMap;
 		}
 		if (pars_.verbose_) {
-			std::cout << "p: " << pars_.qScorePars_.primaryQual_ << std::endl;
-			std::cout << "s: " << pars_.qScorePars_.secondaryQual_ << std::endl;
+			std::cout << "p: " << static_cast<uint32_t>(pars_.qScorePars_.primaryQual_) << std::endl;
+			std::cout << "s: " << static_cast<uint32_t>(pars_.qScorePars_.secondaryQual_) << std::endl;
 			std::cout << "go: " << pars_.gapInfo_.gapOpen_ << std::endl;
 			std::cout << "ge: " << pars_.gapInfo_.gapExtend_ << std::endl;
 		}
