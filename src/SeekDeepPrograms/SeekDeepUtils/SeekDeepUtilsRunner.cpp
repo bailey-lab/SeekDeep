@@ -112,8 +112,10 @@ int SeekDeepUtilsRunner::getPossibleSampleNamesFromRawInput(const njh::progutils
 	setUp.processWritingOptions(tabOutOpts.out_);
 	setUp.finishSetUp(std::cout);
 
+	OutputStream out(tabOutOpts.out_);
 	auto sampleNames = GuessPossibleSamps(pars);
-	sampleNames.outPutContents(std::cout, "\t");
+
+	sampleNames.outPutContents(out, "\t");
 	return 0;
 }
 
