@@ -265,7 +265,7 @@ TarAmpAnalysisSetup::TarAmpAnalysisSetup(const TarAmpPars & inputPars) :
 				<< ": error, target names shouldn't have underscores in them (this makes downstream patern matching and such easier) replace with -" << "\n";
 		ss << "The following targets should be renamed" << "\n";
 		ss << njh::conToStr(failedTargets, ", ") << "\n";
-		throw std::runtime_error { ss.str() };
+//		throw std::runtime_error { ss.str() };
 	}
 
 
