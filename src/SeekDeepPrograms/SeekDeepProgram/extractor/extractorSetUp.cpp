@@ -49,6 +49,7 @@ void SeekDeepSetUp::setUpExtractorPairedEnd(ExtractorPairedEndPars & pars) {
 	processReadInNames(VecStr{"--fastq1", "--fastq1gz", "--fastq2", "--fastq2gz"},true);
 	bool mustMakeDirectory = true;
 	processDirectoryOutputName(mustMakeDirectory);
+	pars.corePars_.pDetPars.useMotif_ = true;
 	if (!pars.corePars_.pDetPars.useMotif_) {
 		setOption(pars.corePars_.pDetPars.useMotif_, "--useMotif",
 				"Use motif search, motif search is faster but alignment search allows indels which might be good for SWGA",
@@ -193,7 +194,7 @@ void SeekDeepSetUp::setUpExtractor(extractorPars & pars) {
 
 	processVerbose();
 	processDebug();
-	setOption(pars.illumina, "--illumina", "If input reads are from Illumina",false, "Technology");
+	setOption(pars.illumina, "--illumina", "If input reads are from Illumina", false, "Technology");
 	if(pars.illumina){
 		pars.corePars_.qPars_.checkingQFrac_ = true;
 
