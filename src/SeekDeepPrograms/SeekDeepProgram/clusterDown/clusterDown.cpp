@@ -665,6 +665,13 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 			    additionalOutNames[makeIDNameComparable(fIter[0])] = fIter[1];
 			  }
 			  std::cerr << njh::conToStr(njh::getVecOfMapKeys(additionalOutNames)) << std::endl;
+			}else{
+				SeqOutput::write(clusters, SeqIOOptions(additionalOutDir + setUp.pars_.ioOptions_.out_.outFilename_.string(),
+						setUp.pars_.ioOptions_.outFormat_,setUp.pars_.ioOptions_.out_));
+				std::ofstream metaDataFile;
+				openTextFile(metaDataFile, additionalOutDir + "/" + "metaData", ".json",
+						setUp.pars_.ioOptions_.out_);
+				metaDataFile << metaData;
 			}
 		} else {
 			SeqOutput::write(clusters, SeqIOOptions(additionalOutDir + setUp.pars_.ioOptions_.out_.outFilename_.string(),
