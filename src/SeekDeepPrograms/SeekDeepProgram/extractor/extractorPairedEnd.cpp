@@ -181,7 +181,16 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 	uint32_t used = 0;
 
 	std::string seqName = bfs::basename(setUp.pars_.ioOptions_.firstName_);
-	seqName = seqName.substr(0,seqName.find("_"));
+	if(njh::endsWith(seqName, ".gz")){
+		seqName = seqName.substr(0, seqName.rfind(".gz"));
+	}
+	if(njh::endsWith(seqName, ".fasta")){
+		seqName = seqName.substr(0, seqName.rfind(".fasta"));
+	}
+	if(njh::endsWith(seqName, ".fastq")){
+		seqName = seqName.substr(0, seqName.rfind(".fastq"));
+	}
+
 
 
 	while (reader.readNextRead(seq)) {
