@@ -1471,7 +1471,7 @@ class Packages():
     def __boost(self):
         name = "boost"
         buildCmd = ""
-        boostLibs = "filesystem,system"
+        boostLibs = "filesystem,system,math"
         if Utils.isMac():
             #print "here"
             setUpDir = os.path.dirname(os.path.abspath(__file__))
@@ -1532,6 +1532,21 @@ class Packages():
         pack.addVersion("http://baileylab.brown.edu/sourceCodes/boost/boost_1_70_0.tar.bz2", "1_70_0")
         pack.versions_["1_70_0"].additionalLdFlags_ = ["-lboost_system", "-lboost_filesystem"]
         pack.versions_["1_70_0"].libName_ = ""
+        pack.addVersion("https://boostorg.jfrog.io/artifactory/main/release/1.75.0/source/boost_1_75_0.tar.bz2", "1_75_0")
+        pack.versions_["1_75_0"].additionalLdFlags_ = ["-lboost_system", "-lboost_filesystem"]
+        pack.versions_["1_75_0"].libName_ = ""
+        pack.addVersion("https://boostorg.jfrog.io/artifactory/main/release/1.76.0/source/boost_1_76_0.tar.bz2", "1_76_0")
+        pack.versions_["1_76_0"].additionalLdFlags_ = ["-lboost_system", "-lboost_filesystem"]
+        pack.versions_["1_76_0"].libName_ = ""
+        pack.addVersion("https://boostorg.jfrog.io/artifactory/main/release/1.77.0/source/boost_1_77_0.tar.bz2", "1_77_0")
+        pack.versions_["1_77_0"].additionalLdFlags_ = ["-lboost_system", "-lboost_filesystem"]
+        pack.versions_["1_77_0"].libName_ = ""
+        pack.addVersion("https://boostorg.jfrog.io/artifactory/main/release/1.78.0/source/boost_1_78_0.tar.bz2", "1_78_0")
+        pack.versions_["1_78_0"].additionalLdFlags_ = ["-lboost_system", "-lboost_filesystem"]
+        pack.versions_["1_78_0"].libName_ = ""
+        pack.addVersion("https://boostorg.jfrog.io/artifactory/main/release/1.79.0/source/boost_1_79_0.tar.bz2", "1_79_0")
+        pack.versions_["1_79_0"].additionalLdFlags_ = ["-lboost_system", "-lboost_filesystem"]
+        pack.versions_["1_79_0"].libName_ = ""
         return pack
 
     def __boost_filesystem(self):
@@ -1602,7 +1617,7 @@ class Packages():
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
                 pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
         return pack
-    
+
     def __boost_math(self):
         name = "boost_math"
         buildCmd = ""
@@ -2115,8 +2130,8 @@ class Setup:
             raise Exception("Package " + str(name) + " doesn't have version " + str(version))
         if "" != commit and "git" != pack.libType_ and "git-headeronly" != pack.libType_:
             raise Exception("Error for " + str(name) + ":" + str(version) + ":" + str(commit) + " set a commit but library type isn't git or git-headeronly")
-        
-        
+
+
         if "" != commit:
             pack.versions_[version].nameVer_ = LibNameVer(name, commit)
             commit_local_dir = os.path.join(self.dirMaster_.install_dir, name, commit, name)
@@ -2153,7 +2168,7 @@ class Setup:
                 except Exception as inst:
                     print(inst)
                     print(CT.boldRed("failed to install ") + name + ":" + str(commit))
-                    self.failedInstall.append(LibNameVerCommit(name, version, commit))                      
+                    self.failedInstall.append(LibNameVerCommit(name, version, commit))
 
 
     def num_cores(self):
@@ -2467,7 +2482,7 @@ class Setup:
 
     def boost_filesystem(self, version):
         self.__defaultBuild("boost_filesystem", version)
-        
+
     def boost_math(self, version):
         self.__defaultBuild("boost_math", version)
 
