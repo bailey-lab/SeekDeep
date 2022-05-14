@@ -1532,6 +1532,9 @@ class Packages():
         pack.addVersion("http://baileylab.brown.edu/sourceCodes/boost/boost_1_70_0.tar.bz2", "1_70_0")
         pack.versions_["1_70_0"].additionalLdFlags_ = ["-lboost_system", "-lboost_filesystem"]
         pack.versions_["1_70_0"].libName_ = ""
+        pack.addVersion("https://boostorg.jfrog.io/artifactory/main/release/1.74.0/source/boost_1_74_0.tar.bz2", "1_74_0")
+        pack.versions_["1_74_0"].additionalLdFlags_ = ["-lboost_system", "-lboost_filesystem"]
+        pack.versions_["1_74_0"].libName_ = ""
         pack.addVersion("https://boostorg.jfrog.io/artifactory/main/release/1.75.0/source/boost_1_75_0.tar.bz2", "1_75_0")
         pack.versions_["1_75_0"].additionalLdFlags_ = ["-lboost_system", "-lboost_filesystem"]
         pack.versions_["1_75_0"].libName_ = ""
