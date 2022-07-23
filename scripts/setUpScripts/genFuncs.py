@@ -10,11 +10,11 @@ class genHelper:
         availableLibs = ["CPPITERTOOLS","CPPPROGUTILS","ZI_LIB","BOOST",
                          "R","BAMTOOLS","CPPCMS","MATHGL","ARMADILLO",
                          "MLPACK","LIBLINEAR","CURL","GTKMM", "NJHSEQ",
-                          "NJHCPP", "SEEKDEEP", 
+                          "NJHCPP", "SEEKDEEP",
                          "NJHSEQDEV", "SEEKDEEPDEV", "CATCH", "JSONCPP",
                           "TWOBIT", "SEQSERVER","NJHRINSIDE", "PSTREAMS",
                            "MONGOC", "MONGOCXX", "SHAREDMUTEX",
-                           "MAGIC", "HTS", "RESTBED", "LIBPCA", "BOOST_FILESYSTEM","BOOST_MATH", 
+                           "MAGIC", "HTS", "RESTBED", "LIBPCA", "BOOST_FILESYSTEM","BOOST_MATH",
                            "PATHWEAVER", "ELUCIDATOR", "ELUCIDATORLAB", "MIPWRANGLER", "EIGEN",
                             "ZLIB", "ZLIB-NG", "UNQLITE"]
         neededLibraries = {}
@@ -57,11 +57,11 @@ class genHelper:
                         f.write("USE_{LIB} = 1#{BRANCH}\n".format(LIB = lib, BRANCH = neededLibraries[lib]))
                 #else:
                 #    f.write("USE_{LIB} = 0\n".format(LIB = lib))
-                    
 
 
-    @staticmethod            
-    def determineCC(args, defaultCC = "gcc-9"):
+
+    @staticmethod
+    def determineCC(args, defaultCC = "gcc-10"):
         if Utils.isMac():
             defaultCC = "clang"
         if not args.CC:
@@ -71,9 +71,9 @@ class genHelper:
         else:
             defaultCC =  Utils.getStrFromStrOrList(args.CC)
         return defaultCC
-    
+
     @staticmethod
-    def determineCXX(args, defaultCXX = "g++-9"):
+    def determineCXX(args, defaultCXX = "g++-10"):
         if Utils.isMac():
             defaultCXX = "clang++"
         if not args.CXX:
@@ -83,7 +83,7 @@ class genHelper:
         else:
             defaultCXX = Utils.getStrFromStrOrList(args.CXX)
         return defaultCXX
-    
+
     @staticmethod
     def parseNjhConfigureArgs():
         parser = argparse.ArgumentParser()
@@ -92,7 +92,7 @@ class genHelper:
         parser.add_argument('-CC', type=str, nargs=1)
         parser.add_argument('-CXX', type=str, nargs=1)
         return parser.parse_args()
-    
+
     @staticmethod
     def mkConfigCmd(name,libs, argv, ldflags="", cxxFlags="", private = False):
         if libs == "":
@@ -130,9 +130,7 @@ def main():
     args = genHelper.parseNjhConfigureArgs()
     cmd = genHelper.mkConfigCmd(name, libs, sys.argv)
     Utils.run(cmd)
-    
+
 main()
 """.format(name = name, libs = libs)
         return ret
-    
-    
