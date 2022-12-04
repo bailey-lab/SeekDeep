@@ -1567,6 +1567,8 @@ class Packages():
             && if [ ! -z $(otool -L {local_dir}/lib/libboost_filesystem.dylib | egrep -o "\\S+libboost_system.dylib") ]; then install_name_tool -change $(otool -L {local_dir}/lib/libboost_filesystem.dylib | egrep -o "\\S+libboost_system.dylib") {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_filesystem.dylib ; fi
             && install_name_tool -id {local_dir}/lib/libboost_filesystem.dylib {local_dir}/lib/libboost_filesystem.dylib
             && install_name_tool -id {local_dir}/lib/libboost_system.dylib {local_dir}/lib/libboost_system.dylib
+            && if [ ! -z $(otool -L {local_dir}/lib/libboost_filesystem.dylib | egrep -o "\\S+libboost_atomic.dylib") ]; then install_name_tool -change $(otool -L {local_dir}/lib/libboost_filesystem.dylib | egrep -o "\\S+libboost_atomic.dylib") {local_dir}/lib/libboost_atomic.dylib {local_dir}/lib/libboost_filesystem.dylib ; fi
+            && if [ -f {local_dir}/lib/libboost_atomic.dylib ]; then install_name_tool -id {local_dir}/lib/libboost_atomic.dylib {local_dir}/lib/libboost_atomic.dylib; fi
             """
             #print(installNameToolCmd)
         if self.args.clang:
@@ -1582,22 +1584,22 @@ class Packages():
                 if Utils.isMac():
                     buildCmd = "cp " + gccJamLoc + "  " + gccJamOutLoc + """ && ./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
                      && echo "using gcc : """ + str(gccVer) + """ : {CXX} : <linker-type>darwin ;" >> tools/build/src/user-config.jam
-                     && ./b2 -d 0 cxxflags=\"-std=c++17\" --toolset=gcc -""" + str(gccVer) +  """ -j {num_cores} install
+                     && ./b2 -d 0 cxxflags=\"-std=c++17\" linkflags=\"-Wl,-rpath,{local_dir}/lib\" --toolset=gcc -""" + str(gccVer) +  """ -j {num_cores} install
                      """ + installNameToolCmd
                 else:
                     buildCmd = """./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
                      && echo "using gcc : """ + str(gccVer) + """ : {CXX} ;" >> tools/build/src/user-config.jam
-                     && ./b2 -d 0 cxxflags=\"-std=c++17\" --toolset=gcc -""" + str(gccVer) +  """ -j {num_cores} install
+                     && ./b2 -d 0 cxxflags=\"-std=c++17\" linkflags=\"-Wl,-rpath,{local_dir}/lib\" --toolset=gcc -""" + str(gccVer) +  """ -j {num_cores} install
                      """
             else:
                 if Utils.isMac():
                     buildCmd = "cp " + gccJamLoc + "  " + gccJamOutLoc + """ && echo "using gcc :  : g++ : <linker-type>darwin ;" >> tools/build/src/user-config.jam
                      && ./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
-                     && ./b2 -d 0 cxxflags=\"-std=c++17\" --toolset=gcc  -j {num_cores} install
+                     && ./b2 -d 0 cxxflags=\"-std=c++17\" linkflags=\"-Wl,-rpath,{local_dir}/lib\" --toolset=gcc  -j {num_cores} install
                      """ + installNameToolCmd
                 else:
                     buildCmd = """./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
-                     && ./b2 -d 0 cxxflags=\"-std=c++17\" --toolset=gcc  -j {num_cores} install
+                     && ./b2 -d 0 cxxflags=\"-std=c++17\" linkflags=\"-Wl,-rpath,{local_dir}/lib\" --toolset=gcc  -j {num_cores} install
                      """
         buildCmd = " ".join(buildCmd.split())
         url = "https://github.com/nickjhathaway/boost_filesystem.git"
