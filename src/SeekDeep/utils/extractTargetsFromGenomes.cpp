@@ -1037,7 +1037,7 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 			if(!allRegions.empty()){
 				if("" != gMapper->genomes_.at(genome)->gffFnp_){
 					intersectBedLocsWtihGffRecordsPars pars(gMapper->genomes_.at(genome)->gffFnp_);
-					pars.selectFeatures_ = VecStr{"gene"};
+					pars.selectFeatures_ = VecStr{"gene", "protein_coding_gene"};
 					pars.extraAttributes_ = tokenizeString(extractPars.gffExtraAttributesStr, ",");
 					auto jsonValues = intersectBedLocsWtihGffRecords(allRegions, pars);
 					auto rawGeneIds = jsonValues.getMemberNames();
@@ -1151,7 +1151,7 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 			if(!allRegions.empty()){
 				if("" != gMapper->genomes_.at(genome)->gffFnp_){
 					intersectBedLocsWtihGffRecordsPars pars(gMapper->genomes_.at(genome)->gffFnp_);
-					pars.selectFeatures_ = VecStr{"gene"};
+					pars.selectFeatures_ = VecStr{"gene", "protein_coding_gene"};
 					pars.extraAttributes_ = tokenizeString(extractPars.gffExtraAttributesStr, ",");
 					auto jsonValues = intersectBedLocsWtihGffRecords(allRegions, pars);
 					auto rawGeneIds = jsonValues.getMemberNames();
