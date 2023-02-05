@@ -761,14 +761,14 @@ int SeekDeepUtilsRunner::deRepPopClusDir(const njh::progutils::CmdArgs & inputCo
 	std::string outputName = "output.fast";
 	seqSetUp setUp(inputCommands);
 	setUp.setOption(outputName, "--outputName", "Output name");
-	setUp.setOption(add, "--add", "add to alone directory");
+	setUp.setOption(add, "--add", "add to derep directory");
 	setUp.finishSetUp(std::cout);
 	bfs::path dirName = "";
 
 	if (add) {
-		dirName = njh::files::makeDirP("./", njh::files::MkdirPar("alone"));
+		dirName = njh::files::makeDirP("./", njh::files::MkdirPar("derep"));
 	} else {
-		dirName = njh::files::makeDir("./", njh::files::MkdirPar("alone"));
+		dirName = njh::files::makeDir("./", njh::files::MkdirPar("derep"));
 	}
 	auto files = njh::files::listAllFiles("./", true, VecStr { outputName });
 	for (const auto & f : files) {
@@ -788,10 +788,10 @@ int SeekDeepUtilsRunner::deRepPopClusDir(const njh::progutils::CmdArgs & inputCo
 		std::string fnpStr = f.first.string();
 		opts.firstName_ = f.first.string();
 		auto ext = njh::files::getExtension(fnpStr);
-		auto bname  = bfs::basename(f.first.string()) + "_alone";
+		auto bname  = bfs::basename(f.first.string()) + "_derep";
 		if(njh::endsWith(f.first.string(), ".gz")){
 			ext = njh::files::getExtension(fnpStr.substr(0,fnpStr.rfind(".gz"))) + "gz";
-			bname = bfs::basename(fnpStr.substr(0,fnpStr.rfind(".gz")))+ "_alone";;
+			bname = bfs::basename(fnpStr.substr(0,fnpStr.rfind(".gz")))+ "_derep";;
 		}
 		opts.inFormat_ = SeqIOOptions::getInFormat(ext);
 		SeqInput reader(opts);
