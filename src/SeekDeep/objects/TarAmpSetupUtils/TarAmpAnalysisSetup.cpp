@@ -753,7 +753,7 @@ table GuessPossibleSamps(const TarAmpAnalysisSetup::TarAmpPars & pars){
 
 	if("" != pars.replicatePattern){
 		std::regex replicatePatternReg{ pars.replicatePattern };
-		std::cout << "replicatePatternReg.mark_count(): " << replicatePatternReg.mark_count() << std::endl;
+//		std::cout << "replicatePatternReg.mark_count(): " << replicatePatternReg.mark_count() << std::endl;
 		std::map<std::string, VecStr> replicates;
 		if (pars.techIsIllumina()) {
 			ReadPairsOrganizer rpOrganizer(VecStr{});
@@ -764,7 +764,7 @@ table GuessPossibleSamps(const TarAmpAnalysisSetup::TarAmpPars & pars){
 				}
 				std::smatch match;
 				if(std::regex_match(samp.first, match, replicatePatternReg)){
-					std::cout << match[1] << ": " << match[2] << std::endl;
+//					std::cout << match[1] << ": " << match[2] << std::endl;
 					replicates[match[1]].emplace_back(samp.first);
 				}else{
 					std::stringstream ss;
@@ -784,7 +784,7 @@ table GuessPossibleSamps(const TarAmpAnalysisSetup::TarAmpPars & pars){
 				}
 				std::smatch match;
 				if(std::regex_match(sampName, match, replicatePatternReg)){
-					std::cout << match[1] << ": " << match[2] << std::endl;
+//					std::cout << match[1] << ": " << match[2] << std::endl;
 					replicates[match[1]].emplace_back(sampName);
 				}else{
 					std::stringstream ss;
@@ -813,25 +813,24 @@ table GuessPossibleSamps(const TarAmpAnalysisSetup::TarAmpPars & pars){
 			}
 			sampleNames.addRow(rowToAdd);
 		}
-
-	}else{
+	} else {
 		if (pars.techIsIllumina()) {
 			ReadPairsOrganizer rpOrganizer(VecStr{});
 			rpOrganizer.processFiles(files);
-			for(const auto & samp : rpOrganizer.readPairsUnrecognized_){
-				if(njh::in(samp.first, pars.ignoreSamples)){
+			for (const auto &samp: rpOrganizer.readPairsUnrecognized_) {
+				if (njh::in(samp.first, pars.ignoreSamples)) {
 					continue;
 				}
 				sampleNames.addRow("all", samp.first, samp.first);
 			}
 		} else {
 			VecStr samplesFiles;
-			for(const auto & f : files){
+			for (const auto &f: files) {
 				samplesFiles.emplace_back(f.first.filename().string());
 			}
-			for(const auto & sf : samplesFiles){
+			for (const auto &sf: samplesFiles) {
 				auto sampName = sf.substr(0, sf.rfind(".fast"));
-				if(njh::in(sampName, pars.ignoreSamples)){
+				if (njh::in(sampName, pars.ignoreSamples)) {
 					continue;
 				}
 				sampleNames.addRow("all", sampName, sampName);
