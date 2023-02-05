@@ -759,28 +759,38 @@ table getStitchReport(const Json::Value & logs) {
 int SeekDeepUtilsRunner::deRepPopClusDir(const njh::progutils::CmdArgs & inputCommands) {
 	bool add = false;
 	std::string outputName = "output.fast";
+	bfs::path outputDir;
+	bfs::path inputDir = "./";
+	std::string appendName = "_derep";
 	seqSetUp setUp(inputCommands);
 	setUp.setOption(outputName, "--outputName", "Output name");
 	setUp.setOption(add, "--add", "add to derep directory");
-	setUp.finishSetUp(std::cout);
-	bfs::path dirName = "";
+	setUp.setOption(outputDir, "--outputDir", "output dir");
+	setUp.setOption(inputDir, "--inputDir", "input dir");
+	setUp.setOption(appendName, "--appendName", "add to derep files");
 
-	if (add) {
-		dirName = njh::files::makeDirP("./", njh::files::MkdirPar("derep"));
-	} else {
-		dirName = njh::files::makeDir("./", njh::files::MkdirPar("derep"));
+	setUp.finishSetUp(std::cout);
+
+
+	if(outputDir.empty()){
+		outputDir = njh::files::make_path(inputDir, "derep");
 	}
-	auto files = njh::files::listAllFiles("./", true, VecStr { outputName });
+	if (add) {
+		njh::files::makeDirP(njh::files::MkdirPar(outputDir));
+	} else {
+		njh::files::makeDir(njh::files::MkdirPar(outputDir));
+	}
+	auto files = njh::files::listAllFiles(inputDir, true, VecStr { outputName });
 	for (const auto & f : files) {
 		auto toks = tokenizeString(f.first.string(), "/");
 		std::string dirNameFirst;
 		std::string dirNameSecond;
 		if(add){
-			dirNameFirst = njh::files::makeDirP(dirName,njh::files::MkdirPar( toks[toks.size() - 3] + "_" + toks[toks.size() - 2])).string();
+			dirNameFirst = njh::files::makeDirP(outputDir,njh::files::MkdirPar( toks[toks.size() - 3] + "_" + toks[toks.size() - 2])).string();
 			dirNameSecond = njh::files::makeDirP(dirNameFirst,
 																					 njh::files::MkdirPar(toks[toks.size() - 2])).string();
 		}else{
-			dirNameFirst = njh::files::makeDir(dirName,njh::files::MkdirPar( toks[toks.size() - 3] + "_" + toks[toks.size() - 2])).string();
+			dirNameFirst = njh::files::makeDir(outputDir,njh::files::MkdirPar( toks[toks.size() - 3] + "_" + toks[toks.size() - 2])).string();
 			dirNameSecond = njh::files::makeDir(dirNameFirst,
 																					njh::files::MkdirPar(toks[toks.size() - 2])).string();
 		}
@@ -788,10 +798,10 @@ int SeekDeepUtilsRunner::deRepPopClusDir(const njh::progutils::CmdArgs & inputCo
 		std::string fnpStr = f.first.string();
 		opts.firstName_ = f.first.string();
 		auto ext = njh::files::getExtension(fnpStr);
-		auto bname  = bfs::basename(f.first.string()) + "_derep";
+		auto bname  = bfs::basename(f.first.string()) + appendName;
 		if(njh::endsWith(f.first.string(), ".gz")){
 			ext = njh::files::getExtension(fnpStr.substr(0,fnpStr.rfind(".gz"))) + "gz";
-			bname = bfs::basename(fnpStr.substr(0,fnpStr.rfind(".gz")))+ "_derep";;
+			bname = bfs::basename(fnpStr.substr(0,fnpStr.rfind(".gz")))+ appendName;;
 		}
 		opts.inFormat_ = SeqIOOptions::getInFormat(ext);
 		SeqInput reader(opts);
