@@ -761,13 +761,13 @@ int SeekDeepUtilsRunner::deRepPopClusDir(const njh::progutils::CmdArgs & inputCo
 	std::string outputName = "output.fast";
 	bfs::path outputDir;
 	bfs::path inputDir = "./";
-	std::string appendName = "_derep";
+	std::string appendName; //_derep
 	seqSetUp setUp(inputCommands);
 	setUp.setOption(outputName, "--outputName", "Output name");
 	setUp.setOption(add, "--add", "add to derep directory");
 	setUp.setOption(outputDir, "--outputDir", "output dir");
 	setUp.setOption(inputDir, "--inputDir", "input dir");
-	setUp.setOption(appendName, "--appendName", "add to derep files");
+	setUp.setOption(appendName, "--appendName", "add to derep files, e.g. _derep");
 
 	setUp.finishSetUp(std::cout);
 
