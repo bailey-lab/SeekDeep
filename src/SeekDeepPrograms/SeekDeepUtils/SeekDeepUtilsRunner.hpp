@@ -52,6 +52,7 @@ class SeekDeepUtilsRunner : public njh::progutils::ProgramRunner {
   static int SampleBarcodeFileToSeekDeepInput(const njh::progutils::CmdArgs & inputCommands);
 
   static int primersToFasta(const njh::progutils::CmdArgs & inputCommands);
+	static int deRepPopClusDir(const njh::progutils::CmdArgs & inputCommands);
 
 
 };

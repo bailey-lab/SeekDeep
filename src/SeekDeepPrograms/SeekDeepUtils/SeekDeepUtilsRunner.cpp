@@ -42,6 +42,7 @@ SeekDeepUtilsRunner::SeekDeepUtilsRunner() :
 					addFunc("getPossibleSampleNamesFromRawInput", getPossibleSampleNamesFromRawInput, false),
 					addFunc("SampleBarcodeFileToSeekDeepInput", SampleBarcodeFileToSeekDeepInput, false),
 					addFunc("primersToFasta", primersToFasta, false),
+					addFunc("deRepPopClusDir", deRepPopClusDir, false),
 				}, //
 				"SeekDeepUtils") {
 }
@@ -755,7 +756,56 @@ table getStitchReport(const Json::Value & logs) {
 }
 
 
+int SeekDeepUtilsRunner::deRepPopClusDir(const njh::progutils::CmdArgs & inputCommands) {
+	bool add = false;
+	std::string outputName = "output.fast";
+	seqSetUp setUp(inputCommands);
+	setUp.setOption(outputName, "--outputName", "Output name");
+	setUp.setOption(add, "--add", "add to alone directory");
+	setUp.finishSetUp(std::cout);
+	bfs::path dirName = "";
 
+	if (add) {
+		dirName = njh::files::makeDirP("./", njh::files::MkdirPar("alone"));
+	} else {
+		dirName = njh::files::makeDir("./", njh::files::MkdirPar("alone"));
+	}
+	auto files = njh::files::listAllFiles("./", true, VecStr { outputName });
+	for (const auto & f : files) {
+		auto toks = tokenizeString(f.first.string(), "/");
+		std::string dirNameFirst;
+		std::string dirNameSecond;
+		if(add){
+			dirNameFirst = njh::files::makeDirP(dirName,njh::files::MkdirPar( toks[toks.size() - 3] + "_" + toks[toks.size() - 2])).string();
+			dirNameSecond = njh::files::makeDirP(dirNameFirst,
+																					 njh::files::MkdirPar(toks[toks.size() - 2])).string();
+		}else{
+			dirNameFirst = njh::files::makeDir(dirName,njh::files::MkdirPar( toks[toks.size() - 3] + "_" + toks[toks.size() - 2])).string();
+			dirNameSecond = njh::files::makeDir(dirNameFirst,
+																					njh::files::MkdirPar(toks[toks.size() - 2])).string();
+		}
+		SeqIOOptions opts;
+		std::string fnpStr = f.first.string();
+		opts.firstName_ = f.first.string();
+		auto ext = njh::files::getExtension(fnpStr);
+		auto bname  = bfs::basename(f.first.string()) + "_alone";
+		if(njh::endsWith(f.first.string(), ".gz")){
+			ext = njh::files::getExtension(fnpStr.substr(0,fnpStr.rfind(".gz"))) + "gz";
+			bname = bfs::basename(fnpStr.substr(0,fnpStr.rfind(".gz")))+ "_alone";;
+		}
+		opts.inFormat_ = SeqIOOptions::getInFormat(ext);
+		SeqInput reader(opts);
+		auto inReads = reader.readAllReads<readObject>();
+		SeqIOOptions options;
+		options.out_.outFilename_ = dirNameSecond
+																+ bname;
+		options.outFormat_ = SeqIOOptions::getOutFormat(ext);
+		options.out_.overWriteFile_ = true;
+		options.out_.exitOnFailureToWrite_ = true;
+		SeqOutput::write(inReads,options);
+	}
+	return 0;
+}
 
 //
 
