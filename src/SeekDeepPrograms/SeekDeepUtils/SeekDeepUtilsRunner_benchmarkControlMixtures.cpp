@@ -22,6 +22,11 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 	bool skipMissingSamples = false;
 	bool fillInMissingSamples = false;
 	bfs::path popSeqsFnp = "";
+
+  std::string elementStr;
+  std::string columnName;
+
+
 	comparison allowableError;
 	seqSetUp setUp(inputCommands);
 	setUp.processVerbose();
@@ -35,6 +40,9 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 	setUp.setOption(conBenchPars.mixSetUpFnp_, "--mixtureSetUp", "Mixture Set Up, 3 columns 1)MixName, 2)strain, 3)relative_abundance", true);
 	setUp.setOption(skipMissingSamples, "--skipMissingSamples", "Skip Samples if they are missing");
 	setUp.setOption(fillInMissingSamples, "--fillInMissingSamples", "Fill in missing Samples with placeholders");
+
+  setUp.setOption(columnName, "--newColumnName","Name of a new Column to add to table, can be comma delimited to add multiple");
+  setUp.setOption(elementStr, "--newColumnElement","What to Add to the Table Under new Column, can be comma delimited when adding multiple new columns");
 
 	setUp.processComparison(allowableError);
 	setUp.processAlignerDefualts();
@@ -205,6 +213,20 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 	OutputStream performanceOut(njh::files::make_path(setUp.pars_.directoryName_, "performancePerTarget.tab.txt"));
 	performanceOut << "AnalysisName\tsample\tmix\ttotalReads\trecoveredHaps\tfalseHaps\ttotalHaps\ttotalExpectedHaps\thapRecovery\tfalseHapsRate\tmissingExpecteds\tRMSE";
 	VecStr metalevels;
+
+  VecStr newColumnEleToks;
+  VecStr newColumnToks;
+  if(!columnName.empty()){
+    newColumnEleToks = tokenizeString(elementStr, ",");
+    newColumnToks = tokenizeString(columnName, ",");
+    if (newColumnEleToks.size() != newColumnToks.size()) {
+      std::stringstream ss;
+      ss << __PRETTY_FUNCTION__
+         << ", error, when adding multiple columns the number of elements need to match number of new columns" << "\n"
+         << "New Columns #: " << newColumnToks.size() << ", New Elements #: " << newColumnEleToks.size() << "\n";
+      throw std::runtime_error{ss.str()};
+    }
+  }
 	if(nullptr != analysisMaster.groupMetaData_){
 		metalevels = getVectorOfMapKeys(analysisMaster.groupMetaData_->groupData_);
 		njh::sort(metalevels);
@@ -215,6 +237,14 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 			falseHaplotypesToOtherResultsClassified << "\t" << meta;
 		}
 	}
+  if(!newColumnToks.empty()){
+    for(const auto & col : newColumnToks){
+      haplotypesClassified << "\t" << col;
+      performanceOut << "\t" << col;
+      falseHaplotypesToExpClassified << "\t" << col;
+      falseHaplotypesToOtherResultsClassified << "\t" << col;
+    }
+  }
 
 	haplotypesClassified << std::endl;
 	performanceOut << std::endl;
@@ -333,6 +363,11 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 					haplotypesClassified << "\t" << analysisMaster.groupMetaData_->groupData_[meta]->getGroupForSample(sname);
 				}
 			}
+      if(!newColumnToks.empty()){
+        for(const auto & ele : newColumnEleToks){
+          haplotypesClassified << "\t" << ele;
+        }
+      }
 			haplotypesClassified << std::endl;
 		}
 		for(const auto & missing : res.missingExpecteds_){
@@ -357,6 +392,11 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 					haplotypesClassified << "\t" << analysisMaster.groupMetaData_->groupData_[meta]->getGroupForSample(sname);
 				}
 			}
+      if(!newColumnToks.empty()){
+        for(const auto & ele : newColumnEleToks){
+          haplotypesClassified << "\t" << ele;
+        }
+      }
 			haplotypesClassified << std::endl;
 		}
 		//performance
@@ -381,6 +421,11 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 				performanceOut << "\t" << analysisMaster.groupMetaData_->groupData_[meta]->getGroupForSample(sname);
 			}
 		}
+    if(!newColumnToks.empty()){
+      for(const auto & ele : newColumnEleToks){
+        performanceOut << "\t" << ele;
+      }
+    }
 		performanceOut << std::endl;
 
 
@@ -414,6 +459,11 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 						falseHaplotypesToExpClassified << "\t" << analysisMaster.groupMetaData_->groupData_[meta]->getGroupForSample(sname);
 					}
 				}
+        if(!newColumnToks.empty()){
+          for(const auto & ele : newColumnEleToks){
+            falseHaplotypesToExpClassified << "\t" << ele;
+          }
+        }
 				falseHaplotypesToExpClassified << std::endl;
 			}
 		}
@@ -452,6 +502,11 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 						falseHaplotypesToOtherResultsClassified << "\t" << analysisMaster.groupMetaData_->groupData_[meta]->getGroupForSample(sname);
 					}
 				}
+        if(!newColumnToks.empty()){
+          for(const auto & ele : newColumnEleToks){
+            falseHaplotypesToOtherResultsClassified << "\t" << ele;
+          }
+        }
 				falseHaplotypesToOtherResultsClassified << std::endl;
 			}
 		}
@@ -533,6 +588,11 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 					performanceOut << "\t" << analysisMaster.groupMetaData_->groupData_[meta]->getGroupForSample(sname);
 				}
 			}
+      if(!newColumnToks.empty()){
+        for(const auto & ele : newColumnEleToks){
+          performanceOut << "\t" << ele;
+        }
+      }
 			performanceOut << std::endl;
 			for(const auto & missing : readVec::getNames(currentExpectedSeqs)){
 				haplotypesClassified << name
@@ -556,6 +616,11 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 						haplotypesClassified << "\t" << analysisMaster.groupMetaData_->groupData_[meta]->getGroupForSample(sname);
 					}
 				}
+        if(!newColumnToks.empty()){
+          for(const auto & ele : newColumnEleToks){
+            haplotypesClassified << "\t" << ele;
+          }
+        }
 				haplotypesClassified << std::endl;
 			}
 		}
