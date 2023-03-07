@@ -46,6 +46,7 @@ void CoreExtractorPars::setCorePars(seqSetUp & setUp){
 			"Number Of Two base indels to allow in primers", false, "Primer");
 	setUp.setOption(pDetPars.allowable_.largeBaseIndel_, "--primerMoreThan2BaseIndels",
 			"Number Of greater than two base indels to allow in primers", false, "Primer");
+
 	setUp.setOption(sampleName, "--sampleName",
 			"A name to append to the output files",
 			false, "Output Naming");
@@ -115,7 +116,7 @@ extractorPars::extractorPars(){
 //  rPrimerErrors.largeBaseIndel_ = .99;
 //  rPrimerErrors.oneBaseIndel_ = 2;
 //  rPrimerErrors.twoBaseIndel_ = 1;
-
+  corePars_.pDetPars.allowable_.lqMismatches_ = 5;
   corePars_.pDetPars.allowable_.hqMismatches_ = 3;
   corePars_.pDetPars.allowable_.distances_.query_.coverage_ = .90;
   corePars_.pDetPars.allowable_.largeBaseIndel_ = .99;

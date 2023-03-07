@@ -311,7 +311,13 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 //	auto scoreMatrix = substituteMatrix::createDegenScoreMatrixNoNInRef(
 //			setUp.pars_.generalMatch_, setUp.pars_.generalMismatch_);
 
+  setUp.pars_.gapInfo_.gapLeftQueryOpen_ = 0;
+  setUp.pars_.gapInfo_.gapLeftQueryExtend_ = 0;
+
+  setUp.pars_.gapInfo_.gapRightQueryOpen_ = 0;
+  setUp.pars_.gapInfo_.gapRightQueryExtend_ = 0;
 	gapScoringParameters gapPars(setUp.pars_.gapInfo_);
+
 	KmerMaps emptyMaps;
 	bool countEndGaps = false;
 	//to avoid allocating an extremely large aligner matrix;

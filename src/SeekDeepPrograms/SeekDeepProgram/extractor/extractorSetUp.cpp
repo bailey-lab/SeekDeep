@@ -221,6 +221,7 @@ void SeekDeepSetUp::setUpExtractor(extractorPars & pars) {
 	pars.corePars_.backEndpDetPars.allowable_.largeBaseIndel_ = pars.corePars_.pDetPars.allowable_.largeBaseIndel_;
 	pars.corePars_.backEndpDetPars.allowable_.oneBaseIndel_ = pars.corePars_.pDetPars.allowable_.oneBaseIndel_;
 	pars.corePars_.backEndpDetPars.allowable_.twoBaseIndel_ = pars.corePars_.pDetPars.allowable_.twoBaseIndel_;
+  pars.corePars_.backEndpDetPars.useMotif_ = pars.corePars_.pDetPars.useMotif_;
 	setOption(pars.corePars_.pDetPars.primerWithin_, "--frontEndPrimerWithinStart",
 			"By default the primer or barcodes are searched at the very beginning of seq, use this flag to extended the search, should be kept low to cut down on false positives, this is for the front primer",
 			false, "Primers");

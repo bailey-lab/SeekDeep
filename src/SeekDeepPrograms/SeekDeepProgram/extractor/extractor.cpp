@@ -316,11 +316,15 @@ int SeekDeepRunner::extractor(const njh::progutils::CmdArgs & inputCommands) {
 	// create aligner for primer identification
 	auto scoreMatrix = substituteMatrix::createDegenScoreMatrixNoNInRef(
 			setUp.pars_.generalMatch_, setUp.pars_.generalMismatch_);
-	setUp.pars_.gapInfo_.gapLeftRefOpen_ = 5;
-	setUp.pars_.gapInfo_.gapLeftRefExtend_ = 1;
-	setUp.pars_.gapInfo_.gapRightRefOpen_ = 5;
-	setUp.pars_.gapInfo_.gapRightRefExtend_ = 1;
+//	setUp.pars_.gapInfo_.gapLeftRefOpen_ = 5;
+//	setUp.pars_.gapInfo_.gapLeftRefExtend_ = 1;
+//	setUp.pars_.gapInfo_.gapRightRefOpen_ = 5;
+//	setUp.pars_.gapInfo_.gapRightRefExtend_ = 1;
+  setUp.pars_.gapInfo_.gapLeftQueryOpen_ = 0;
+  setUp.pars_.gapInfo_.gapLeftQueryExtend_ = 0;
 
+  setUp.pars_.gapInfo_.gapRightQueryOpen_ = 0;
+  setUp.pars_.gapInfo_.gapRightQueryExtend_ = 0;
 	gapScoringParameters gapPars(setUp.pars_.gapInfo_);
 	KmerMaps emptyMaps;
 	bool countEndGaps = false;

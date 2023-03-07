@@ -250,8 +250,10 @@ int SeekDeepUtilsRunner::genTargetInfoFromGenomes(const njh::progutils::CmdArgs 
 
     std::unordered_map<std::string, std::set<std::string>> twobitsForSet;
     for(const auto & tar : ids.getTargets()){
-      ;
-      twobitsForSet[tar].emplace(njh::files::make_path(refSeqsDir, tar + ".2bit").string());
+      auto twoBitFnp = njh::files::make_path(refSeqsDir, tar + ".2bit");
+      if(bfs::exists(twoBitFnp)){
+        twobitsForSet[tar].emplace(twoBitFnp.string());
+      }
     }
     std::vector<bfs::path> twoBitFiles;
     for(const auto & seqSet : twobitsForSet){

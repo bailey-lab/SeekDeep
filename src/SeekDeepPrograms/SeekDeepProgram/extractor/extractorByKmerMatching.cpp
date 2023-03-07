@@ -12,8 +12,9 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
   bfs::path lenCutOffsFnp;
   bfs::path uniqueKmersPerTargetFnp;
   bfs::path refSeqDir;
+  CoreExtractorPars corePars;
+  corePars.smallFragmentCutoff = 100;
 
-  uint32_t minLenCutOff = 100;
   uint32_t numThreads = 1;
 
   std::string sampleName = "sample";
@@ -40,11 +41,52 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
   setUp.setOption(rename, "--rename", "rename input extracted reads");
 
   // filtering
-  setUp.setOption(minLenCutOff, "--minLenCutOff", "Hard cut off min length", false, "filtering");
+  setUp.setOption(corePars.smallFragmentCutoff, "--minLenCutOff", "Hard cut off min length", false, "filtering");
 
   //running
   setUp.setOption(numThreads, "--numThreads", "number of threads");
 
+
+  //primers
+  corePars.pDetPars.useMotif_ = false;
+  corePars.pDetPars.allowable_.lqMismatches_ = 5;
+  corePars.pDetPars.allowable_.hqMismatches_ = 3;
+  corePars.pDetPars.allowable_.distances_.query_.coverage_ = .60;
+  corePars.pDetPars.allowable_.largeBaseIndel_ = .99;
+  corePars.pDetPars.allowable_.oneBaseIndel_ = 2;
+  corePars.pDetPars.allowable_.twoBaseIndel_ = 2;
+  corePars.pDetPars.primerWithin_ = 50;
+  bool primerToUpperCase = false;
+  setUp.setOption(primerToUpperCase, "--primerUpper",
+                  "Leave primers in upper case", false, "Primer");
+  corePars.pDetPars.primerToLowerCase_ = !primerToUpperCase;
+  setUp.setOption(corePars.pDetPars.allowable_.distances_.query_.coverage_, "--primerCoverage",
+                  "Amount of primers found", false, "Primer");
+  setUp.setOption(corePars.pDetPars.allowable_.hqMismatches_, "--primerNumOfMismatches",
+                  "Number of Mismatches to allow in primers", false, "Primer");
+  setUp.setOption(corePars.pDetPars.allowable_.oneBaseIndel_, "--primerOneBaseIndels",
+                  "Number Of One base indels to allow in primers", false, "Primer");
+  setUp.setOption(corePars.pDetPars.allowable_.twoBaseIndel_, "--primerTwoBaseIndels",
+                  "Number Of Two base indels to allow in primers", false, "Primer");
+  setUp.setOption(corePars.pDetPars.allowable_.largeBaseIndel_, "--primerMoreThan2BaseIndels",
+                  "Number Of greater than two base indels to allow in primers", false, "Primer");
+  setUp.setOption(corePars.pDetPars.primerWithin_, "--primerWithinStart",
+                  "By default the primers are searched at the very beginning of seq, use this flag to extended the search, should be kept low to cut down on false positives",
+                  false, "Primers");
+  setUp.setOption(corePars.pDetPars.primerStart_, "--primerSearchStart",
+                  "By default the primers are searched at the very beginning of seq, use this flag to start the search here",
+                  false, "Primers");
+  //copy over the regular determined primers to the back end primers
+  corePars.backEndpDetPars.primerWithin_ = corePars.pDetPars.primerWithin_;
+  corePars.backEndpDetPars.primerToLowerCase_ = corePars.pDetPars.primerToLowerCase_ ;
+
+  corePars.backEndpDetPars.allowable_.hqMismatches_ = corePars.pDetPars.allowable_.hqMismatches_;
+  corePars.backEndpDetPars.allowable_.lqMismatches_ = corePars.pDetPars.allowable_.lqMismatches_;
+  corePars.backEndpDetPars.allowable_.distances_.query_.coverage_ = corePars.pDetPars.allowable_.distances_.query_.coverage_;
+  corePars.backEndpDetPars.allowable_.largeBaseIndel_ = corePars.pDetPars.allowable_.largeBaseIndel_;
+  corePars.backEndpDetPars.allowable_.oneBaseIndel_ = corePars.pDetPars.allowable_.oneBaseIndel_;
+  corePars.backEndpDetPars.allowable_.twoBaseIndel_ = corePars.pDetPars.allowable_.twoBaseIndel_;
+  corePars.backEndpDetPars.useMotif_ = corePars.pDetPars.useMotif_;
 
   setUp.finishSetUp(std::cout);
   // run log
@@ -55,10 +97,20 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
   // create Primers and MIDs
   PrimersAndMids ids(idFnp);
 
+  if(ids.getTargets().empty()){
+    std::stringstream ss;
+    ss << __PRETTY_FUNCTION__ << ", error " << "no targets read in from " << idFnp << "\n";
+    throw std::runtime_error { ss.str() };
+  }
+
+  //init primer determinator
+  ids.initPrimerDeterminator();
+
   //read in extra info
   ids.addLenCutOffs(lenCutOffsFnp);
   ids.addRefSeqs(refSeqDir);
   uint32_t extractionKmer = ids.addUniqKmerCounts(uniqueKmersPerTargetFnp);
+
 
   // set up input
   seqInfo seq;
@@ -66,6 +118,7 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
   reader.openIn();
 
   uint32_t failedMinLength = 0;
+  std::unordered_map<std::string, uint32_t> totalPassedByTarget;
 
   //set up outputs
   OutOptions outCountsOpts(njh::files::make_path(setUp.pars_.directoryName_, "extractionProfile.tab.txt"));
@@ -79,21 +132,59 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
 
   VecStr names = ids.getTargets();
   MultiSeqIO seqOut;
+  auto initialExtractionDir = njh::files::makeDir(setUp.pars_.directoryName_, njh::files::MkdirPar{"extractedReads"});
+  auto failedExtractionDir = njh::files::makeDir(setUp.pars_.directoryName_, njh::files::MkdirPar{"failedExtractedReads"});
   for(const auto & name : names){
-    auto seqOutOpts = SeqIOOptions::genFastqOutGz(njh::files::make_path(setUp.pars_.directoryName_, name) );
+    auto seqOutOpts = SeqIOOptions::genFastqOutGz(njh::files::make_path(initialExtractionDir, name) );
     seqOut.addReader(name, seqOutOpts);
   }
+
+  for(const auto & name : names){
+    auto seqOutOpts = SeqIOOptions::genFastqOutGz(njh::files::make_path(setUp.pars_.directoryName_, name) );
+    seqOut.addReader(njh::pasteAsStr(name, "-passed"), seqOutOpts);
+  }
+
+  for(const auto & name : names){
+    auto seqOutOpts = SeqIOOptions::genFastqOutGz(njh::files::make_path(failedExtractionDir, name) );
+    seqOut.addReader(njh::pasteAsStr(name, "-failed"), seqOutOpts);
+  }
+
   seqOut.addReader("undetermined", SeqIOOptions::genFastqOutGz(njh::files::make_path(setUp.pars_.directoryName_, "undetermined")));
 
+  //set up aligner
+  // creating aligner
+  // create aligner for primer identification
+  auto scoreMatrix = substituteMatrix::createDegenScoreMatrixNoNInRef(
+      setUp.pars_.generalMatch_, setUp.pars_.generalMismatch_);
+
+  setUp.pars_.gapInfo_.gapLeftQueryOpen_ = 0;
+  setUp.pars_.gapInfo_.gapLeftQueryExtend_ = 0;
+
+  setUp.pars_.gapInfo_.gapRightQueryOpen_ = 0;
+  setUp.pars_.gapInfo_.gapRightQueryExtend_ = 0;
+
+  gapScoringParameters gapPars(setUp.pars_.gapInfo_);
+  KmerMaps emptyMaps;
+  bool countEndGaps = false;
+  uint64_t maxPrimerSize = ids.pDeterminator_->getMaxPrimerSize();
+  uint64_t maxReadSize =  maxPrimerSize * 4 + corePars.pDetPars.primerWithin_;
+  aligner alignObj(maxReadSize, gapPars, scoreMatrix, emptyMaps, setUp.pars_.qScorePars_, countEndGaps, false);
+  alignObj.processAlnInfoInput(setUp.pars_.alnInfoDirName_);
+
+  concurrent::AlignerPool alnPool(alignObj, numThreads);
+  alnPool.initAligners();
+
   std::mutex mut;
-  std::function<void()> readInComp = [&reader, &ids, &readsPerSet,&readsPerSetRevComp,&mut,&extractionKmer,&seqOut,&sampleName,&rename,&failedMinLength,&minLenCutOff]() {
+  std::function<void()> readInComp = [&reader, &ids, &readsPerSet,&readsPerSetRevComp,&mut,&extractionKmer,&seqOut,&sampleName,&rename,&failedMinLength,&corePars,&alnPool,&totalPassedByTarget]() {
     SimpleKmerHash hasher;
     seqInfo seq;
     std::unordered_map<std::string, uint32_t> readsPerSetCurrent;
     std::unordered_map<std::string, uint32_t> readsPerSetRevCompCurrent;
+    std::unordered_map<std::string, uint32_t> totalPassedByTargetCurrent;
     uint32_t failedMinLengthCurrent = 0;
+    auto currentAlignerObj = alnPool.popAligner();
     while(reader.readNextReadLock(seq)){
-      if(len(seq) < minLenCutOff){
+      if(len(seq) < corePars.smallFragmentCutoff){
         ++failedMinLengthCurrent;
         continue;
       }
@@ -158,6 +249,37 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
         seq.name_ = njh::pasteAsStr(sampleName, ".",winnerSet, ".", readsPerSetCurrent[winnerSet] + readsPerSetRevCompCurrent[winnerSet], ".", threadId);
       }
       seqOut.openWrite(winnerSet, seq);
+      if("undetermined" == winnerSet){
+        continue;
+      }
+      std::string frontPrimerName = ids.pDeterminator_->determineForwardPrimer(seq, corePars.pDetPars, *currentAlignerObj, VecStr{winnerSet});
+      seq.reverseComplementRead(false, true);
+      std::string backPrimerName = ids.pDeterminator_->determineWithReversePrimer(seq, corePars.backEndpDetPars, *currentAlignerObj, VecStr{winnerSet});
+      seq.reverseComplementRead(false, true);
+      bool passesFront = frontPrimerName == winnerSet;
+      bool passesBack = backPrimerName == winnerSet;
+      if(passesBack && passesFront){
+        //min len
+        ids.targets_.at(winnerSet).lenCuts_->minLenChecker_.checkRead(seq);
+        if(seq.on_){
+          //max len
+          ids.targets_.at(winnerSet).lenCuts_->maxLenChecker_.checkRead(seq);
+          if(seq.on_){
+            seqOut.openWrite(njh::pasteAsStr(winnerSet, "-passed"), seq);
+            ++totalPassedByTargetCurrent[winnerSet];
+          }else{
+            //failed max length
+            seqOut.openWrite(njh::pasteAsStr(winnerSet, "-failed"), seq);
+          }
+        }else{
+          //failed min length
+          seqOut.openWrite(njh::pasteAsStr(winnerSet, "-failed"), seq);
+        }
+      } else {
+        seq.name_.append(njh::pasteAsStr("[", "frontPrimerName=", frontPrimerName, ";", "backPrimerName=", backPrimerName, ";", "]"));
+        //failed primer check
+        seqOut.openWrite(njh::pasteAsStr(winnerSet, "-failed"), seq);
+      }
     }
     {
       std::lock_guard<std::mutex> lockGuard(mut);
@@ -166,6 +288,9 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
       }
       for(const auto & readsPerSetRevCompCount : readsPerSetRevCompCurrent){
         readsPerSetRevComp[readsPerSetRevCompCount.first] += readsPerSetRevCompCount.second;
+      }
+      for(const auto & totalPassedByTargetCount : totalPassedByTargetCurrent){
+        totalPassedByTarget[totalPassedByTargetCount.first] += totalPassedByTargetCount.second;
       }
       failedMinLength += failedMinLengthCurrent;
     }
@@ -182,7 +307,14 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
     totalReadsProcessed += readsPerSetRevCompCount.second;
   }
 
+  uint64_t totalReadsPassedAllFilters = 0;
+
+  for(const auto & totalPassedByTargetCount : totalPassedByTarget){
+    totalReadsPassedAllFilters += totalPassedByTargetCount.second;
+  }
+
   outCounts << "sample\ttotalReadsProcessed\ttarget\tcount\tfrac\tforwardCount\tfracForward";
+  outCounts << "\tpasssed\tpassedFrac";
   outCounts << std::endl;
   uint64_t totalExtractedAllTargets = 0;
   uint64_t totalExtractedAllTargetsForard = 0;
@@ -198,6 +330,8 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
               << "\t" << static_cast<double>(totalExtracted) / static_cast<double>(totalReadsProcessed)
               << "\t" << readsPerSet[setName]
               << "\t" << static_cast<double>(readsPerSet[setName]) / static_cast<double>(totalExtracted)
+              << "\t" << totalPassedByTarget[setName]
+              << "\t" << static_cast<double>(totalPassedByTarget[setName]) / static_cast<double>(totalExtracted)
               << std::endl;
   }
   {
@@ -209,10 +343,12 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
               << "\t" << static_cast<double>(totalExtracted) / static_cast<double>(totalReadsProcessed)
               << "\t" << readsPerSet["undetermined"]
               << "\t" << static_cast<double>(readsPerSet["undetermined"]) / static_cast<double>(totalExtracted)
+              << "\t" << 0
+              << "\t" << 0
               << std::endl;
   }
 
-  outStats << "sampleName\ttotalReadsProcessed\tfailedMinLen_" << minLenCutOff << "\tfailedMinLenFrac\tundetermined\tundeterminedFrac\textracted\textractedFrac\textractedForward\textractedForwardFrac" << std::endl;
+  outStats << "sampleName\ttotalReadsProcessed\tfailedMinLen_" << corePars.smallFragmentCutoff << "\tfailedMinLenFrac\tundetermined\tundeterminedFrac\textracted\textractedFrac\textractedForward\textractedForwardFrac\tpassed\tpassedFrac" << std::endl;
   outStats << sampleName
            << "\t" << totalReadsProcessed + failedMinLength
            << "\t" << failedMinLength
@@ -223,6 +359,8 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
            << "\t" << static_cast<double>(totalExtractedAllTargets) / static_cast<double>(totalReadsProcessed + failedMinLength)
            << "\t" << totalExtractedAllTargetsForard
            << "\t" << static_cast<double>(totalExtractedAllTargetsForard) / static_cast<double>(totalExtractedAllTargets)
+           << "\t" << totalReadsPassedAllFilters
+           << "\t" << static_cast<double>(totalReadsPassedAllFilters) / static_cast<double>(totalReadsProcessed + failedMinLength)
            << std::endl;
 
   return 0;
