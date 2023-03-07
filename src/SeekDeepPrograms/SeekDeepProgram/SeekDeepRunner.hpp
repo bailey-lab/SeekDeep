@@ -39,7 +39,9 @@ class SeekDeepRunner : public njh::progutils::OneRing {
   SeekDeepRunner();
   static int extractor(const njh::progutils::CmdArgs & inputCommands);
   static int extractorPairedEnd(const njh::progutils::CmdArgs & inputCommands);
+  static int extractorByKmerMatching(const njh::progutils::CmdArgs & inputCommands);
   static int clusterDown(const njh::progutils::CmdArgs & inputCommands);
+  static int kmerClusteringRate(const njh::progutils::CmdArgs & inputCommands);
   //.cpp
   static int processClusters(const njh::progutils::CmdArgs & inputCommands);
   static int makeSampleDirectories(const njh::progutils::CmdArgs & inputCommands);

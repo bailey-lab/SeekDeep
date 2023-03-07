@@ -26,6 +26,10 @@
 //
 #include "PrimersAndMids.hpp"
 
+#include <njhseq/objects/kmer/SimpleKmerHash.hpp>
+#include <njhseq/objects/dataContainers/tables/TableReader.hpp>
+
+
 namespace njhseq {
 
 PrimersAndMids::Target::lenCutOffs::lenCutOffs(uint32_t minLen, uint32_t maxLen,
@@ -423,6 +427,42 @@ void PrimersAndMids::initPrimerDeterminator(){
 	}
 	pDeterminator_ = std::make_unique<PrimerDeterminator>(pInfos);
 }
+
+uint32_t PrimersAndMids::addUniqKmerCounts(const bfs::path & uniqueKmersPerTargetFnp){
+  uniqueKmersPerTarget_.clear();
+  uint32_t klen = 0;
+  {
+    SimpleKmerHash hasher;
+
+    TableReader uniqKmers(TableIOOpts::genTabFileIn(uniqueKmersPerTargetFnp, false));
+    if(uniqKmers.header_.nCol() < 2){
+      std::stringstream ss;
+      ss << __PRETTY_FUNCTION__ << ", error " << "need to have 2 columns" << "\n";
+      throw std::runtime_error{ss.str()};
+    }
+    VecStr row;
+    while(uniqKmers.getNextRow(row)){
+      klen = row[1].size();
+      uniqueKmersPerTarget_[row[0]].emplace(hasher.hash(row[1]));
+    }
+  }
+
+  VecStr missingTargets;
+  for(const auto & name : uniqueKmersPerTarget_){
+    if(!njh::in(name.first, uniqueKmersPerTarget_)){
+      missingTargets.emplace_back(name.first);
+    }
+  }
+
+  if(!missingTargets.empty()){
+    std::stringstream ss;
+    ss << __PRETTY_FUNCTION__ << ", error " << "missing the following targets from the unique kmer sets: " << njh::conToStr(missingTargets) << "\n";
+    throw std::runtime_error { ss.str() };
+  }
+
+  return klen;
+}
+
 
 void PrimersAndMids::addLenCutOffs(const bfs::path & lenCutOffsFnp){
 	bool failedOverlapStatusProcessing = false;

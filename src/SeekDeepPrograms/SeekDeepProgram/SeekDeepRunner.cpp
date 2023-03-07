@@ -41,8 +41,11 @@ SeekDeepRunner::SeekDeepRunner() :
 						addFunc("extractorPairedEnd", extractorPairedEnd, false),
 						addFunc("processClusters", processClusters,false),
 						addFunc("qluster", clusterDown, false),
+            addFunc("kluster", kmerClusteringRate, false),
+            addFunc("kmerClusteringRate", kmerClusteringRate, true),
 						addFunc("clusterDown",clusterDown, true),
-						addFunc("makeSampleDirectories", makeSampleDirectories, false)
+						addFunc("makeSampleDirectories", makeSampleDirectories, false),
+            addFunc("extractorByKmerMatching", extractorByKmerMatching, false)
 				}, "SeekDeep", "3", "0", "2-dev") {
 }
 

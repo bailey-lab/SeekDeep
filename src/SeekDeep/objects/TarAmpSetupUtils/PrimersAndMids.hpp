@@ -84,8 +84,8 @@ public:
 
 	};
 
-	PrimersAndMids(const bfs::path & idFileFnp);
-	PrimersAndMids(const std::unordered_map<std::string, Target> & targets);
+	explicit PrimersAndMids(const bfs::path & idFileFnp);
+	explicit PrimersAndMids(const std::unordered_map<std::string, Target> & targets);
 
 
 	void checkIfMIdsOrPrimersReadInThrow(const std::string & funcName) const;
@@ -94,6 +94,9 @@ public:
 
 	std::unordered_map<std::string, Target> targets_;
 	std::unordered_map<std::string, MidDeterminator::MID> mids_;
+
+  std::unordered_map<std::string, std::unordered_set<uint64_t>> uniqueKmersPerTarget_;
+
 
 	std::unique_ptr<MidDeterminator> mDeterminator_;
 	std::unique_ptr<PrimerDeterminator> pDeterminator_;
@@ -138,6 +141,8 @@ public:
 
 	void addLenCutOffs(const bfs::path & lenCutOffsFnp);
 	void addOverLapStatuses(const bfs::path & overlapStatuses);
+  uint32_t addUniqKmerCounts(const bfs::path & uniqueKmersPerTargetFnp);
+
 	void addOverLapStatuses(const std::vector<PairedReadProcessor::ReadPairOverLapStatus> & allStatus);
 
 	void addRefSeqs(const bfs::path & refDirectory);
