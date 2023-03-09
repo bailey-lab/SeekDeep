@@ -223,6 +223,8 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 	}
 
 	//first population clustering
+//  std::cout << "sampColl.createPopInput().size(): " << sampColl.createPopInput().size() << std::endl;
+
 	sampColl.doPopulationClustering(sampColl.createPopInput(), alignerObj, collapserObj, pars.popIteratorMap);
 
 

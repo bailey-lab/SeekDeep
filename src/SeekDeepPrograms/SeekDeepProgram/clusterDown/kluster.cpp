@@ -37,7 +37,7 @@ struct KmerClusteringRatePars {
   uint32_t kmerStart = 2;
   uint32_t kmerStop = 5;
   uint32_t largeIndel = 10;
-  uint32_t chiAllowableError = 1;
+  uint32_t chiAllowableError = 0;
   bool writeInitialClusters = false;
   uint32_t largeGapSizeCutOff = 50;
   bool breakLargeIndelCons = false;
@@ -2955,8 +2955,8 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
   if (setUp.pars_.chiOpts_.checkChimeras_) {
     setUp.rLog_.logCurrentTime("Checking Chimeras");
 
-    setUp.pars_.chiOpts_.chiOverlap_.oneBaseIndel_ = 10;
-    setUp.pars_.chiOpts_.chiOverlap_.twoBaseIndel_ = 10;
+    setUp.pars_.chiOpts_.chiOverlap_.oneBaseIndel_ = 0.99;
+    setUp.pars_.chiOpts_.chiOverlap_.twoBaseIndel_ = 0.99;
     setUp.pars_.chiOpts_.chiOverlap_.lqMismatches_ = pars.chiAllowableError;
     setUp.pars_.chiOpts_.chiOverlap_.hqMismatches_ = pars.chiAllowableError;
     collapser collapserObj = collapser(setUp.pars_.colOpts_);

@@ -554,7 +554,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
       extractorCmdTemplate = setUp.commands_.masterProgram_
                              + " extractorByKmerMatching --dout {INDEX}_extraction --overWriteDir  "
                                " --uniqueKmersPerTarget info/ids/{TARS}_uniqueKmers.tab.txt.gz "
-                               " --rename --primerUpper "
+                               " --rename "
                                ;
     } else {
 			extractorCmdTemplate = setUp.commands_.masterProgram_
@@ -781,7 +781,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
       extractorCmdTemplate = setUp.commands_.masterProgram_
                              + " extractorByKmerMatching --dout {REP}_extraction --overWriteDir  "
                                " --uniqueKmersPerTarget info/ids/{TARS}_uniqueKmers.tab.txt.gz "
-                               " --rename --primerUpper ";
+                               " --rename ";
     } else {
 			 extractorCmdTemplate =
 							setUp.commands_.masterProgram_
