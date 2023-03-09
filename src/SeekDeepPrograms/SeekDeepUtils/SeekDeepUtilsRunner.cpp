@@ -215,8 +215,8 @@ int SeekDeepUtilsRunner::genTargetInfoFromGenomes(const njh::progutils::CmdArgs 
 				auto minlen = vectorMinimum(readLengths);
 				auto maxlen = vectorMaximum(readLengths);
 				lenCutOffsOut << tar
-						<< "\t" << (minlen > pars.lenCutOffSizeExpand ? minlen - pars.lenCutOffSizeExpand : 0)
-						<< "\t" << maxlen + pars.lenCutOffSizeExpand << std::endl;
+						<< "\t" << (minlen > pars.minLenCutOffSizeExpand ? minlen - pars.minLenCutOffSizeExpand : 0)
+						<< "\t" << maxlen + pars.maxLenCutOffSizeExpand << std::endl;
 				uint32_t finalMaxSize = maxlen + pars.barcodeSize;
 				uint32_t finalMinSize = minlen + pars.barcodeSize;
 

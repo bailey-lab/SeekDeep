@@ -24,9 +24,9 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
   //id
   setUp.setOption(idFnp, "--ids,--id", "Primers file", true, "IDs");
 
-  setUp.setOption(lenCutOffsFnp, "--lenCutOffsFnp", "length Cut Offs per target", true, "IDs");
+  setUp.setOption(lenCutOffsFnp, "--lenCutOffsFnp,--lenCutOffs", "length Cut Offs per target", true, "IDs");
   setUp.setOption(uniqueKmersPerTargetFnp, "--uniqueKmersPerTarget", "unique Kmers Per Target", true, "IDs");
-  setUp.setOption(refSeqDir, "--refSeqDir", "reference Seq Dir, should have a .fasta file named by each target", true, "IDs");
+  setUp.setOption(refSeqDir, "--refSeqDir", "reference Seq Dir, should have a .fasta file named by each target", false, "IDs");
 
   //in and out
   setUp.processDefaultReader(VecStr{"--fastq", "--fastqgz", "--fasta", "--fastagz"});
@@ -50,10 +50,10 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
   //primers
   corePars.pDetPars.useMotif_ = false;
   corePars.pDetPars.allowable_.lqMismatches_ = 5;
-  corePars.pDetPars.allowable_.hqMismatches_ = 3;
-  corePars.pDetPars.allowable_.distances_.query_.coverage_ = .60;
+  corePars.pDetPars.allowable_.hqMismatches_ = 5;
+  corePars.pDetPars.allowable_.distances_.query_.coverage_ = .50;
   corePars.pDetPars.allowable_.largeBaseIndel_ = .99;
-  corePars.pDetPars.allowable_.oneBaseIndel_ = 2;
+  corePars.pDetPars.allowable_.oneBaseIndel_ = 4;
   corePars.pDetPars.allowable_.twoBaseIndel_ = 2;
   corePars.pDetPars.primerWithin_ = 50;
   bool primerToUpperCase = false;
@@ -88,6 +88,13 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
   corePars.backEndpDetPars.allowable_.twoBaseIndel_ = corePars.pDetPars.allowable_.twoBaseIndel_;
   corePars.backEndpDetPars.useMotif_ = corePars.pDetPars.useMotif_;
 
+  corePars.qPars_.qualCheck_ = 30;
+  corePars.qPars_.qualCheckCutOff_ = 0.15;
+  setUp.setOption(corePars.qPars_.qualCheck_, "--qualCheckLevel",
+                  "Bin qualities at this quality to do filtering on fraction above this", false, "Post Processing");
+  setUp.setOption(corePars.qPars_.qualCheckCutOff_, "--qualCheckCutOff",
+                  "The fractions of bases that have to be above the qualCheckLevel to be kept", false, "Post Processing");
+
   setUp.finishSetUp(std::cout);
   // run log
   setUp.startARunLog(setUp.pars_.directoryName_);
@@ -108,7 +115,9 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
 
   //read in extra info
   ids.addLenCutOffs(lenCutOffsFnp);
-  ids.addRefSeqs(refSeqDir);
+  if(!refSeqDir.empty()){
+    ids.addRefSeqs(refSeqDir);
+  }
   uint32_t extractionKmer = ids.addUniqKmerCounts(uniqueKmersPerTargetFnp);
 
 
@@ -117,10 +126,14 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
   SeqInput reader(setUp.pars_.ioOptions_);
   reader.openIn();
 
-  uint32_t failedMinLength = 0;
-  std::unordered_map<std::string, uint32_t> totalPassedByTarget;
 
-  //set up outputs
+
+  //qual check off;
+  std::unique_ptr<ReadChecker> qualChecker = std::make_unique<ReadCheckerQualCheck>(corePars.qPars_.qualCheck_,
+                                                                                    corePars.qPars_.qualCheckCutOff_, true);
+
+  //set up extraction counts outputs
+  ExtractionStator masterCounts;
   OutOptions outCountsOpts(njh::files::make_path(setUp.pars_.directoryName_, "extractionProfile.tab.txt"));
   OutputStream outCounts(outCountsOpts);
 
@@ -140,7 +153,7 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
   }
 
   for(const auto & name : names){
-    auto seqOutOpts = SeqIOOptions::genFastqOutGz(njh::files::make_path(setUp.pars_.directoryName_, name) );
+    auto seqOutOpts = SeqIOOptions::genFastqOutGz(njh::files::make_path(setUp.pars_.directoryName_, njh::pasteAsStr(name, sampleName) ) );
     seqOut.addReader(njh::pasteAsStr(name, "-passed"), seqOutOpts);
   }
 
@@ -163,6 +176,12 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
   setUp.pars_.gapInfo_.gapRightQueryOpen_ = 0;
   setUp.pars_.gapInfo_.gapRightQueryExtend_ = 0;
 
+  setUp.pars_.gapInfo_.gapLeftRefOpen_ = 0;
+  setUp.pars_.gapInfo_.gapLeftRefExtend_ = 0;
+
+  setUp.pars_.gapInfo_.gapRightRefOpen_ = 0;
+  setUp.pars_.gapInfo_.gapRightRefExtend_ = 0;
+
   gapScoringParameters gapPars(setUp.pars_.gapInfo_);
   KmerMaps emptyMaps;
   bool countEndGaps = false;
@@ -175,17 +194,24 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
   alnPool.initAligners();
 
   std::mutex mut;
-  std::function<void()> readInComp = [&reader, &ids, &readsPerSet,&readsPerSetRevComp,&mut,&extractionKmer,&seqOut,&sampleName,&rename,&failedMinLength,&corePars,&alnPool,&totalPassedByTarget]() {
+  std::function<void()> readInComp = [&reader, &ids, &readsPerSet,&readsPerSetRevComp,&mut,
+                                      &extractionKmer,&seqOut,&sampleName,&rename,
+                                      &corePars,&alnPool,
+                                      &qualChecker,
+                                      &masterCounts]() {
     SimpleKmerHash hasher;
     seqInfo seq;
     std::unordered_map<std::string, uint32_t> readsPerSetCurrent;
     std::unordered_map<std::string, uint32_t> readsPerSetRevCompCurrent;
-    std::unordered_map<std::string, uint32_t> totalPassedByTargetCurrent;
-    uint32_t failedMinLengthCurrent = 0;
+
+
+    ExtractionStator masterCountsCurrent;
+
     auto currentAlignerObj = alnPool.popAligner();
     while(reader.readNextReadLock(seq)){
+      ++masterCountsCurrent.totalReadCount_;
       if(len(seq) < corePars.smallFragmentCutoff){
-        ++failedMinLengthCurrent;
+        ++masterCountsCurrent.smallFrags_;
         continue;
       }
       std::unordered_map<uint64_t, uint64_t> hashedInputKmers;
@@ -247,52 +273,115 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
       if(rename){
         auto threadId = estd::to_string(std::this_thread::get_id());
         seq.name_ = njh::pasteAsStr(sampleName, ".",winnerSet, ".", readsPerSetCurrent[winnerSet] + readsPerSetRevCompCurrent[winnerSet], ".", threadId);
+        if(winnerRevComp){
+          seq.name_.append("_Comp");
+        }
       }
       seqOut.openWrite(winnerSet, seq);
       if("undetermined" == winnerSet){
+        ++masterCountsCurrent.readsUnrecBarcode_;
         continue;
       }
-      std::string frontPrimerName = ids.pDeterminator_->determineForwardPrimer(seq, corePars.pDetPars, *currentAlignerObj, VecStr{winnerSet});
-      seq.reverseComplementRead(false, true);
-      std::string backPrimerName = ids.pDeterminator_->determineWithReversePrimer(seq, corePars.backEndpDetPars, *currentAlignerObj, VecStr{winnerSet});
-      seq.reverseComplementRead(false, true);
-      bool passesFront = frontPrimerName == winnerSet;
-      bool passesBack = backPrimerName == winnerSet;
-      if(passesBack && passesFront){
-        //min len
-        ids.targets_.at(winnerSet).lenCuts_->minLenChecker_.checkRead(seq);
-        if(seq.on_){
+      auto extractorCase = ExtractionStator::extractCase::GOOD;
+      //min len
+      ids.targets_.at(winnerSet).lenCuts_->minLenChecker_.checkRead(seq);
+      if(!seq.on_){
+        extractorCase = ExtractionStator::extractCase::MINLENBAD;
+      }
+      if(seq.on_){
+
+        std::string frontPrimerName = ids.pDeterminator_->determineForwardPrimer(seq, corePars.pDetPars, *currentAlignerObj, VecStr{winnerSet});
+//        if("unrecognized" == frontPrimerName){
+//          currentAlignerObj->alignObjectA_.seqBase_.outPutSeqAnsi(std::cout);
+//          currentAlignerObj->alignObjectB_.seqBase_.outPutSeqAnsi(std::cout);
+//          std::cout << njh::bashCT::cyan ;
+//          std::cout << "currentAlignerObj->comp_.distances_.query_.coverage_: " << currentAlignerObj->comp_.distances_.query_.coverage_ << std::endl;
+//          std::cout << "currentAlignerObj->comp_.oneBaseIndel_:      " << currentAlignerObj->comp_.oneBaseIndel_ << std::endl;
+//          std::cout << "currentAlignerObj->comp_.twoBaseIndel_:      " << currentAlignerObj->comp_.twoBaseIndel_ << std::endl;
+//          std::cout << "currentAlignerObj->comp_.largeBaseIndel_:    " << currentAlignerObj->comp_.largeBaseIndel_ << std::endl;
+//          std::cout << "currentAlignerObj->comp_.hqMismatches_:      " << currentAlignerObj->comp_.hqMismatches_ << std::endl;
+//          std::cout << "currentAlignerObj->comp_.lqMismatches_:      " << currentAlignerObj->comp_.lqMismatches_ << std::endl;
+//          std::cout << "currentAlignerObj->comp_.lowKmerMismatches_: " << currentAlignerObj->comp_.lowKmerMismatches_ << std::endl;
+//          std::cout << njh::bashCT::reset ;
+//        } else {
+//          currentAlignerObj->alignObjectA_.seqBase_.outPutSeqAnsi(std::cout);
+//          currentAlignerObj->alignObjectB_.seqBase_.outPutSeqAnsi(std::cout);
+//          std::cout << njh::bashCT::green ;
+//          std::cout << "currentAlignerObj->comp_.distances_.query_.coverage_: " << currentAlignerObj->comp_.distances_.query_.coverage_ << std::endl;
+//          std::cout << "currentAlignerObj->comp_.oneBaseIndel_:      " << currentAlignerObj->comp_.oneBaseIndel_ << std::endl;
+//          std::cout << "currentAlignerObj->comp_.twoBaseIndel_:      " << currentAlignerObj->comp_.twoBaseIndel_ << std::endl;
+//          std::cout << "currentAlignerObj->comp_.largeBaseIndel_:    " << currentAlignerObj->comp_.largeBaseIndel_ << std::endl;
+//          std::cout << "currentAlignerObj->comp_.hqMismatches_:      " << currentAlignerObj->comp_.hqMismatches_ << std::endl;
+//          std::cout << "currentAlignerObj->comp_.lqMismatches_:      " << currentAlignerObj->comp_.lqMismatches_ << std::endl;
+//          std::cout << "currentAlignerObj->comp_.lowKmerMismatches_: " << currentAlignerObj->comp_.lowKmerMismatches_ << std::endl;
+//          std::cout << njh::bashCT::reset ;
+//        }
+        seq.reverseComplementRead(false, true);
+        std::string backPrimerName = ids.pDeterminator_->determineWithReversePrimer(seq, corePars.backEndpDetPars, *currentAlignerObj, VecStr{winnerSet});
+        seq.reverseComplementRead(false, true);
+        bool passesFront = frontPrimerName == winnerSet;
+        bool passesBack = backPrimerName == winnerSet;
+
+        if (!passesBack && !passesFront) {
+          masterCountsCurrent.increaseCounts(winnerSet, seq.name_, ExtractionStator::extractCase::MISMATCHPRIMERS);
+        } else if(!passesFront){
+          masterCountsCurrent.increaseFailedForward(winnerSet, seq.name_);
+        } else if(!passesBack){
+          masterCountsCurrent.increaseCounts(winnerSet, seq.name_, ExtractionStator::extractCase::BADREVERSE);
+        }
+        if (passesBack && passesFront) {
+
+
+          //min len
+          ids.targets_.at(winnerSet).lenCuts_->minLenChecker_.checkRead(seq);
+          if(!seq.on_){
+            extractorCase = ExtractionStator::extractCase::MINLENBAD;
+          }
+
           //max len
-          ids.targets_.at(winnerSet).lenCuts_->maxLenChecker_.checkRead(seq);
           if(seq.on_){
+            ids.targets_.at(winnerSet).lenCuts_->maxLenChecker_.checkRead(seq);
+            if(!seq.on_){
+              extractorCase = ExtractionStator::extractCase::MAXLENBAD;
+            }
+          }
+
+          //quality
+          if(seq.on_){
+            qualChecker->checkRead(seq);
+            if(!seq.on_){
+              extractorCase = ExtractionStator::extractCase::QUALITYFAILED;
+            }
+          }
+          if (seq.on_) {
+            //passed all filters
             seqOut.openWrite(njh::pasteAsStr(winnerSet, "-passed"), seq);
-            ++totalPassedByTargetCurrent[winnerSet];
-          }else{
-            //failed max length
+          } else {
+            //failed
             seqOut.openWrite(njh::pasteAsStr(winnerSet, "-failed"), seq);
           }
-        }else{
-          //failed min length
+        } else {
+          seq.name_.append(njh::pasteAsStr("[", "frontPrimerName=", frontPrimerName, ";", "backPrimerName=", backPrimerName, ";","]"));
+          //failed primer check
           seqOut.openWrite(njh::pasteAsStr(winnerSet, "-failed"), seq);
         }
-      } else {
-        seq.name_.append(njh::pasteAsStr("[", "frontPrimerName=", frontPrimerName, ";", "backPrimerName=", backPrimerName, ";", "]"));
-        //failed primer check
+      }else{
+        //failed first min length pass
         seqOut.openWrite(njh::pasteAsStr(winnerSet, "-failed"), seq);
       }
+      masterCountsCurrent.increaseCounts(winnerSet, seq.name_, extractorCase);
     }
     {
       std::lock_guard<std::mutex> lockGuard(mut);
+
+      masterCounts.addOtherExtractorCounts(masterCountsCurrent);
+
       for(const auto & readsPerSetCount : readsPerSetCurrent){
         readsPerSet[readsPerSetCount.first] += readsPerSetCount.second;
       }
       for(const auto & readsPerSetRevCompCount : readsPerSetRevCompCurrent){
         readsPerSetRevComp[readsPerSetRevCompCount.first] += readsPerSetRevCompCount.second;
       }
-      for(const auto & totalPassedByTargetCount : totalPassedByTargetCurrent){
-        totalPassedByTarget[totalPassedByTargetCount.first] += totalPassedByTargetCount.second;
-      }
-      failedMinLength += failedMinLengthCurrent;
     }
   };
 
@@ -309,30 +398,69 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
 
   uint64_t totalReadsPassedAllFilters = 0;
 
-  for(const auto & totalPassedByTargetCount : totalPassedByTarget){
-    totalReadsPassedAllFilters += totalPassedByTargetCount.second;
-  }
 
   outCounts << "sample\ttotalReadsProcessed\ttarget\tcount\tfrac\tforwardCount\tfracForward";
+  outCounts << "\tminLenFailed\tminLenFailedFrac";
+  outCounts << "\tmaxLenFailed\tmaxLenFailedFrac";
+  outCounts << "\tqualityFailed\tqualityFailedFrac";
+  outCounts << "\tforwardPrimerFailed\tforwardPrimerFailedFrac";
+  outCounts << "\treversePrimerFailed\treversePrimerFailedFrac";
+  outCounts << "\tbothForRevPrimerFailed\tbothForRevPrimerFailedFrac";
+  outCounts << "\ttotalFailed\ttotalFailedFrac";
   outCounts << "\tpasssed\tpassedFrac";
   outCounts << std::endl;
+
+
   uint64_t totalExtractedAllTargets = 0;
   uint64_t totalExtractedAllTargetsForard = 0;
   uint64_t totalExtractedUndetermined = readsPerSet["undetermined"] + readsPerSetRevComp["undetermined"];
+
+
   for(const auto & setName : ids.getTargets()){
     uint64_t totalExtracted = readsPerSet[setName] + readsPerSetRevComp[setName];
     totalExtractedAllTargets += totalExtracted;
     totalExtractedAllTargetsForard += readsPerSet[setName];
+
+    uint64_t totalBad = masterCounts.counts_[setName][false].minLenBad_ + masterCounts.counts_[setName][true].minLenBad_ +
+        masterCounts.counts_[setName][false].maxLenBad_ + masterCounts.counts_[setName][true].maxLenBad_+
+        masterCounts.counts_[setName][false].qualityFailed_ + masterCounts.counts_[setName][true].qualityFailed_ +
+        masterCounts.failedForward_[setName][false] + masterCounts.failedForward_[setName][true] +
+        masterCounts.counts_[setName][false].badReverse_ + masterCounts.counts_[setName][true].badReverse_ +
+        masterCounts.counts_[setName][false].mismatchPrimers_ + masterCounts.counts_[setName][true].mismatchPrimers_;
+
     outCounts << sampleName
               << "\t" << totalReadsProcessed
               << "\t" << setName
               << "\t" << totalExtracted
               << "\t" << static_cast<double>(totalExtracted) / static_cast<double>(totalReadsProcessed)
               << "\t" << readsPerSet[setName]
-              << "\t" << static_cast<double>(readsPerSet[setName]) / static_cast<double>(totalExtracted)
-              << "\t" << totalPassedByTarget[setName]
-              << "\t" << static_cast<double>(totalPassedByTarget[setName]) / static_cast<double>(totalExtracted)
+              << "\t" << static_cast<double>(readsPerSet[setName]) / static_cast<double>(totalExtracted);
+    //minlen
+    outCounts<< "\t" << masterCounts.counts_[setName][false].minLenBad_ + masterCounts.counts_[setName][true].minLenBad_
+    << "\t" << static_cast<double>(masterCounts.counts_[setName][false].minLenBad_ + masterCounts.counts_[setName][true].minLenBad_)/static_cast<double>(totalBad);
+    //maxlen
+    outCounts << "\t" << masterCounts.counts_[setName][false].maxLenBad_ + masterCounts.counts_[setName][true].maxLenBad_
+    << "\t" << static_cast<double>(masterCounts.counts_[setName][false].maxLenBad_ + masterCounts.counts_[setName][true].maxLenBad_)/static_cast<double>(totalBad);
+    //quality
+    outCounts << "\t" << masterCounts.counts_[setName][false].qualityFailed_ + masterCounts.counts_[setName][true].qualityFailed_
+              << "\t" << static_cast<double>(masterCounts.counts_[setName][false].qualityFailed_ + masterCounts.counts_[setName][true].qualityFailed_)/static_cast<double>(totalBad);
+    //failed forward
+    outCounts << "\t" << masterCounts.failedForward_[setName][false] + masterCounts.failedForward_[setName][true]
+              << "\t" << static_cast<double>(masterCounts.failedForward_[setName][false] + masterCounts.failedForward_[setName][true])/static_cast<double>(totalBad);
+    //bad reverse
+    outCounts << "\t" << masterCounts.counts_[setName][false].badReverse_ + masterCounts.counts_[setName][true].badReverse_
+              << "\t" << static_cast<double>(masterCounts.counts_[setName][false].badReverse_ + masterCounts.counts_[setName][true].badReverse_)/static_cast<double>(totalBad);
+    //both bad reverse and failed forward
+    outCounts << "\t" << masterCounts.counts_[setName][false].mismatchPrimers_ + masterCounts.counts_[setName][true].mismatchPrimers_
+              << "\t" << static_cast<double>(masterCounts.counts_[setName][false].mismatchPrimers_ + masterCounts.counts_[setName][true].mismatchPrimers_)/static_cast<double>(totalBad);
+    //bad
+    outCounts << "\t" << totalBad
+              << "\t" << static_cast<double>(totalBad) / static_cast<double>(totalExtracted);
+    //good
+    outCounts << "\t" << masterCounts.counts_[setName][false].good_ + masterCounts.counts_[setName][true].good_
+              << "\t" << static_cast<double>(masterCounts.counts_[setName][false].good_ + masterCounts.counts_[setName][true].good_) / static_cast<double>(totalExtracted)
               << std::endl;
+    totalReadsPassedAllFilters += masterCounts.counts_[setName][false].good_ + masterCounts.counts_[setName][true].good_;
   }
   {
     uint64_t totalExtracted = readsPerSet["undetermined"] + readsPerSetRevComp["undetermined"];
@@ -343,24 +471,38 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
               << "\t" << static_cast<double>(totalExtracted) / static_cast<double>(totalReadsProcessed)
               << "\t" << readsPerSet["undetermined"]
               << "\t" << static_cast<double>(readsPerSet["undetermined"]) / static_cast<double>(totalExtracted)
-              << "\t" << 0
-              << "\t" << 0
+        << "\t" << 0
+        << "\t" << 0
+        << "\t" << 0
+        << "\t" << 0
+        << "\t" << 0
+        << "\t" << 0
+        << "\t" << 0
+        << "\t" << 0
+        << "\t" << 0
+        << "\t" << 0
+        << "\t" << 0
+        << "\t" << 0
+        << "\t" << 0
+        << "\t" << 0
+        << "\t" << 0
+        << "\t" << 0
               << std::endl;
   }
 
   outStats << "sampleName\ttotalReadsProcessed\tfailedMinLen_" << corePars.smallFragmentCutoff << "\tfailedMinLenFrac\tundetermined\tundeterminedFrac\textracted\textractedFrac\textractedForward\textractedForwardFrac\tpassed\tpassedFrac" << std::endl;
   outStats << sampleName
-           << "\t" << totalReadsProcessed + failedMinLength
-           << "\t" << failedMinLength
-           << "\t" << static_cast<double>(failedMinLength) / static_cast<double>(totalReadsProcessed + failedMinLength)
+           << "\t" << totalReadsProcessed + masterCounts.smallFrags_
+           << "\t" << masterCounts.smallFrags_
+           << "\t" << static_cast<double>(masterCounts.smallFrags_) / static_cast<double>(totalReadsProcessed + masterCounts.smallFrags_)
            << "\t" << totalExtractedUndetermined
            << "\t" << static_cast<double>(totalExtractedUndetermined) / static_cast<double>(totalExtractedUndetermined + totalExtractedAllTargets)
            << "\t" << totalExtractedAllTargets
-           << "\t" << static_cast<double>(totalExtractedAllTargets) / static_cast<double>(totalReadsProcessed + failedMinLength)
+           << "\t" << static_cast<double>(totalExtractedAllTargets) / static_cast<double>(totalReadsProcessed + masterCounts.smallFrags_)
            << "\t" << totalExtractedAllTargetsForard
            << "\t" << static_cast<double>(totalExtractedAllTargetsForard) / static_cast<double>(totalExtractedAllTargets)
            << "\t" << totalReadsPassedAllFilters
-           << "\t" << static_cast<double>(totalReadsPassedAllFilters) / static_cast<double>(totalReadsProcessed + failedMinLength)
+           << "\t" << static_cast<double>(totalReadsPassedAllFilters) / static_cast<double>(totalReadsProcessed + masterCounts.smallFrags_)
            << std::endl;
 
   return 0;

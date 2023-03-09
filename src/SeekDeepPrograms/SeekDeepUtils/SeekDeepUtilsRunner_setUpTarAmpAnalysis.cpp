@@ -31,6 +31,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	stringToLower(pars.technology);
 
 
+
 	if (!njh::in(pars.technology, acceptableTechs)) {
 		setUp.failed_ = true;
 		std::stringstream ss;
@@ -48,6 +49,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	setUp.setOption(pars.samplesNamesFnp, "--samples", "A file containing the samples names, columns should go target,sample,pcr1,pcr2(optional)",
 			false, "ID Files");
 
+  setUp.setOption(pars.uniqueKmersPerTarget, "--uniqueKmersPerTarget", "unique Kmers Per Target", pars.techIsNanopore());
 	std::string overlapStatus{"auto"};
 	std::set<std::string> allowableOverlapStatuses{"AUTO", "R1BEGINSINR2", "R1ENDSINR2", "NOOVERLAP", "ALL"};
 
@@ -99,13 +101,13 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	// Extra arguments to give the sub programs
 	setUp.setOption(pars.extraExtractorCmds, "--extraExtractorCmds",
 			"Extra extractor cmds to add to the defaults", false, "Extra Commands");
-	setUp.setOption(pars.extraQlusterCmds, "--extraQlusterCmds,--extraKcrushCmds",
-			"Extra qluster/kcrush cmds to add to the defaults", false, "Extra Commands");
-	if(setUp.setOption(pars.extraQlusterCmdsPerTargetFnp, "--extraQlusterCmdsPerTarget,--extraKcrushCmdsPerTarget",
-			"Extra qluster/kcrush cmds to add to the defaults per target, table needs cols, 1)target,2)extraQlusterCmds", false, "Extra Commands")){
+	setUp.setOption(pars.extraQlusterCmds, "--extraQlusterCmds,--extraKlusterCmds",
+			"Extra qluster/kluster cmds to add to the defaults", false, "Extra Commands");
+	if(setUp.setOption(pars.extraQlusterCmdsPerTargetFnp, "--extraQlusterCmdsPerTarget,--extraKlusterCmdsPerTarget",
+			"Extra qluster/kluster cmds to add to the defaults per target, table needs cols, 1)target,2)extraQlusterCmds", false, "Extra Commands")){
 		if(!bfs::exists(pars.extraQlusterCmdsPerTargetFnp)){
 			setUp.failed_ = true;
-			setUp.addWarning(njh::pasteAsStr(pars.extraQlusterCmdsPerTargetFnp, " needs to exist for --extraQlusterCmdsPerTarget,--extraKcrushCmdsPerTarget"));
+			setUp.addWarning(njh::pasteAsStr(pars.extraQlusterCmdsPerTargetFnp, " needs to exist for --extraQlusterCmdsPerTarget,--extraKlusterCmdsPerTarget"));
 		}
 		table extraQlusterCmdsPerTargetTab(pars.extraQlusterCmdsPerTargetFnp, "\t", true);
 		extraQlusterCmdsPerTargetTab.changeHeaderToLowerCase();
@@ -144,8 +146,8 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 
 
 
-	setUp.setOption(pars.useKCrushClustering_, "--useKCrushClustering",
-			"Use kmer clustering for high error rate sequences like nanopore and pacbio");
+	setUp.setOption(pars.useKlusterClustering_, "--useKCrushClustering",
+                  "Use kmer clustering for high error rate sequences like nanopore and pacbio");
 
 
 	setUp.setOption(pars.conservative, "--conservativePopClus",
@@ -153,7 +155,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	setUp.setOption(pars.rescueFilteredHaplotypes, "--rescueFilteredHaplotypes", "Add on resuce of haplotypes that filtered due to low frequency or chimera filtering if it appears as a major haplotype in another sample", false, "processClusters");
 	setUp.setOption(pars.groupMeta, "--groupMeta", "Group Metadata", false, "Meta");
 	setUp.setOption(pars.lenCutOffsFnp, "--lenCutOffs",
-			"A file with 3 columns, 1)target, 2)minlen, 3)maxlen to supply length cut off specifically for each target", false, "Extractor");
+			"A file with 3 columns, 1)target, 2)minlen, 3)maxlen to supply length cut off specifically for each target", pars.techIsNanopore(), "Extractor");
 	setUp.setOption(pars.refSeqsDir, "--refSeqsDir",
 			"A directory of fasta files where each file is named with the input target names", false, "Extractor");
 	if (pars.techIs454() || pars.techIsIonTorrent()) {
@@ -547,8 +549,14 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 		std::string extractorCmdTemplate;
 		if (analysisSetup.pars_.techIsIllumina()) {
 			extractorCmdTemplate = setUp.commands_.masterProgram_
-					+ " extractorPairedEnd --dout {INDEX}_extraction --overWriteDir  ";
-		} else {
+					+ " extractorPairedEnd --dout {INDEX}_extraction --overWriteDir  "  ;
+		} else if (analysisSetup.pars_.techIsNanopore()) {
+      extractorCmdTemplate = setUp.commands_.masterProgram_
+                             + " extractorByKmerMatching --dout {INDEX}_extraction --overWriteDir  "
+                               " --uniqueKmersPerTarget info/ids/{TARS}_uniqueKmers.tab.txt.gz "
+                               " --rename --primerUpper "
+                               ;
+    } else {
 			extractorCmdTemplate = setUp.commands_.masterProgram_
 					+ " extractor --dout {INDEX}_extraction --overWriteDir  ";
 			if (analysisSetup.pars_.techIsIlluminaSingleEnd()) {
@@ -560,7 +568,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 		} else {
 			extractorCmdTemplate += "--fastqgz \"{INDEX_InFile}\" ";
 		}
-		std::string lenCutOffsTemplate ="--lenCutOffs info/ids/{TARS}_lenCutOffs.tab.txt ";
+		std::string lenCutOffsTemplate = "--lenCutOffs info/ids/{TARS}_lenCutOffs.tab.txt ";
 		std::string idTemplate = "--id info/ids/{TARS}.id.txt ";
 		std::string overLapStatusTemplate = "--overlapStatusFnp info/ids/{TARS}_overlapStatus.tab.txt ";
 		std::string refSeqsDir = "--compareSeq info/refs/ ";
@@ -589,7 +597,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 						    "--illumina --qualThres 25,20"
 						;
 
-		if(pars.useKCrushClustering_){
+		if(pars.useKlusterClustering_ || pars.techIsNanopore()){
 			qlusterCmdTemplate =
 					"cd \"" + extractionDirs.string() + "\" && "
 							+ "if [ -f {TARGET}{MIDREP}.fastq.gz  ]; then "
@@ -598,7 +606,10 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 									"--fastqgz \"{TARGET}{MIDREP}.fastq.gz\" "
 									"--alnInfoDir {TARGET}{MIDREP}_alnCache --overWriteDir "
 									"--additionalOut \"../popClustering/{TARGET}/locationByIndex/{INDEX}.tab.txt\" "
-									"--overWrite --dout {TARGET}{MIDREP}_qlusterOut ";
+									"--overWrite --dout {TARGET}{MIDREP}_klusterOut ";
+      //add in current defaults commonly used
+      qlusterCmdTemplate += " --cutOff 0.05  --sizeCutOff 1%,3  --map --recalcConsensus --writeInitialClusters --qualThres 15,10 -checkIndelsWhenMapping --checkChimeras  ";
+
 //			qlusterCmdTemplate = "cd \"" + extractionDirs.string() + "\" && "
 //					+ " if [ -f {TARGET}{MIDREP}.fastq.gz  ]; then "
 //											+ " SeekDeep "
@@ -606,7 +617,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 //							"--fastqgz \"{TARGET}{MIDREP}.fastq.gz\" "
 //							"--alnInfoDir {TARGET}{MIDREP}_alnCache --overWriteDir "
 //							"--additionalOut ../popClustering/locationByIndex/{TARGET}.tab.txt "
-//							"--overWrite --dout {TARGET}{MIDREP}_kcrushOut ";
+//							"--overWrite --dout {TARGET}{MIDREP}_klusterOut ";
 		}
 
 		if (analysisSetup.pars_.techIsIllumina() || analysisSetup.pars_.techIsIlluminaSingleEnd()) {
@@ -766,7 +777,12 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 			 extractorCmdTemplate =
 							setUp.commands_.masterProgram_
 									+ " extractorPairedEnd --dout {REP}_extraction --overWriteDir  ";
-		}else{
+    } else if (analysisSetup.pars_.techIsNanopore()) {
+      extractorCmdTemplate = setUp.commands_.masterProgram_
+                             + " extractorByKmerMatching --dout {REP}_extraction --overWriteDir  "
+                               " --uniqueKmersPerTarget info/ids/{TARS}_uniqueKmers.tab.txt.gz "
+                               " --rename --primerUpper ";
+    } else {
 			 extractorCmdTemplate =
 							setUp.commands_.masterProgram_
 									+ " extractor --dout {REP}_extraction --overWriteDir ";
@@ -809,15 +825,19 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 						"--overWrite --dout {TARGET}{MIDREP}_{MATEFILE}_qlusterOut "
 						"--illumina --qualThres 25,20";
 
-		if(pars.useKCrushClustering_){
-			qlusterCmdTemplate = "cd \"" + extractionDirs.string() + "\" && "
-					+ " if [ -f {TARGET}{MIDREP}.fastq.gz  ]; then "
-											+ " SeekDeep "
-											+ " kluster "
-							"--fastqgz \"{TARGET}{MIDREP}.fastq.gz\" "
-							"--alnInfoDir {TARGET}{MIDREP}_alnCache --overWriteDir "
-							"--additionalOut ../popClustering/locationByIndex/{TARGET}.tab.txt "
-							"--overWrite --dout {TARGET}{MIDREP}_kcrushOut ";
+		if(pars.useKlusterClustering_ || pars.techIsNanopore()){
+      qlusterCmdTemplate =
+          "cd \"" + extractionDirs.string() + "\" && "
+          + "if [ -f {TARGET}{MIDREP}.fastq.gz  ]; then "
+          + " SeekDeep "
+          + " kluster "
+            "--fastqgz \"{TARGET}{MIDREP}.fastq.gz\" "
+            "--alnInfoDir {TARGET}{MIDREP}_alnCache --overWriteDir "
+            "--additionalOut \"../popClustering/locationByIndex/{TARGET}.tab.txt\" "
+            "--overWrite --dout {TARGET}{MIDREP}_klusterOut ";
+      //add in current defaults commonly used
+      qlusterCmdTemplate += " --cutOff 0.05  --sizeCutOff 1%,3  --map --recalcConsensus --writeInitialClusters --qualThres 15,10 -checkIndelsWhenMapping --checkChimeras  ";
+
 		}
 		if (analysisSetup.pars_.techIsIllumina() || analysisSetup.pars_.techIsIlluminaSingleEnd()) {
 			qlusterCmdTemplate += "--illumina --qualThres 25,20";
@@ -1005,6 +1025,11 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 			setUp.commands_.masterProgram_
 					+ " processClusters "
 							"--alnInfoDir alnCache --strictErrors --dout analysis --fastqgz output.fastq.gz --overWriteDir ";
+
+  if(pars.techIsNanopore()){
+    processClusterTemplate += " --allowHomopolymerCollapse --qualThres 15,10 ";
+  }
+
 	if(pars.techIsIllumina() || pars.techIsIlluminaSingleEnd()){
 		auto lowerCaseExtracProcessArgs = stringToLowerReturn(analysisSetup.pars_.extraProcessClusterCmds);
 		if(std::string::npos == lowerCaseExtracProcessArgs.find("--illumina")){

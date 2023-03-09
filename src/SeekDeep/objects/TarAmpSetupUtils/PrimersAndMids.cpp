@@ -300,6 +300,24 @@ table PrimersAndMids::genLenCutOffs(const VecStr & targets) const {
 	return ret;
 }
 
+table PrimersAndMids::genUniqKmerCounts(const VecStr & targets) const {
+  table outTab(VecStr{"set", "kmer"});
+  outTab.hasHeader_ = false;
+  SimpleKmerHash hasher;
+  for(const auto & tar : targets){
+    if (!hasTarget(tar)) {
+      std::stringstream ss;
+      ss << __PRETTY_FUNCTION__ << ": error, doesn't contain " << tar
+         << std::endl;
+      throw std::runtime_error { ss.str() };
+    }
+    for(const auto hashedKmer : uniqueKmersPerTarget_.at(tar)){
+      outTab.addRow(tar, hasher.reverseHash(hashedKmer));
+    }
+  }
+  return outTab;
+}
+
 table PrimersAndMids::genOverlapStatuses(const VecStr & targets) const {
 	table ret(VecStr { "target", "status"});
 	for (const auto & tar : targets) {
@@ -446,7 +464,6 @@ uint32_t PrimersAndMids::addUniqKmerCounts(const bfs::path & uniqueKmersPerTarge
       uniqueKmersPerTarget_[row[0]].emplace(hasher.hash(row[1]));
     }
   }
-
   VecStr missingTargets;
   for(const auto & name : uniqueKmersPerTarget_){
     if(!njh::in(name.first, uniqueKmersPerTarget_)){

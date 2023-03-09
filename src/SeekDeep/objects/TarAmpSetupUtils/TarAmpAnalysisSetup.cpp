@@ -75,7 +75,7 @@ bool TarAmpAnalysisSetup::TarAmpPars::techIsIonTorrent() const {
 	return "iontorrent" == technology;
 }
 
-bool TarAmpAnalysisSetup::TarAmpPars::teschIsNanopore() const {
+bool TarAmpAnalysisSetup::TarAmpPars::techIsNanopore() const {
 	return "nanopore" == technology;
 }
 
@@ -195,12 +195,15 @@ TarAmpAnalysisSetup::TarAmpAnalysisSetup(const TarAmpPars & inputPars) :
 		idsMids_->checkMidNamesThrow();
 	}
 	//add overlap status
-	if("" != pars_.overlapStatusFnp){
+	if(!pars_.overlapStatusFnp.empty()){
 		addOverlapStatus(pars_.overlapStatusFnp);
 	}else if(!pars_.defaultStatuses_.empty()){
 		idsMids_->addOverLapStatuses(pars_.defaultStatuses_);
 	}
 
+  if(!pars_.uniqueKmersPerTarget.empty()){
+    idsMids_->addUniqKmerCounts(pars_.uniqueKmersPerTarget);
+  }
 
 	//add sample names
 	addSamplesNames(pars_.samplesNamesFnp);
@@ -677,6 +680,15 @@ void TarAmpAnalysisSetup::writeOutIdFiles() {
 		auto refs = idsMids_->getRefSeqs(tarCombo);
 		auto lens = idsMids_->genLenCutOffs(tarCombo);
 		auto overlapStatuses = idsMids_->genOverlapStatuses(tarCombo);
+
+    if(!idsMids_->uniqueKmersPerTarget_.empty()){
+      auto uniqKmers = idsMids_->genUniqKmerCounts(tarCombo);
+      auto uniqKmersOutOpts = TableIOOpts::genTabFileOut(
+          njh::files::make_path(idsDir_,
+                                collapseIdx + "_uniqueKmers.tab.txt.gz"));
+      uniqKmersOutOpts.hasHeader_ = false;
+      uniqKmers.outPutContents(uniqKmersOutOpts);
+    }
 
 		if (!lens.empty()) {
 			auto lensOutOpts = TableIOOpts::genTabFileOut(

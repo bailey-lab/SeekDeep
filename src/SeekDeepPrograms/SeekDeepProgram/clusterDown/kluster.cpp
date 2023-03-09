@@ -39,7 +39,7 @@ struct KmerClusteringRatePars {
   uint32_t largeIndel = 10;
   uint32_t chiAllowableError = 1;
   bool writeInitialClusters = false;
-  uint32_t largeGapSizeCutOff = 15;
+  uint32_t largeGapSizeCutOff = 50;
   bool breakLargeIndelCons = false;
   std::string aSetRepName;
   uint32_t nodeSize = 50;
@@ -63,6 +63,8 @@ struct KmerClusteringRatePars {
 
 
   KmerClusteringRatePars() {
+
+
     dbPars_.minEpNeighbors_ = 4;
     dbPars_.eps_ = std::numeric_limits<double>::min();
 //		passableErrors.lqMismatches_ = 0;
@@ -274,8 +276,8 @@ readDistGraph<double> genKmerAccerDistGraphWithDbSmartBuildDev(
         auto seq1 = e->nodeToNode_.begin()->second.lock()->value_;
         auto seq2 =
             distanceGraph.nodes_[distanceGraph.nameToNodePos_[e->nodeToNode_.begin()->first]]->value_;
-        //alignerObj.alignCacheGlobal(seq1, seq2);
-        alignerObj.alignCacheGlobalDiag(seq1, seq2);
+        alignerObj.alignCacheGlobal(seq1, seq2);
+//        alignerObj.alignCacheGlobalDiag(seq1, seq2);
         alignerObj.profilePrimerAlignment(seq1, seq2);
         bool foundLargeIndel = false;
         for (const auto & g : alignerObj.comp_.distances_.alignmentGaps_) {
@@ -344,10 +346,12 @@ struct SimpleCollapsePars {
   bool debug_{false};
 
   SimpleCollapsePars(){
-    passableErrors_.lqMismatches_ = 0;
+    passableErrors_.lqMismatches_ = 5;
     passableErrors_.hqMismatches_ = 0;
     passableErrors_.oneBaseIndel_ = 5;
     passableErrors_.twoBaseIndel_ = 5;
+    passableErrors_.largeBaseIndel_ = 0.99;
+
   }
 };
 
@@ -400,8 +404,8 @@ bool simpleCollapseWithParsWork(std::vector<cluster> & consensusReads,
         }
         //check to see if there are no errors
         //(basically if there is a little bit of overlap, could be dangerous for very different lengths)
-        alignerObj.alignCacheGlobalDiag(consensusReads[secondPos], consensusReads[firstPos]);
-        //alignerObj.alignCacheGlobal(consensusReads[secondPos], consensusReads[firstPos]);
+//        alignerObj.alignCacheGlobalDiag(consensusReads[secondPos], consensusReads[firstPos]);
+        alignerObj.alignCacheGlobal(consensusReads[secondPos], consensusReads[firstPos]);
 
         alignerObj.profileAlignment(consensusReads[secondPos],
                                     consensusReads[firstPos], false, true, false);
@@ -456,8 +460,8 @@ bool simpleCollapseWithParsWork(std::vector<cluster> & consensusReads,
             std::cout << "" << consensusReads[firstPos].seqBase_.name_ << " vs " << consensusReads[secondPos].seqBase_.name_ << std::endl;
             std::cout << "passed cut off of: " << kdistCutOff  << std::endl;
           }
-          //alignerObj.alignCacheGlobal(consensusReads[secondPos], consensusReads[firstPos]);
-          alignerObj.alignCacheGlobalDiag(consensusReads[secondPos], consensusReads[firstPos]);
+          alignerObj.alignCacheGlobal(consensusReads[secondPos], consensusReads[firstPos]);
+//          alignerObj.alignCacheGlobalDiag(consensusReads[secondPos], consensusReads[firstPos]);
           alignerObj.profileAlignment(consensusReads[secondPos],
                                       consensusReads[firstPos], false, true, false);
           if(print){
@@ -527,11 +531,18 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
   bool sortToTopBeforeSubGrouping = false;
   bool sortByErrorRateBeforeSubGrouping = false;
   uint32_t klenForPreSort = 4;
+
+  bool checkIndelsWhenMapping = false;
+  bool checkIndelsAgainstSNPsWhenMapping = false;
+  bool doNotCheckIndelsAgainstSNPsWhenMapping = false;
   seqSetUp setUp(inputCommands);
   setUp.processDebug();
   setUp.processVerbose();
   pars.verbose = setUp.pars_.verbose_;
-
+  setUp.setOption(checkIndelsWhenMapping, "--checkIndelsWhenMapping", "check Indels When Mapping");
+  //setUp.setOption(checkIndelsAgainstSNPsWhenMapping, "--checkIndelsAgainstSNPsWhenMapping", "check Indels Against SNPs When Mapping");
+  setUp.setOption(doNotCheckIndelsAgainstSNPsWhenMapping, "--doNotCheckIndelsAgainstSNPsWhenMapping", "don't check Indels Against SNPs When Mapping");
+  checkIndelsAgainstSNPsWhenMapping = !doNotCheckIndelsAgainstSNPsWhenMapping;
   setUp.pars_.chiOpts_.parentFreqs_ = 2;
   setUp.setOption(sortToTopBeforeSubGrouping, "--sortToTopBeforeSubGrouping", "sort To Top Before Sub Grouping");
   setUp.setOption(sortByErrorRateBeforeSubGrouping, "--sortByErrorRateBeforeSubGrouping", "sort By Error Rate Before Sub Grouping");
@@ -557,8 +568,10 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
   setUp.setOption(postCollapsePars.forceOneComp_, "--postCollapseForceOneComp", "Post Collapse Force One Comp");
 
 
-  setUp.setOption(pars.noTies, "--noTiesDuringMapping", "Don't do ties on mapping estimate");
-  pars.tiesDuringMapping = !pars.noTies;
+//  setUp.setOption(pars.noTies, "--noTiesDuringMapping", "Don't do ties on mapping estimate");
+//  pars.tiesDuringMapping = !pars.noTies;
+  pars.tiesDuringMapping = false;
+  setUp.setOption(pars.tiesDuringMapping, "--tiesDuringMapping", "distribute ties on mapping estimate");
   setUp.setOption(pars.doTies, "--doTies", "Do ties");
   setUp.setOption(pars.largeGapSizeCutOff, "--largeGapSizeCutOff", "During Mapping Exclude any reads have a gap larger than this value");
   setUp.setOption(pars.writeInitialClusters, "--writeInitialClusters", "Write the initial clusters before further collapsing");
@@ -585,16 +598,27 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
   setUp.processDefaultReader(true);
   setUp.setOption(setUp.pars_.colOpts_.kmerOpts_.kLength_, "--kmerLength,-k", "kLength");
   setUp.processDirectoryOutputName(true);
-  setUp.pars_.gapLeft_ = "5,1";
-  setUp.pars_.gapRight_ = "5,1";
+//  setUp.pars_.gapLeft_ = "5,1";
+//  setUp.pars_.gapRight_ = "5,1";
+//  setUp.pars_.gap_ = "5,1";
+//  setUp.pars_.gapInfo_ = gapScoringParameters(5,1);
+//
+  setUp.pars_.gapLeft_ = "0,0";
+  setUp.pars_.gapRight_ = "0,0";
   setUp.pars_.gap_ = "5,1";
-  setUp.pars_.gapInfo_ = gapScoringParameters(5,1);
+  setUp.pars_.gapInfo_ = gapScoringParameters(5,1, 0,0, 0,0);
+
   setUp.processGap();
 
-  setUp.pars_.gapLeftRef_ = "5,1";
-  setUp.pars_.gapRightRef_ = "5,1";
+//  setUp.pars_.gapLeftRef_ = "5,1";
+//  setUp.pars_.gapRightRef_ = "5,1";
+//  setUp.pars_.gapRef_ = "5,1";
+//  setUp.pars_.gapInfoRef_ = gapScoringParameters(5,1);
+
+  setUp.pars_.gapLeftRef_ = "0,0";
+  setUp.pars_.gapRightRef_ = "0,0";
   setUp.pars_.gapRef_ = "5,1";
-  setUp.pars_.gapInfoRef_ = gapScoringParameters(5,1);
+  setUp.pars_.gapInfoRef_ = gapScoringParameters(5,1, 0,0, 0,0);
   setUp.processRefFilename(false);
 
 
@@ -606,10 +630,14 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
   pars.breakoutPars.minSnps = postCollapsePars.passableErrors_.hqMismatches_ + 1;
   pars.breakoutPars.hardCutOff = pars.dbPars_.minEpNeighbors_;
   pars.breakoutPars.qScorePars = setUp.pars_.qScorePars_;
+  //pars.breakoutPars.qScorePars.qualThresWindow_ = 0;
+  setUp.setOption(pars.breakoutPars.qScorePars.qualThresWindow_, "--snpBreakoutParsQualThresWindow", "snpBreakout Pars Qual Thres Window");
   setUp.setOption(pars.breakoutPars.hardCutOff, "--snpBreakoutMinGroupSize", "A hard cut off for when breaking out clusters, clusters that larger(non-inclusive) than this are broken out");
+  pars.breakoutPars.snpFreqCutOff = 0.025;
+  pars.breakoutPars.hardSnpFreqCutOff = 0.025;
   setUp.setOption(pars.breakoutPars.snpFreqCutOff, "--snpFreqCutOff", "Cut off for when breaking out snp frequencies");
   setUp.setOption(pars.breakoutPars.hardSnpFreqCutOff, "--hardSnpFreqCutOff", "Hard SNP Freq Cut Off");
-
+  setUp.setOption(pars.breakoutPars.minSnps, "--snpBreakoutMinSnps", "SNP Breakout Min Snps");
 
   double kDistCutOff = .90;
   uint32_t kLenComp = 6;
@@ -901,7 +929,7 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
   std::string mappingDir;
   double unmappableAmount = 0.0;
   double indeterminateAmount = 0.0;
-
+  double tiesAmount = 0.0;
 
 
   if (pars.map) {
@@ -973,6 +1001,7 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
       std::cout << njh::bashCT::bold << "Mapping all sequences to Consensus Sequences" << njh::bashCT::reset << std::endl;
     }
     std::vector<std::pair<uint64_t, std::vector<uint64_t>>> ties;
+    std::vector<seqInfo> tiesReads;
     std::mutex tiesMut;
     std::vector<seqInfo> unmappable;
     std::mutex unmappableMut;
@@ -1009,8 +1038,9 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
 
     auto mapRead =
         [&pbar, &readPosQueue, &alignPoolMap, &pars, &getScoreFunc, &readCounts, &allInputReads,
-            &ties, &tiesMut, &unmappable, &unmappableMut, &indeterminate, &indeterminateMut,
-            &difference, &refVariationInfo,&threadChunkNum, &setUp]() {
+            &tiesReads, &ties, &tiesMut, &unmappable, &unmappableMut, &indeterminate, &indeterminateMut,
+            &difference, &refVariationInfo,&threadChunkNum, &setUp,
+            &checkIndelsWhenMapping,&checkIndelsAgainstSNPsWhenMapping]() {
           std::vector<uint32_t> readPositionsChunk;
           auto curThreadAligner = alignPoolMap.popAligner();
           while(readPosQueue.getVals(readPositionsChunk, threadChunkNum)) {
@@ -1028,8 +1058,8 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
                 if(uAbsdiff(len(getSeqBase(ref)), len(allInputReads[readPos]->seqBase_)) > pars.readLengthMinDiff){
                   continue;
                 }
-                curThreadAligner->alignCacheGlobalDiag(ref.seqBase_, allInputReads[readPos]->seqBase_);
-                //curThreadAligner->alignCacheGlobal(ref.seqBase_, allInputReads[readPos]->seqBase_);
+//                curThreadAligner->alignCacheGlobalDiag(ref.seqBase_, allInputReads[readPos]->seqBase_);
+                curThreadAligner->alignCacheGlobal(ref.seqBase_, allInputReads[readPos]->seqBase_);
                 curThreadAligner->profilePrimerAlignment(ref.seqBase_,
                                                          allInputReads[readPos]->seqBase_);
 
@@ -1043,6 +1073,7 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
                 }
 
                 //check to see if the read is mappable by comparing to the percent identity cut off and has no large gaps
+//                std::cout << std::this_thread::get_id() << std::endl;
 //						std::cout << "curThreadAligner->comp_.distances_.eventBasedIdentity_: " << curThreadAligner->comp_.distances_.eventBasedIdentity_ << std::endl;
 //						std::cout << "passLargeGaps: " << njh::colorBool(passLargeGaps) << std::endl;
                 if (curThreadAligner->comp_.distances_.eventBasedIdentity_ >= pars.idCutOff && passLargeGaps) {
@@ -1058,8 +1089,8 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
                 std::vector<uint64_t> bestRefs;
                 for (const auto refPos : iter::range(readCounts.size())) {
                   const auto & ref = readCounts[refPos];
-                  //curThreadAligner->alignCacheGlobal(ref.seqBase_,allInputReads[readPos]->seqBase_);
-                  curThreadAligner->alignCacheGlobalDiag(ref.seqBase_,allInputReads[readPos]->seqBase_);
+                  curThreadAligner->alignCacheGlobal(ref.seqBase_,allInputReads[readPos]->seqBase_);
+//                  curThreadAligner->alignCacheGlobalDiag(ref.seqBase_,allInputReads[readPos]->seqBase_);
                   curThreadAligner->profilePrimerAlignment(ref.seqBase_,
                                                            allInputReads[readPos]->seqBase_);
                   if (curThreadAligner->comp_.distances_.eventBasedIdentity_ >= pars.idCutOff) {
@@ -1098,8 +1129,8 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
                     //get the current snp info for the current ref to the other matching refs
                     //auto seqSnpPosBases = refVariationInfo[refPos].getVariantSnpLociMap(matchingRefNames, 1);
                     auto seqSnpPosBases = refVariationInfo[refPos].getVariantSnpLociMap(matchingRefNames, 0);
-                    //curThreadAligner->alignCacheGlobal(ref.seqBase_, allInputReads[readPos]->seqBase_);
-                    curThreadAligner->alignCacheGlobalDiag(ref.seqBase_, allInputReads[readPos]->seqBase_);
+                    curThreadAligner->alignCacheGlobal(ref.seqBase_, allInputReads[readPos]->seqBase_);
+//                    curThreadAligner->alignCacheGlobalDiag(ref.seqBase_, allInputReads[readPos]->seqBase_);
                     curThreadAligner->profilePrimerAlignment(ref.seqBase_, allInputReads[readPos]->seqBase_);
                     //determine the snps for this current read to this ref
                     std::unordered_map<uint32_t, char> currentSnps;
@@ -1120,7 +1151,7 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
                       }
                     }
 
-                    if(pass){
+                    if(pass && checkIndelsWhenMapping){
                       //check indels
                       //get the current insertions info for the current ref to the other matching refs
                       auto deletionsInOtherMatching = refVariationInfo[refPos].getVariantDeletionLociMap(matchingRefNames, 2, true);
@@ -1168,7 +1199,7 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
                         }
                       }
                     }
-                    if(pass) {
+                    if(pass && checkIndelsAgainstSNPsWhenMapping) {
                       auto seqSnpPos = refVariationInfo[refPos].getVariantSnpLoci(matchingRefNames,0);
                       for(const auto & loc : seqSnpPos) {
                         //determine if current read has a snp at location
@@ -1196,13 +1227,16 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
                   } else {
                     //if there is more than one matching ref, put it in ties
                     std::lock_guard<std::mutex> tiesLock(tiesMut);
+                    tiesReads.emplace_back(allInputReads[readPos]->seqBase_);
                     ties.emplace_back(readPos, matchingRefs);
                     const seqInfo & info = allInputReads[readPos]->seqBase_;
                     seqInfo tempObj(info.name_, info.seq_, info.qual_,
                                     info.cnt_ / matchingRefs.size());
                     tempObj.updateName();
-                    for (const auto & best : matchingRefs) {
-                      readCounts[best].addRead(tempObj);
+                    if(pars.tiesDuringMapping){
+                      for (const auto & best : matchingRefs) {
+                        readCounts[best].addRead(tempObj);
+                      } 
                     }
                   }
                 }
@@ -1252,6 +1286,9 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
     indeterminateAmount = std::accumulate(indeterminate.begin(),
                                           indeterminate.end(), 0.0,
                                           [](double init, const seqInfo & seq) {return init + seq.cnt_;});
+    tiesAmount  = std::accumulate(tiesReads.begin(),
+                                  tiesReads.end(), 0.0,
+                                  [](double init, const seqInfo & seq) {return init + seq.cnt_;});
     {
       if(pars.map){
         std::ofstream mapInfo;
@@ -1317,6 +1354,8 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
                 << unmappableAmount / totalReadCnt << "\n";
         mapInfo << seqName << "\t" << "indeterminate\t" << indeterminateAmount
                 << "\t" << indeterminateAmount / totalReadCnt << "\n";
+        mapInfo << seqName << "\t" << "ties\t" << tiesAmount
+                << "\t" << tiesAmount / totalReadCnt << "\n";
       }
     }
   }
@@ -1525,6 +1564,12 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
       breakout = true;
       breakoutCount+= breakouts.size();
       addOtherVec(consensusReads, breakouts);
+      if(setUp.pars_.debug_){
+        std::cout << consensusReads[readPos].seqBase_.name_ << std::endl;
+        for(const auto & breakoutPos : iter::range(breakouts.size())){
+          std::cout << "\t" << breakouts[breakoutPos].seqBase_.name_ << std::endl;
+        }
+      }
     }
   }
 
@@ -1548,6 +1593,15 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
     renameReadNames(consensusReads,
                     bfs::basename(setUp.pars_.ioOptions_.firstName_), true, true,
                     true, "totalCount");
+    if(pars.writeInitialClusters){
+      //write out initial clusters if needed, this is mostly a debugging option
+      std::string initialDir = njh::files::makeDir(njh::files::make_path(setUp.pars_.directoryName_, "initialClusters").string(), njh::files::MkdirPar("initialClustersAfrerBreakoutCollapsed")).string();
+      std::string initialClustersDir = njh::files::makeDir(initialDir, njh::files::MkdirPar("clusters")).string();
+      SeqOutput::write(consensusReads, SeqIOOptions(initialDir + "allConsensus",setUp.pars_.ioOptions_.outFormat_,setUp.pars_.ioOptions_.out_));
+      for(const auto & clus : consensusReads){
+        clus.writeClustersInDir(initialClustersDir, setUp.pars_.ioOptions_);
+      }
+    }
   }
 
   if(breakout){
@@ -1572,12 +1626,15 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
       }
     }
 
-    readCounts.clear();
-    //njh::files::rmDirForce(mappingDir);
-    njh::files::bfs::rename(mappingDir, njh::files::make_path(setUp.pars_.directoryName_, "initialMappingInfo"));
-    unmappableAmount = 0.0;
-    indeterminateAmount = 0.0;
     if (pars.map) {
+
+      readCounts.clear();
+      //njh::files::rmDirForce(mappingDir);
+      njh::files::bfs::rename(mappingDir, njh::files::make_path(setUp.pars_.directoryName_, "initialMappingInfo"));
+
+      unmappableAmount = 0.0;
+      indeterminateAmount = 0.0;
+      tiesAmount = 0.0;
       setUp.rLog_.logCurrentTime("Determining Variation ...again");
       if (setUp.pars_.verbose_) {
         std::cout << njh::bashCT::bold << "There was a " << njh::bashCT::red
@@ -1647,6 +1704,7 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
       setUp.rLog_.logCurrentTime("Mapping Sequences ...again");
 
       std::vector<std::pair<uint64_t, std::vector<uint64_t>>> ties;
+      std::vector<seqInfo> tiesReads;
       std::mutex tiesMut;
       std::vector<seqInfo> unmappable;
       std::mutex unmappableMut;
@@ -1683,8 +1741,9 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
 
       auto mapRead =
           [&pbar, &readPosQueue, &alignPoolMap, &pars, &getScoreFunc, &readCounts, &allInputReads,
-              &ties, &tiesMut, &unmappable, &unmappableMut, &indeterminate, &indeterminateMut,
-              &difference, &refVariationInfo,&threadChunkNum, &setUp]() {
+              &tiesReads, &ties, &tiesMut, &unmappable, &unmappableMut, &indeterminate, &indeterminateMut,
+              &difference, &refVariationInfo,&threadChunkNum, &setUp,
+              &checkIndelsWhenMapping,&checkIndelsAgainstSNPsWhenMapping]() {
             std::vector<uint32_t> readPositionsChunk;
             auto curThreadAligner = alignPoolMap.popAligner();
             while(readPosQueue.getVals(readPositionsChunk, threadChunkNum)) {
@@ -1702,8 +1761,8 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
                   if(uAbsdiff(len(getSeqBase(ref)), len(allInputReads[readPos]->seqBase_)) > pars.readLengthMinDiff){
                     continue;
                   }
-                  //curThreadAligner->alignCacheGlobal(ref.seqBase_,allInputReads[readPos]->seqBase_);
-                  curThreadAligner->alignCacheGlobalDiag(ref.seqBase_,allInputReads[readPos]->seqBase_);
+                  curThreadAligner->alignCacheGlobal(ref.seqBase_,allInputReads[readPos]->seqBase_);
+//                  curThreadAligner->alignCacheGlobalDiag(ref.seqBase_,allInputReads[readPos]->seqBase_);
                   curThreadAligner->profilePrimerAlignment(ref.seqBase_,
                                                            allInputReads[readPos]->seqBase_);
                   //check for very large gaps that wouldn't be expected no matter the technology
@@ -1728,8 +1787,8 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
                   std::vector<uint64_t> bestRefs;
                   for (const auto refPos : iter::range(readCounts.size())) {
                     const auto & ref = readCounts[refPos];
-                    //curThreadAligner->alignCacheGlobal(ref.seqBase_,allInputReads[readPos]->seqBase_);
-                    curThreadAligner->alignCacheGlobalDiag(ref.seqBase_,allInputReads[readPos]->seqBase_);
+                    curThreadAligner->alignCacheGlobal(ref.seqBase_,allInputReads[readPos]->seqBase_);
+//                    curThreadAligner->alignCacheGlobalDiag(ref.seqBase_,allInputReads[readPos]->seqBase_);
                     curThreadAligner->profilePrimerAlignment(ref.seqBase_,
                                                              allInputReads[readPos]->seqBase_);
                     if (curThreadAligner->comp_.distances_.eventBasedIdentity_ >= pars.idCutOff) {
@@ -1768,8 +1827,8 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
                       //get the current snp info for the current ref to the other matching refs
                       //auto seqSnpPosBases = refVariationInfo[refPos].getVariantSnpLociMap(matchingRefNames, 1);
                       auto seqSnpPosBases = refVariationInfo[refPos].getVariantSnpLociMap(matchingRefNames, 0);
-                      //curThreadAligner->alignCacheGlobal(ref.seqBase_, allInputReads[readPos]->seqBase_);
-                      curThreadAligner->alignCacheGlobalDiag(ref.seqBase_, allInputReads[readPos]->seqBase_);
+                      curThreadAligner->alignCacheGlobal(ref.seqBase_, allInputReads[readPos]->seqBase_);
+//                      curThreadAligner->alignCacheGlobalDiag(ref.seqBase_, allInputReads[readPos]->seqBase_);
                       curThreadAligner->profilePrimerAlignment(ref.seqBase_, allInputReads[readPos]->seqBase_);
                       //determine the snps for this current read to this ref
                       std::unordered_map<uint32_t, char> currentSnps;
@@ -1789,7 +1848,7 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
                           }
                         }
                       }
-                      if(pass){
+                      if(pass && checkIndelsWhenMapping){
                         //check indels
                         //get the current insertions info for the current ref to the other matching refs
                         auto deletionsInOtherMatching = refVariationInfo[refPos].getVariantDeletionLociMap(matchingRefNames, 2, true);
@@ -1837,7 +1896,7 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
                           }
                         }
                       }
-                      if(pass) {
+                      if(pass && checkIndelsAgainstSNPsWhenMapping) {
                         auto seqSnpPos = refVariationInfo[refPos].getVariantSnpLoci(matchingRefNames,0);
                         for(const auto & loc : seqSnpPos) {
                           //determine if current read has a snp at location
@@ -1865,13 +1924,16 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
                     } else {
                       //if there is more than one matching ref, put it in ties
                       std::lock_guard<std::mutex> tiesLock(tiesMut);
+                      tiesReads.emplace_back(allInputReads[readPos]->seqBase_);
                       ties.emplace_back(readPos, matchingRefs);
                       const seqInfo & info = allInputReads[readPos]->seqBase_;
                       seqInfo tempObj(info.name_, info.seq_, info.qual_,
                                       info.cnt_ / matchingRefs.size());
                       tempObj.updateName();
-                      for (const auto & best : matchingRefs) {
-                        readCounts[best].addRead(tempObj);
+                      if(pars.tiesDuringMapping){
+                        for (const auto & best : matchingRefs) {
+                          readCounts[best].addRead(tempObj);
+                        } 
                       }
                     }
                   }
@@ -1921,10 +1983,9 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
       indeterminateAmount = std::accumulate(indeterminate.begin(),
                                             indeterminate.end(), 0.0,
                                             [](double init, const seqInfo & seq) {return init + seq.cnt_;});
-
-
-    }
-    if(pars.map){
+      tiesAmount  = std::accumulate(tiesReads.begin(),
+                                    tiesReads.end(), 0.0,
+                                   [](double init, const seqInfo & seq) {return init + seq.cnt_;});
 
       setUp.rLog_.logCurrentTime("Setting Aligner for re-calc ...again" );
       //alignPoolMap.destoryAligners();
@@ -2063,82 +2124,652 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
       }
       setUp.rLog_ << "Finished with " << consensusReads.size()
                   << " Consensus Sequences after Breakout" << "\n";
+      std::ofstream mapInfo;
+      openTextFile(mapInfo, mappingDir + "mapInfo", ".tab.txt", setUp.pars_.ioOptions_.out_);
+      std::set<std::string> repNames;
+      for (const auto & read : allInputReads) {
+        if("" != pars.aSetRepName){
+          repNames.emplace(pars.aSetRepName);
+        }else{
+          auto toks = tokenizeString(read->seqBase_.name_, ".");
+          repNames.emplace(njh::replaceString(toks[0], "_Comp", ""));
+        }
+
+      }
+      mapInfo << "seqName\trefId\tftotalReadsMapped\ttotalMappedFraction";
+      for (const auto & n : repNames) {
+        mapInfo << "\t" << n << "_readsMapped\t" << n << "_mappedFraction";
+      }
+      if (setUp.pars_.refIoOptions_.firstName_ != "") {
+        mapInfo << "\tBestRef\tscore\t1bIndel\t2bI"
+                   "ndel\t>2bIndel\tlqMismatch\thqMismatch";
+      }
+      mapInfo << "\n";
+      std::string seqName = bfs::basename(setUp.pars_.ioOptions_.firstName_);
+      std::map<std::string, double> repTotals;
+      for (const auto & ref : readCounts) {
+        for (const auto & read : ref.reads_) {
+          if ("" != pars.aSetRepName) {
+            repTotals[pars.aSetRepName] += read.cnt_;
+          } else {
+            auto toks = tokenizeString(read.name_, ".");
+            repTotals[njh::replaceString(toks[0], "_Comp", "")] +=
+                read.cnt_;
+          }
+        }
+      }
+
+      for (auto & ref : readCounts) {
+        std::map<std::string, double> repCounts;
+        for (const auto & read : ref.reads_) {
+          auto toks = tokenizeString(read.name_, ".");
+          repCounts[njh::replaceString(toks[0], "_Comp", "")] += read.cnt_;
+        }
+        mapInfo << seqName << "\t" << ref.seqBase_.name_ << "\t"
+                << ref.seqBase_.cnt_ << "\t" << ref.seqBase_.cnt_ / totalReadCnt;
+        for (const auto & n : repNames) {
+          if (repCounts.find(n) != repCounts.end()) {
+            mapInfo << "\t" << repCounts[n] << "\t"
+                    << repCounts[n] / repTotals[n];
+          } else {
+            mapInfo << "\t0\t0";
+          }
+        }
+        if (setUp.pars_.refIoOptions_.firstName_ != "") {
+          bool eventBased = true;
+          mapInfo << "\t"
+                  << profiler::compareToRefSingle(refSeqs, ref, alignerObj,
+                                                  setUp.pars_.local_, eventBased).front();
+        }
+        mapInfo << "\n";
+      }
+
+      mapInfo << seqName << "\t" << "unmappable\t" << unmappableAmount << "\t"
+              << unmappableAmount / totalReadCnt << "\n";
+      mapInfo << seqName << "\t" << "indeterminate\t" << indeterminateAmount
+              << "\t" << indeterminateAmount / totalReadCnt << "\n";
+      mapInfo << seqName << "\t" << "ties\t" << tiesAmount
+              << "\t" << tiesAmount / totalReadCnt << "\n";
+
     }
+
+
+    renameReadNames(consensusReads,
+                    bfs::basename(setUp.pars_.ioOptions_.firstName_), true, true,
+                    true, "totalCount");
+
+
+    if(pars.map){
+      readCounts.clear();
+      //njh::files::rmDirForce(mappingDir);
+//      njh::files::bfs::rename(mappingDir, njh::files::make_path(setUp.pars_.directoryName_, "initialMappingInfo"));
+
+      unmappableAmount = 0.0;
+      indeterminateAmount = 0.0;
+      tiesAmount = 0.0;
+      setUp.rLog_.logCurrentTime("Determining Variation ...again final");
+      if (setUp.pars_.verbose_) {
+        std::cout << njh::bashCT::bold << "There was a " << njh::bashCT::red
+                  << "breakout" << njh::bashCT::resetAdd(njh::bashCT::bold)
+                  << " of " << breakoutCount << " clusters, now there are " << consensusReads.size() << " clusters after a remap and re-collapsing, re-mapping final time" << njh::bashCT::reset << std::endl;
+      }
+
+      //create aligner with gap info from ref so a different gap scoring can be used for mapping determination
+      readVec::getMaxLength(consensusReads, maxReadLength);
+      aligner alignerObjMapper(maxReadLength, setUp.pars_.gapInfoRef_,
+                               setUp.pars_.scoring_, KmerMaps(), setUp.pars_.qScorePars_,
+                               setUp.pars_.colOpts_.alignOpts_.countEndGaps_,
+                               setUp.pars_.colOpts_.iTOpts_.weighHomopolyer_);
+
+      alignerObjMapper.processAlnInfoInput(setUp.pars_.alnInfoDirName_);
+
+      //set all reads' fraction
+      njh::for_each(allInputReads, [&totalReadCnt](auto& seq) { getSeqBase(seq).setFractionByCount(totalReadCnt); });
+      //create ref map containers to keep counts
+      readCounts = refMapContainer<seqInfo>::createContainers<seqInfo, cluster>(consensusReads);
+      //determine variation in final consensus sequences
+      std::vector<refVariants> refVariationInfo;
+
+      for (const auto refPos : iter::range(readCounts.size())) {
+        refVariationInfo.emplace_back(readCounts[refPos].seqBase_);
+      }
+
+      for (const auto refPos : iter::range(readCounts.size())) {
+        for (const auto refSubPos : iter::range(readCounts.size())) {
+          if (refPos == refSubPos) {
+            continue;
+          }
+          if(uAbsdiff(len(readCounts[refSubPos].seqBase_), len(readCounts[refPos].seqBase_)) > pars.readLengthMinDiff){
+            continue;
+          }
+          refVariationInfo[refPos].addVariant(readCounts[refSubPos].seqBase_,
+                                              alignerObjMapper, false);
+        }
+      }
+
+      std::vector<kmerInfo> conKInfos(consensusReads.size());
+
+      setUp.rLog_.logCurrentTime("Calculating Consensus Kmer info for comparison ...again final");
+
+      {
+        std::vector<uint32_t> conReadPositions(consensusReads.size());
+        njh::iota<uint32_t>(conReadPositions, 0);
+        njh::concurrent::LockableQueue<uint32_t> conReadPosQueue(
+            conReadPositions);
+        auto fillInfos =
+            [&consensusReads,&conKInfos,&conReadPosQueue,&kLenComp]() {
+              uint32_t pos = std::numeric_limits<uint32_t>::max();
+              while(conReadPosQueue.getVal(pos)) {
+                conKInfos[pos] = kmerInfo(consensusReads[pos].seqBase_.seq_, kLenComp, false);
+              }
+            };
+        std::vector<std::thread> threads;
+        for (uint32_t tNum = 0; tNum < pars.numThreads; ++tNum) {
+          threads.emplace_back(std::thread(fillInfos));
+        }
+        for (auto & t : threads) {
+          t.join();
+        }
+      }
+
+
+      setUp.rLog_.logCurrentTime("Mapping Sequences ...again final");
+
+      std::vector<std::pair<uint64_t, std::vector<uint64_t>>> ties;
+      std::vector<seqInfo> tiesReads;
+      std::mutex tiesMut;
+      std::vector<seqInfo> unmappable;
+      std::mutex unmappableMut;
+      std::vector<seqInfo> indeterminate;
+      std::mutex indeterminateMut;
+
+      njh::ProgressBar pbar(allInputReads.size());
+      pbar.progColors_ = pbar.RdYlGn_;
+      //set the alignment best difference and function
+      //the best alignment is considered within a certain range due such high error rates the best alignment is not
+      //Necessary the one with the best score, it is the one that contains the segregating differences
+      double difference = 0;
+      std::function<double(const aligner &)> getScoreFunc;
+      if (pars.byScore) {
+        getScoreFunc = [](const aligner & alignerObject){
+          return alignerObject.parts_.score_;
+        };
+        difference = 10;
+      } else {
+        getScoreFunc = [](const aligner & alignerObject){
+          //return alignerObjMapper.comp_.distances_.eventBasedIdentity_;
+          return alignerObject.comp_.distances_.eventBasedIdentityHq_;
+        };
+        difference = 0.001;
+      }
+
+      concurrent::AlignerPool alignPoolMap(alignerObjMapper, pars.numThreads);
+      alignPoolMap.initAligners();
+      alignPoolMap.outAlnDir_ = setUp.pars_.outAlnInfoDirName_;
+
+      std::vector<uint32_t> readPositions(allInputReads.size());
+      njh::iota<uint32_t>(readPositions, 0);
+      njh::concurrent::LockableQueue<uint32_t> readPosQueue(readPositions);
+
+      auto mapRead =
+          [&pbar, &readPosQueue, &alignPoolMap, &pars, &getScoreFunc, &readCounts, &allInputReads,
+              &tiesReads, &ties, &tiesMut, &unmappable, &unmappableMut, &indeterminate, &indeterminateMut,
+              &difference, &refVariationInfo,&threadChunkNum, &setUp,
+              &checkIndelsWhenMapping,&checkIndelsAgainstSNPsWhenMapping]() {
+            std::vector<uint32_t> readPositionsChunk;
+            auto curThreadAligner = alignPoolMap.popAligner();
+            while(readPosQueue.getVals(readPositionsChunk, threadChunkNum)) {
+              for(const auto readPos : readPositionsChunk){
+                //best score to be used to get all the references that map within a certain distance to this latter
+                double bestScore = 0;
+                bool mappable = false;
+                for (const auto refPos : iter::range(readCounts.size())) {
+                  /*
+                   * 							if(conKInfos[refPos].compareKmers(allInputReads[readPos]->kInfo_).second < kDistCutOff){
+                    continue;
+                  }
+                   */
+                  const auto & ref = readCounts[refPos];
+                  if(uAbsdiff(len(getSeqBase(ref)), len(allInputReads[readPos]->seqBase_)) > pars.readLengthMinDiff){
+                    continue;
+                  }
+                  curThreadAligner->alignCacheGlobal(ref.seqBase_,allInputReads[readPos]->seqBase_);
+//                  curThreadAligner->alignCacheGlobalDiag(ref.seqBase_,allInputReads[readPos]->seqBase_);
+                  curThreadAligner->profilePrimerAlignment(ref.seqBase_,
+                                                           allInputReads[readPos]->seqBase_);
+                  //check for very large gaps that wouldn't be expected no matter the technology
+                  bool passLargeGaps = true;
+                  for(const auto & g : curThreadAligner->comp_.distances_.alignmentGaps_) {
+                    if(g.second.size_ > pars.largeGapSizeCutOff) {
+                      passLargeGaps = false;
+                      break;
+                    }
+                  }
+                  //check to see if the read is mappable by comparing to the percent identity cut off and has no large gaps
+                  if (curThreadAligner->comp_.distances_.eventBasedIdentity_ >= pars.idCutOff && passLargeGaps) {
+                    mappable = true;
+                    double currentScore = getScoreFunc(*curThreadAligner);
+                    if(currentScore > bestScore) {
+                      bestScore = currentScore;
+                    }
+                  }
+                }
+                // if mappable get the best references
+                if (mappable) {
+                  std::vector<uint64_t> bestRefs;
+                  for (const auto refPos : iter::range(readCounts.size())) {
+                    const auto & ref = readCounts[refPos];
+                    curThreadAligner->alignCacheGlobal(ref.seqBase_,allInputReads[readPos]->seqBase_);
+//                    curThreadAligner->alignCacheGlobalDiag(ref.seqBase_,allInputReads[readPos]->seqBase_);
+                    curThreadAligner->profilePrimerAlignment(ref.seqBase_,
+                                                             allInputReads[readPos]->seqBase_);
+                    if (curThreadAligner->comp_.distances_.eventBasedIdentity_ >= pars.idCutOff) {
+                      mappable = true;
+                      double currentScore = getScoreFunc(*curThreadAligner);
+                      bool passLargeGaps = true;
+                      for(const auto & g : curThreadAligner->comp_.distances_.alignmentGaps_) {
+                        if(g.second.size_ > pars.largeGapSizeCutOff) {
+                          passLargeGaps = false;
+                          break;
+                        }
+                      }
+                      //if the current score is a certain amount within the best score and doesn't have large gaps then put it
+                      //into the vector for possible match
+                      if (std::abs(currentScore - bestScore) < difference && passLargeGaps) {
+                        bestRefs.emplace_back(refPos);
+                      }
+                    }
+                  }
+
+                  if (bestRefs.size() == 1) {
+                    //if only matching one, then place with that one
+                    readCounts[bestRefs.front()].addRead(allInputReads[readPos]->seqBase_);
+                  } else if (bestRefs.size() == 0) {
+                    //if no mappable candidates found, put into un-mappable
+                    std::lock_guard<std::mutex> unmLock(unmappableMut);
+                    unmappable.emplace_back(allInputReads[readPos]->seqBase_);
+                  } else {
+                    VecStr matchingRefNames;
+                    for(const auto & refPos : bestRefs) {
+                      matchingRefNames.emplace_back(readCounts[refPos].seqBase_.name_);
+                    }
+                    std::vector<uint64_t> matchingRefs;
+                    for (const auto & refPos : bestRefs) {
+                      const auto & ref = readCounts[refPos];
+                      //get the current snp info for the current ref to the other matching refs
+                      //auto seqSnpPosBases = refVariationInfo[refPos].getVariantSnpLociMap(matchingRefNames, 1);
+                      auto seqSnpPosBases = refVariationInfo[refPos].getVariantSnpLociMap(matchingRefNames, 0);
+                      curThreadAligner->alignCacheGlobal(ref.seqBase_, allInputReads[readPos]->seqBase_);
+//                      curThreadAligner->alignCacheGlobalDiag(ref.seqBase_, allInputReads[readPos]->seqBase_);
+                      curThreadAligner->profilePrimerAlignment(ref.seqBase_, allInputReads[readPos]->seqBase_);
+                      //determine the snps for this current read to this ref
+                      std::unordered_map<uint32_t, char> currentSnps;
+                      for (const auto & m : curThreadAligner->comp_.distances_.mismatches_) {
+                        currentSnps[m.second.refBasePos] = m.second.seqBase;
+                      }
+                      bool pass = true;
+                      //iterate over segregating snps locations
+                      for(const auto & loc : seqSnpPosBases) {
+                        //determine if current read has a snp at location
+                        auto search = currentSnps.find(loc.first);
+                        if(search != currentSnps.end()) {
+                          //if it does have a snp here, check to see if it is a known variant, if it is the read doesn't pass
+                          if(njh::in(search->second, loc.second)) {
+                            pass = false;
+                            break;
+                          }
+                        }
+                      }
+                      if(pass && checkIndelsWhenMapping){
+                        //check indels
+                        //get the current insertions info for the current ref to the other matching refs
+                        auto deletionsInOtherMatching = refVariationInfo[refPos].getVariantDeletionLociMap(matchingRefNames, 2, true);
+                        auto insertionsInOtherMatching = refVariationInfo[refPos].getVariantInsertionLociMap(matchingRefNames, 2, true);
+
+                        //determine the insertions for this current read to this ref
+                        std::unordered_map<uint32_t, gap> currentInsertions;
+                        std::unordered_map<uint32_t, gap> currentDeletions;
+                        for (const auto & g : curThreadAligner->comp_.distances_.alignmentGaps_) {
+                          if(g.second.ref_){
+                            currentInsertions.emplace(g.second.refPos_, g.second);
+                          }else{
+                            currentDeletions.emplace(g.second.refPos_, g.second);
+                          }
+                        }
+
+                        //check deletions
+                        //iterate over segregating deletions locations
+                        for(const auto & loc : deletionsInOtherMatching) {
+                          //determine if current read has a snp at location
+                          auto search = currentDeletions.find(loc.first);
+                          if(search != currentDeletions.end()) {
+                            //if it does have a deletion here, check to see if it is a known variant, if it is the read doesn't pass
+                            if(njh::contains(loc.second, search->second,  [](const gap & gap1, const gap& gap2){
+                              return gap1.gapedSequence_ == gap2.gapedSequence_;
+                            })) {
+                              pass = false;
+                              break;
+                            }
+                          }
+                        }
+                        //check insertions
+                        //iterate over segregating insertions locations
+                        for(const auto & loc : insertionsInOtherMatching) {
+                          //determine if current read has a snp at location
+                          auto search = currentInsertions.find(loc.first);
+                          if(search != currentInsertions.end()) {
+                            //if it does have a insertion here, check to see if it is a known variant, if it is the read doesn't pass
+                            if(njh::contains(loc.second, search->second,  [](const gap & gap1, const gap& gap2){
+                              return gap1.gapedSequence_ == gap2.gapedSequence_;
+                            })) {
+                              pass = false;
+                              break;
+                            }
+                          }
+                        }
+                      }
+                      if(pass && checkIndelsAgainstSNPsWhenMapping) {
+                        auto seqSnpPos = refVariationInfo[refPos].getVariantSnpLoci(matchingRefNames,0);
+                        for(const auto & loc : seqSnpPos) {
+                          //determine if current read has a snp at location
+                          if(currentSnps.find(loc) == currentSnps.end()) {
+                            //if there is a gap here, don't believe it either
+                            if(curThreadAligner->alignObjectB_.seqBase_.seq_[curThreadAligner->getAlignPosForSeqAPos(loc)] == '-') {
+                              pass = false;
+                              break;
+                            }
+                          }
+                        }
+                      }
+                      //if all the segregating check out, put this ref in the matchingRefs
+                      if(pass) {
+                        matchingRefs.emplace_back(refPos);
+                      }
+                    }
+                    if(matchingRefs.size() == 1) {
+                      //if only one matching ref, add to it
+                      readCounts[matchingRefs.front()].addRead(allInputReads[readPos]->seqBase_);
+                    } else if(matchingRefs.size() == 0) {
+                      //if none of the ref work out, put it in indeterminate
+                      std::lock_guard<std::mutex> indeterminateLock(indeterminateMut);
+                      indeterminate.emplace_back(allInputReads[readPos]->seqBase_);
+                    } else {
+                      //if there is more than one matching ref, put it in ties
+                      std::lock_guard<std::mutex> tiesLock(tiesMut);
+                      tiesReads.emplace_back(allInputReads[readPos]->seqBase_);
+                      ties.emplace_back(readPos, matchingRefs);
+                      const seqInfo & info = allInputReads[readPos]->seqBase_;
+                      seqInfo tempObj(info.name_, info.seq_, info.qual_,
+                                      info.cnt_ / matchingRefs.size());
+                      tempObj.updateName();
+                      if(pars.tiesDuringMapping){
+                        for (const auto & best : matchingRefs) {
+                          readCounts[best].addRead(tempObj);
+                        }
+                      }
+                    }
+                  }
+                } else {
+                  std::lock_guard<std::mutex> unmLock(unmappableMut);
+                  unmappable.emplace_back(allInputReads[readPos]->seqBase_);
+                }
+              }
+              if (setUp.pars_.verbose_) {
+                pbar.outputProgAdd(std::cout, readPositionsChunk.size(), true);
+              }
+            }
+          };
+
+
+      std::vector<std::thread> threads;
+      for(uint32_t tNum = 0; tNum < pars.numThreads; ++tNum){
+        threads.emplace_back(std::thread(mapRead));
+      }
+      for(auto & t : threads){
+        t.join();
+      }
+
+
+      mappingDir = njh::files::makeDir(setUp.pars_.directoryName_,
+                                       njh::files::MkdirPar("finalMappingInfo")).string();
+      SeqOutput::write(unmappable, SeqIOOptions(mappingDir + "unmappable", setUp.pars_.ioOptions_.outFormat_,setUp.pars_.ioOptions_.out_));
+      SeqOutput::write(indeterminate, SeqIOOptions(mappingDir + "indeterminate", setUp.pars_.ioOptions_.outFormat_,setUp.pars_.ioOptions_.out_));
+      std::vector<readObject> tiesObj;
+      std::ofstream tiesInfo;
+      openTextFile(tiesInfo, mappingDir + "tiesInfo", ".tab.txt",
+                   setUp.pars_.ioOptions_.out_);
+      tiesInfo << "readName\trefs\n";
+      for (const auto & tie : ties) {
+        tiesObj.emplace_back(allInputReads[tie.first]->seqBase_);
+        tiesInfo << allInputReads[tie.first]->seqBase_.name_ << "\t";
+        VecStr refNames;
+        for (const auto & r : tie.second) {
+          refNames.emplace_back(readCounts[r].seqBase_.name_);
+        }
+        tiesInfo << vectorToString(refNames, ",") << "\n";
+      }
+      SeqOutput::write(tiesObj, SeqIOOptions(mappingDir + "ties", setUp.pars_.ioOptions_.outFormat_,setUp.pars_.ioOptions_.out_));
+      unmappableAmount = std::accumulate(unmappable.begin(),
+                                         unmappable.end(), 0.0,
+                                         [](double init, const seqInfo & seq) {return init + seq.cnt_;});
+      indeterminateAmount = std::accumulate(indeterminate.begin(),
+                                            indeterminate.end(), 0.0,
+                                            [](double init, const seqInfo & seq) {return init + seq.cnt_;});
+      tiesAmount  = std::accumulate(tiesReads.begin(),
+                                    tiesReads.end(), 0.0,
+                                    [](double init, const seqInfo & seq) {return init + seq.cnt_;});
+
+      setUp.rLog_.logCurrentTime("Setting Aligner for re-calc ...again final" );
+      //alignPoolMap.destoryAligners();
+      aligner alignerObjReCalc(maxReadLength, setUp.pars_.gapInfoRef_,
+                               setUp.pars_.scoring_, KmerMaps(), setUp.pars_.qScorePars_,
+                               setUp.pars_.colOpts_.alignOpts_.countEndGaps_,
+                               setUp.pars_.colOpts_.iTOpts_.weighHomopolyer_);
+      alignerObjReCalc.processAlnInfoInput(setUp.pars_.alnInfoDirName_);
+      if(pars.recalcConsensus){
+        setUp.rLog_.logCurrentTime("Re-calculating consensus ...again final");
+        if(setUp.pars_.verbose_){
+          std::cout << "Re-calculating Consensus Sequences ...again final" << std::endl;
+        }
+      }else{
+        setUp.rLog_.logCurrentTime("Setting Map Info ...again final");
+      }
+
+      std::vector<uint32_t> refReadPositions(readCounts.size());
+      njh::iota<uint32_t>(refReadPositions, 0);
+      njh::concurrent::LockableQueue<uint32_t> refReadPosQueue(refReadPositions);
+      concurrent::AlignerPool alignPoolReCacl(alignerObjReCalc, pars.numThreads);
+      alignPoolReCacl.initAligners();
+      alignPoolReCacl.outAlnDir_ = setUp.pars_.outAlnInfoDirName_;
+      auto setMappingInfo = [&refReadPosQueue,&consensusReads,
+          &alignPoolReCacl,&readCounts,&pars,
+          &clustersizeCutOff](){
+        uint32_t readPos = 0;
+        auto curThreadAligner = alignPoolReCacl.popAligner();
+        while(refReadPosQueue.getVal(readPos)){
+
+          auto foundReadPos = readVec::getReadIndexByName(consensusReads,
+                                                          readCounts[readPos].seqBase_.name_);
+          if (foundReadPos != std::string::npos) {
+            if(readCounts[readPos].reads_.empty()){
+              //if no reads were mapped to reference, remove it
+              consensusReads[foundReadPos].remove = true;
+              continue;
+            }
+            //update the the counts and fractions for the orignal clusters
+            consensusReads[foundReadPos].seqBase_.cnt_ = readCounts[readPos].seqBase_.cnt_;
+            consensusReads[foundReadPos].seqBase_.frac_ = readCounts[readPos].seqBase_.frac_;
+            //add the reads from the refReads
+            consensusReads[foundReadPos].reads_.clear();
+            for(const auto & seq : readCounts[readPos].reads_){
+              consensusReads[foundReadPos].reads_.emplace_back(std::make_shared<readObject>(seq));
+            }
+            consensusReads[foundReadPos].updateName();
+            //re-calculate the consensus if indicated
+            if(pars.recalcConsensus){
+              readVecSorter::sortByTotalCountAE<seqInfo>(readCounts[readPos].reads_, true);
+//							std::cout << __FILE__ << " " << __LINE__ << std::endl;
+              auto recalcConSeqInfo = getConsensusWithAReCalc(readCounts[readPos].reads_, *curThreadAligner, consensusReads[foundReadPos].seqBase_.name_);
+//							std::cout << __FILE__ << " " << __LINE__ << std::endl;
+              consensusReads[foundReadPos].seqBase_.seq_ = recalcConSeqInfo.seqBase_.seq_;
+              consensusReads[foundReadPos].seqBase_.qual_ = recalcConSeqInfo.seqBase_.qual_;
+              if(consensusReads[foundReadPos].seqBase_.cnt_ < clustersizeCutOff){
+                consensusReads[foundReadPos].remove = true;
+              }
+            }
+          }else{
+            std::stringstream ss;
+            ss << njh::bashCT::red << "Error, couldn't find: " << readCounts[readPos].seqBase_.name_ << njh::bashCT::reset << "\n";
+            throw std::runtime_error{ss.str()};
+          }
+        }
+      };
+
+      std::vector<std::thread> mapInfoThreads;
+      for(uint32_t tNum = 0; tNum < pars.numThreads; ++tNum){
+        mapInfoThreads.emplace_back(std::thread(setMappingInfo));
+      }
+
+      for(auto & t : mapInfoThreads){
+        t.join();
+      }
+
+      /*
+      for (const auto & refRead : readCounts) {
+        const auto foundReadPos = readVec::getReadIndexByName(consensusReads,
+            refRead.seqBase_.name_);
+        if (std::string::npos != foundReadPos) {
+          if(refRead.reads_.empty()){
+            //if no reads were mapped to reference, remove it
+            consensusReads[foundReadPos].remove = true;
+            continue;
+          }
+          std::cout << __FILE__ << "  " << __LINE__ << std::endl;
+          //update the the counts and fractions for the orignal clusters
+          consensusReads[foundReadPos].seqBase_.cnt_ = refRead.seqBase_.cnt_;
+          consensusReads[foundReadPos].seqBase_.frac_ = refRead.seqBase_.frac_;
+          //add the reads from the refReads
+          std::cout << __FILE__ << "  " << __LINE__ << std::endl;
+          consensusReads[foundReadPos].reads_.clear();
+          std::cout << __FILE__ << "  " << __LINE__ << std::endl;
+          for(const auto & seq : refRead.reads_){
+            consensusReads[foundReadPos].reads_.emplace_back(std::make_shared<readObject>(seq));
+          }
+          std::cout << __FILE__ << "  " << __LINE__ << std::endl;
+          consensusReads[foundReadPos].updateName();
+          std::cout << __FILE__ << "  " << __LINE__ << std::endl;
+          //re-calculate the consensus if indicated
+          if(pars.recalcConsensus){
+            std::cout << __FILE__ << "  " << __LINE__ << std::endl;
+            std::cout << "refRead.reads_.size() : " << refRead.reads_.size() << std::endl;
+            auto recalcConSeqInfo = getConsensusWithAReCalc(refRead.reads_, alignerObj, consensusReads[foundReadPos].seqBase_.name_);
+            std::cout << __FILE__ << "  " << __LINE__ << std::endl;
+            consensusReads[foundReadPos].seqBase_.seq_ = recalcConSeqInfo.seqBase_.seq_;
+            consensusReads[foundReadPos].seqBase_.qual_ = recalcConSeqInfo.seqBase_.qual_;
+          }
+          std::cout << __FILE__ << "  " << __LINE__ << std::endl;
+        }else{
+          std::stringstream ss;
+          ss << njh::bashCT::red << "Error, couldn't find: " << refRead.seqBase_.name_ << njh::bashCT::reset << "\n";
+          throw std::runtime_error{ss.str()};
+        }
+      }*/
+
+
+
+      //get rid of the empty clusters
+      consensusReads = readVecSplitter::splitVectorOnRemove(consensusReads).first;
+      if(pars.recalcConsensus){
+        if (setUp.pars_.verbose_) {
+          std::cout << njh::bashCT::bold << "Collapsing after recalculating consensus sequences ...again final" << njh::bashCT::reset
+                    << std::endl;
+        }
+        setUp.rLog_.logCurrentTime("Collapsing after recalculating consensus sequences ...again final");
+        //collapse clusters again if the consensus had to be calculated
+        simpleCollapseWithPars(consensusReads, alignerObj, postCollapsePars);
+      }
+
+      if (setUp.pars_.verbose_) {
+        std::cout << njh::bashCT::bold << "Finished with "
+                  << consensusReads.size() << " Consensus Sequences after Breakout remap collapsed and final remap"
+                  << njh::bashCT::reset << std::endl;
+      }
+      setUp.rLog_ << "Finished with " << consensusReads.size()
+                  << " Consensus Sequences after Breakout, final" << "\n";
+      std::ofstream mapInfo;
+      openTextFile(mapInfo, mappingDir + "mapInfo", ".tab.txt", setUp.pars_.ioOptions_.out_);
+      std::set<std::string> repNames;
+      for (const auto & read : allInputReads) {
+        if("" != pars.aSetRepName){
+          repNames.emplace(pars.aSetRepName);
+        }else{
+          auto toks = tokenizeString(read->seqBase_.name_, ".");
+          repNames.emplace(njh::replaceString(toks[0], "_Comp", ""));
+        }
+
+      }
+      mapInfo << "seqName\trefId\tftotalReadsMapped\ttotalMappedFraction";
+      for (const auto & n : repNames) {
+        mapInfo << "\t" << n << "_readsMapped\t" << n << "_mappedFraction";
+      }
+      if (setUp.pars_.refIoOptions_.firstName_ != "") {
+        mapInfo << "\tBestRef\tscore\t1bIndel\t2bI"
+                   "ndel\t>2bIndel\tlqMismatch\thqMismatch";
+      }
+      mapInfo << "\n";
+      std::string seqName = bfs::basename(setUp.pars_.ioOptions_.firstName_);
+      std::map<std::string, double> repTotals;
+      for (const auto & ref : readCounts) {
+        for (const auto & read : ref.reads_) {
+          if ("" != pars.aSetRepName) {
+            repTotals[pars.aSetRepName] += read.cnt_;
+          } else {
+            auto toks = tokenizeString(read.name_, ".");
+            repTotals[njh::replaceString(toks[0], "_Comp", "")] +=
+                read.cnt_;
+          }
+        }
+      }
+
+      for (auto & ref : readCounts) {
+        std::map<std::string, double> repCounts;
+        for (const auto & read : ref.reads_) {
+          auto toks = tokenizeString(read.name_, ".");
+          repCounts[njh::replaceString(toks[0], "_Comp", "")] += read.cnt_;
+        }
+        mapInfo << seqName << "\t" << ref.seqBase_.name_ << "\t"
+                << ref.seqBase_.cnt_ << "\t" << ref.seqBase_.cnt_ / totalReadCnt;
+        for (const auto & n : repNames) {
+          if (repCounts.find(n) != repCounts.end()) {
+            mapInfo << "\t" << repCounts[n] << "\t"
+                    << repCounts[n] / repTotals[n];
+          } else {
+            mapInfo << "\t0\t0";
+          }
+        }
+        if (setUp.pars_.refIoOptions_.firstName_ != "") {
+          bool eventBased = true;
+          mapInfo << "\t"
+                  << profiler::compareToRefSingle(refSeqs, ref, alignerObj,
+                                                  setUp.pars_.local_, eventBased).front();
+        }
+        mapInfo << "\n";
+      }
+
+      mapInfo << seqName << "\t" << "unmappable\t" << unmappableAmount << "\t"
+              << unmappableAmount / totalReadCnt << "\n";
+      mapInfo << seqName << "\t" << "indeterminate\t" << indeterminateAmount
+              << "\t" << indeterminateAmount / totalReadCnt << "\n";
+      mapInfo << seqName << "\t" << "ties\t" << tiesAmount
+              << "\t" << tiesAmount / totalReadCnt << "\n";
+    }
+    renameReadNames(consensusReads,
+                    bfs::basename(setUp.pars_.ioOptions_.firstName_), true, true,
+                    true, "totalCount");
   }
   renameReadNames(consensusReads,
                   bfs::basename(setUp.pars_.ioOptions_.firstName_), true, true,
                   true, "totalCount");
-
-  collapser collapserObj = collapser(setUp.pars_.colOpts_);
-  collapserObj.opts_.verboseOpts_.debug_ = setUp.pars_.debug_;
-
-
-
-  if(pars.map){
-    std::ofstream mapInfo;
-    openTextFile(mapInfo, mappingDir + "mapInfo", ".tab.txt", setUp.pars_.ioOptions_.out_);
-    std::set<std::string> repNames;
-    for (const auto & read : allInputReads) {
-      if("" != pars.aSetRepName){
-        repNames.emplace(pars.aSetRepName);
-      }else{
-        auto toks = tokenizeString(read->seqBase_.name_, ".");
-        repNames.emplace(njh::replaceString(toks[0], "_Comp", ""));
-      }
-
-    }
-    mapInfo << "seqName\trefId\tftotalReadsMapped\ttotalMappedFraction";
-    for (const auto & n : repNames) {
-      mapInfo << "\t" << n << "_readsMapped\t" << n << "_mappedFraction";
-    }
-    if (setUp.pars_.refIoOptions_.firstName_ != "") {
-      mapInfo << "\tBestRef\tscore\t1bIndel\t2bI"
-                 "ndel\t>2bIndel\tlqMismatch\thqMismatch";
-    }
-    mapInfo << "\n";
-    std::string seqName = bfs::basename(setUp.pars_.ioOptions_.firstName_);
-    std::map<std::string, double> repTotals;
-    for (const auto & ref : readCounts) {
-      for (const auto & read : ref.reads_) {
-        if ("" != pars.aSetRepName) {
-          repTotals[pars.aSetRepName] += read.cnt_;
-        } else {
-          auto toks = tokenizeString(read.name_, ".");
-          repTotals[njh::replaceString(toks[0], "_Comp", "")] +=
-              read.cnt_;
-        }
-      }
-    }
-
-    for (auto & ref : readCounts) {
-      std::map<std::string, double> repCounts;
-      for (const auto & read : ref.reads_) {
-        auto toks = tokenizeString(read.name_, ".");
-        repCounts[njh::replaceString(toks[0], "_Comp", "")] += read.cnt_;
-      }
-      mapInfo << seqName << "\t" << ref.seqBase_.name_ << "\t"
-              << ref.seqBase_.cnt_ << "\t" << ref.seqBase_.cnt_ / totalReadCnt;
-      for (const auto & n : repNames) {
-        if (repCounts.find(n) != repCounts.end()) {
-          mapInfo << "\t" << repCounts[n] << "\t"
-                  << repCounts[n] / repTotals[n];
-        } else {
-          mapInfo << "\t0\t0";
-        }
-      }
-      if (setUp.pars_.refIoOptions_.firstName_ != "") {
-        bool eventBased = true;
-        mapInfo << "\t"
-                << profiler::compareToRefSingle(refSeqs, ref, alignerObj,
-                                                setUp.pars_.local_, eventBased).front();
-      }
-      mapInfo << "\n";
-    }
-    mapInfo << seqName << "\t" << "unmappable\t" << unmappableAmount << "\t"
-            << unmappableAmount / totalReadCnt << "\n";
-    mapInfo << seqName << "\t" << "indeterminate\t" << indeterminateAmount
-            << "\t" << indeterminateAmount / totalReadCnt << "\n";
-  }
 
 
   if(pars.visualize){
@@ -2328,6 +2959,8 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
     setUp.pars_.chiOpts_.chiOverlap_.twoBaseIndel_ = 10;
     setUp.pars_.chiOpts_.chiOverlap_.lqMismatches_ = pars.chiAllowableError;
     setUp.pars_.chiOpts_.chiOverlap_.hqMismatches_ = pars.chiAllowableError;
+    collapser collapserObj = collapser(setUp.pars_.colOpts_);
+    collapserObj.opts_.verboseOpts_.debug_ = setUp.pars_.debug_;
     auto chiInfoTab = collapserObj.markChimeras(consensusReads, alignerObj,
                                                 setUp.pars_.chiOpts_);
     chiInfoTab.outPutContents(

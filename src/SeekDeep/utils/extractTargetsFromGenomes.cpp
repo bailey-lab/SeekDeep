@@ -22,8 +22,13 @@ void extractBetweenSeqsPars::setUpCoreOptions(seqSetUp & setUp, bool needReadLen
 	setUp.setOption(writeOutAllSeqsFile, "--writeOutAllSeqsFile", "Write Out All Seqs File without collpasing to unique sequences");
 
 	setUp.setOption(shortNames, "--shortNames", "Create short names for reference genomes extractions");
-	setUp.setOption(lenCutOffSizeExpand, "--lenCutOffSizeExpand", "When creating length cut off file how much to expand the length of the found targets");
-	setUp.setOption(pairedEndLength, "--pairedEndLength", "Paired End Read Length", needReadLength);
+	if(setUp.setOption(minLenCutOffSizeExpand, "--lenCutOffSizeExpand", "When creating length cut off file how much to expand the length of the found targets")){
+    maxLenCutOffSizeExpand = minLenCutOffSizeExpand;
+  }
+  setUp.setOption(minLenCutOffSizeExpand, "--minLenCutOffSizeExpand", "When creating length cut off file how much to decrease the min length requirement of the found targets");
+  setUp.setOption(maxLenCutOffSizeExpand, "--maxLenCutOffSizeExpand", "When creating length cut off file how much to increase the max length requirement the length of the found targets");
+
+  setUp.setOption(pairedEndLength, "--pairedEndLength", "Paired End Read Length", needReadLength);
 	setUp.setOption(barcodeSize, "--barcodeSize", "Barcode Size, if on both primer, the sum of the two barcodes");
 	setUp.setOption(errors, "--errors", "Number of errors to allow in primers");
 	setUp.setOption(sizeLimit, "--sizeLimit", "Output target extractions for only targets below this size");

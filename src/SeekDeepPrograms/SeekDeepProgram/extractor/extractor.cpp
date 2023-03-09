@@ -275,6 +275,8 @@ int SeekDeepRunner::extractor(const njh::progutils::CmdArgs & inputCommands) {
 		}
 	}
 
+
+
 	// set up quality filtering
 	std::unique_ptr<ReadChecker> qualChecker;
 	if (pars.corePars_.qPars_.checkingQFrac_) {
@@ -325,6 +327,13 @@ int SeekDeepRunner::extractor(const njh::progutils::CmdArgs & inputCommands) {
 
   setUp.pars_.gapInfo_.gapRightQueryOpen_ = 0;
   setUp.pars_.gapInfo_.gapRightQueryExtend_ = 0;
+
+  setUp.pars_.gapInfo_.gapLeftRefOpen_ = 0;
+  setUp.pars_.gapInfo_.gapLeftRefExtend_ = 0;
+
+  setUp.pars_.gapInfo_.gapRightRefOpen_ = 0;
+  setUp.pars_.gapInfo_.gapRightRefExtend_ = 0;
+
 	gapScoringParameters gapPars(setUp.pars_.gapInfo_);
 	KmerMaps emptyMaps;
 	bool countEndGaps = false;

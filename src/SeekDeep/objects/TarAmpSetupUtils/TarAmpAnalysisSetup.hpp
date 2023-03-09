@@ -46,6 +46,7 @@ public:
 		bfs::path groupMeta = "";
 		bfs::path idFile = "";
 		bfs::path lenCutOffsFnp = "";
+    bfs::path uniqueKmersPerTarget = "";
 		bfs::path refSeqsDir = "";
 		bfs::path overlapStatusFnp = "";
 		bfs::path targetsToIndexFnp = "";
@@ -57,12 +58,14 @@ public:
 		uint32_t testNumberOfReadsToInvestigate = 10000;
 
 		std::string replicatePattern = "";
-		VecStr ignoreSamples{"Undetermined"};
+		VecStr ignoreSamples{"Undetermined", "undetermined"};
 
 		bool noAutoDetermine = false;
 
 		bool debug = false;
 		bool noGuessSampNames = false;
+
+
 
 		//for population clustering step
 		bool conservative = false;
@@ -86,7 +89,7 @@ public:
 		bfs::path extraProcessClusterCmdsPerTargetFnp;
 		std::unordered_map<std::string, std::string> extraProcessClusterCmdsPerTarget;
 
-		bool useKCrushClustering_{false};
+		bool useKlusterClustering_{false};
 
 		//checks
 
@@ -103,7 +106,7 @@ public:
 		bool techIsIllumina() const;
 		bool techIsIlluminaSingleEnd() const;
 		bool techIsIonTorrent() const;
-		bool teschIsNanopore() const;
+		bool techIsNanopore() const;
 /*
  * pars.technology != "454" && pars.technology != "iontorrent" && pars.technology != "illumina"
  */

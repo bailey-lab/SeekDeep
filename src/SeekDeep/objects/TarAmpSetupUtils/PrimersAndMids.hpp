@@ -131,6 +131,7 @@ public:
 	table genLenCutOffs(const VecStr & targets) const;
 	table genOverlapStatuses(const VecStr & targets) const;
 
+  table genUniqKmerCounts(const VecStr & targets) const;
 
 
 	std::vector<seqInfo> getRefSeqs(const VecStr & targets) const;
