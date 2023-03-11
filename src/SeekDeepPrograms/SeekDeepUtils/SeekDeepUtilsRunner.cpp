@@ -154,7 +154,7 @@ int SeekDeepUtilsRunner::genTargetInfoFromGenomes(const njh::progutils::CmdArgs 
 
 	PrimersAndMids ids(pars.primersFile);
 
-	if(0 == ids.getTargets().size() ){
+	if(ids.getTargets().empty()){
 		std::stringstream ss;
 		ss << __PRETTY_FUNCTION__ << ", error in reading in target primers file " << pars.primersFile << "\n";
 		ss << "Make sure there is a line that starts with target in file" << "\n";
@@ -222,7 +222,7 @@ int SeekDeepUtilsRunner::genTargetInfoFromGenomes(const njh::progutils::CmdArgs 
 
 				uint32_t maxInsertSize = 2* pars.pairedEndLength - minOverlap;
 
-				std::string status = "";
+				std::string status;
 				VecStr statuses;
 				if(finalMaxSize > maxInsertSize){
 					statuses.emplace_back("NoOverLap");
