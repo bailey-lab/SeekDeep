@@ -225,6 +225,17 @@ TarAmpAnalysisSetup::TarAmpAnalysisSetup(const TarAmpPars & inputPars) :
 	if("" != pars_.refSeqsDir){
 		addRefSeqs(pars_.refSeqsDir);
 	}
+  if(!pars_.refSeqsDir.empty() && !pars_.previousPopSeqsDir.empty()){
+    if(pars_.refSeqsDir != pars_.previousPopSeqsDir){
+      std::stringstream ss;
+      ss << __PRETTY_FUNCTION__ << ", error " << "if setting both --refSeqsDir --previousPopSeqsDir, they have to be the same" << "\n";
+      ss << "refSeqsDir: " << pars_.refSeqsDir << ", previousPopSeqsDir: " << pars_.previousPopSeqsDir << "\n";
+      throw std::runtime_error { ss.str() };
+    }
+  }
+  if(!pars_.previousPopSeqsDir.empty()){
+    addRefSeqs(pars_.previousPopSeqsDir);
+  }
 	//add len cut offs if provided
 	if("" != pars_.lenCutOffsFnp){
 		addLenCutOffs(pars_.lenCutOffsFnp);

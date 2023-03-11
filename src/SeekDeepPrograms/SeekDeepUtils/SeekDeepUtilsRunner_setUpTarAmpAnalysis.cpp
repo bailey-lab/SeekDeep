@@ -158,6 +158,10 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 			"A file with 3 columns, 1)target, 2)minlen, 3)maxlen to supply length cut off specifically for each target", pars.techIsNanopore(), "Extractor");
 	setUp.setOption(pars.refSeqsDir, "--refSeqsDir",
 			"A directory of fasta files where each file is named with the input target names", false, "Extractor");
+  setUp.setOption(pars.previousPopSeqsDir, "--previousPopSeqsDir",
+                  "A directory of fasta files where each file is named with the input target names to rename population names", false, "ProcessClusters");
+
+
 	if (pars.techIs454() || pars.techIsIonTorrent()) {
 		pars.inputFilePat = ".*.fastq";
 	}
@@ -276,7 +280,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 		}
 	}
 
-	if ("" != pars.refSeqsDir) {
+	if ("" != pars.refSeqsDir || !pars.previousPopSeqsDir.empty()) {
 		if (!analysisSetup.forRefSeqs_.missing_.empty()) {
 			foundErrors = true;
 			errorOutput
@@ -652,7 +656,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 						break;
 					}
 				}
-				if(anyRefs){
+				if(anyRefs && !pars.refSeqsDir.empty()){
 					cmds.emplace_back(refSeqsDir);
 				}
 
@@ -902,7 +906,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 						break;
 					}
 				}
-				if(anyRefs){
+				if(anyRefs && !pars.refSeqsDir.empty()){
 					cmds.emplace_back(refSeqsDir);
 				}
 				// add overlap status
@@ -1078,9 +1082,12 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 						<< "cd \"" + njh::files::make_path(popDir, tar + mate ).string() + "\" && "
 								+ processClusterTemplate + " --experimentName " + tar+ mate;
 				auto refSeqFnp = njh::files::make_path(pars.outDir, "info/refs/" + tar+ mate + ".fasta");
-				if(bfs::exists(refSeqFnp)){
+				if(bfs::exists(refSeqFnp) && !pars.refSeqsDir.empty()){
 					processClustersCmdsStream << " --ref " << bfs::absolute(refSeqFnp);
 				}
+        if(bfs::exists(refSeqFnp) && !pars.previousPopSeqsDir.empty()){
+          processClustersCmdsStream << " --previousPop " << bfs::absolute(refSeqFnp);
+        }
 				processClusterCmds.emplace_back(processClustersCmdsStream.str());
 			}
 		}else{
@@ -1092,9 +1099,12 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 					<< "cd \"" + njh::files::make_path(popDir, tar).string() + "\" && "
 							+ processClusterTemplate + " --experimentName " + tar;
 			auto refSeqFnp = njh::files::make_path(pars.outDir, "info/refs/" + tar + ".fasta");
-			if(bfs::exists(refSeqFnp)){
-				processClustersCmdsStream << " --ref " << bfs::absolute(refSeqFnp);
-			}
+      if(bfs::exists(refSeqFnp) && !pars.refSeqsDir.empty()){
+        processClustersCmdsStream << " --ref " << bfs::absolute(refSeqFnp);
+      }
+      if(bfs::exists(refSeqFnp) && !pars.previousPopSeqsDir.empty()){
+        processClustersCmdsStream << " --previousPop " << bfs::absolute(refSeqFnp);
+      }
 			processClusterCmds.emplace_back(processClustersCmdsStream.str());
 		}
 	}

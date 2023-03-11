@@ -48,6 +48,7 @@ public:
 		bfs::path lenCutOffsFnp = "";
     bfs::path uniqueKmersPerTarget = "";
 		bfs::path refSeqsDir = "";
+    bfs::path previousPopSeqsDir = "";
 		bfs::path overlapStatusFnp = "";
 		bfs::path targetsToIndexFnp = "";
 		bool byIndex = false;
