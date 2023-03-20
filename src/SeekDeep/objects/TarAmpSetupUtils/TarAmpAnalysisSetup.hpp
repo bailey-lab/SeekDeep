@@ -29,6 +29,7 @@
 //
 
 #include <njhseq/common.h>
+#include <njhseq/objects/Meta/MultipleGroupMetaData.hpp>
 #include "SeekDeep/objects/TarAmpSetupUtils/PrimersAndMids.hpp"
 #include "SeekDeep/objects/IlluminaUtils/PairedReadProcessor.hpp"
 
