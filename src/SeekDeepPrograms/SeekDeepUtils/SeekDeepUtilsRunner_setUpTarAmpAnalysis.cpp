@@ -612,7 +612,8 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 									"--additionalOut \"../popClustering/{TARGET}/locationByIndex/{INDEX}.tab.txt\" "
 									"--overWrite --dout {TARGET}{MIDREP}_klusterOut ";
       //add in current defaults commonly used
-      qlusterCmdTemplate += " --cutOff 0.05  --sizeCutOff 1%,3  --map --recalcConsensus --writeInitialClusters --qualThres 15,10 -checkIndelsWhenMapping --checkChimeras  ";
+      //qlusterCmdTemplate += " --cutOff 0.05  --sizeCutOff 1%,3  --map --recalcConsensus --writeInitialClusters --qualThres 15,10 -checkIndelsWhenMapping --checkChimeras  ";
+      qlusterCmdTemplate += " --sizeCutOff 1%,3  --map --recalcConsensus --writeInitialClusters --qualThres 15,10 -checkIndelsWhenMapping --checkChimeras  ";
 
 //			qlusterCmdTemplate = "cd \"" + extractionDirs.string() + "\" && "
 //					+ " if [ -f {TARGET}{MIDREP}.fastq.gz  ]; then "
@@ -840,8 +841,8 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
             "--additionalOut \"../popClustering/locationByIndex/{TARGET}.tab.txt\" "
             "--overWrite --dout {TARGET}{MIDREP}_klusterOut ";
       //add in current defaults commonly used
-      qlusterCmdTemplate += " --cutOff 0.05  --sizeCutOff 1%,3  --map --recalcConsensus --writeInitialClusters --qualThres 15,10 -checkIndelsWhenMapping --checkChimeras  ";
-
+      qlusterCmdTemplate += " --sizeCutOff 1%,3  --map --recalcConsensus --writeInitialClusters --qualThres 15,10 -checkIndelsWhenMapping --checkChimeras  ";
+      //qlusterCmdTemplate += " --cutOff 0.05  --sizeCutOff 1%,3  --map --recalcConsensus --writeInitialClusters --qualThres 15,10 -checkIndelsWhenMapping --checkChimeras  ";
 		}
 		if (analysisSetup.pars_.techIsIllumina() || analysisSetup.pars_.techIsIlluminaSingleEnd()) {
 			qlusterCmdTemplate += "--illumina --qualThres 25,20";

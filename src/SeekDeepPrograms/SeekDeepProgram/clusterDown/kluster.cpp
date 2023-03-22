@@ -23,7 +23,8 @@ namespace njhseq {
 
 
 struct KmerClusteringRatePars {
-  double cutOff = 0.01;
+
+  double cutOff = 0.05;
   uint32_t repCutOff = 1;
   double freqCutOff = 0.005;
   std::string sizeCutOffStr = "0.05%,1";
@@ -54,6 +55,9 @@ struct KmerClusteringRatePars {
 
 
   readDistGraph<double>::dbscanPars dbPars_{};
+
+  bool useHDBScan = false;
+  readDistGraph<double>::HDBScanInputPars hdbScanPars_;
 
   cluster::snpBreakoutPars breakoutPars;
 
@@ -293,12 +297,16 @@ readDistGraph<double> genKmerAccerDistGraphWithDbSmartBuildDev(
     }
   }
 
-  distanceGraph.resetBestAndVistEdges();
-  distanceGraph.resetVisitedNodes();
-  distanceGraph.allDetermineLowestBest(pars.doTies);
-  distanceGraph.removeOffEdges();
-  distanceGraph.dbscan(pars.dbPars_);
-  distanceGraph.assignNoiseNodesAGroup();
+  if (pars.useHDBScan) {
+    distanceGraph.runHDBScan(pars.hdbScanPars_, distances);
+  } else {
+    distanceGraph.resetBestAndVistEdges();
+    distanceGraph.resetVisitedNodes();
+    distanceGraph.allDetermineLowestBest(pars.doTies);
+    distanceGraph.removeOffEdges();
+    distanceGraph.dbscan(pars.dbPars_);
+    distanceGraph.assignNoiseNodesAGroup();
+  }
   return distanceGraph;
 }
 
@@ -587,9 +595,33 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
   setUp.setOption(pars.sizeCutOffStr, "--sizeCutOff",
                   "Fraction of Reads for Cluster Size Cut Off, can give XX% for relative number or XX for absolute number");
   setUp.setOption(pars.freqCutOff, "--freqCutOff", "Mapped Frequency Cut off");
+
   setUp.setOption(pars.cutOff, "--cutOff", "Average decrease in kmer similarity score");
   pars.dbPars_.eps_ = pars.cutOff;
   setUp.setOption(pars.dbPars_.minEpNeighbors_, "--minNeighbors", "Number of minimum neighbors for dbscan");
+
+
+//  bool doNotUseHDBScan = false;
+//  setUp.setOption(doNotUseHDBScan, "--doNotUseHDBScan", "Don't use Hierarchical density based scan for initial cluster formation, just use classical DBScan");
+//  pars.useHDBScan = !doNotUseHDBScan;
+  setUp.setOption(pars.useHDBScan, "--useHDBScan", "use Hierarchical density based scan for initial cluster formation");
+
+  if(pars.useHDBScan){
+    pars.dbPars_.eps_ = std::numeric_limits<double>::max();
+  }
+
+  pars.hdbScanPars_.verbose = setUp.pars_.verbose_;
+  pars.hdbScanPars_.debug = setUp.pars_.debug_;
+  setUp.setOption(pars.hdbScanPars_.HDBSredetermineMaxEps, "--HDBSredetermineMaxEps", "HDBS redetermine Max Eps allowed in initial step based by setting it equal to mean of the non-same-group dist minus 2sd");
+  bool doNotCountZeroNeighbors = false;
+  setUp.setOption(doNotCountZeroNeighbors, "--HDBSdoNotCountZeroNeighbors", "HDBS when doing j-th nearest neighbor do Not Count Zero Neighbors");
+  pars.hdbScanPars_.HDBScountZeroNeighbors = !doNotCountZeroNeighbors;
+  setUp.setOption(pars.hdbScanPars_.HDBSmaxInitialEps, "--HDBSmaxInitialEps", "HDBS a hard cut off for max Initial Eps for initial DBSCAN step in H-DBSCAN");
+  setUp.setOption(pars.hdbScanPars_.proposedClusters, "--HDBSproposedClusters", "HDBS proposed number of clusters");
+  setUp.setOption(pars.hdbScanPars_.groupDiffToReCalc, "--HDBSgroupDiffToReCalc", "HDBS the difference in group counts to re-calculate centroid distances");
+
+  setUp.setOption(pars.hdbScanPars_.HDBSCountSingletGroups, "--HDBSCountSingletGroups", "For HD DBscan count Singlet Groups, by default these are not included in towards the proposed group counts");
+  pars.hdbScanPars_.numThreads = pars.numThreads;
 
   setUp.setOption(pars.idCutOff, "--idCutOff",
                   "Identity Cut Off to be Mapped to reads");
@@ -768,13 +800,33 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
     }
     //create a vector of vectors for each group in the graph
     std::vector<std::vector<readObject>> currentOutReads(distanceGraph->numberOfGroups_);
+    if(setUp.pars_.debug_){
+      std::cout << __FILE__ << " : " << __LINE__ << " : " << __PRETTY_FUNCTION__ << std::endl;
+      auto groupCounts = distanceGraph->getGroupCounts();
+      std::cout << "group\t" << "groupCount" << std::endl;
+      for(const auto & group : groupCounts){
+        std::cout << group.first << "\t" << group.second << std::endl;
+      }
+    }
     for (const auto & n : distanceGraph->nodes_) {
+      if(setUp.pars_.debug_){
+        std::cout << "n->group_: " << n->group_ << std::endl;
+      }
       currentOutReads[n->group_].emplace_back(*(n->value_));
+    }
+    if(setUp.pars_.debug_){
+      std::cout << __FILE__ << " : " << __LINE__ << " : " << __PRETTY_FUNCTION__ << std::endl;
     }
     addOtherVec(outReads, currentOutReads);
     disGraphs.emplace_back(distanceGraph);
+    if(setUp.pars_.debug_){
+      std::cout << __FILE__ << " : " << __LINE__ << " : " << __PRETTY_FUNCTION__ << std::endl;
+    }
   }
 
+  if(setUp.pars_.debug_){
+    std::cout << __FILE__ << " : " << __LINE__ << " : " << __PRETTY_FUNCTION__ << std::endl;
+  }
   //sort the groups by the number of groups in each
   njh::sort(outReads,
             [](const std::vector<readObject> & vec1,
@@ -785,6 +837,9 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
   std::string repDir;
   if(pars.repCutOff > 1){
     repDir = njh::files::makeDir(clusDir, njh::files::MkdirPar("belowRepCutOff")).string();
+  }
+  if(setUp.pars_.debug_){
+    std::cout << __FILE__ << " : " << __LINE__ << " : " << __PRETTY_FUNCTION__ << std::endl;
   }
   //create consensus sequence and filter clusters on replicate count and cluster size cut off
   std::vector<cluster> consensusReads;
