@@ -131,7 +131,7 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 			pars.experimentNames,
 			pars.preFiltCutOffs);
 	sampColl.keepSampleInfoInMemory_ = pars.keepSampleInfoInMemory_;
-
+	sampColl.development_ = pars.development;
 
 	if("" != pars.groupingsFile){
 		sampColl.addGroupMetaData(pars.groupingsFile);

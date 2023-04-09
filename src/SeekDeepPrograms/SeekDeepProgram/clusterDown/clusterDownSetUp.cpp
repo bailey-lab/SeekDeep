@@ -311,6 +311,9 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 		pars_.colOpts_.kmerOpts_.runCutOffString_ = "1";
 	}
 
+	setOption(pars.development, "--development", "output larger amount of data", false, "Postprocessing");
+
+
 	setOption(pars.useAllInput, "--useAllInput", "use all input reads even for large input", false, "Preprocessing");
 	setOption(pars.useCutOff, "--useCutOff", "the cut off for input size, will down sample the file if more than this, helps to control memory usage", false, "Preprocessing");
 	setOption(pars.keepDownSampledFile, "--keepDownloadSampledFile", "Keep down sampled file", false, "Preprocessing");

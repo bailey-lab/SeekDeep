@@ -62,7 +62,7 @@ struct CoreExtractorPars{
 
   PrimersAndMids::InitPars primIdsPars;
 
-  std::string sampleName = "";
+  std::string sampleName;
 
   bool keepUnfilteredReads = false;
   bool keepFilteredOff = false;
@@ -111,6 +111,8 @@ struct ExtractorPairedEndPars{
 
 struct clusterDownPars {
 
+	bool development = false;
+
 	cluster::snpBreakoutPars breakoutPars;
 	bool breakoutClusters = false;
 	std::string qualRep = "median";
@@ -118,11 +120,11 @@ struct clusterDownPars {
 
 	bool collapsingTandems = false;
 	bool additionalOut = false;
-	std::string additionalOutLocationFile = "";
+	std::string additionalOutLocationFile;
 
 	bfs::path initalParsFnp = "";
-	std::string parameters = "";
-	std::string binParameters = "";
+	std::string parameters;
+	std::string binParameters;
 	CollapseIterations intialParameters;
 	CollapseIterations iteratorMap;
 	CollapseIterations binIteratorMap;
@@ -187,17 +189,20 @@ struct clusterDownPars {
 };
 
 struct processClustersPars {
+
+	bool development = false;
+
 	bool keepSampleInfoInMemory_ = false;
 	bfs::path masterDir = ".";
   //bool noPopulation = false;
-  std::string previousPopFilename = "";
+  std::string previousPopFilename;
   comparison previousPopErrors;
 
   uint32_t numThreads = 1;
   bool writeOutAllInfoFile = false;
 
-  std::string parameters = "";
-  std::string binParameters = "";
+  std::string parameters;
+  std::string binParameters;
 
   bfs::path popSeqsFnp = "";
 
@@ -225,7 +230,7 @@ struct processClustersPars {
  // bool recheckChimeras = false;
   double chiCutOff = .40;
   PopNamesInfo experimentNames{"PopUID", VecStr{}, VecStr{} };
-  std::string parametersPopulation = "";
+  std::string parametersPopulation;
   bool differentPar = false;
   bool popBoth = false;
   std::string sortBy = "fraction";
@@ -240,8 +245,8 @@ struct processClustersPars {
   bool ionTorrent = false;
   bool removeLowQualBases = false;
   uint32_t lowQualityCutOff = 3;
-  std::string customCutOffs = "";
-  std::string groupingsFile = "";
+  std::string customCutOffs;
+  std::string groupingsFile;
   bool noWriteGroupInfoFiles = false;
 
   bool onPerId = false;

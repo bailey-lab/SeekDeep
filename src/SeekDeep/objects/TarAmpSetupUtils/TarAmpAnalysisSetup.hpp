@@ -54,6 +54,7 @@ public:
 		bfs::path targetsToIndexFnp = "";
 		bool byIndex = false;
 
+		bool development = false;
 
 		bool doNotGuessRecFlags = false;
 		uint32_t numberOfFilesToInvestigate = 10;
@@ -82,12 +83,12 @@ public:
 	  std::vector<PairedReadProcessor::ReadPairOverLapStatus> defaultStatuses_;//{PairedReadProcessor::ReadPairOverLapStatus::NONE};
 
 
-		std::string extraExtractorCmds = "";
-		std::string extraQlusterCmds = "";
+		std::string extraExtractorCmds;
+		std::string extraQlusterCmds;
 		bfs::path extraQlusterCmdsPerTargetFnp;
 		std::unordered_map<std::string, std::string> extraQlusterCmdsPerTarget;
 
-		std::string extraProcessClusterCmds = "";
+		std::string extraProcessClusterCmds;
 		bfs::path extraProcessClusterCmdsPerTargetFnp;
 		std::unordered_map<std::string, std::string> extraProcessClusterCmdsPerTarget;
 

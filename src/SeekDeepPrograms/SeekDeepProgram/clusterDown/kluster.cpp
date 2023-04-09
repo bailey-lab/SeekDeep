@@ -23,7 +23,7 @@ namespace njhseq {
 
 
 struct KmerClusteringRatePars {
-
+	bool development = false;
   double cutOff = 0.05;
   uint32_t repCutOff = 1;
   double freqCutOff = 0.005;
@@ -547,6 +547,8 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
   setUp.processDebug();
   setUp.processVerbose();
   pars.verbose = setUp.pars_.verbose_;
+
+	setUp.setOption(pars.development, "--development", "run in development mode, will generate a lot more output");
   setUp.setOption(checkIndelsWhenMapping, "--checkIndelsWhenMapping", "check Indels When Mapping");
   //setUp.setOption(checkIndelsAgainstSNPsWhenMapping, "--checkIndelsAgainstSNPsWhenMapping", "check Indels Against SNPs When Mapping");
   setUp.setOption(doNotCheckIndelsAgainstSNPsWhenMapping, "--doNotCheckIndelsAgainstSNPsWhenMapping", "don't check Indels Against SNPs When Mapping");

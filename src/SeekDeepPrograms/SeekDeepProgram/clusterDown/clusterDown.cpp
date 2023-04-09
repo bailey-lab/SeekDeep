@@ -42,9 +42,12 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 	setUp.setUpClusterDown(pars);
 	// make the runLog, this is what is seen on the terminal screen at run time
 	setUp.startARunLog(setUp.pars_.directoryName_);
-	// parameter file
-	setUp.writeParametersFile(setUp.pars_.directoryName_ + "parametersUsed.txt", false,
-			true);
+	if(pars.development){
+		// parameter file
+		setUp.writeParametersFile(setUp.pars_.directoryName_ + "parametersUsed.txt", false,
+															true);
+	}
+
 	//add some meta data about file and analysis paths so latter trace back an happen
 	Json::Value metaData;
 	auto analysisDirPath = njh::files::bfs::canonical(setUp.pars_.directoryName_);
@@ -63,14 +66,16 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 	setUp.rLog_.setCurrentLapName("initialSetUp");
 	//write out clustering parameters
 
-	std::string parDir = njh::files::makeDir(setUp.pars_.directoryName_, njh::files::MkdirPar("pars")).string();
-	std::ofstream parsOutFile;
-	openTextFile(parsOutFile, OutOptions(njh::files::join(parDir, "pars.txt")));
-	pars.iteratorMap.writePars(parsOutFile);
-	if("" != pars.binParameters){
-		std::ofstream binParsOutFile;
-		openTextFile(binParsOutFile, OutOptions(njh::files::join(parDir, "binPars.txt")));
-		pars.binIteratorMap.writePars(binParsOutFile);
+	if(pars.development){
+		std::string parDir = njh::files::makeDir(setUp.pars_.directoryName_, njh::files::MkdirPar("pars")).string();
+		std::ofstream parsOutFile;
+		openTextFile(parsOutFile, OutOptions(njh::files::join(parDir, "pars.txt")));
+		pars.iteratorMap.writePars(parsOutFile);
+		if("" != pars.binParameters){
+			std::ofstream binParsOutFile;
+			openTextFile(binParsOutFile, OutOptions(njh::files::join(parDir, "binPars.txt")));
+			pars.binIteratorMap.writePars(binParsOutFile);
+		}
 	}
 	bool containsCompReads = false;
 	int compCount = 0;
@@ -565,21 +570,19 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 
 	if (setUp.pars_.chiOpts_.checkChimeras_) {
 		setUp.rLog_.logCurrentTime("Checking chimeras");
-		std::ofstream chimerasInfoFile;
-		openTextFile(chimerasInfoFile,
-				setUp.pars_.directoryName_ + "chimeraNumberInfo.txt", ".txt", false, false);
-		chimerasInfoFile << "#chimericClusters\t#chimericReads" << std::endl;
+
 		setUp.pars_.chiOpts_.chiOverlap_.largeBaseIndel_ = .99;
 
 //		collapserObj.opts_.verboseOpts_.verbose_ = true;
 //		collapserObj.opts_.verboseOpts_.debug_ = true;
 		auto chiInfoTab = collapserObj.markChimeras(clusters, alignerObj,
 				setUp.pars_.chiOpts_);
-
-		chiInfoTab.outPutContents(
-				TableIOOpts(
-						OutOptions(setUp.pars_.directoryName_ + "chiParentsInfo.txt",
-								".txt"), "\t", true));
+		if (pars.development) {
+			chiInfoTab.outPutContents(
+							TableIOOpts(
+											OutOptions(setUp.pars_.directoryName_ + "chiParentsInfo.txt",
+																 ".txt"), "\t", true));
+		}
 		/*clusterCollapser::markChimerasAdvanced(
 		 clusters, alignerObj,pars.parFreqs, 1, setUp.pars_.local_, chiOverlap,
 		 overLapSizeCutoff, setUp.pars_.weightHomopolymers_, chiCount, allowableError);*/
@@ -588,10 +591,15 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 		int readCount = 0;
 		readVec::getCountOfReadNameContaining(clusters, "CHI", clusterCount);
 		readVec::getReadCountOfReadNameContaining(clusters, "CHI", readCount);
-		chimerasInfoFile << getPercentageString(clusterCount, clusters.size())
-				<< "\t"
-				<< getPercentageString(readCount, readVec::getTotalReadCount(clusters))
-				<< std::endl;
+		if (pars.development) {
+			OutOptions chimeraOutOpts(njh::files::make_path(setUp.pars_.directoryName_, "chimeraNumberInfo.txt"));
+			OutputStream chimerasInfoFile(chimeraOutOpts);
+			chimerasInfoFile << "#chimericClusters\t#chimericReads" << std::endl;
+			chimerasInfoFile << getPercentageString(clusterCount, clusters.size())
+											 << "\t"
+											 << getPercentageString(readCount, readVec::getTotalReadCount(clusters))
+											 << std::endl;
+		}
 		if (setUp.pars_.verbose_) {
 			std::cout << "Marked " << clusterCount << " as chimeric" << std::endl;
 		}
@@ -617,14 +625,17 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 				<< std::endl;
 	}
 	setUp.rLog_.logCurrentTime("Writing outputs");
-	if (setUp.pars_.refIoOptions_.firstName_ == "") {
-		profiler::getFractionInfoCluster(clusters, setUp.pars_.directoryName_,
-				"outputInfo");
-	} else {
-		profiler::getFractionInfoCluster(clusters, setUp.pars_.directoryName_,
-				"outputInfo", setUp.pars_.refIoOptions_.firstName_.string(), alignerObj,
-				setUp.pars_.local_);
+	if(pars.development){
+		if (setUp.pars_.refIoOptions_.firstName_.empty()) {
+			profiler::getFractionInfoCluster(clusters, setUp.pars_.directoryName_,
+																			 "outputInfo");
+		} else {
+			profiler::getFractionInfoCluster(clusters, setUp.pars_.directoryName_,
+																			 "outputInfo", setUp.pars_.refIoOptions_.firstName_.string(), alignerObj,
+																			 setUp.pars_.local_);
+		}
 	}
+
 //	std::ofstream startingInfo;
 //	openTextFile(startingInfo, setUp.pars_.directoryName_ + "startingInfo.txt", ".txt",
 //			false, false);

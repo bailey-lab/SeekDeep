@@ -42,6 +42,9 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 				<< pars.technology << "\n";
 		setUp.addWarning(ss.str());
 	}
+
+
+	setUp.setOption(pars.development,   "--development",   "development mode, will generate a lot more output", "Output");
 	setUp.setOption(pars.outDir,   "--outDir",   "Directory to setup for analysis", true, "Output");
 	setUp.setOption(pars.inputDir, "--inputDir", "Input Directory of raw data files", true, "Input");
 	setUp.setOption(pars.idFile,   "--idFile",   "ID file containing primer and possible additional MIDs", true, "ID Files");
@@ -584,9 +587,12 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 						+ "if [ -f {TARGET}{MIDREP}.fastq.gz  ]; then "
 						+ setUp.commands_.masterProgram_
 						+ " qluster "
-								"--fastqgz \"{TARGET}{MIDREP}.fastq.gz\" "
-								"--alnInfoDir {TARGET}{MIDREP}_alnCache --overWriteDir "
-								"--additionalOut \"../popClustering/{TARGET}/locationByIndex/{INDEX}.tab.txt\" "
+								"--fastqgz \"{TARGET}{MIDREP}.fastq.gz\" ";
+		if(pars.development){
+			qlusterCmdTemplate = qlusterCmdTemplate +  "--alnInfoDir {TARGET}{MIDREP}_alnCache --development";
+		}
+		qlusterCmdTemplate = qlusterCmdTemplate +
+								" --overWriteDir  --additionalOut \"../popClustering/{TARGET}/locationByIndex/{INDEX}.tab.txt\" "
 								"--overWrite --dout {TARGET}{MIDREP}_qlusterOut ";
 
 		std::string qlusterCmdSepMatesTemplate =
@@ -594,23 +600,28 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 						+ "if [ -f {TARGET}{MIDREP}_{MATEFILE}.fastq.gz  ]; then "
 						+ setUp.commands_.masterProgram_
 						+ " qluster "
-								"--fastqgz \"{TARGET}{MIDREP}_{MATEFILE}.fastq.gz\" "
-								"--alnInfoDir {TARGET}{MIDREP}_{MATEFILE}_alnCache --overWriteDir "
-								"--additionalOut \"../popClustering/{TARGET}-{MATEFILE}/locationByIndex/{INDEX}.tab.txt\" "
+								"--fastqgz \"{TARGET}{MIDREP}_{MATEFILE}.fastq.gz\" ";
+		if(pars.development){
+			qlusterCmdSepMatesTemplate = qlusterCmdSepMatesTemplate +  " --alnInfoDir {TARGET}{MIDREP}_{MATEFILE}_alnCache --development";
+		}
+		qlusterCmdSepMatesTemplate = qlusterCmdSepMatesTemplate + " --overWriteDir --additionalOut \"../popClustering/{TARGET}-{MATEFILE}/locationByIndex/{INDEX}.tab.txt\" "
 								"--overWrite --dout {TARGET}{MIDREP}_{MATEFILE}_qlusterOut "
 						    "--illumina --qualThres 25,20"
 						;
 
-		if(pars.useKlusterClustering_ || pars.techIsNanopore()){
+		if (pars.useKlusterClustering_ || pars.techIsNanopore()) {
 			qlusterCmdTemplate =
-					"cd \"" + extractionDirs.string() + "\" && "
+							"cd \"" + extractionDirs.string() + "\" && "
 							+ "if [ -f {TARGET}{MIDREP}.fastq.gz  ]; then "
 							+ " SeekDeep "
 							+ " kluster "
-									"--fastqgz \"{TARGET}{MIDREP}.fastq.gz\" "
-									"--alnInfoDir {TARGET}{MIDREP}_alnCache --overWriteDir "
-									"--additionalOut \"../popClustering/{TARGET}/locationByIndex/{INDEX}.tab.txt\" "
-									"--overWrite --dout {TARGET}{MIDREP}_klusterOut ";
+								"--fastqgz \"{TARGET}{MIDREP}.fastq.gz\" ";
+			if (pars.development) {
+				qlusterCmdTemplate = qlusterCmdTemplate + "--alnInfoDir {TARGET}{MIDREP}_alnCache --development ";
+			}
+			qlusterCmdTemplate = qlusterCmdTemplate +
+													 "--overWriteDir  --additionalOut \"../popClustering/{TARGET}/locationByIndex/{INDEX}.tab.txt\" "
+													 "--overWrite --dout {TARGET}{MIDREP}_klusterOut ";
       //add in current defaults commonly used
       //qlusterCmdTemplate += " --cutOff 0.05  --sizeCutOff 1%,3  --map --recalcConsensus --writeInitialClusters --qualThres 15,10 -checkIndelsWhenMapping --checkChimeras  ";
       qlusterCmdTemplate += " --sizeCutOff 1%,3  --map --recalcConsensus --writeInitialClusters --qualThres 15,10 -checkIndelsWhenMapping --checkChimeras  ";
@@ -815,18 +826,22 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 				+ " if [ -f {TARGET}{MIDREP}.fastq.gz  ]; then "
 										+ setUp.commands_.masterProgram_
 										+ " qluster "
-						"--fastqgz \"{TARGET}{MIDREP}.fastq.gz\" "
-						"--alnInfoDir {TARGET}{MIDREP}_alnCache --overWriteDir "
-						"--additionalOut ../popClustering/locationByIndex/{TARGET}.tab.txt "
+						"--fastqgz \"{TARGET}{MIDREP}.fastq.gz\" ";
+		if (pars.development) {
+			qlusterCmdTemplate = qlusterCmdTemplate +	"--alnInfoDir {TARGET}{MIDREP}_alnCache --development";
+		}
+		qlusterCmdTemplate = qlusterCmdTemplate +	" --overWriteDir  --additionalOut ../popClustering/locationByIndex/{TARGET}.tab.txt "
 						"--overWrite --dout {TARGET}{MIDREP}_qlusterOut ";
 
 		std::string qlusterCmdSepMatesTemplate = "cd \"" + extractionDirs.string() + "\" && "
 				+ " if [ -f {TARGET}{MIDREP}_{MATEFILE}.fastq.gz  ]; then "
 										+ setUp.commands_.masterProgram_
 										+ " qluster "
-						"--fastqgz \"{TARGET}{MIDREP}_{MATEFILE}.fastq.gz\" "
-						"--alnInfoDir {TARGET}{MIDREP}_{MATEFILE}_alnCache --overWriteDir "
-						"--additionalOut ../popClustering/locationByIndex/{TARGET}-{MATEFILE}.tab.txt "
+						"--fastqgz \"{TARGET}{MIDREP}_{MATEFILE}.fastq.gz\" ";
+		if (pars.development) {
+			qlusterCmdSepMatesTemplate = qlusterCmdSepMatesTemplate + "--alnInfoDir {TARGET}{MIDREP}_{MATEFILE}_alnCache --development ";
+		}
+		qlusterCmdSepMatesTemplate = qlusterCmdSepMatesTemplate + "--overWriteDir  --additionalOut ../popClustering/locationByIndex/{TARGET}-{MATEFILE}.tab.txt "
 						"--overWrite --dout {TARGET}{MIDREP}_{MATEFILE}_qlusterOut "
 						"--illumina --qualThres 25,20";
 
@@ -836,9 +851,11 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
           + "if [ -f {TARGET}{MIDREP}.fastq.gz  ]; then "
           + " SeekDeep "
           + " kluster "
-            "--fastqgz \"{TARGET}{MIDREP}.fastq.gz\" "
-            "--alnInfoDir {TARGET}{MIDREP}_alnCache --overWriteDir "
-            "--additionalOut \"../popClustering/locationByIndex/{TARGET}.tab.txt\" "
+            "--fastqgz \"{TARGET}{MIDREP}.fastq.gz\" ";
+			if (pars.development) {
+				qlusterCmdTemplate = qlusterCmdTemplate + "--alnInfoDir {TARGET}{MIDREP}_alnCache --development ";
+			}
+			qlusterCmdTemplate = qlusterCmdTemplate + " --overWriteDir  --additionalOut \"../popClustering/locationByIndex/{TARGET}.tab.txt\" "
             "--overWrite --dout {TARGET}{MIDREP}_klusterOut ";
       //add in current defaults commonly used
       qlusterCmdTemplate += " --sizeCutOff 1%,3  --map --recalcConsensus --writeInitialClusters --qualThres 15,10 -checkIndelsWhenMapping --checkChimeras  ";
