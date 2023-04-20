@@ -42,9 +42,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 				<< pars.technology << "\n";
 		setUp.addWarning(ss.str());
 	}
-
-
-	setUp.setOption(pars.development,   "--development",   "development mode, will generate a lot more output", "Output");
+	setUp.setOption(pars.development,   "--development",   "development mode, will generate a lot more output", false, "Output");
 	setUp.setOption(pars.outDir,   "--outDir",   "Directory to setup for analysis", true, "Output");
 	setUp.setOption(pars.inputDir, "--inputDir", "Input Directory of raw data files", true, "Input");
 	setUp.setOption(pars.idFile,   "--idFile",   "ID file containing primer and possible additional MIDs", true, "ID Files");
@@ -1263,6 +1261,7 @@ fi)" << std::endl;
 	runAnalysisFile << "" << setUp.commands_.masterProgram_
 			<< " runMultipleCommands --cmdFile genConfigCmds.txt      --numThreads $numThreads --raw --logDir logs "
 			<< std::endl;
+  runAnalysisFile << "/bin/ls popClustering/*/analysis/selectedClustersInfo.tab.txt.gz | elucidator rBind --files STDIN --delim tab --header --overWrite --out popClustering/allSelectedClustersInfo.tab.txt.gz" << std::endl;
 	runAnalysisFile << "" << std::endl;
 	//make file executable
 	chmod(runAnalysisOpts.outFilename_.c_str(),
