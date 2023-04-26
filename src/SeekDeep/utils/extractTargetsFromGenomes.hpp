@@ -39,7 +39,7 @@ struct extractBetweenSeqsPars{
 	njh::files::MkdirPar outputDirPars{"extractedRegions_TODAY"};
 	bool verbose_ = false;
 	bool debug_ = false;
-
+	bool longRangeAmplicon = false;
 	void setUpCoreOptions(seqSetUp & setUp, bool needReadLength = false);
 
 };

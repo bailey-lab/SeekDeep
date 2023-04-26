@@ -337,7 +337,10 @@ int SeekDeepUtilsRunner::genTargetInfoFromGenomes(const njh::progutils::CmdArgs 
 
     SimpleKmerHash hasher;
     OutputStream out(njh::files::make_path(forSeekDeepDir, "uniqueKmers.tab.txt.gz"));
+		OutputStream outInfo(njh::files::make_path(forSeekDeepDir, "uniqueKmersCounts.tsv"));
+		outInfo << "target\tuniqueKmerCount" << std::endl;
     for(const auto & kmersForSet : uniqueKmersFinal){
+			outInfo << kmersForSet.first << "\t" << kmersForSet.second.size() << std::endl;
       for(const auto & kmer : kmersForSet.second){
         out << kmersForSet.first
             << "\t" << hasher.reverseHash(kmer) << "\n";

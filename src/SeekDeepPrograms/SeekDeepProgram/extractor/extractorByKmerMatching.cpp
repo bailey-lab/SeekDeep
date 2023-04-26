@@ -323,15 +323,13 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
         bool passesBack = backPrimerName == winnerSet;
 
         if (!passesBack && !passesFront) {
-          masterCountsCurrent.increaseCounts(winnerSet, seq.name_, ExtractionStator::extractCase::MISMATCHPRIMERS);
+					extractorCase = ExtractionStator::extractCase::FAILEDBOTHPRIMERS;
         } else if(!passesFront){
-          masterCountsCurrent.increaseFailedForward(winnerSet, seq.name_);
+					extractorCase = ExtractionStator::extractCase::BADFORWARD;
         } else if(!passesBack){
-          masterCountsCurrent.increaseCounts(winnerSet, seq.name_, ExtractionStator::extractCase::BADREVERSE);
+					extractorCase = ExtractionStator::extractCase::BADREVERSE;
         }
         if (passesBack && passesFront) {
-
-
           //min len
           ids.targets_.at(winnerSet).lenCuts_->minLenChecker_.checkRead(seq);
           if(!seq.on_){
@@ -412,21 +410,21 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
 
 
   uint64_t totalExtractedAllTargets = 0;
-  uint64_t totalExtractedAllTargetsForard = 0;
+  uint64_t totalExtractedAllTargetsForward = 0;
   uint64_t totalExtractedUndetermined = readsPerSet["undetermined"] + readsPerSetRevComp["undetermined"];
 
 
   for(const auto & setName : ids.getTargets()){
     uint64_t totalExtracted = readsPerSet[setName] + readsPerSetRevComp[setName];
     totalExtractedAllTargets += totalExtracted;
-    totalExtractedAllTargetsForard += readsPerSet[setName];
+		totalExtractedAllTargetsForward += readsPerSet[setName];
 
     uint64_t totalBad = masterCounts.counts_[setName][false].minLenBad_ + masterCounts.counts_[setName][true].minLenBad_ +
         masterCounts.counts_[setName][false].maxLenBad_ + masterCounts.counts_[setName][true].maxLenBad_+
         masterCounts.counts_[setName][false].qualityFailed_ + masterCounts.counts_[setName][true].qualityFailed_ +
-        masterCounts.failedForward_[setName][false] + masterCounts.failedForward_[setName][true] +
+        masterCounts.counts_[setName][false].badForward_ + masterCounts.counts_[setName][true].badForward_ +
         masterCounts.counts_[setName][false].badReverse_ + masterCounts.counts_[setName][true].badReverse_ +
-        masterCounts.counts_[setName][false].mismatchPrimers_ + masterCounts.counts_[setName][true].mismatchPrimers_;
+        masterCounts.counts_[setName][false].failedBothPrimers_ + masterCounts.counts_[setName][true].failedBothPrimers_;
 
     outCounts << sampleName
               << "\t" << totalReadsProcessed
@@ -445,14 +443,14 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
     outCounts << "\t" << masterCounts.counts_[setName][false].qualityFailed_ + masterCounts.counts_[setName][true].qualityFailed_
               << "\t" << static_cast<double>(masterCounts.counts_[setName][false].qualityFailed_ + masterCounts.counts_[setName][true].qualityFailed_)/static_cast<double>(totalBad);
     //failed forward
-    outCounts << "\t" << masterCounts.failedForward_[setName][false] + masterCounts.failedForward_[setName][true]
-              << "\t" << static_cast<double>(masterCounts.failedForward_[setName][false] + masterCounts.failedForward_[setName][true])/static_cast<double>(totalBad);
+    outCounts << "\t" << masterCounts.counts_[setName][false].badForward_ + masterCounts.counts_[setName][true].badForward_
+              << "\t" << static_cast<double>(masterCounts.counts_[setName][false].badForward_ + masterCounts.counts_[setName][true].badForward_)/static_cast<double>(totalBad);
     //bad reverse
     outCounts << "\t" << masterCounts.counts_[setName][false].badReverse_ + masterCounts.counts_[setName][true].badReverse_
               << "\t" << static_cast<double>(masterCounts.counts_[setName][false].badReverse_ + masterCounts.counts_[setName][true].badReverse_)/static_cast<double>(totalBad);
     //both bad reverse and failed forward
-    outCounts << "\t" << masterCounts.counts_[setName][false].mismatchPrimers_ + masterCounts.counts_[setName][true].mismatchPrimers_
-              << "\t" << static_cast<double>(masterCounts.counts_[setName][false].mismatchPrimers_ + masterCounts.counts_[setName][true].mismatchPrimers_)/static_cast<double>(totalBad);
+    outCounts << "\t" << masterCounts.counts_[setName][false].failedBothPrimers_ + masterCounts.counts_[setName][true].failedBothPrimers_
+              << "\t" << static_cast<double>(masterCounts.counts_[setName][false].failedBothPrimers_ + masterCounts.counts_[setName][true].failedBothPrimers_)/static_cast<double>(totalBad);
     //bad
     outCounts << "\t" << totalBad
               << "\t" << static_cast<double>(totalBad) / static_cast<double>(totalExtracted);
@@ -492,15 +490,15 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
 
   outStats << "sampleName\ttotalReadsProcessed\tfailedMinLen_" << corePars.smallFragmentCutoff << "\tfailedMinLenFrac\tundetermined\tundeterminedFrac\textracted\textractedFrac\textractedForward\textractedForwardFrac\tpassed\tpassedFrac" << std::endl;
   outStats << sampleName
-           << "\t" << totalReadsProcessed + masterCounts.smallFrags_
-           << "\t" << masterCounts.smallFrags_
-           << "\t" << static_cast<double>(masterCounts.smallFrags_) / static_cast<double>(totalReadsProcessed + masterCounts.smallFrags_)
-           << "\t" << totalExtractedUndetermined
-           << "\t" << static_cast<double>(totalExtractedUndetermined) / static_cast<double>(totalExtractedUndetermined + totalExtractedAllTargets)
-           << "\t" << totalExtractedAllTargets
-           << "\t" << static_cast<double>(totalExtractedAllTargets) / static_cast<double>(totalReadsProcessed + masterCounts.smallFrags_)
-           << "\t" << totalExtractedAllTargetsForard
-           << "\t" << static_cast<double>(totalExtractedAllTargetsForard) / static_cast<double>(totalExtractedAllTargets)
+					 << "\t" << totalReadsProcessed + masterCounts.smallFrags_
+					 << "\t" << masterCounts.smallFrags_
+					 << "\t" << static_cast<double>(masterCounts.smallFrags_) / static_cast<double>(totalReadsProcessed + masterCounts.smallFrags_)
+					 << "\t" << totalExtractedUndetermined
+					 << "\t" << static_cast<double>(totalExtractedUndetermined) / static_cast<double>(totalExtractedUndetermined + totalExtractedAllTargets)
+					 << "\t" << totalExtractedAllTargets
+					 << "\t" << static_cast<double>(totalExtractedAllTargets) / static_cast<double>(totalReadsProcessed + masterCounts.smallFrags_)
+					 << "\t" << totalExtractedAllTargetsForward
+					 << "\t" << static_cast<double>(totalExtractedAllTargetsForward) / static_cast<double>(totalExtractedAllTargets)
            << "\t" << totalReadsPassedAllFilters
            << "\t" << static_cast<double>(totalReadsPassedAllFilters) / static_cast<double>(totalReadsProcessed + masterCounts.smallFrags_)
            << std::endl;

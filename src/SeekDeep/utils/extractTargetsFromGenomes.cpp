@@ -21,6 +21,11 @@ namespace njhseq {
 
 void extractBetweenSeqsPars::setUpCoreOptions(seqSetUp & setUp, bool needReadLength){
 
+	setUp.setOption(longRangeAmplicon, "--longRangeAmplicon", "long Range Amplicon extraction");
+	if(longRangeAmplicon){
+		sizeLimit  = 10000;
+		needReadLength = false;
+	}
 	setUp.setOption(writeOutAllSeqsFile, "--writeOutAllSeqsFile", "Write Out All Seqs File without collpasing to unique sequences");
 
 	setUp.setOption(shortNames, "--shortNames", "Create short names for reference genomes extractions");
