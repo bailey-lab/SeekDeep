@@ -432,31 +432,31 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
               << "\t" << totalExtracted
               << "\t" << static_cast<double>(totalExtracted) / static_cast<double>(totalReadsProcessed)
               << "\t" << readsPerSet[setName]
-              << "\t" << static_cast<double>(readsPerSet[setName]) / static_cast<double>(totalExtracted);
+              << "\t" << (totalExtracted == 0 ? 0 : static_cast<double>(readsPerSet[setName]) / static_cast<double>(totalExtracted));
     //minlen
     outCounts<< "\t" << masterCounts.counts_[setName][false].minLenBad_ + masterCounts.counts_[setName][true].minLenBad_
-    << "\t" << static_cast<double>(masterCounts.counts_[setName][false].minLenBad_ + masterCounts.counts_[setName][true].minLenBad_)/static_cast<double>(totalBad);
+    << "\t" << (totalBad == 0 ? 0 : static_cast<double>(masterCounts.counts_[setName][false].minLenBad_ + masterCounts.counts_[setName][true].minLenBad_)/static_cast<double>(totalBad));
     //maxlen
     outCounts << "\t" << masterCounts.counts_[setName][false].maxLenBad_ + masterCounts.counts_[setName][true].maxLenBad_
-    << "\t" << static_cast<double>(masterCounts.counts_[setName][false].maxLenBad_ + masterCounts.counts_[setName][true].maxLenBad_)/static_cast<double>(totalBad);
+    << "\t" << (totalBad == 0 ? 0 : static_cast<double>(masterCounts.counts_[setName][false].maxLenBad_ + masterCounts.counts_[setName][true].maxLenBad_)/static_cast<double>(totalBad));
     //quality
     outCounts << "\t" << masterCounts.counts_[setName][false].qualityFailed_ + masterCounts.counts_[setName][true].qualityFailed_
-              << "\t" << static_cast<double>(masterCounts.counts_[setName][false].qualityFailed_ + masterCounts.counts_[setName][true].qualityFailed_)/static_cast<double>(totalBad);
+              << "\t" << (totalBad == 0 ? 0 : static_cast<double>(masterCounts.counts_[setName][false].qualityFailed_ + masterCounts.counts_[setName][true].qualityFailed_)/static_cast<double>(totalBad));
     //failed forward
     outCounts << "\t" << masterCounts.counts_[setName][false].badForward_ + masterCounts.counts_[setName][true].badForward_
-              << "\t" << static_cast<double>(masterCounts.counts_[setName][false].badForward_ + masterCounts.counts_[setName][true].badForward_)/static_cast<double>(totalBad);
+              << "\t" << (totalBad == 0 ? 0 : static_cast<double>(masterCounts.counts_[setName][false].badForward_ + masterCounts.counts_[setName][true].badForward_)/static_cast<double>(totalBad));
     //bad reverse
     outCounts << "\t" << masterCounts.counts_[setName][false].badReverse_ + masterCounts.counts_[setName][true].badReverse_
-              << "\t" << static_cast<double>(masterCounts.counts_[setName][false].badReverse_ + masterCounts.counts_[setName][true].badReverse_)/static_cast<double>(totalBad);
+              << "\t" << (totalBad == 0 ? 0 : static_cast<double>(masterCounts.counts_[setName][false].badReverse_ + masterCounts.counts_[setName][true].badReverse_)/static_cast<double>(totalBad));
     //both bad reverse and failed forward
     outCounts << "\t" << masterCounts.counts_[setName][false].failedBothPrimers_ + masterCounts.counts_[setName][true].failedBothPrimers_
-              << "\t" << static_cast<double>(masterCounts.counts_[setName][false].failedBothPrimers_ + masterCounts.counts_[setName][true].failedBothPrimers_)/static_cast<double>(totalBad);
+              << "\t" << (totalBad == 0 ? 0 : static_cast<double>(masterCounts.counts_[setName][false].failedBothPrimers_ + masterCounts.counts_[setName][true].failedBothPrimers_)/static_cast<double>(totalBad));
     //bad
     outCounts << "\t" << totalBad
-              << "\t" << static_cast<double>(totalBad) / static_cast<double>(totalExtracted);
+              << "\t" << (totalExtracted == 0 ? 0 : static_cast<double>(totalBad) / static_cast<double>(totalExtracted));
     //good
     outCounts << "\t" << masterCounts.counts_[setName][false].good_ + masterCounts.counts_[setName][true].good_
-              << "\t" << static_cast<double>(masterCounts.counts_[setName][false].good_ + masterCounts.counts_[setName][true].good_) / static_cast<double>(totalExtracted)
+              << "\t" << (totalExtracted == 0 ? 0 : static_cast<double>(masterCounts.counts_[setName][false].good_ + masterCounts.counts_[setName][true].good_) / static_cast<double>(totalExtracted))
               << std::endl;
     totalReadsPassedAllFilters += masterCounts.counts_[setName][false].good_ + masterCounts.counts_[setName][true].good_;
   }
@@ -466,9 +466,9 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
               << "\t" << totalReadsProcessed
               << "\t" << "undetermined"
               << "\t" << totalExtracted
-              << "\t" << static_cast<double>(totalExtracted) / static_cast<double>(totalReadsProcessed)
+              << "\t" << (totalReadsProcessed == 0 ? 0 : static_cast<double>(totalExtracted) / static_cast<double>(totalReadsProcessed))
               << "\t" << readsPerSet["undetermined"]
-              << "\t" << static_cast<double>(readsPerSet["undetermined"]) / static_cast<double>(totalExtracted)
+              << "\t" << (totalExtracted == 0 ? 0 : static_cast<double>(readsPerSet["undetermined"]) / static_cast<double>(totalExtracted))
         << "\t" << 0
         << "\t" << 0
         << "\t" << 0
