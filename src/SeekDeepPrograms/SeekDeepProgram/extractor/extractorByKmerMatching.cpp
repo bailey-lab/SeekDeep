@@ -405,7 +405,7 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
   outCounts << "\treversePrimerFailed\treversePrimerFailedFrac";
   outCounts << "\tbothForRevPrimerFailed\tbothForRevPrimerFailedFrac";
   outCounts << "\ttotalFailed\ttotalFailedFrac";
-  outCounts << "\tpasssed\tpassedFrac";
+  outCounts << "\tpassed\tpassedFrac";
   outCounts << std::endl;
 
 
