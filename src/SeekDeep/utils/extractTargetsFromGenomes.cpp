@@ -265,11 +265,11 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
               alignToGenome(genomesQueue, forOutFnp, revOutFnp, refAlignmentDir);
             }else{
               for(uint32_t t = 0; t < gMapper->pars_.numThreads_; ++t){
-                threads.emplace_back(std::thread(alignToGenome,
+                threads.emplace_back(alignToGenome,
                                                  std::ref(genomesQueue),
                                                  std::cref(forOutFnp),
                                                  std::cref(revOutFnp),
-                                                 std::cref(refAlignmentDir)));
+                                                 std::cref(refAlignmentDir));
               }
               for(auto & t : threads){
                 t.join();
@@ -353,7 +353,8 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 //              auto revResults = gatherMapResults(revBlastHitsFnp, genome.second->fnpTwoBit_, allowableErrors);
 
 
-
+              forResults = ReAlignedSeq::getUniqueLocationResults(forResults);
+              revResults = ReAlignedSeq::getUniqueLocationResults(revResults);
 
               auto primerLocationsFnp = njh::files::make_path(bedDirectory,bfs::basename(genome.second->fnp_) + "_primerLocs.bed");
               OutputStream primerLocationsOut(primerLocationsFnp);
@@ -367,6 +368,10 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
                 bedOut.name_ = njh::pasteAsStr(target, "-reversePrimer[errors=", revRes->comp_.distances_.getNumOfEvents(true), ";]");
                 primerLocationsOut << bedOut.toDelimStrWithExtra() << std::endl;
               }
+//              std::cout << __FILE__ << " : " << __LINE__ << " : " << __PRETTY_FUNCTION__ << std::endl;
+//              std::cout << "forResults.size(): " << forResults.size() << std::endl;
+//              std::cout << "revResults.size(): " << revResults.size() << std::endl;
+
               genomeExtractionsResults[genome.first].forwardHits_ = forResults.size();
               genomeExtractionsResults[genome.first].reverseHits_ = revResults.size();
               if(!forResults.empty() && !revResults.empty()){
@@ -1148,11 +1153,11 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
                 alignToGenome(genomesQueue, forOutFnp, revOutFnp, refAlignmentDir);
               }else{
                 for(uint32_t t = 0; t < gMapper->pars_.numThreads_; ++t){
-                  threads.emplace_back(std::thread(alignToGenome,
+                  threads.emplace_back(alignToGenome,
                                                    std::ref(genomesQueue),
                                                    std::cref(forOutFnp),
                                                    std::cref(revOutFnp),
-                                                   std::cref(refAlignmentDir)));
+                                                   std::cref(refAlignmentDir));
                 }
                 for(auto & t : threads){
                   t.join();
@@ -1171,6 +1176,7 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
                 auto revResults = gatherMapResults(revBamFnp, genome.second->fnpTwoBit_, allowableErrors);
                 auto primerLocationsFnp = njh::files::make_path(bedDirectory,bfs::basename(genome.second->fnp_) + "_primerLocs.bed");
                 OutputStream primerLocationsOut(primerLocationsFnp);
+
                 for(const auto & forRes : forResults){
                   auto bedOut = forRes->gRegion_.genBedRecordCore();
                   bedOut.name_ = njh::pasteAsStr(target, "-forwardPrimer[errors=", forRes->comp_.distances_.getNumOfEvents(true), ";]");
@@ -1181,6 +1187,10 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
                   bedOut.name_ = njh::pasteAsStr(target, "-reversePrimer[errors=", revRes->comp_.distances_.getNumOfEvents(true), ";]");
                   primerLocationsOut << bedOut.toDelimStrWithExtra() << std::endl;
                 }
+//                std::cout << __FILE__ << " : " << __LINE__ << " : " << __PRETTY_FUNCTION__ << std::endl;
+//                std::cout << "forResults.size(): " << forResults.size() << std::endl;
+//                std::cout << "revResults.size(): " << revResults.size() << std::endl;
+
                 genomeExtractionsResults[genome.first].forwardHits_ = forResults.size();
                 genomeExtractionsResults[genome.first].reverseHits_ = revResults.size();
                 if(!forResults.empty() && !revResults.empty()){
