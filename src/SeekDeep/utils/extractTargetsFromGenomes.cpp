@@ -188,7 +188,7 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
           auto blastDatabaseFnp = bfs::path(genomeFnp).replace_extension("").string() + "_blastdb";
           bioRunner.RunMakeblastdb(genomeFnp);
           bfs::path outputFnp = njh::files::make_path(alignDir, bfs::basename(genomeFnp) + "_" + bfs::basename(forwardFnp) + "_blastHits.tsv");
-          std::string cmd = "blastn -query " + forwardFnp.string()  + " -perc_identity 80 -qcov_hsp_perc 80 -task blastn-short -word_size 6 -db " + blastDatabaseFnp + " -outfmt 6 > " + outputFnp.string();
+          std::string cmd = "blastn -query " + forwardFnp.string()  + " -perc_identity 80 -qcov_hsp_perc 80 -task blastn-short -word_size 6 -db " + blastDatabaseFnp + " -outfmt 6 -max_target_seqs 100000000 > " + outputFnp.string();
           bioRunner.runCmdCheck(cmd, forwardFnp, outputFnp);
         }
         {
@@ -197,7 +197,7 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
           auto blastDatabaseFnp = bfs::path(genomeFnp).replace_extension("").string() + "_blastdb";
           bioRunner.RunMakeblastdb(genomeFnp);
           bfs::path outputFnp = njh::files::make_path(alignDir, bfs::basename(genomeFnp) + "_" + bfs::basename(reverseFnp) + "_blastHits.tsv");
-          std::string cmd = "blastn -query " + reverseFnp.string()  + " -perc_identity 80 -qcov_hsp_perc 80 -task blastn-short -word_size 6 -db " + blastDatabaseFnp + " -outfmt 6 > " + outputFnp.string();
+          std::string cmd = "blastn -query " + reverseFnp.string()  + " -perc_identity 80 -qcov_hsp_perc 80 -task blastn-short -word_size 6 -db " + blastDatabaseFnp + " -outfmt 6 -max_target_seqs 100000000 > " + outputFnp.string();
           bioRunner.runCmdCheck(cmd, reverseFnp, outputFnp);
         }
       }
