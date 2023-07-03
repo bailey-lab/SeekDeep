@@ -834,8 +834,8 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
                 //add results
                 std::vector<GenomicRegion> fPrimerPositionsUnique;
                 njh::sort(fPrimerPositions, [](const GenomicRegion & reg1, const GenomicRegion & reg2){
-                  auto reg1Meta =MetaDataInName(reg1.uid_.substr(reg1.uid_.rfind("[")));
-                  auto reg2Meta =MetaDataInName(reg2.uid_.substr(reg2.uid_.rfind("[")));
+                  auto reg1Meta =MetaDataInName(reg1.uid_.substr(reg1.uid_.rfind('[')));
+                  auto reg2Meta =MetaDataInName(reg2.uid_.substr(reg2.uid_.rfind('[')));
                   return reg1Meta.getMeta<uint32_t>("errors") < reg2Meta.getMeta<uint32_t>("errors");
                 });
                 for(const auto & fPrim : fPrimerPositions){
@@ -852,8 +852,8 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
                 }
                 std::vector<GenomicRegion> rPrimerPositionsUnique;
                 njh::sort(rPrimerPositions, [](const GenomicRegion & reg1, const GenomicRegion & reg2){
-                  auto reg1Meta =MetaDataInName(reg1.uid_.substr(reg1.uid_.rfind("[")));
-                  auto reg2Meta =MetaDataInName(reg2.uid_.substr(reg2.uid_.rfind("[")));
+                  auto reg1Meta =MetaDataInName(reg1.uid_.substr(reg1.uid_.rfind('[')));
+                  auto reg2Meta =MetaDataInName(reg2.uid_.substr(reg2.uid_.rfind('[')));
                   return reg1Meta.getMeta<uint32_t>("errors") < reg2Meta.getMeta<uint32_t>("errors");
                 });
                 for(const auto & rPrim : rPrimerPositions){
@@ -1462,7 +1462,7 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 			}
 
 			if(!allRegions.empty()){
-				if("" != gMapper->genomes_.at(genome)->gffFnp_){
+				if(!gMapper->genomes_.at(genome)->gffFnp_.empty()){
 					intersectBedLocsWtihGffRecordsPars pars(gMapper->genomes_.at(genome)->gffFnp_);
 					pars.selectFeatures_ = VecStr{"gene", "protein_coding_gene"};
 					pars.extraAttributes_ = tokenizeString(extractPars.gffExtraAttributesStr, ",");
@@ -1497,7 +1497,7 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 							}
 							geneToks.back() = "[" +geneToks.back();
 						}
-						std::string replacement = "";
+						std::string replacement;
 						for(const auto & geneTok : geneToks){
 							MetaDataInName geneMeta(geneTok);
 							if(njh::in(geneMeta.getMeta("ID"), genes)){
@@ -1510,8 +1510,31 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 									auto maxPos = vectorMaximum(getVectorOfMapKeys(posInfos));
 									auto startPos = std::max(minPos, reg->chromStart_);
 									auto stopPos =  std::min(maxPos, reg->chromEnd_);
-									auto aaStartPos = std::min(posInfos[startPos].aaPos_, posInfos[stopPos].aaPos_) + 1;
-									auto aaStopPos =  std::max(posInfos[startPos].aaPos_, posInfos[stopPos].aaPos_) + 1;
+									if(stopPos == reg->chromEnd_){
+										stopPos = reg->chromEnd_ - 1;
+									}
+									//stop position is inclusive
+									uint32_t aaStartPos = std::numeric_limits<uint32_t>::max();
+									uint32_t aaStopPos = 0;
+
+									for(const auto posInGene : iter::range(startPos, stopPos + 1)){
+										if(std::numeric_limits<uint32_t>::max() != posInfos[posInGene].aaPos_){
+											if(posInfos[posInGene].aaPos_ < aaStartPos){
+												aaStartPos = posInfos[posInGene].aaPos_;
+											}
+											if(posInfos[posInGene].aaPos_ > aaStopPos) {
+												aaStopPos = posInfos[posInGene].aaPos_;
+											}
+										}
+									}
+									//if the region is completely within the intron the final stop and stops will be max() and 0;
+									if(std::numeric_limits<uint32_t>::max() == aaStartPos){
+										aaStopPos = std::numeric_limits<uint32_t>::max();
+									}else{
+										//make 1 based
+										++aaStopPos;
+										++aaStartPos;
+									}
 									geneMeta.addMeta(info.first + "-AAStart", aaStartPos );
 									geneMeta.addMeta(info.first + "-AAStop", aaStopPos );
 								}
@@ -1545,9 +1568,9 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 
 
 	struct InsertProteinInfo {
-		InsertProteinInfo(const std::string & id, uint32_t aaStart, uint32_t aaStop,
-				const std::string & desc) :
-				id_(id), aaStart_(aaStart), aaStop_(aaStop), description_(desc) {
+		InsertProteinInfo(std::string  id, uint32_t aaStart, uint32_t aaStop,
+				std::string  desc) :
+				id_(std::move(id)), aaStart_(aaStart), aaStop_(aaStop), description_(std::move(desc)) {
 		}
 		std::string id_;
 		uint32_t aaStart_; //1-based
@@ -1576,7 +1599,7 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 			}
 
 			if(!allRegions.empty()){
-				if("" != gMapper->genomes_.at(genome)->gffFnp_){
+				if(!gMapper->genomes_.at(genome)->gffFnp_.empty()){
 					intersectBedLocsWtihGffRecordsPars pars(gMapper->genomes_.at(genome)->gffFnp_);
 					pars.selectFeatures_ = VecStr{"gene", "protein_coding_gene"};
 					pars.extraAttributes_ = tokenizeString(extractPars.gffExtraAttributesStr, ",");
@@ -1611,7 +1634,7 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 							}
 							geneToks.back() = "[" +geneToks.back();
 						}
-						std::string replacement = "";
+						std::string replacement;
 						for(const auto & geneTok : geneToks){
 							MetaDataInName geneMeta(geneTok);
 							if(njh::in(geneMeta.getMeta("ID"), genes)){
@@ -1625,14 +1648,49 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 									auto maxPos = vectorMaximum(getVectorOfMapKeys(posInfos));
 									auto startPos = std::max(minPos, reg->chromStart_);
 									auto stopPos =  std::min(maxPos, reg->chromEnd_);
-									auto aaStartPos = std::min(posInfos[startPos].aaPos_, posInfos[stopPos].aaPos_) + 1;
-									auto aaStopPos =  std::max(posInfos[startPos].aaPos_, posInfos[stopPos].aaPos_) + 1;
-									geneMeta.addMeta(info.first + "-AAStart", aaStartPos );
-									geneMeta.addMeta(info.first + "-AAStop", aaStopPos );
-									std::string description = "";
+									if(stopPos == reg->chromEnd_){
+										stopPos = reg->chromEnd_ - 1;
+									}
+									//stop position is inclusive
+									uint32_t aaStartPos = std::numeric_limits<uint32_t>::max();
+									uint32_t aaStopPos = 0;
+
+									for(const auto posInGene : iter::range(startPos, stopPos + 1)){
+										if(std::numeric_limits<uint32_t>::max() != posInfos[posInGene].aaPos_){
+											if(posInfos[posInGene].aaPos_ < aaStartPos){
+												aaStartPos = posInfos[posInGene].aaPos_;
+											}
+											if(posInfos[posInGene].aaPos_ > aaStopPos) {
+												aaStopPos = posInfos[posInGene].aaPos_;
+											}
+										}
+									}
+									//if the region is completely within the intron the final stop and stops will be max() and 0;
+									if(std::numeric_limits<uint32_t>::max() == aaStartPos){
+										aaStopPos = std::numeric_limits<uint32_t>::max();
+									}else{
+										//make 1 based
+										++aaStopPos;
+										++aaStartPos;
+									}
+//									auto aaStartPos = std::min(posInfos[startPos].aaPos_, posInfos[stopPos].aaPos_) + 1;
+//									auto aaStopPos =  std::max(posInfos[startPos].aaPos_, posInfos[stopPos].aaPos_) + 1;
+
+//									std::cout << __FILE__ << " " << __LINE__ << std::endl;
+//									std::cout << "minPos: " << minPos << std::endl;
+//									std::cout << "maxPos: " << maxPos << std::endl;
+//									std::cout << "startPos: " << startPos << std::endl;
+//									std::cout << "stopPos: " << stopPos << std::endl;
+//									std::cout << "aaStartPos: " << aaStartPos << std::endl;
+//									std::cout << "aaStopPos: " << aaStopPos << std::endl;
+//									std::cout << "posInfos[startPos].aaPos_: " << posInfos[startPos].aaPos_ << std::endl;
+//									std::cout << "posInfos[stopPos].aaPos_: " << posInfos[stopPos].aaPos_ << std::endl;
+									geneMeta.addMeta(info.first + "-AAStart", aaStartPos);
+									geneMeta.addMeta(info.first + "-AAStop", aaStopPos);
+									std::string description;
 									bool allNAs = true;
 									for(const auto & field : pars.extraAttributes_){
-										if("" != description){
+										if(!description.empty()){
 											description += "::";
 										}
 										if("NA" != geneMeta.getMeta(field)){
@@ -1647,7 +1705,7 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 									proteinInsertInfoByNameCurrent[reg->name_].emplace_back(geneMeta.getMeta("ID"), aaStartPos, aaStopPos, description);
 								}
 							}
-							if("" != replacement){
+							if(!replacement.empty()){
 								replacement += ",";
 							}
 							replacement += geneMeta.createMetaName();
@@ -1693,14 +1751,14 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 			auto infoFnp = njh::files::make_path(outputDir, tar, "genomeLocations", genome.first + "_regionInfo.tab.txt");
 			if(bfs::exists(infoFnp)){
 				table infoTab(infoFnp, "\t", true);
-				if("" != genome.second->gffFnp_){
+				if(!genome.second->gffFnp_.empty()){
 					table updatedInfoTab(toVecStr(infoTab.columnNames_, "insertGeneID", "insertGeneAAStart", "insertGeneAAStop", "insertGeneDescription"));
 					for(auto & row : infoTab){
 						if(proteinInsertInfoByName[row[infoTab.getColPos("name")]].empty()){
 							updatedInfoTab.addRow(toVecStr(row, "", "", "", ""));
 						}else{
 							for(const auto & info : proteinInsertInfoByName[row[infoTab.getColPos("name")]]){
-								updatedInfoTab.addRow(toVecStr(row, info.id_, info.aaStart_, info.aaStop_, info.description_));
+								updatedInfoTab.addRow(toVecStr(row, info.id_, (std::numeric_limits<uint32_t>::max() == info.aaStart_ ? "NA" : njh::pasteAsStr(info.aaStart_)), (std::numeric_limits<uint32_t>::max() == info.aaStop_ ? "NA" : njh::pasteAsStr(info.aaStop_)) , info.description_));
 							}
 						}
 					}

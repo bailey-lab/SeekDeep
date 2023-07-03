@@ -263,9 +263,10 @@ int SeekDeepUtilsRunner::genTargetInfoFromGenomes(const njh::progutils::CmdArgs 
     }
     std::map<std::string, std::set<uint64_t>> kmersPerSet;
 
-    std::function<bool(const std::string&)> seqCheck = [&countPars](const std::string & k){
-      return std::all_of(k.begin(), k.end(), [&countPars](char base){return njh::in(base, countPars.allowableCharacters_);});
-    };
+		std::function<bool(const std::string &)> seqCheck = [&countPars](const std::string &k) {
+			return std::all_of(k.begin(), k.end(),
+												 [&countPars](char base) { return njh::in(base, countPars.allowableCharacters_); });
+		};
 
 
     {

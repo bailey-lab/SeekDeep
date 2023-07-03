@@ -142,7 +142,7 @@ int SeekDeepUtilsRunner::benchmarkControlMixtures(
 
 	//population seqs;
 	std::vector<seqInfo> popSeqs;
-	if("" != popSeqsFnp){
+	if(!popSeqsFnp.empty()){
 		popSeqs = SeqInput::getSeqVec<seqInfo>(SeqIOOptions::genFastaIn(popSeqsFnp));
 	}
 	//check the needed expected names
