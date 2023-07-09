@@ -325,6 +325,9 @@ int SeekDeepUtilsRunner::benchmarkMultiTarAmpControlMixtures(
 		benchers[target]->checkForStrainsThrow(expNames, __PRETTY_FUNCTION__);
 
 	}
+	bfs::copy(njh::files::normalize(conBenchPars.samplesToMixFnp_), njh::files::make_path(setUp.pars_.directoryName_, "samplesToMix.tsv"));
+	//all benches are basically the same so just use the beginning
+	benchers.begin()->second->writeMixSetUpsInSamples(njh::files::make_path(setUp.pars_.directoryName_, "mixSetUps.tsv"));
 
 
 	OutputStream falseHaplotypesToExpClassified(
@@ -948,7 +951,8 @@ int SeekDeepUtilsRunner::benchmarkTarAmpControlMixtures(
 		OutputStream outMissing(outOptsMissing);
 		outMissing << njh::conToStr(missingSamples, "\n") << std::endl;
 	}
-
+	bfs::copy(njh::files::normalize(conBenchPars.samplesToMixFnp_), njh::files::make_path(setUp.pars_.directoryName_, "samplesToMix.tsv"));
+	bencher.writeMixSetUpsInSamples(njh::files::make_path(setUp.pars_.directoryName_, "mixSetUps.tsv"));
 
 	//read in expected seqs
 	SeqInput expSeqsSeqIn(SeqIOOptions::genFastaIn(expectedSeqsFnp));

@@ -23,7 +23,7 @@ public:
 		bfs::path samplesToMixFnp_;
 	};
 
-	explicit ControlBencher(const ControlBencherPars & pars);
+	explicit ControlBencher(ControlBencherPars  pars);
 
 	const ControlBencherPars pars_;
 
@@ -40,6 +40,7 @@ public:
 
 	void removeStrains(const VecStr &names);
 
+	void writeMixSetUpsInSamples(const OutOptions & outOptions);
 
 	void checkForStrainsThrow(const std::set<std::string> &names, const std::string &funcName) const;
 

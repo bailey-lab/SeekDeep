@@ -11,8 +11,10 @@
 
 #include <njhseq/objects/dataContainers/tables.h>
 
+#include <utility>
+
 namespace njhseq {
-ControlBencher::ControlBencher(const ControlBencherPars & pars):pars_(pars){
+ControlBencher::ControlBencher(ControlBencherPars pars):pars_(std::move(pars)){
 	//read in mixture set ups
 	mixSetups_  = ControlMixSetUp::readInSetUps(pars_.mixSetUpFnp_);
 
@@ -60,6 +62,21 @@ void ControlBencher::removeStrains(const VecStr & names){
 		removeStrain(name);
 	}
 }
+
+void ControlBencher::writeMixSetUpsInSamples(const OutOptions &outOptions) {
+	OutputStream out(outOptions);
+	std::set<std::string> mixsPresent;
+	for (const auto &sampToMix: samplesToMix_) {
+		mixsPresent.emplace(sampToMix.second);
+	}
+	out << "MixName\tstrain\trelative_abundance" << std::endl;
+	for (const auto &mix: mixsPresent) {
+		for (const auto &strain: njh::mapAt(mixSetups_, mix).relativeAbundances_) {
+			out << mix << "\t" << strain.first << "\t" << strain.second << std::endl;
+		}
+	}
+}
+
 
 void ControlBencher::checkForStrainsThrow(const std::set<std::string> & names,
 		const std::string & funcName) const {

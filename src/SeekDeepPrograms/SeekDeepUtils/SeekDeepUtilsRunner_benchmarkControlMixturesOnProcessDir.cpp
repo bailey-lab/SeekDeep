@@ -51,6 +51,7 @@ int SeekDeepUtilsRunner::benchmarkControlMixturesOnProcessedClustersDir(
 																		 conBenchPars.samplesToMixFnp_, conBenchPars.mixSetUpFnp_ },
 																	 __PRETTY_FUNCTION__);
 
+
 	Json::Value coreJson = njh::json::parseFile(coreJsonFnp.string());
 
 	collapse::SampleCollapseCollection analysisMaster(coreJson);
@@ -129,7 +130,8 @@ int SeekDeepUtilsRunner::benchmarkControlMixturesOnProcessedClustersDir(
 		OutputStream outMissing(outOptsMissing);
 		outMissing << njh::conToStr(missingSamples, "\n") << std::endl;
 	}
-
+	bfs::copy(njh::files::normalize(conBenchPars.samplesToMixFnp_), njh::files::make_path(setUp.pars_.directoryName_, "samplesToMix.tsv"));
+	bencher.writeMixSetUpsInSamples(njh::files::make_path(setUp.pars_.directoryName_, "mixSetUps.tsv"));
 
 	//read in expected seqs
 	SeqInput expSeqsSeqIn(SeqIOOptions::genFastaIn(expectedSeqsFnp));
