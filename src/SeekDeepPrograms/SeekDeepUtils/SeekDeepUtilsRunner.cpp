@@ -40,12 +40,14 @@ SeekDeepUtilsRunner::SeekDeepUtilsRunner() :
 					addFunc("replaceUnderscores", replaceUnderscores, false),
 				  addFunc("rBind", ManipulateTableRunner::rBind, false),
 					addFunc("genTargetInfoFromGenomes", genTargetInfoFromGenomes, false),
-					addFunc("benchmarkControlMixtures", benchmarkControlMixtures, false),
+					addFunc("benchmarkTarAmpControlMixtures", benchmarkTarAmpControlMixtures, false),
+					addFunc("benchmarkMultiTarAmpControlMixtures", benchmarkMultiTarAmpControlMixtures, false),
 					addFunc("gatherInfoOnTargetedAmpliconSeqFile", gatherInfoOnTargetedAmpliconSeqFile, false),
 					addFunc("getPossibleSampleNamesFromRawInput", getPossibleSampleNamesFromRawInput, false),
 					addFunc("SampleBarcodeFileToSeekDeepInput", SampleBarcodeFileToSeekDeepInput, false),
 					addFunc("primersToFasta", primersToFasta, false),
 					addFunc("deRepPopClusDir", deRepPopClusDir, false),
+					addFunc("benchmarkControlMixtures", benchmarkControlMixturesOnProcessedClustersDir, false),
 					addFunc("benchmarkControlMixturesOnProcessedClustersDir", benchmarkControlMixturesOnProcessedClustersDir, false),
 				}, //
 				"SeekDeepUtils") {

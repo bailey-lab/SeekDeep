@@ -89,5 +89,19 @@ std::set<std::string> ControlBencher::getAllStrains() const {
 }
 
 
+double ControlBencher::benchResults::RMSE() const{
+	return 0 == sumOfSquares_ ? 0 : std::sqrt(sumOfSquares_/static_cast<double>(recoveredHaps_));
+}
+uint32_t ControlBencher::benchResults::totalHaps() const {
+	return falseHaps_ + recoveredHaps_;
+}
+double ControlBencher::benchResults::falseHapRate() const{
+	return totalHaps() > 0 ? falseHaps_/static_cast<double>(totalHaps()) : 0;
+}
+double ControlBencher::benchResults::hapRecoveryRate() const{
+	return expectedHapCnt_ > 0 ? recoveredHaps_/static_cast<double>(expectedHapCnt_) : 0;
+}
+
+
 }  // namespace njhseq
 

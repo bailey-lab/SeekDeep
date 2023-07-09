@@ -23,7 +23,7 @@ public:
 		bfs::path samplesToMixFnp_;
 	};
 
-	ControlBencher(const ControlBencherPars & pars);
+	explicit ControlBencher(const ControlBencherPars & pars);
 
 	const ControlBencherPars pars_;
 
@@ -31,18 +31,19 @@ public:
 	std::unordered_map<std::string, std::string> samplesToMix_;
 
 
-	std::set<std::string> getAllStrains() const;
-	VecStr getSamples() const;
+	[[nodiscard]] std::set<std::string> getAllStrains() const;
+
+	[[nodiscard]] VecStr getSamples() const;
 
 
-	void removeStrain(const std::string & name);
-	void removeStrains(const VecStr & names);
+	void removeStrain(const std::string &name);
+
+	void removeStrains(const VecStr &names);
 
 
-	void checkForStrainsThrow(const std::set<std::string> & names,
-			const std::string & funcName) const;
+	void checkForStrainsThrow(const std::set<std::string> &names, const std::string &funcName) const;
 
-	struct benchResults{
+	struct benchResults {
 		std::unordered_map<std::string, std::string> resSeqToExpSeq_;
 		uint32_t recoveredHaps_ = 0;
 		uint32_t falseHaps_ = 0;
@@ -51,18 +52,13 @@ public:
 
 		VecStr missingExpecteds_;
 
-		double RMSE() const{
-			return 0 == sumOfSquares_ ? 0 : std::sqrt(sumOfSquares_/static_cast<double>(recoveredHaps_));
-		}
-		uint32_t totalHaps() const {
-			return falseHaps_ + recoveredHaps_;
-		}
-		double falseHapRate() const{
-			return falseHaps_/static_cast<double>(totalHaps());
-		}
-		double hapRecoveryRate() const{
-			return recoveredHaps_/static_cast<double>(expectedHapCnt_);
-		}
+		[[nodiscard]] double RMSE() const;
+
+		[[nodiscard]] uint32_t totalHaps() const;
+
+		[[nodiscard]] double falseHapRate() const;
+
+		[[nodiscard]] double hapRecoveryRate() const;
 
 		std::map<std::string, std::map<std::string, comparison>> falseHapsCompsToExpected;
 		std::map<std::string, std::map<std::string, comparison>> falseHapsCompsToOthers;
@@ -72,13 +68,13 @@ public:
 
 	template<typename RESULTSEQ, typename REFSEQ>
 	static benchResults benchmark(const std::vector<RESULTSEQ> & resultSeqs, const std::vector<REFSEQ> & expectedSeqs,
-	const std::unordered_map<std::string, double> & expectedSeqFracs,
-	const std::unordered_map<std::string, std::string> & expectedSeqNameKey){
+	const std::map<std::string, double> & expectedSeqFracs,
+	const std::map<std::string, std::string> & expectedSeqNameKey){
 		benchResults ret;
 		ret.expectedHapCnt_ = expectedSeqs.size();
 		for(const auto & resultSeq : resultSeqs){
 			const auto & resSeq = getSeqBase(resultSeq);
-			std::string matchingRef = "";
+			std::string matchingRef;
 			double expectedFrac = 0;
 			for(const auto & expectedSeq : expectedSeqs){
 				const auto & expSeq = getSeqBase(expectedSeq);
@@ -88,7 +84,7 @@ public:
 					break;
 				}
 			}
-			if("" != matchingRef){
+			if(!matchingRef.empty()){
 				++ret.recoveredHaps_;
 				ret.sumOfSquares_+= std::pow(resultSeq.frac_ - expectedFrac, 2.0);
 			}else{
@@ -101,8 +97,8 @@ public:
 
 	template<typename RESULTSEQ, typename REFSEQ>
 	static benchResults benchmark(const std::vector<RESULTSEQ> & resultSeqs, const std::vector<REFSEQ> & expectedSeqs,
-	const std::unordered_map<std::string, double> & expectedSeqFracs,
-	const std::unordered_map<std::string, std::string> & expectedSeqNameKey,
+	const std::map<std::string, double> & expectedSeqFracs,
+	const std::map<std::string, std::string> & expectedSeqNameKey,
 	aligner & alignerObj,
 	const comparison & allowableError = comparison{} ){
 		benchResults ret;
@@ -110,7 +106,7 @@ public:
 		std::unordered_set<std::string> matchingRefs;
 		for(const auto & resultSeq : resultSeqs){
 			const auto & resSeq = getSeqBase(resultSeq);
-			std::string matchingRef = "";
+			std::string matchingRef;
 			double expectedFrac = 0;
 			for(const auto & expectedSeq : expectedSeqs){
 				const auto & expSeq = getSeqBase(expectedSeq);
@@ -123,7 +119,7 @@ public:
 					break;
 				}
 			}
-			if("" != matchingRef){
+			if(!matchingRef.empty()){
 				++ret.recoveredHaps_;
 				ret.sumOfSquares_+= std::pow(resultSeq.frac_ - expectedFrac, 2.0);
 			}else{
