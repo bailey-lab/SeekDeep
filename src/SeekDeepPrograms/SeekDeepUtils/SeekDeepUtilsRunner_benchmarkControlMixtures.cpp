@@ -12,6 +12,183 @@
 
 namespace njhseq {
 
+std::string plotMultiTargetResultsQmd = R"(---
+title: "Process Results"
+format:
+  html:
+    theme: cosmo
+    fig-height: 15
+    fig-width: 15
+    fig-align: center
+    toc: true
+    toc-depth: 4 # default is 3
+    toc-title: Contents
+    number-sections: true
+    anchor-sections: true
+    smooth-scroll: true
+    highlight-style: dracula
+    page-layout: full
+    code-fold: true
+    code-tools: true
+    code-link: true
+---
+
+
+```{r setup, echo=FALSE, message=FALSE}
+require(knitr)
+require(DT)
+require(tidyverse)
+require(plotly)
+#turn off messages and warnings and make it so output isn't prefixed by anything,
+#default is to put "##" in front of all output for some reason
+#also set tidy to true so code is wrapped properly
+opts_chunk$set(message=FALSE, warning=FALSE, comment = "", cache = F)
+options(width = 200)
+
+myFormula= x~y
+require(ggpmisc)
+`%!in%` <- Negate(`%in%`)
+
+sofonias_theme = theme_bw() +
+  theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank() )+
+  theme(axis.line.x = element_line(color="black", linewidth = 0.3),axis.line.y =
+          element_line(color="black", linewidth = 0.3))+
+  theme(text=element_text(size=12, family="Helvetica"))+
+  theme(axis.text.y = element_text(size=12))+
+  theme(axis.text.x = element_text(size=12)) +
+   theme(legend.position = "bottom") +
+   theme(plot.title = element_text(hjust = 0.5))
+
+sofonias_theme_xRotate = sofonias_theme +
+  theme(axis.text.x = element_text(size=12, angle = -90, vjust = 0.5, hjust = 0))
+create_dt <- function(x){
+  DT::datatable(x,
+                extensions = 'Buttons',
+                options = list(dom = 'Blfrtip',
+                               buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
+                               lengthMenu = list(c(10,25,50,-1),
+                                                 c(10,25,50,"All"))),
+                filter = "top")
+}
+colorPalette_08 = c("#2271B2","#F748A5","#359B73","#F0E442","#D55E00","#3DB7E9","#E69F00","#000000")
+colorPalette_12 = c("#E20134","#FF6E3A","#008DF9","#8400CD","#FFC33B","#9F0162","#009F81","#FF5AAF","#00FCCF","#00C2F9","#FFB2FD","#A40122")
+colorPalette_15 = c("#F60239","#003C86","#EF0096","#9400E6","#009FFA","#008169","#68023F","#00DCB5","#FFCFE2","#FF71FD","#7CFFFA","#6A0213","#008607","#00E307","#FFDC3D")
+
+
+```
+
+
+```{r}
+samplesToMixs = readr::read_tsv("samplesToMix.tsv")
+mixSetUps = readr::read_tsv("mixSetUps.tsv") %>%
+  group_by(MixName) %>%
+  mutate(COI = n())
+create_dt(mixSetUps)
+
+samplesToMixs = samplesToMixs %>%
+  left_join(mixSetUps)
+
+samplesToMixs_mixtures = samplesToMixs %>%
+  filter(COI > 1)
+```
+
+
+```{r}
+
+samplesToMixs_mod = samplesToMixs %>%
+  mutate(strain = factor(strain)) %>%
+  mutate(label = paste0(sample, "\n", MixName)) %>%
+  arrange(MixName) %>%
+  ungroup() %>%
+  mutate(label = factor(label, levels = unique(.$label)))
+
+
+mixturesSampleNames_mix_mod_plot = ggplot(samplesToMixs_mod) +
+  geom_tile(aes(x = label, y = strain, fill = relative_abundance),
+            color = "black", width = 0.8) +
+  geom_text(aes(x = label, y = strain, label = paste0(relative_abundance *100, "%"), color = ifelse(relative_abundance > 50, "black", "white")), angle = "-90", fontsize = 12) +
+  sofonias_theme_xRotate + labs(x = "Sample/Mixture", fill = "Within Sample\nAbunance") +
+  scale_fill_gradient(high = "#fed976", low = "#bd0026",
+                      limits=c(0,1)) +
+  scale_color_identity()
+```
+
+```{r}
+#| column: screen-inset-shaded
+#| fig-align: center
+print(mixturesSampleNames_mix_mod_plot)
+```
+
+
+```{r}
+performancePerTarget = readr::read_tsv("performancePerTarget.tab.txt")
+create_dt(performancePerTarget)
+```
+
+
+```{r}
+classifiedHaplotypes = readr::read_tsv("classifiedHaplotypes.tab.txt")
+create_dt(classifiedHaplotypes)
+```
+
+```{r}
+#| fig-column: screen-inset-shaded
+#| fig-align: center
+ggplotly(ggplot(performancePerTarget) +
+  geom_boxplot(aes(y = expectedHapRecoveryRate, x = AnalysisName, group = AnalysisName, AnalysisName = AnalysisName)) +
+  sofonias_theme_xRotate)
+
+```
+
+
+```{r}
+#| fig-column: screen-inset-shaded
+#| fig-align: center
+ggplotly(ggplot(performancePerTarget) +
+  geom_boxplot(aes(y = 1 - falseHapsRate, x = AnalysisName, group = AnalysisName, AnalysisName = AnalysisName)) +
+  sofonias_theme_xRotate)
+```
+
+```{r}
+#| fig-column: screen-inset-shaded
+#| fig-align: center
+
+performancePerTarget_sum = performancePerTarget %>%
+  group_by(AnalysisName) %>%
+  summarise(expectedHapRecoveryRate = mean(expectedHapRecoveryRate),
+            falseHapsRate = mean(falseHapsRate))
+
+ggplotly(ggplot(performancePerTarget_sum) +
+  geom_point(aes(x = expectedHapRecoveryRate, y = 1 - falseHapsRate,
+                 AnalysisName = AnalysisName)) +
+  sofonias_theme)
+```
+
+```{r}
+#| fig-column: screen-inset-shaded
+#| fig-align: center
+
+
+classifiedHaplotypes_mix_expected = classifiedHaplotypes %>%
+  filter(sample %in% samplesToMixs_mixtures$sample) %>%
+  filter(matchExpected | is.na(matchExpected)) %>%
+  mutate(frac = ifelse(is.na(frac), 0, frac))
+
+ggplot(classifiedHaplotypes_mix_expected %>%
+         filter(expectedFrac < 1, frac > 0), aes(x = expectedFrac, y = frac)) +
+  # geom_boxplot(aes(group = expectedFrac)) +
+  # geom_point(aes(group = expectedFrac)) +
+  geom_bin2d(aes(fill=..ndensity.., group = expectedFrac), binwidth = c(.05, .05), color = "black") +
+  stat_poly_eq(formula = myFormula, aes(x = expectedFrac, y =frac,  label = paste(..rr.label.., sep = "~~~")),size=3, parse = TRUE,
+               label.y = "bottom", label.x = "right") +
+  geom_abline(intercept = 0, slope = 1, color = "red") +
+  sofonias_theme_xRotate +
+  # scale_x_continuous(limits = c(0, 1)) +
+  # scale_y_continuous(limits = c(0, 1)) +
+  scale_fill_gradient(low = "#e5f5f9", high = "#2ca25f")
+
+```
+)";
 
 int SeekDeepUtilsRunner::benchmarkMultiTarAmpControlMixtures(
 				const njh::progutils::CmdArgs &inputCommands) {
@@ -387,6 +564,7 @@ int SeekDeepUtilsRunner::benchmarkMultiTarAmpControlMixtures(
 	falseHaplotypesToOtherResultsClassified << std::endl;
 	aligner alignerObj(maxLen, gapScoringParameters(5, 1, 0, 0, 0, 0));
 	alignerObj.weighHomopolymers_ = setUp.pars_.colOpts_.iTOpts_.weighHomopolyer_;
+	alignerObj.countEndGaps_ = true;
 	alignerObj.processAlnInfoInput(setUp.pars_.alnInfoDirName_, false);
 	for (const auto &target: targetNames) {
 
@@ -766,11 +944,172 @@ int SeekDeepUtilsRunner::benchmarkMultiTarAmpControlMixtures(
 			}
 		}
 	}
+	OutputStream qmdOut(njh::files::make_path(setUp.pars_.directoryName_, "process.qmd"));
+	qmdOut << plotMultiTargetResultsQmd << std::endl;
 	alignerObj.processAlnInfoOutput(setUp.pars_.outAlnInfoDirName_, false);
 
 	return 0;
 
 }
+
+
+std::string plotSingleTargetResultsQmd = R"(---
+title: "Process Results"
+format:
+  html:
+    theme: cosmo
+    fig-height: 10
+    fig-width: 15
+    fig-align: center
+    toc: true
+    toc-depth: 4 # default is 3
+    toc-title: Contents
+    number-sections: true
+    anchor-sections: true
+    smooth-scroll: true
+    highlight-style: dracula
+    page-layout: full
+    code-fold: true
+    code-tools: true
+    code-link: true
+---
+
+
+```{r setup, echo=FALSE, message=FALSE}
+require(knitr)
+require(DT)
+require(tidyverse)
+#turn off messages and warnings and make it so output isn't prefixed by anything,
+#default is to put "##" in front of all output for some reason
+#also set tidy to true so code is wrapped properly
+opts_chunk$set(message=FALSE, warning=FALSE, comment = "", cache = F)
+options(width = 200)
+
+myFormula= x~y
+require(ggpmisc)
+`%!in%` <- Negate(`%in%`)
+
+sofonias_theme = theme_bw() +
+  theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank() )+
+  theme(axis.line.x = element_line(color="black", linewidth = 0.3),axis.line.y =
+          element_line(color="black", linewidth = 0.3))+
+  theme(text=element_text(size=12, family="Helvetica"))+
+  theme(axis.text.y = element_text(size=12))+
+  theme(axis.text.x = element_text(size=12)) +
+   theme(legend.position = "bottom") +
+   theme(plot.title = element_text(hjust = 0.5))
+
+sofonias_theme_xRotate = sofonias_theme +
+  theme(axis.text.x = element_text(size=12, angle = -90, vjust = 0.5, hjust = 0))
+create_dt <- function(x){
+  DT::datatable(x,
+                extensions = 'Buttons',
+                options = list(dom = 'Blfrtip',
+                               buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
+                               lengthMenu = list(c(10,25,50,-1),
+                                                 c(10,25,50,"All"))),
+                filter = "top")
+}
+colorPalette_08 = c("#2271B2","#F748A5","#359B73","#F0E442","#D55E00","#3DB7E9","#E69F00","#000000")
+colorPalette_12 = c("#E20134","#FF6E3A","#008DF9","#8400CD","#FFC33B","#9F0162","#009F81","#FF5AAF","#00FCCF","#00C2F9","#FFB2FD","#A40122")
+colorPalette_15 = c("#F60239","#003C86","#EF0096","#9400E6","#009FFA","#008169","#68023F","#00DCB5","#FFCFE2","#FF71FD","#7CFFFA","#6A0213","#008607","#00E307","#FFDC3D")
+
+
+```
+
+
+```{r}
+samplesToMixs = readr::read_tsv("samplesToMix.tsv")
+mixSetUps = readr::read_tsv("mixSetUps.tsv") %>%
+  group_by(MixName) %>%
+  mutate(COI = n())
+create_dt(mixSetUps)
+
+samplesToMixs = samplesToMixs %>%
+  left_join(mixSetUps)
+
+samplesToMixs_mixtures = samplesToMixs %>%
+  filter(COI > 1)
+```
+
+
+```{r}
+
+samplesToMixs_mod = samplesToMixs %>%
+  mutate(strain = factor(strain)) %>%
+  mutate(label = paste0(sample, "\n", MixName)) %>%
+  arrange(MixName) %>%
+  ungroup() %>%
+  mutate(label = factor(label, levels = unique(.$label)))
+
+
+mixturesSampleNames_mix_mod_plot = ggplot(samplesToMixs_mod) +
+  geom_tile(aes(x = label, y = strain, fill = relative_abundance),
+            color = "black", width = 0.8) +
+  geom_text(aes(x = label, y = strain, label = paste0(relative_abundance *100, "%"), color = ifelse(relative_abundance > 50, "black", "white")), angle = "-90", fontsize = 12) +
+  sofonias_theme_xRotate + labs(x = "Sample/Mixture", fill = "Within Sample\nAbunance") +
+  scale_fill_gradient(high = "#fed976", low = "#bd0026",
+                      limits=c(0,1)) +
+  scale_color_identity()
+```
+
+```{r}
+#| column: screen-inset-shaded
+#| fig-align: center
+print(mixturesSampleNames_mix_mod_plot)
+```
+
+
+```{r}
+performancePerTarget = readr::read_tsv("performancePerTarget.tab.txt")
+create_dt(performancePerTarget)
+```
+
+
+```{r}
+classifiedHaplotypes = readr::read_tsv("classifiedHaplotypes.tab.txt")
+create_dt(classifiedHaplotypes)
+```
+
+```{r}
+ggplot(performancePerTarget) +
+  geom_boxplot(aes(y = expectedHapRecoveryRate)) +
+  sofonias_theme
+
+ggplot(performancePerTarget) +
+  geom_boxplot(aes(y = 1 - falseHapsRate)) +
+  sofonias_theme
+
+ggplot(performancePerTarget) +
+  geom_bin2d(aes(x = expectedHapRecoveryRate, y = 1 - falseHapsRate)) +
+  sofonias_theme
+```
+
+```{r}
+#| fig-column: screen-inset-shaded
+#| fig-align: center
+
+
+classifiedHaplotypes_mix_expected = classifiedHaplotypes %>%
+  filter(sample %in% samplesToMixs_mixtures$sample) %>%
+  filter(matchExpected | is.na(matchExpected)) %>%
+  mutate(frac = ifelse(is.na(frac), 0, frac))
+
+ggplot(classifiedHaplotypes_mix_expected %>%
+         filter(expectedFrac < 1, frac > 0), aes(x = expectedFrac, y = frac)) +
+  # geom_boxplot(aes(group = expectedFrac)) +
+  # geom_point(aes(group = expectedFrac)) +
+  geom_bin2d(aes(fill=..ndensity.., group = expectedFrac), binwidth = c(.05, .05), color = "black") +
+  stat_poly_eq(formula = myFormula, aes(x = expectedFrac, y =frac,  label = paste(..rr.label.., sep = "~~~")),size=3, parse = TRUE,
+               label.y = "bottom", label.x = "right") +
+  geom_abline(intercept = 0, slope = 1, color = "red") +
+  sofonias_theme_xRotate +
+  # scale_x_continuous(limits = c(0, 1)) +
+  # scale_y_continuous(limits = c(0, 1)) +
+  scale_fill_gradient(low = "#e5f5f9", high = "#2ca25f")
+
+```
+)";
 
 int SeekDeepUtilsRunner::benchmarkTarAmpControlMixtures(
 				const njh::progutils::CmdArgs &inputCommands) {
@@ -1074,6 +1413,7 @@ int SeekDeepUtilsRunner::benchmarkTarAmpControlMixtures(
 	falseHaplotypesToOtherResultsClassified << std::endl;
 	aligner alignerObj(maxLen, gapScoringParameters(5, 1, 0, 0, 0, 0));
 	alignerObj.weighHomopolymers_ = setUp.pars_.colOpts_.iTOpts_.weighHomopolyer_;
+	alignerObj.countEndGaps_ = true;
 	alignerObj.processAlnInfoInput(setUp.pars_.alnInfoDirName_, false);
 	for (const auto &sname: controlSamples) {
 		//skip completely missing
@@ -1460,6 +1800,8 @@ int SeekDeepUtilsRunner::benchmarkTarAmpControlMixtures(
 		}
 	}
 
+	OutputStream qmdOut(njh::files::make_path(setUp.pars_.directoryName_, "process.qmd"));
+	qmdOut << plotSingleTargetResultsQmd << std::endl;
 	alignerObj.processAlnInfoOutput(setUp.pars_.outAlnInfoDirName_, false);
 
 	return 0;

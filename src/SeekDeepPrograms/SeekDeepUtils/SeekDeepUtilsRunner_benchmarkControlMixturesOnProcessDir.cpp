@@ -255,6 +255,7 @@ int SeekDeepUtilsRunner::benchmarkControlMixturesOnProcessedClustersDir(
 	falseHaplotypesToOtherResultsClassified << std::endl;
 	aligner alignerObj(maxLen, gapScoringParameters(5,1,0,0,0,0));
 	alignerObj.weighHomopolymers_ = setUp.pars_.colOpts_.iTOpts_.weighHomopolyer_;
+	alignerObj.countEndGaps_ = true;
 	alignerObj.processAlnInfoInput(setUp.pars_.alnInfoDirName_, false);
 	for(const auto & sname : controlSamples){
 		//skip completely missing
