@@ -17,8 +17,8 @@ title: "Process Results"
 format:
   html:
     theme: cosmo
-    fig-height: 15
-    fig-width: 15
+    fig-height: 10
+    fig-width: 10
     fig-align: center
     toc: true
     toc-depth: 4 # default is 3
@@ -116,6 +116,7 @@ mixturesSampleNames_mix_mod_plot = ggplot(samplesToMixs_mod) +
 ```{r}
 #| column: screen-inset-shaded
 #| fig-align: center
+#| fig-width: 20
 print(mixturesSampleNames_mix_mod_plot)
 ```
 
@@ -959,7 +960,7 @@ format:
   html:
     theme: cosmo
     fig-height: 10
-    fig-width: 15
+    fig-width: 10
     fig-align: center
     toc: true
     toc-depth: 4 # default is 3
@@ -1056,6 +1057,7 @@ mixturesSampleNames_mix_mod_plot = ggplot(samplesToMixs_mod) +
 ```{r}
 #| column: screen-inset-shaded
 #| fig-align: center
+#| fig-width: 20
 print(mixturesSampleNames_mix_mod_plot)
 ```
 
