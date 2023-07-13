@@ -10,6 +10,7 @@
 #include <njhseq/common.h>
 
 #include <njhseq/objects/Meta/MetaDataInName.hpp>
+#include <njhseq/objects/dataContainers/tables/table.hpp>
 
 namespace njhseq {
 
@@ -32,6 +33,7 @@ public:
 
 	static std::unordered_map<std::string, ControlMixSetUp> readInSetUps(const bfs::path & mixtureSetUpFnp);
 
+	static std::unordered_map<std::string, ControlMixSetUp> processSetUps(const table & mixtureSetUp);
 
 
 };

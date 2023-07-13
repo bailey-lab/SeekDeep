@@ -200,19 +200,19 @@ int SeekDeepUtilsRunner::benchmarkControlMixturesOnProcessedClustersDir(
 
 
 	OutputStream falseHaplotypesToExpClassified(
-					njh::files::make_path(setUp.pars_.directoryName_, "falseHaplotypesComparedToExpected.tab.txt"));
+					njh::files::make_path(setUp.pars_.directoryName_, "falseHaplotypesComparedToExpected.tsv"));
 	falseHaplotypesToExpClassified
 					<< "AnalysisName\tsample\tmix\tInputReadName\treadCnt\tfrac\tRefName\tExpectedRefFreq\tExpectedMajorOrMinor\tIdentityScore\tbestMatchScore\tmismatches\toneBaseIndels\ttwoBaseIndels\tlargeIndels\ttotalErrors";
 	OutputStream falseHaplotypesToOtherResultsClassified(
-					njh::files::make_path(setUp.pars_.directoryName_, "falseHaplotypesComparedToOthers.tab.txt"));
+					njh::files::make_path(setUp.pars_.directoryName_, "falseHaplotypesComparedToOthers.tsv"));
 	falseHaplotypesToOtherResultsClassified
 					<< "AnalysisName\tsample\tmix\tInputReadName\treadCnt\tfrac\tOtherName\tOtherReadCnt\tOtherFrac\tratio\tOtherMajor\tOtherMatchesExpected\tOtherExpectedMatchName\tIdentityScore\tbestMatchScore\tmismatches\toneBaseIndels\ttwoBaseIndels\tlargeIndels\ttotalErrors";
 
 
-	OutputStream haplotypesClassified(njh::files::make_path(setUp.pars_.directoryName_, "classifiedHaplotypes.tab.txt"));
+	OutputStream haplotypesClassified(njh::files::make_path(setUp.pars_.directoryName_, "classifiedHaplotypes.tsv"));
 	haplotypesClassified << "AnalysisName\tsample\tmix\tInputReadName\tHapPopUID\tHapSampleCount\treadCnt\tfrac\tmatchExpected\texpectedRef\texpectedFrac\tMajorOrMinor\tmatchingPopulation\tPopName";
 
-	OutputStream performanceOut(njh::files::make_path(setUp.pars_.directoryName_, "performancePerTarget.tab.txt"));
+	OutputStream performanceOut(njh::files::make_path(setUp.pars_.directoryName_, "performancePerTarget.tsv"));
 	performanceOut
 					<< "AnalysisName\tsample\tmix\ttotalReads\trecoveredExpectedHaps\tfalseHaps\ttotalHaps\ttotalExpectedHaps\texpectedHapRecoveryRate\tfalseHapsRate\texpectedMissing\tRMSE";
 	VecStr metalevels;

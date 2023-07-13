@@ -14,30 +14,63 @@
 #include <utility>
 
 namespace njhseq {
-ControlBencher::ControlBencher(ControlBencherPars pars):pars_(std::move(pars)){
-	//read in mixture set ups
-	mixSetups_  = ControlMixSetUp::readInSetUps(pars_.mixSetUpFnp_);
 
-	//read in samples to mixture
-	table sampleToMixtureTab(pars_.samplesToMixFnp_, "\t", true);
+
+ControlBencher::ControlBencher(const table &mixSetupTab, const table &sampleToMixtureTab) {
+	//read in mixture set ups
+	mixSetups_ = ControlMixSetUp::processSetUps(mixSetupTab);
+
+
 	sampleToMixtureTab.checkForColumnsThrow(VecStr{"sample", "MixName"}, __PRETTY_FUNCTION__);
-	if(sampleToMixtureTab.empty()){
+	if (sampleToMixtureTab.empty()) {
 		std::stringstream ss;
 		ss << __PRETTY_FUNCTION__ << ", error " << pars_.samplesToMixFnp_ << " is empty " << "\n";
 		throw std::runtime_error{ss.str()};
 	}
-	for(const auto & row : sampleToMixtureTab){
+	for (const auto &row: sampleToMixtureTab) {
 		samplesToMix_[row[sampleToMixtureTab.getColPos("sample")]] = row[sampleToMixtureTab.getColPos("MixName")];
 	}
 	VecStr missingMixs;
-	for(const auto & sampToMix : samplesToMix_){
-		if(!njh::in(sampToMix.second, mixSetups_)){
+	for (const auto &sampToMix: samplesToMix_) {
+		if (!njh::in(sampToMix.second, mixSetups_)) {
 			missingMixs.emplace_back(sampToMix.second);
 		}
 	}
-	if(!missingMixs.empty()){
+	if (!missingMixs.empty()) {
 		std::stringstream ss;
-		ss << __PRETTY_FUNCTION__ << ", error " << " error missing the following mixture information " << njh::conToStr(missingMixs, ",") << " from " << pars_.mixSetUpFnp_ << "\n";
+		ss << __PRETTY_FUNCTION__ << ", error " << " error missing the following mixture information "
+			 << njh::conToStr(missingMixs, ",") << " from " << pars_.mixSetUpFnp_ << "\n";
+		throw std::runtime_error{ss.str()};
+	}
+}
+
+
+ControlBencher::ControlBencher(ControlBencherPars pars) : pars_(std::move(pars)) {
+	//read in mixture set ups
+	mixSetups_ = ControlMixSetUp::readInSetUps(pars_.mixSetUpFnp_);
+
+	//read in samples to mixture
+	table sampleToMixtureTab(pars_.samplesToMixFnp_, "\t", true);
+
+	sampleToMixtureTab.checkForColumnsThrow(VecStr{"sample", "MixName"}, __PRETTY_FUNCTION__);
+	if (sampleToMixtureTab.empty()) {
+		std::stringstream ss;
+		ss << __PRETTY_FUNCTION__ << ", error " << pars_.samplesToMixFnp_ << " is empty " << "\n";
+		throw std::runtime_error{ss.str()};
+	}
+	for (const auto &row: sampleToMixtureTab) {
+		samplesToMix_[row[sampleToMixtureTab.getColPos("sample")]] = row[sampleToMixtureTab.getColPos("MixName")];
+	}
+	VecStr missingMixs;
+	for (const auto &sampToMix: samplesToMix_) {
+		if (!njh::in(sampToMix.second, mixSetups_)) {
+			missingMixs.emplace_back(sampToMix.second);
+		}
+	}
+	if (!missingMixs.empty()) {
+		std::stringstream ss;
+		ss << __PRETTY_FUNCTION__ << ", error " << " error missing the following mixture information "
+			 << njh::conToStr(missingMixs, ",") << " from " << pars_.mixSetUpFnp_ << "\n";
 		throw std::runtime_error{ss.str()};
 	}
 }
@@ -63,19 +96,29 @@ void ControlBencher::removeStrains(const VecStr & names){
 	}
 }
 
-void ControlBencher::writeMixSetUpsInSamples(const OutOptions &outOptions) {
-	OutputStream out(outOptions);
+table ControlBencher::genMixSetUpsInSamplesTab() const {
+	table ret(VecStr{"MixName", "strain", "relative_abundance"});
 	std::set<std::string> mixsPresent;
 	for (const auto &sampToMix: samplesToMix_) {
 		mixsPresent.emplace(sampToMix.second);
 	}
-	out << "MixName\tstrain\trelative_abundance" << std::endl;
+
 	for (const auto &mix: mixsPresent) {
 		for (const auto &strain: njh::mapAt(mixSetups_, mix).relativeAbundances_) {
-			out << mix << "\t" << strain.first << "\t" << strain.second << std::endl;
+			ret.addRow(mix, strain.first, strain.second);
 		}
 	}
+	return ret;
 }
+
+void ControlBencher::writeMixSetUpsInSamples(const OutOptions &outOptions) const{
+	OutputStream out(outOptions);
+	auto tab = genMixSetUpsInSamplesTab();
+
+	tab.outPutContents(out, "\t");
+}
+
+
 
 
 void ControlBencher::checkForStrainsThrow(const std::set<std::string> & names,

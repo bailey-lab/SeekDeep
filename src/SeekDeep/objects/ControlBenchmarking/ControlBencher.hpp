@@ -10,6 +10,7 @@
 
 #include <njhseq/common.h>
 #include <njhseq/alignment/aligner/aligner.hpp>
+#include <njhseq/objects/dataContainers/tables/table.hpp>
 
 #include "SeekDeep/objects/ControlBenchmarking/ControlMixSetUp.hpp"
 
@@ -24,6 +25,9 @@ public:
 	};
 
 	explicit ControlBencher(ControlBencherPars  pars);
+
+	ControlBencher(const table & mixSetupTab, const table & sampleToMix);
+
 
 	const ControlBencherPars pars_;
 
@@ -40,7 +44,8 @@ public:
 
 	void removeStrains(const VecStr &names);
 
-	void writeMixSetUpsInSamples(const OutOptions & outOptions);
+	void writeMixSetUpsInSamples(const OutOptions & outOptions)const;
+	table genMixSetUpsInSamplesTab() const;
 
 	void checkForStrainsThrow(const std::set<std::string> &names, const std::string &funcName) const;
 

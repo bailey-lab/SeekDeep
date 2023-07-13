@@ -122,13 +122,13 @@ print(mixturesSampleNames_mix_mod_plot)
 
 
 ```{r}
-performancePerTarget = readr::read_tsv("performancePerTarget.tab.txt")
+performancePerTarget = readr::read_tsv("performancePerTarget.tsv")
 create_dt(performancePerTarget)
 ```
 
 
 ```{r}
-classifiedHaplotypes = readr::read_tsv("classifiedHaplotypes.tab.txt")
+classifiedHaplotypes = readr::read_tsv("classifiedHaplotypes.tsv")
 create_dt(classifiedHaplotypes)
 ```
 
@@ -160,7 +160,7 @@ performancePerTarget_sum = performancePerTarget %>%
             falseHapsRate = mean(falseHapsRate))
 
 ggplotly(ggplot(performancePerTarget_sum) +
-  geom_point(aes(x = expectedHapRecoveryRate, y = 1 - falseHapsRate,
+  geom_point(aes(y = expectedHapRecoveryRate, x = 1 - falseHapsRate,
                  AnalysisName = AnalysisName)) +
   sofonias_theme)
 ```
@@ -221,18 +221,18 @@ int SeekDeepUtilsRunner::benchmarkMultiTarAmpControlMixtures(
 	setUp.processVerbose();
 	setUp.processDebug();
 	setUp.setOption(resultsFnp, "--resultsFnp",
-									"results tab delimited file, should have at lesst 3 columns, 1) sample (--sampleColName), 2)within sample freq (--withinSampleFreqColName), 3)within sample read count (--withinSampleReadCntColName), 4)haplotype pop ID (--popHapIdColName), optionally 4th col with hap sequence (--popHapSeqColName) or read in from --popSeqsFnp",
+									"results tab delimited file, each row is a haplotype, should have at least 5 columns, 1) sample (--sampleColName), 2)within sample freq (--withinSampleFreqColName), 3)within sample read count (--withinSampleReadCntColName), 4)haplotype pop ID (--popHapIdColName), 5)target name column (--targetNameColName), optionally 4th col with hap sequence (--popHapSeqColName) or read in from --popSeqsDirFnp",
 									true);
 
-	setUp.setOption(sampleColName, "--sampleColName", "sample Column Name");
+	setUp.setOption(sampleColName, "--sampleColName", "sample Column Name", false, "Results Column Names");
 	setUp.setOption(withinSampleFreqColName, "--withinSampleFreqColName",
-									"within Sample haplotype frequency Column Name");
-	setUp.setOption(withinSampleReadCntColName, "--withinSampleReadCntColName", "within Sample Read Cnt Col Column Name");
-	setUp.setOption(popHapIdColName, "--popHapIdColName", "popHapIdColName");
+									"within Sample haplotype frequency Column Name", false, "Results Column Names");
+	setUp.setOption(withinSampleReadCntColName, "--withinSampleReadCntColName", "within Sample Read Cnt Col Column Name", false, "Results Column Names");
+	setUp.setOption(popHapIdColName, "--popHapIdColName", "popHapIdColName", false, "Results Column Names");
 	setUp.setOption(popHapSeqColName, "--popHapSeqColName",
-									"population Haplotype Sequence Column Name, the seq to compare to expected");
+									"population Haplotype Sequence Column Name, the seq to compare to expected", false, "Results Column Names");
 	setUp.setOption(targetNameColName, "--targetNameColName",
-									"target Name Column Name, the column name in the table which indicates the different targets");
+									"target Name Column Name, the column name in the table which indicates the different targets", false, "Results Column Names");
 
 	setUp.setOption(popSeqsDirFnp, "--popSeqsDirFnp",
 									"Population Sequences, in this directory should be a fasta file with the name of each target");
@@ -347,13 +347,66 @@ int SeekDeepUtilsRunner::benchmarkMultiTarAmpControlMixtures(
 	}
 
 	auto targetNames = std::vector<std::string>(targetNamesSet.begin(), targetNamesSet.end());
-	njh::naturalSortName(targetNames);
+	njh::naturalSortNameSet(targetNames);
 
 	//benchers
 	std::map<std::string, std::unique_ptr<ControlBencher>> benchers;
-	for (const auto &target: targetNames) {
-		benchers[target] = std::make_unique<ControlBencher>(conBenchPars);
+
+	table sampleToMixTab(conBenchPars.samplesToMixFnp_, "\t", true);
+	table mixSetUpTab(conBenchPars.mixSetUpFnp_, "\t", true);
+
+	std::map<std::string, table> sampleToMixSplitTab;
+	std::map<std::string, table> mixSetUpSplitTab;
+
+	if (njh::in(targetNameColName, sampleToMixTab.columnNames_) &&
+			njh::in(targetNameColName, mixSetUpTab.columnNames_)) {
+		sampleToMixSplitTab = sampleToMixTab.splitTableOnColumn(targetNameColName);
+		mixSetUpSplitTab = mixSetUpTab.splitTableOnColumn(targetNameColName);
+		auto sampleToMixSplitTab_targetNames = njh::getVecOfMapKeys(sampleToMixSplitTab);
+		auto mixSetUpSplitTab_targetNames = njh::getVecOfMapKeys(mixSetUpSplitTab);
+
+		VecStr inSampToMix;
+		VecStr inMixSetup;
+		VecStr shared;
+		njh::decompose_sets(sampleToMixSplitTab_targetNames.begin(), sampleToMixSplitTab_targetNames.end(),
+												mixSetUpSplitTab_targetNames.begin(), mixSetUpSplitTab_targetNames.end(),
+												std::back_inserter(inSampToMix),
+												std::back_inserter(inMixSetup),
+												std::back_inserter(shared));
+		VecStr warnings;
+		if (!inSampToMix.empty()) {
+			warnings.emplace_back(
+							njh::pasteAsStr("error, found the following targets in ", conBenchPars.samplesToMixFnp_, " but not in ",
+															conBenchPars.mixSetUpFnp_,
+															"\n", njh::conToStr(inSampToMix, ",")));
+		}
+		if (!inMixSetup.empty()) {
+			warnings.emplace_back(
+							njh::pasteAsStr("error, found the following targets in ", conBenchPars.mixSetUpFnp_, " but not in ",
+															conBenchPars.samplesToMixFnp_,
+															"\n", njh::conToStr(inMixSetup, ",")));
+		}
+		if (!warnings.empty()) {
+			std::stringstream ss;
+			ss << __PRETTY_FUNCTION__ << ", error " << " found the following errors" << "\n";
+			throw std::runtime_error{ss.str()};
+		}
+		targetNames = shared;
+		njh::naturalSortNameSet(targetNames);
 	}
+	if (mixSetUpSplitTab.empty()) {
+		for (const auto &target: targetNames) {
+			benchers[target] = std::make_unique<ControlBencher>(conBenchPars);
+		}
+	} else {
+		for (const auto &target: targetNames) {
+			benchers[target] = std::make_unique<ControlBencher>(
+							njh::mapAt(mixSetUpSplitTab, target),
+							njh::mapAt(sampleToMixSplitTab, target)
+			);
+		}
+	}
+
 
 
 	if (exists(popSeqsDirFnp)) {
@@ -384,11 +437,11 @@ int SeekDeepUtilsRunner::benchmarkMultiTarAmpControlMixtures(
 
 	//check for samples in analysis
 	std::unordered_map<std::string, std::set<std::string>> missingSamples;
-	std::set<std::string> controlSamples;
+	std::unordered_map<std::string, std::set<std::string>> controlSamples;
 	for (const auto &target: targetNames) {
 		auto currentControlSamples = benchers[target]->getSamples();
-		controlSamples.insert(currentControlSamples.begin(), currentControlSamples.end());
-		for (const auto &sname: controlSamples) {
+		controlSamples[target].insert(currentControlSamples.begin(), currentControlSamples.end());
+		for (const auto &sname: currentControlSamples) {
 			//if (!analysisMaster.hasSample(sname)) {
 			if (!njh::in(sname, allSamplesInOutput[target])) {
 				missingSamples[target].emplace(sname);
@@ -504,25 +557,46 @@ int SeekDeepUtilsRunner::benchmarkMultiTarAmpControlMixtures(
 
 	}
 	bfs::copy(njh::files::normalize(conBenchPars.samplesToMixFnp_), njh::files::make_path(setUp.pars_.directoryName_, "samplesToMix.tsv"));
-	//all benches are basically the same so just use the beginning
-	benchers.begin()->second->writeMixSetUpsInSamples(njh::files::make_path(setUp.pars_.directoryName_, "mixSetUps.tsv"));
+
+	if (njh::in(targetNameColName, sampleToMixTab.columnNames_) &&
+			njh::in(targetNameColName, mixSetUpTab.columnNames_)) {
+		//all benches are basically the same so just use the beginning
+		OutputStream mixOut(njh::files::make_path(setUp.pars_.directoryName_, "mixSetUps.tsv"));
+		table allMixTab;
+		auto tarBenchNames = njh::getVecOfMapKeys(benchers);
+		njh::naturalSortNameSet(tarBenchNames);
+		for (const auto &tarBenchName: tarBenchNames) {
+
+			auto mixTab = benchers.at(tarBenchName)->genMixSetUpsInSamplesTab();
+			mixTab.addColumn(VecStr{tarBenchName}, targetNameColName);
+			if (allMixTab.empty()) {
+				allMixTab = mixTab;
+			} else {
+				allMixTab.rbind(mixTab, false);
+			}
+		}
+		allMixTab.outPutContents(mixOut, "\t");
+	} else {
+		benchers.begin()->second->writeMixSetUpsInSamples(
+						njh::files::make_path(setUp.pars_.directoryName_, "mixSetUps.tsv"));
+	}
 
 
 	OutputStream falseHaplotypesToExpClassified(
-					njh::files::make_path(setUp.pars_.directoryName_, "falseHaplotypesComparedToExpected.tab.txt"));
+					njh::files::make_path(setUp.pars_.directoryName_, "falseHaplotypesComparedToExpected.tsv"));
 	falseHaplotypesToExpClassified
 					<< "AnalysisName\tsample\tmix\tInputReadName\treadCnt\tfrac\tRefName\tExpectedRefFreq\tExpectedMajorOrMinor\tIdentityScore\tbestMatchScore\tmismatches\toneBaseIndels\ttwoBaseIndels\tlargeIndels\ttotalErrors";
 	OutputStream falseHaplotypesToOtherResultsClassified(
-					njh::files::make_path(setUp.pars_.directoryName_, "falseHaplotypesComparedToOthers.tab.txt"));
+					njh::files::make_path(setUp.pars_.directoryName_, "falseHaplotypesComparedToOthers.tsv"));
 	falseHaplotypesToOtherResultsClassified
 					<< "AnalysisName\tsample\tmix\tInputReadName\treadCnt\tfrac\tOtherName\tOtherReadCnt\tOtherFrac\tratio\tOtherMajor\tOtherMatchesExpected\tOtherExpectedMatchName\tIdentityScore\tbestMatchScore\tmismatches\toneBaseIndels\ttwoBaseIndels\tlargeIndels\ttotalErrors";
 
 
-	OutputStream haplotypesClassified(njh::files::make_path(setUp.pars_.directoryName_, "classifiedHaplotypes.tab.txt"));
+	OutputStream haplotypesClassified(njh::files::make_path(setUp.pars_.directoryName_, "classifiedHaplotypes.tsv"));
 	//haplotypesClassified << "AnalysisName\tsample\tmix\tInputReadName\tHapPopUID\tHapSampleCount\treadCnt\tfrac\tmatchExpected\texpectedRef\texpectedFrac\tMajorOrMinor\tmatchingPopulation\tPopName";
 	haplotypesClassified
 					<< "AnalysisName\tsample\tmix\tInputReadName\tHapPopUID\tHapSampleCount\treadCnt\tfrac\tmatchExpected\texpectedRef\texpectedFrac\tMajorOrMinor";
-	OutputStream performanceOut(njh::files::make_path(setUp.pars_.directoryName_, "performancePerTarget.tab.txt"));
+	OutputStream performanceOut(njh::files::make_path(setUp.pars_.directoryName_, "performancePerTarget.tsv"));
 	performanceOut
 					<< "AnalysisName\tsample\tmix\ttotalReads\trecoveredExpectedHaps\tfalseHaps\ttotalHaps\ttotalExpectedHaps\texpectedHapRecoveryRate\tfalseHapsRate\texpectedMissing\tRMSE";
 	VecStr metalevels;
@@ -569,13 +643,16 @@ int SeekDeepUtilsRunner::benchmarkMultiTarAmpControlMixtures(
 	alignerObj.processAlnInfoInput(setUp.pars_.alnInfoDirName_, false);
 	for (const auto &target: targetNames) {
 
-		for (const auto &sname: controlSamples) {
+		std::cout << "target: " << target << std::endl;
+
+		for (const auto &sname: njh::mapAt(controlSamples,target )) {
 			//skip completely missing
 			if (skipMissingSamples && njh::in(sname, missingSamples)) {
 				continue;
 			}
 
 			const std::vector<seqInfo> &resultSeqs = allResultSeqs[target][sname];
+
 
 			std::map<std::string, uint32_t> resSeqToPos;
 			double maxResFrac = 0;
@@ -585,10 +662,13 @@ int SeekDeepUtilsRunner::benchmarkMultiTarAmpControlMixtures(
 					maxResFrac = resultSeqs[pos].frac_;
 				}
 			}
+
+
 			//get current expected seqs
 			std::map<std::string, double> currentExpectedSeqsFrac;
 			double maxExpFrac = 0;
 			std::map<std::string, VecStr> expectedSeqNameToCurrentSeqsKey;
+
 
 			for (const auto &expSeqFrac: benchers[target]->mixSetups_.at(
 							benchers[target]->samplesToMix_.at(sname)).relativeAbundances_) {
@@ -601,11 +681,14 @@ int SeekDeepUtilsRunner::benchmarkMultiTarAmpControlMixtures(
 //			std::cout << "\t" << njh::conToStr(key.second, ",") << std::endl;
 				njh::sort(key.second);
 			}
+
+
 			for (const auto &expFrac: currentExpectedSeqsFrac) {
 				if (expFrac.second > maxExpFrac) {
 					maxExpFrac = expFrac.second;
 				}
 			}
+
 
 			std::map<std::string, std::string> expectedToMajorClass;
 			for (const auto &expFrac: currentExpectedSeqsFrac) {
@@ -635,6 +718,7 @@ int SeekDeepUtilsRunner::benchmarkMultiTarAmpControlMixtures(
 																									 currentExpectedSeqsFrac,
 																									 expSeqsKey[target], alignerObj, allowableError);
 			double total = 0;
+
 
 
 			//haplotype classification
@@ -735,6 +819,7 @@ int SeekDeepUtilsRunner::benchmarkMultiTarAmpControlMixtures(
 			performanceOut << std::endl;
 
 
+
 			//further classification of false haplotypes to expected
 			for (const auto &falseHap: res.falseHapsCompsToExpected) {
 				double bestScore = 0;
@@ -828,6 +913,7 @@ int SeekDeepUtilsRunner::benchmarkMultiTarAmpControlMixtures(
 			}
 		}
 
+
 		if (fillInMissingSamples) {
 			for (const auto &sname: missingSamples[target]) {
 
@@ -878,6 +964,7 @@ int SeekDeepUtilsRunner::benchmarkMultiTarAmpControlMixtures(
 						resultsToMajorClass[res.name_] = "minor";
 					}
 				}
+
 
 
 				std::vector<std::shared_ptr<seqInfo>> currentExpectedSeqs;
@@ -945,6 +1032,8 @@ int SeekDeepUtilsRunner::benchmarkMultiTarAmpControlMixtures(
 			}
 		}
 	}
+
+
 	OutputStream qmdOut(njh::files::make_path(setUp.pars_.directoryName_, "process.qmd"));
 	qmdOut << plotMultiTargetResultsQmd << std::endl;
 	alignerObj.processAlnInfoOutput(setUp.pars_.outAlnInfoDirName_, false);
@@ -1063,13 +1152,13 @@ print(mixturesSampleNames_mix_mod_plot)
 
 
 ```{r}
-performancePerTarget = readr::read_tsv("performancePerTarget.tab.txt")
+performancePerTarget = readr::read_tsv("performancePerTarget.tsv")
 create_dt(performancePerTarget)
 ```
 
 
 ```{r}
-classifiedHaplotypes = readr::read_tsv("classifiedHaplotypes.tab.txt")
+classifiedHaplotypes = readr::read_tsv("classifiedHaplotypes.tsv")
 create_dt(classifiedHaplotypes)
 ```
 
@@ -1083,7 +1172,7 @@ ggplot(performancePerTarget) +
   sofonias_theme
 
 ggplot(performancePerTarget) +
-  geom_bin2d(aes(x = expectedHapRecoveryRate, y = 1 - falseHapsRate)) +
+  geom_bin2d(aes(y = expectedHapRecoveryRate, x = 1 - falseHapsRate)) +
   sofonias_theme
 ```
 
@@ -1140,16 +1229,16 @@ int SeekDeepUtilsRunner::benchmarkTarAmpControlMixtures(
 	setUp.processVerbose();
 	setUp.processDebug();
 	setUp.setOption(resultsFnp, "--resultsFnp",
-									"results tab delimited file, should have at lesst 3 columns, 1) sample (--sampleColName), 2)within sample freq (--withinSampleFreqColName), 3)within sample read count (--withinSampleReadCntColName), 4)haplotype pop ID (--popHapIdColName), optionally 4th col with hap sequence (--popHapSeqColName) or read in from --popSeqsFnp",
+									"results tab delimited file, each row is a haplotype, should have at least 4 columns, 1) sample (--sampleColName), 2)within sample freq (--withinSampleFreqColName), 3)within sample read count (--withinSampleReadCntColName), 4)haplotype pop ID (--popHapIdColName), optionally 4th col with hap sequence (--popHapSeqColName) or read in from --popSeqsFnp",
 									true);
 
-	setUp.setOption(sampleColName, "--sampleColName", "sample Column Name");
+	setUp.setOption(sampleColName, "--sampleColName", "sample Column Name", false, "Results Column Names");
 	setUp.setOption(withinSampleFreqColName, "--withinSampleFreqColName",
-									"within Sample haplotype frequency Column Name");
-	setUp.setOption(withinSampleReadCntColName, "--withinSampleReadCntColName", "within Sample Read Cnt Col Column Name");
-	setUp.setOption(popHapIdColName, "--popHapIdColName", "popHapIdColName");
+									"within Sample haplotype frequency Column Name", false, "Results Column Names");
+	setUp.setOption(withinSampleReadCntColName, "--withinSampleReadCntColName", "within Sample Read Cnt Col Column Name", false, "Results Column Names");
+	setUp.setOption(popHapIdColName, "--popHapIdColName", "popHapIdColName", false, "Results Column Names");
 	setUp.setOption(popHapSeqColName, "--popHapSeqColName",
-									"population Haplotype Sequence Column Name, the seq to compare to expected");
+									"population Haplotype Sequence Column Name, the seq to compare to expected", false, "Results Column Names");
 
 
 	setUp.setOption(expectedSeqsFnp, "--expectedSeqsFnp", "Expected Seqs fasta file", true);
@@ -1358,21 +1447,21 @@ int SeekDeepUtilsRunner::benchmarkTarAmpControlMixtures(
 
 
 	OutputStream falseHaplotypesToExpClassified(
-					njh::files::make_path(setUp.pars_.directoryName_, "falseHaplotypesComparedToExpected.tab.txt"));
+					njh::files::make_path(setUp.pars_.directoryName_, "falseHaplotypesComparedToExpected.tsv"));
 	falseHaplotypesToExpClassified
 					<< "AnalysisName\tsample\tmix\tInputReadName\treadCnt\tfrac\tRefName\tExpectedRefFreq\tExpectedMajorOrMinor\tIdentityScore\tbestMatchScore\tmismatches\toneBaseIndels\ttwoBaseIndels\tlargeIndels\ttotalErrors";
 	OutputStream falseHaplotypesToOtherResultsClassified(
-					njh::files::make_path(setUp.pars_.directoryName_, "falseHaplotypesComparedToOthers.tab.txt"));
+					njh::files::make_path(setUp.pars_.directoryName_, "falseHaplotypesComparedToOthers.tsv"));
 	falseHaplotypesToOtherResultsClassified
 					<< "AnalysisName\tsample\tmix\tInputReadName\treadCnt\tfrac\tOtherName\tOtherReadCnt\tOtherFrac\tratio\tOtherMajor\tOtherMatchesExpected\tOtherExpectedMatchName\tIdentityScore\tbestMatchScore\tmismatches\toneBaseIndels\ttwoBaseIndels\tlargeIndels\ttotalErrors";
 
 
-	OutputStream haplotypesClassified(njh::files::make_path(setUp.pars_.directoryName_, "classifiedHaplotypes.tab.txt"));
+	OutputStream haplotypesClassified(njh::files::make_path(setUp.pars_.directoryName_, "classifiedHaplotypes.tsv"));
 	//haplotypesClassified << "AnalysisName\tsample\tmix\tInputReadName\tHapPopUID\tHapSampleCount\treadCnt\tfrac\tmatchExpected\texpectedRef\texpectedFrac\tMajorOrMinor\tmatchingPopulation\tPopName";
 	haplotypesClassified
 					<< "AnalysisName\tsample\tmix\tInputReadName\tHapPopUID\tHapSampleCount\treadCnt\tfrac\tmatchExpected\texpectedRef\texpectedFrac\tMajorOrMinor";
 
-	OutputStream performanceOut(njh::files::make_path(setUp.pars_.directoryName_, "performancePerTarget.tab.txt"));
+	OutputStream performanceOut(njh::files::make_path(setUp.pars_.directoryName_, "performancePerTarget.tsv"));
 	performanceOut
 					<< "AnalysisName\tsample\tmix\ttotalReads\trecoveredExpectedHaps\tfalseHaps\ttotalHaps\ttotalExpectedHaps\texpectedHapRecoveryRate\tfalseHapsRate\texpectedMissing\tRMSE";
 	VecStr metalevels;

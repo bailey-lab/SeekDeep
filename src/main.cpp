@@ -25,10 +25,33 @@
 // along with SeekDeep.  If not, see <http://www.gnu.org/licenses/>.
 //
 
+#include <utility>
+
 #include "SeekDeepPrograms.h"
 
-int main(int argc, char* argv[]) {
+//namespace njhseq {
+//
+//
+//int test(){
+//	{
+//		VecStr targets{"t1", "t2", "t100", "t10", "t22", "t99", "t9"};
+//		std::cout << njh::conToStr(targets) << std::endl;
+//		njh::naturalSortNameSet(targets);
+//		std::cout << njh::conToStr(targets) << std::endl;
+//	}
+//
+//	return 0;
+//}
+//
+//}  // namespace njhseq
+//
 
+
+
+
+
+int main(int argc, char* argv[]) {
+//	return njhseq::test();
 //	{
 //		std::string name = "M01380:70:000000000-B9CJY:1:2118:15005:24494 1:N:0:hu136 AGGAGTCC|0|TAGATCGC|0";
 //		//std::string BackUpIlluminaSampleRegPatStr_ = "([A-Za-z0-9_]+):([0-9]+):([A-Za-z0-9-]+):([0-9]+):([0-9]+):([0-9]+):([0-9]+) ([12]):([NY]):([0-9]):([A-z0-9_-+]+):([A-z0-9_-+]+) ([A-z0-9_|+-]+)( .*)?";

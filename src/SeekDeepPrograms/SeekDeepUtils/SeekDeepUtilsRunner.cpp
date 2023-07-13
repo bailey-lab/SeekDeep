@@ -47,7 +47,7 @@ SeekDeepUtilsRunner::SeekDeepUtilsRunner() :
 					addFunc("SampleBarcodeFileToSeekDeepInput", SampleBarcodeFileToSeekDeepInput, false),
 					addFunc("primersToFasta", primersToFasta, false),
 					addFunc("deRepPopClusDir", deRepPopClusDir, false),
-					addFunc("benchmarkControlMixtures", benchmarkControlMixturesOnProcessedClustersDir, false),
+					addFunc("benchmarkControlMixtures", benchmarkControlMixturesOnProcessedClustersDir, true),
 					addFunc("benchmarkControlMixturesOnProcessedClustersDir", benchmarkControlMixturesOnProcessedClustersDir, false),
 				}, //
 				"SeekDeepUtils") {
