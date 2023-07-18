@@ -642,8 +642,9 @@ int SeekDeepUtilsRunner::benchmarkMultiTarAmpControlMixtures(
 	alignerObj.countEndGaps_ = true;
 	alignerObj.processAlnInfoInput(setUp.pars_.alnInfoDirName_, false);
 	for (const auto &target: targetNames) {
-
-		std::cout << "target: " << target << std::endl;
+		if(setUp.pars_.verbose_){
+			std::cout << "target: " << target << std::endl;
+		}
 
 		for (const auto &sname: njh::mapAt(controlSamples,target )) {
 			//skip completely missing

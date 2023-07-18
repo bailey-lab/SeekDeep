@@ -132,7 +132,7 @@ int SeekDeepUtilsRunner::genTargetInfoFromGenomes(const njh::progutils::CmdArgs 
   KmerGatherer::KmerGathererPars countPars;
   countPars.noRevComp_ = true;
   countPars.kmerLength_ = 19;
-  countPars.entropyFilter_ = 1.75;
+  countPars.entropyFilter_ = 1.20;
 	uint32_t minOverlap  = 10;
 	seqSetUp setUp(inputCommands);
 	setUp.processVerbose();
