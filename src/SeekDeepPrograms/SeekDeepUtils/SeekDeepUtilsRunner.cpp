@@ -490,13 +490,13 @@ inline std::vector<njh::sys::RunOutput> runCmdsThreadedQueue(
 
 int SeekDeepUtilsRunner::runMultipleCommands(
 		const njh::progutils::CmdArgs & inputCommands) {
-	std::string filename = "";
-	std::string logFile = "";
+	std::string filename;
+	std::string logFile;
 	bfs::path logDir = "./";
 	uint32_t numThreads = 1;
 	bool raw = false;
 	bool noFilesInReplacementToks = false;
-	std::string additionalFields = "";
+	std::string additionalFields;
 	bool replaceFields = false;
 	seqSetUp setUp(inputCommands);
 	setUp.processVerbose();
@@ -535,7 +535,7 @@ int SeekDeepUtilsRunner::runMultipleCommands(
 		exit(1);
 	}
 	setUp.finishSetUp(std::cout);
-	if (logFile == "") {
+	if (logFile.empty()) {
 		logFile = njh::files::make_path(logDir, bfs::path(filename).filename().replace_extension("").string() + "_TODAY_Log.json").string();
 	}
 	std::ofstream outFile;
@@ -570,7 +570,7 @@ int SeekDeepUtilsRunner::runMultipleCommands(
 	if (raw) {
 		std::string line;
 		while (njh::files::crossPlatGetline(inFile, line)) {
-			if ("" == line || allWhiteSpaceStr(line) || njh::beginsWith(line, "#")) {
+			if (line.empty() || allWhiteSpaceStr(line) || njh::beginsWith(line, "#")) {
 				continue;
 			}
 			cmds.emplace_back(line);
@@ -579,11 +579,11 @@ int SeekDeepUtilsRunner::runMultipleCommands(
 		std::string line;
 		std::map<std::string, VecStr> replacements;
 		while (njh::files::crossPlatGetline(inFile, line)) {
-			if ("" == line || allWhiteSpaceStr(line) || njh::beginsWith(line, "#")) {
+			if (line.empty() || allWhiteSpaceStr(line) || njh::beginsWith(line, "#")) {
 				continue;
 			}
 
-			auto colonPos = line.find(":");
+			auto colonPos = line.find(':');
 
 			if (std::string::npos == colonPos) {
 				std::stringstream ss;
@@ -617,7 +617,7 @@ int SeekDeepUtilsRunner::runMultipleCommands(
 				}
 			}
 		}
-		if("" != additionalFields){
+		if(!additionalFields.empty()){
 			auto addFieldToks = tokenizeString(additionalFields, ";");
 			for(const auto & addFieldTok : addFieldToks){
 				auto colonPos = addFieldTok.find(":");
@@ -727,6 +727,8 @@ int SeekDeepUtilsRunner::runMultipleCommands(
 
 	allLog["totalTime"] = setUp.timer_.totalTime();
 	allLog["cmdsfile"] = njh::json::toJson(bfs::absolute(filename));
+	allLog["mastercmd"] = njh::json::toJson(setUp.commands_.commandLine_);
+
 	allLog["numThreads"] = njh::json::toJson(numThreads);
 
 	auto & cmdsLog = allLog["cmdsLog"];
