@@ -201,12 +201,12 @@ int SeekDeepUtilsRunner::genTargetInfoFromGenomes(const njh::progutils::CmdArgs 
 					reader.write(seq);
 				}
 			}
-      {
-        TwoBit::faToTwoBitPars twoBitPars;
-        twoBitPars.inputFilename = SeqIOOptions::genFastaInOut(primersRemovedFnp, primersRemovedFinalFnp).getPriamryOutName().string();
-        twoBitPars.outFilename = njh::files::bfs::path(twoBitPars.inputFilename).replace_extension(".2bit").string();
-        TwoBit::fastasToTwoBit(twoBitPars);
-      }
+//      {
+//        TwoBit::faToTwoBitPars twoBitPars;
+//        twoBitPars.inputFilename = SeqIOOptions::genFastaInOut(primersRemovedFnp, primersRemovedFinalFnp).getPriamryOutName().string();
+//        twoBitPars.outFilename = njh::files::bfs::path(twoBitPars.inputFilename).replace_extension(".2bit").string();
+//        TwoBit::fastasToTwoBit(twoBitPars);
+//      }
 			{
 				std::vector<uint32_t> readLengths;
 				SeqInput reader(SeqIOOptions::genFastaIn(extractedSeqsFnp));
@@ -251,17 +251,17 @@ int SeekDeepUtilsRunner::genTargetInfoFromGenomes(const njh::progutils::CmdArgs 
 
     KmerGatherer kGather(countPars);
 
-    std::unordered_map<std::string, std::set<std::string>> twobitsForSet;
+    std::unordered_map<std::string, std::set<std::string>> fastasForSet;
     for(const auto & tar : ids.getTargets()){
-      auto twoBitFnp = njh::files::make_path(refSeqsDir, tar + ".2bit");
-      if(bfs::exists(twoBitFnp)){
-        twobitsForSet[tar].emplace(twoBitFnp.string());
+      auto fastaFnp = njh::files::make_path(refSeqsDir, tar + ".fasta");
+      if(bfs::exists(fastaFnp)){
+				fastasForSet[tar].emplace(fastaFnp.string());
       }
     }
-    std::vector<bfs::path> twoBitFiles;
-    for(const auto & seqSet : twobitsForSet){
+    std::vector<bfs::path> fastaFiles;
+    for(const auto & seqSet : fastasForSet){
       for(const auto & fnp : seqSet.second){
-        twoBitFiles.emplace_back(fnp);
+				fastaFiles.emplace_back(fnp);
       }
     }
     std::map<std::string, std::set<uint64_t>> kmersPerSet;
@@ -273,19 +273,19 @@ int SeekDeepUtilsRunner::genTargetInfoFromGenomes(const njh::progutils::CmdArgs 
 
 
     {
-      auto allKmers = kGather.getUniqueKmersSetHashWithFilters(twoBitFiles);
+      auto allKmers = kGather.getUniqueKmersSetHashWithFiltersFromFastas(fastaFiles);
       setUp.rLog_.logCurrentTime("condense");
       setUp.rLog_.runLogFile_.flush();
-      njh::concurrent::LockableQueue<std::string> seqSetNamesQueue(getVectorOfMapKeys(twobitsForSet));
-      for(const auto & name : twobitsForSet){
+      njh::concurrent::LockableQueue<std::string> seqSetNamesQueue(getVectorOfMapKeys(fastasForSet));
+      for(const auto & name : fastasForSet){
         kmersPerSet[name.first] = std::set<uint64_t>{};
       }
-      std::function<void()> condenseKmers = [&seqSetNamesQueue,&allKmers,&twobitsForSet,&kmersPerSet](){
+      std::function<void()> condenseKmers = [&seqSetNamesQueue,&allKmers,&fastasForSet,&kmersPerSet](){
         std::string name;
         while(seqSetNamesQueue.getVal(name)){
           SimpleKmerHash hasher;
-          for(const auto & twobit : twobitsForSet.at(name)){
-            for(const auto & k : allKmers.at(twobit)){
+          for(const auto & fasta : fastasForSet.at(name)){
+            for(const auto & k : allKmers.at(fasta)){
               kmersPerSet[name].emplace(k);
             }
           }
