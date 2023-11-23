@@ -413,7 +413,7 @@ class Packages():
         name = "bamtools"
         buildCmd = "mkdir -p build && cd build && ZLIBADDFLAGS CC={CC} CXX={CXX} cmake -DCMAKE_INSTALL_PREFIX:PATH={local_dir} .. && make -j {num_cores} install"
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v2.5.0")
-        defaultZlibVersion = "1.2.11";
+        defaultZlibVersion = "1.3";
         zlibPack = self.__zlib()
         if self.args.noInternet:
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
@@ -826,8 +826,8 @@ class Packages():
         name = "flash"
         buildCmd = "CC={CC} CXX={CXX} ZLIBADDFLAGS make -j {num_cores} && mkdir -p {local_dir}/bin && cp flash {local_dir}/bin/"
         url = "https://github.com/nickjhathaway/flash.git"
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "1.2.11")
-        defaultZlibVersion = "1.2.11";
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "1.3")
+        defaultZlibVersion = "1.3";
         zlibPack = self.__zlib()
         if self.args.noInternet:
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
@@ -1081,7 +1081,7 @@ class Packages():
            && make -j {num_cores}
            && make -j {num_cores} install"""
         buildCmd = " ".join(buildCmd.split())
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "1.2.11")
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "1.3")
         if self.args.noInternet:
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
                 pack = pickle.load(inputPkl)
