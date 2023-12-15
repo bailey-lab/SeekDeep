@@ -226,18 +226,22 @@ int SeekDeepUtilsRunner::genTargetInfoFromGenomes(const njh::progutils::CmdArgs 
 				uint32_t maxInsertSize = 2* pars.pairedEndLength - minOverlap;
 
 				std::string status;
-				VecStr statuses;
+				std::set<std::string> statuses;
 				if(finalMaxSize > maxInsertSize){
-					statuses.emplace_back("NoOverLap");
-				}else{
+					statuses.emplace("NoOverLap");
+				} else {
 					if(finalMaxSize >= pars.pairedEndLength){
-						statuses.emplace_back("R1EndsInR2");
+						statuses.emplace("R1EndsInR2");
 					}
 					if(finalMinSize < pars.pairedEndLength){
-						if(!statuses.empty()){
-							statuses.emplace_back("PerfectOverlap");
-						}
-						statuses.emplace_back("R1BeginsInR2");
+						statuses.emplace("R1BeginsInR2");
+					}
+
+					if(finalMaxSize >= pars.pairedEndLength && finalMinSize < pars.pairedEndLength ||
+						(uAbsdiff(finalMaxSize, pars.pairedEndLength) < 10 || uAbsdiff(finalMinSize, pars.pairedEndLength) < 10)) {
+						//add PerfectOverlap as a possible overlap status if reference seqs are above and below the expected paired end reads
+						//or if the min or max size is within 10 bases of the paired end
+						statuses.emplace("PerfectOverlap");
 					}
 				}
 				overlapStatusOut << tar << "\t" << njh::conToStr(statuses, ",") << std::endl;
