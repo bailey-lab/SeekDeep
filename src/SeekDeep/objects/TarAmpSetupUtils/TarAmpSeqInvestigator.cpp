@@ -509,7 +509,7 @@ void TarAmpSeqInvestigator::investigateFile(const SeqIOOptions & opts, bool verb
 
 
 bool TarAmpSeqInvestigator::reverseComplementLikely(uint32_t minReadAmount, double cutOff) const {
-	bool ret = false;
+	// bool ret = false;
 	double totalReads = 0;
 	double totalReverseCount = 0;
 	for(const auto & row : primerCountsTab_){
@@ -523,7 +523,7 @@ bool TarAmpSeqInvestigator::reverseComplementLikely(uint32_t minReadAmount, doub
 			totalReverseCount += ReverseCount;
 			if(Total >=minReadAmount && reverseFraction >=cutOff){
 				//forward fraction should be less than 80%
-				ret = true;
+				// ret = true;
 				break;
 			}
 		}
@@ -685,12 +685,12 @@ VecStr TarAmpSeqInvestigator::recommendSeekDeepExtractorFlags() const {
 	auto maxPre = maxPrecedingBases();
 	VecStr recFlags{};
 	if(ids_.containsMids()){
-		bool containsDualBarcode = false;
+		// bool containsDualBarcode = false;
 		bool containsSingleBarcode = false;
 		for(const auto & id : ids_.mids_){
-			if(nullptr != id.second.forwardBar_ && nullptr != id.second.reverseBar_){
-				containsDualBarcode = true;
-			}
+			// if(nullptr != id.second.forwardBar_ && nullptr != id.second.reverseBar_){
+			// 	containsDualBarcode = true;
+			// }
 			if(nullptr != id.second.reverseBar_){
 				containsSingleBarcode = true;
 			}

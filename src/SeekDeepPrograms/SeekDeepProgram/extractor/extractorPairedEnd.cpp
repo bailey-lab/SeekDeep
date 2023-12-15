@@ -406,7 +406,7 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 			midReaderOuts.addReader(fullname + "good", goodDirOutOpts);
 		}
 
-		uint32_t barcodeCount = 1;
+		// uint32_t barcodeCount = 1;
 		njh::ProgressBar pbar(counts[barcodeName].first + counts[barcodeName].second);
 		pbar.progColors_ = pbar.RdYlGn_;
 
@@ -424,7 +424,7 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 			if (setUp.pars_.verbose_) {
 				pbar.outputProgAdd(std::cout, 1, true);
 			}
-			++barcodeCount;
+			// ++barcodeCount;
 			//find primers
 			//forward
 			std::string forwardPrimerName = "";

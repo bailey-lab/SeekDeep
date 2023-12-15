@@ -237,7 +237,7 @@ int SeekDeepUtilsRunner::genTargetInfoFromGenomes(const njh::progutils::CmdArgs 
 						statuses.emplace("R1BeginsInR2");
 					}
 
-					if(finalMaxSize >= pars.pairedEndLength && finalMinSize < pars.pairedEndLength ||
+					if((finalMaxSize >= pars.pairedEndLength && finalMinSize < pars.pairedEndLength) ||
 						(uAbsdiff(finalMaxSize, pars.pairedEndLength) < 10 || uAbsdiff(finalMinSize, pars.pairedEndLength) < 10)) {
 						//add PerfectOverlap as a possible overlap status if reference seqs are above and below the expected paired end reads
 						//or if the min or max size is within 10 bases of the paired end
@@ -443,7 +443,7 @@ inline std::vector<njh::sys::RunOutput> runCmdsThreadedQueue(
 	njh::concurrent::LockableQueue<std::string> cmdsQueue(cmds);
 	std::function<void()> runCmds = [&coutMut, &allOutputsMut, &ret, &verbose,&cmdsQueue]() {
 		std::string cmd = "";
-		uint32_t cmdNum = 0;
+		// uint32_t cmdNum = 0;
 		std::vector<njh::sys::RunOutput> currentRets;
 		bool run = cmdsQueue.getVal(cmd);
 		while(run) {
@@ -478,7 +478,7 @@ inline std::vector<njh::sys::RunOutput> runCmdsThreadedQueue(
 				currentRets.emplace_back(currentOut);
 			}
 			run = cmdsQueue.getVal(cmd);
-			++cmdNum;
+			// ++cmdNum;
 		}
 		{
 			std::lock_guard<std::mutex> lock(allOutputsMut);

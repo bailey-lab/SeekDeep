@@ -109,7 +109,7 @@ int SeekDeepRunner::extractor(const njh::progutils::CmdArgs & inputCommands) {
 	SeqOutput startsWtihBadQualOut(startsWtihBadQualOpts);
 
 	uint32_t smallFragmentCount = 0;
-	uint32_t startsWithBadQualCount = 0;
+	// uint32_t startsWithBadQualCount = 0;
 	uint64_t maxReadSize = 0;
 	uint32_t count = 0;
 	MultiSeqIO readerOuts;
@@ -180,7 +180,7 @@ int SeekDeepRunner::extractor(const njh::progutils::CmdArgs & inputCommands) {
 			readVecTrimmer::trimAtFirstQualScore(seq->seqBase_, pars.trimAtQualCutOff);
 			if(0 == len(*seq)){
 				startsWtihBadQualOut.openWrite(seq);
-				++startsWithBadQualCount;
+				// ++startsWithBadQualCount;
 				continue;
 			}
 		}
@@ -435,7 +435,7 @@ int SeekDeepRunner::extractor(const njh::progutils::CmdArgs & inputCommands) {
 			}
 		}
 
-		uint32_t barcodeCount = 1;
+		// uint32_t barcodeCount = 1;
 		njh::ProgressBar pbar(
 				counts[barcodeName].first + counts[barcodeName].second);
 		pbar.progColors_ = pbar.RdYlGn_;
@@ -444,7 +444,7 @@ int SeekDeepRunner::extractor(const njh::progutils::CmdArgs & inputCommands) {
 			if(setUp.pars_.verbose_){
 				pbar.outputProgAdd(std::cout, 1, true);
 			}
-			++barcodeCount;
+			// ++barcodeCount;
 			//filter on primers
 			//front primer determination
 			std::string frontPrimerName = "unrecognized";

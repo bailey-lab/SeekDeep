@@ -87,7 +87,7 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 	std::vector<std::shared_ptr<IlluminaNameFormatDecoder>> decodedNames;
 	if(!pars.dontFilterToMostCommonIlluminaSampleNumber_){
 		setUp.rLog_.logCurrentTime("Filtering for illumina input name");
-		uint32_t totalInputCount = 0;
+		// uint32_t totalInputCount = 0;
 		{
 			SeqInput counterIo(inputOpts);
 			counterIo.openIn();
@@ -103,7 +103,7 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 				}
 				decodedNames.emplace_back(decoder);
 				++sampleNumberCounts[decoder->getSampleNumber()];
-				++totalInputCount;
+				// ++totalInputCount;
 //				if(totalInputCount > pars.useCutOff && !pars.useAllInput){
 //					break;
 //				}

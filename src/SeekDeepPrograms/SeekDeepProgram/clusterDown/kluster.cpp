@@ -524,9 +524,9 @@ bool simpleCollapseWithParsWork(std::vector<cluster> & consensusReads,
 void simpleCollapseWithPars(std::vector<cluster> & consensusReads,
                             aligner & alignerObj,
                             const SimpleCollapsePars & collapsePars){
-  uint32_t rounds = 0;
+  // uint32_t rounds = 0;
   while(simpleCollapseWithParsWork(consensusReads, alignerObj, collapsePars)){
-    ++rounds;
+    // ++rounds;
   }
 }
 
