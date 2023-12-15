@@ -1460,7 +1460,8 @@ class Packages():
             refs = pack.getGitRefs(url)
             for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
                 pack.addVersion(url, ref)
-                pack.versions_[ref].additionalLdFlags_ = ["-lpthread", "-lz"]
+                #pack.versions_[ref].additionalLdFlags_ = ["-lpthread", "-lz"]
+                pack.versions_[ref].additionalLdFlags_ = ["-lpthread"]
                 if not Utils.isMac():
                     pack.versions_[ref].additionalLdFlags_.append("-lrt")
             Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
