@@ -37,7 +37,7 @@ class genHelper:
                     cxxFlags = cxxFlags[1:]
                 f.write("CXXFLAGS += " + cxxFlags +"\n")
             if "" != ldFlags:
-                f.write("LD_FLAGS = -Wl,-no_warn_duplicate_libraries ")
+                f.write("LD_FLAGS = ")
                 if not ldFlags.startswith("-"):
                     f.write("-")
                 f.write("{ld_flags}\n".format(ld_flags = " ".join(ldFlags.split(","))))
