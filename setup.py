@@ -898,7 +898,8 @@ class Packages():
     def __hts(self):
         name = "hts"
         url = "https://github.com/samtools/htslib.git"
-        buildCmd = "CC={CC} CXX={CXX} && autoheader && autoconf && ./configure --prefix={local_dir} && make -j {num_cores} && make install -j {num_cores}"
+        #buildCmd = "CC={CC} CXX={CXX} && autoheader && autoconf && ./configure --prefix={local_dir} && make -j {num_cores} && make install -j {num_cores}"
+        buildCmd = "CC={CC} CXX={CXX} && autoreconf -if && ./configure --prefix={local_dir} && make -j {num_cores} && make install -j {num_cores}"
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "1.3.1")
         if self.args.noInternet:
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
