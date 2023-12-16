@@ -56,6 +56,7 @@ class SeekDeepUtilsRunner : public njh::progutils::ProgramRunner {
 	static int deRepPopClusDir(const njh::progutils::CmdArgs & inputCommands);
 
 
+	static int variantCallOnSeqAndProtein(const njh::progutils::CmdArgs & inputCommands);
 };
 
 } // namespace njhseq

@@ -49,6 +49,7 @@ SeekDeepUtilsRunner::SeekDeepUtilsRunner() :
 					addFunc("deRepPopClusDir", deRepPopClusDir, false),
 					addFunc("benchmarkControlMixtures", benchmarkControlMixturesOnProcessedClustersDir, true),
 					addFunc("benchmarkControlMixturesOnProcessedClustersDir", benchmarkControlMixturesOnProcessedClustersDir, false),
+					addFunc("variantCallOnSeqAndProtein", variantCallOnSeqAndProtein, false),
 				}, //
 				"SeekDeepUtils") {
 }
