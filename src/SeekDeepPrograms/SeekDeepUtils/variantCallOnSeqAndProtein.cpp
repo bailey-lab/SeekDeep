@@ -37,8 +37,8 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	setUp.setOption(selectTargets, "--selectTargets", "Only analzye these select targets");
 	setUp.setOption(selectSamples, "--selectSamples", "Only analzye these select samples");
 
-	setUp.setOption(collapseVarCallPars.variantCallerRunPars.occurrenceCutOff, "--occurrenceCutOff", "Occurrence Cut Off, don't report variants below this count");
-	setUp.setOption(collapseVarCallPars.variantCallerRunPars.lowVariantCutOff, "--lowVariantCutOff", "Low Variant Cut Off, don't report variants below this fraction");
+	setUp.setOption(collapseVarCallPars.variantCallerRunPars.occurrenceCutOff, "--variantOccurrenceCutOff", "Occurrence Cut Off, don't report variants below this count");
+	setUp.setOption(collapseVarCallPars.variantCallerRunPars.lowVariantCutOff, "--variantFrequencyCutOff", "Low Variant Cut Off, don't report variants below this frequency");
 	collapseVarCallPars.calcPopMeasuresPars.lowVarFreq = collapseVarCallPars.variantCallerRunPars.lowVariantCutOff;
 	collapseVarCallPars.transPars.setOptions(setUp, true);
 	setUp.setOption(collapseVarCallPars.calcPopMeasuresPars.getPairwiseComps, "--getPairwiseComps", "get Pairwise comparison metrics");
@@ -117,7 +117,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 			if(!selectTargets.empty() && !njh::in(target, selectTargets)) {
 				continue;
 			}
-			
+
 			auto sample = row[sampInfoReader.header_.getColPos(sampleColName)];
 			//filter to just the select samples if filtering for that
 			if(!selectSamples.empty() && njh::notIn(sample, selectSamples)) {
@@ -331,7 +331,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	if(!metaFnp.empty() && exists(metaFnp)) {
 		bfs::copy_file(metaFnp, njh::files::make_path(reportsDir, "meta.tsv"));
 	}
-
+	TranslatorByAlignment::GetGenomicLocationsForAminoAcidPositionsRet locs;
 	if(!collapseVarCallPars.transPars.knownAminoAcidMutationsFnp_.empty()) {
 		//add known to bed files
 		TranslatorByAlignment::GetGenomicLocationsForAminoAcidPositionsPars parsForBedFileGen;
@@ -342,7 +342,12 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 		parsForBedFileGen.twoBitFnp = twoBitFnp;
 		parsForBedFileGen.proteinMutantTypingFnp = collapseVarCallPars.transPars.knownAminoAcidMutationsFnp_;
 
-		auto bedLocs = TranslatorByAlignment::getGenomicLocationsForAminoAcidPositions(parsForBedFileGen);
+		 locs = TranslatorByAlignment::getGenomicLocationsForAminoAcidPositions(parsForBedFileGen);
+
+		OutputStream transcriptOut(njh::files::make_path(reportsDir, "transcriptLocsForKnownAAChanges.bed"));
+		for(const auto & t : locs.transcriptLocs) {
+			transcriptOut << t.toDelimStrWithExtra() << std::endl;
+		}
 	}
 
 	//add what genes are intersecting with the
@@ -519,8 +524,20 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 				}
 			}
 		}
-		OutputStream pvcf(njh::files::make_path(reportsDir, "allProteinVariantCalls.vcf"));
-		firstPVcf.writeOutFixedAndSampleMeta(pvcf);
+		{
+			OutputStream pvcf(njh::files::make_path(reportsDir, "allProteinVariantCalls.vcf"));
+			firstPVcf.writeOutFixedAndSampleMeta(pvcf);
+		}
+
+		if(!collapseVarCallPars.transPars.knownAminoAcidMutationsFnp_.empty()) {
+			OutputStream pvcfOutFile(njh::files::make_path(reportsDir, "knownAAChangesProteinVariantCalls.vcf"));
+			std::vector<GenomicRegion> knownAAVariantRegions;
+			knownAAVariantRegions.reserve(locs.transcriptLocs.size());
+			for (const auto& b: locs.transcriptLocs) {
+				knownAAVariantRegions.emplace_back(b);
+			}
+			firstPVcf.writeOutFixedAndSampleMeta(pvcfOutFile, knownAAVariantRegions);
+		}
 	}
 	//process genomic
 	{
@@ -614,8 +631,19 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 				}
 			}
 		}
-		OutputStream pvcf(njh::files::make_path(reportsDir, "allGenomicVariantCalls.vcf"));
-		firstGVcf.writeOutFixedAndSampleMeta(pvcf);
+		{
+			OutputStream gvcfOutFile(njh::files::make_path(reportsDir, "allGenomicVariantCalls.vcf"));
+			firstGVcf.writeOutFixedAndSampleMeta(gvcfOutFile);
+		}
+		if(!collapseVarCallPars.transPars.knownAminoAcidMutationsFnp_.empty()) {
+			OutputStream gvcfOutFile(njh::files::make_path(reportsDir, "knownAAChangesGenomicVariantCalls.vcf"));
+			std::vector<GenomicRegion> knownSnpVariantRegions;
+			knownSnpVariantRegions.reserve(locs.genomicLocs.size());
+			for (const auto& b: locs.genomicLocs) {
+				knownSnpVariantRegions.emplace_back(b);
+			}
+			firstGVcf.writeOutFixedAndSampleMeta(gvcfOutFile, knownSnpVariantRegions);
+		}
 	}
 
 	//filter vcfs to just known amino acid changes
