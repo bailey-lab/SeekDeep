@@ -28,12 +28,14 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	uint32_t numThreads = 1;
 
 	CollapseAndCallVariantsPars collapseVarCallPars;
-	std::set<std::string> setTargets;
+	std::set<std::string> selectTargets;
+	std::set<std::string> selectSamples;
 
 	seqSetUp setUp(inputCommands);
 	setUp.processVerbose();
 	setUp.processDebug();
-	setUp.setOption(setTargets, "--setTargets", "Only analzye these targets");
+	setUp.setOption(selectTargets, "--selectTargets", "Only analzye these select targets");
+	setUp.setOption(selectSamples, "--selectSamples", "Only analzye these select samples");
 
 	setUp.setOption(collapseVarCallPars.variantCallerRunPars.occurrenceCutOff, "--occurrenceCutOff", "Occurrence Cut Off, don't report variants below this count");
 	setUp.setOption(collapseVarCallPars.variantCallerRunPars.lowVariantCutOff, "--lowVariantCutOff", "Low Variant Cut Off, don't report variants below this fraction");
@@ -44,10 +46,12 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	collapseVarCallPars.calcPopMeasuresPars.diagAlnPairwiseComps = !collapseVarCallPars.noDiagAlnPairwiseComps;
 	//setOption(collapseVarCallPars.ignoreSubFields, "--ignoreSubFields", "Meta Sub Field values to ignore when calculating variants, e.g. --ignoreSubFields \"isFieldSample:TRUE,PreferredSample:FALSE\"");
 	setUp.setOption(collapseVarCallPars.calcPopMeasuresPars.numThreads, "--mappingNumThreads", "Number of threads to use for the alignment portion");
+	setUp.setOption(collapseVarCallPars.metaFieldsToCalcPopDiffs, "--metaFieldsToCalcPopDiffs", "meta Fields To Calc Pop Diffs");
+
 
 	setUp.setOption(numThreads, "--numThreads", "Number of threads to use");
 
-	
+
 	setUp.setOption(resultsFnp, "--resultsFnp",
 									"results tab delimited file, each row is a haplotype, should have at least 5 columns, 1) sample (--sampleColName), 2)within sample freq (--withinSampleFreqColName), 3)within sample read count (--withinSampleReadCntColName), 4)haplotype pop ID (--popHapIdColName), 5)target name column (--targetNameColName), optionally 4th col with hap sequence (--popHapSeqColName) or read in from --popSeqsDirFnp",
 									true);
@@ -87,7 +91,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	std::unordered_map<std::string, std::unordered_map<std::string, std::string>> hPopUID_to_hConsensus;
 
 	std::set<std::string> targetNamesSet;
-	std::set<std::string> sampleNamesSet;
+	std::set<std::string> inputSampleNamesSet;
 	VecStr requiredColumns{sampleColName, withinSampleReadCntColName,
 												  withinSampleReadCntColName,
 												 popHapIdColName,
@@ -99,54 +103,62 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	//population seqs;
 	std::unordered_map<std::string, std::vector<seqInfo>> popSeqs;
 	auto sampInfoFnp = resultsFnp;
-	TableReader sampInfoReader(TableIOOpts::genTabFileIn(sampInfoFnp, true));
-	sampInfoReader.header_.checkForColumnsThrow(requiredColumns, __PRETTY_FUNCTION__);
-	VecStr row;
+
 	std::unordered_map<std::string, std::unordered_set<std::string>> allSamplesInOutput;
 	//key1 == target, key2 == sample
 	std::unordered_map<std::string, std::unordered_map<std::string, std::vector<seqInfo>>> allResultSeqs;
-	while (sampInfoReader.getNextRow(row)) {
-		auto target = row[sampInfoReader.header_.getColPos(targetNameColName)];
-		if(!setTargets.empty() && !njh::in(target, setTargets)) {
-			continue;
-		}
-		targetNamesSet.emplace(target);
-		auto sample = row[sampInfoReader.header_.getColPos(sampleColName)];
-
-		auto c_ReadCnt = njh::StrToNumConverter::stoToNum<double>(
-						row[sampInfoReader.header_.getColPos(withinSampleReadCntColName)]);
-		auto readCnt = njh::StrToNumConverter::stoToNum<double>(
-						row[sampInfoReader.header_.getColPos(withinSampleReadCntColName)]);
-
-		auto h_popUID = row[sampInfoReader.header_.getColPos(popHapIdColName)];
-		auto hapName = njh::pasteAsStr(sample, "__", h_popUID);
-		std::string hapSeq;
-		if (popSeqsDirFnp.empty()) {
-			hPopUID_to_hConsensus[target][h_popUID] = row[sampInfoReader.header_.getColPos(popHapSeqColName)];
-			hapSeq = row[sampInfoReader.header_.getColPos(popHapSeqColName)];
-		} else {
-			hapSeq = njh::mapAt(njh::mapAt(hPopUID_to_hConsensus, target), h_popUID);
-		}
-		seqInfo clus(hapName, hapSeq);
-		clus.cnt_ = c_ReadCnt;
-		bool add = true;
-		for (auto &seq: allResultSeqs[target][sample]) {
-			if (seq.seq_ == clus.seq_) {
-				add = false;
-				seq.cnt_ += c_ReadCnt;
-				readCountsPerHapPerSample[target][sample][hapName] += readCnt;
-				break;
+	{
+		TableReader sampInfoReader(TableIOOpts::genTabFileIn(sampInfoFnp, true));
+		sampInfoReader.header_.checkForColumnsThrow(requiredColumns, __PRETTY_FUNCTION__);
+		VecStr row;
+		while (sampInfoReader.getNextRow(row)) {
+			auto target = row[sampInfoReader.header_.getColPos(targetNameColName)];
+			//filter to just the select targets if filtering for that
+			if(!selectTargets.empty() && !njh::in(target, selectTargets)) {
+				continue;
 			}
+			
+			auto sample = row[sampInfoReader.header_.getColPos(sampleColName)];
+			//filter to just the select samples if filtering for that
+			if(!selectSamples.empty() && njh::notIn(sample, selectSamples)) {
+				continue;;
+			}
+			targetNamesSet.emplace(target);
+			auto c_ReadCnt = njh::StrToNumConverter::stoToNum<double>(
+							row[sampInfoReader.header_.getColPos(withinSampleReadCntColName)]);
+			auto readCnt = njh::StrToNumConverter::stoToNum<double>(
+							row[sampInfoReader.header_.getColPos(withinSampleReadCntColName)]);
+
+			auto h_popUID = row[sampInfoReader.header_.getColPos(popHapIdColName)];
+			auto hapName = njh::pasteAsStr(sample, "__", h_popUID);
+			std::string hapSeq;
+			if (popSeqsDirFnp.empty()) {
+				hPopUID_to_hConsensus[target][h_popUID] = row[sampInfoReader.header_.getColPos(popHapSeqColName)];
+				hapSeq = row[sampInfoReader.header_.getColPos(popHapSeqColName)];
+			} else {
+				hapSeq = njh::mapAt(njh::mapAt(hPopUID_to_hConsensus, target), h_popUID);
+			}
+			seqInfo clus(hapName, hapSeq);
+			clus.cnt_ = c_ReadCnt;
+			bool add = true;
+			for (auto &seq: allResultSeqs[target][sample]) {
+				if (seq.seq_ == clus.seq_) {
+					add = false;
+					seq.cnt_ += c_ReadCnt;
+					readCountsPerHapPerSample[target][sample][hapName] += readCnt;
+					break;
+				}
+			}
+			if (add) {
+				readCountsPerHapPerSample[target][sample][hapName] = readCnt;
+				allResultSeqs[target][sample].emplace_back(clus);
+			}
+			readVec::getMaxLength(clus, maxLen);
+			cNameToPopUID[target][hapName] = h_popUID;
+			hPopUIDPopSamps[target][h_popUID].emplace(sample);
+			allSamplesInOutput[target].emplace(sample);
+			inputSampleNamesSet.emplace(sample);
 		}
-		if (add) {
-			readCountsPerHapPerSample[target][sample][hapName] = readCnt;
-			allResultSeqs[target][sample].emplace_back(clus);
-		}
-		readVec::getMaxLength(clus, maxLen);
-		cNameToPopUID[target][hapName] = h_popUID;
-		hPopUIDPopSamps[target][h_popUID].emplace(sample);
-		allSamplesInOutput[target].emplace(sample);
-		sampleNamesSet.emplace(sample);
 	}
 
 
@@ -193,7 +205,6 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 			collapseVarCallParsForTar.outputDirectory = varCallDirPath;
 			collapseAndCallVariants(collapseVarCallParsForTar, inputSeqs);
 		}
-
 	};
 
 	njh::concurrent::runVoidFunctionThreaded(callVariants, numThreads	);
@@ -202,7 +213,19 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	auto reportsDir = njh::files::make_path(setUp.pars_.directoryName_, "reports");
 	njh::files::makeDir(njh::files::MkdirPar{reportsDir});
 	auto targetNamesVec = std::vector<std::string>(targetNamesSet.begin(), targetNamesSet.end());
-	njh::naturalSortNameSet(targetNamesVec	);
+	njh::naturalSortNameSet(targetNamesVec);
+
+	//get out the actual samples output were
+	std::set<std::string> sampleNamesSet;
+	for (const auto& tar: targetNamesVec) {
+		auto outputMetaFnp = njh::files::make_path(setUp.pars_.directoryName_, "/", tar, "/variantCalling/uniqueSeqs_meta.tab.txt.gz");
+		TableReader tabReader(TableIOOpts::genTabFileIn(outputMetaFnp));
+		VecStr row;
+		while(tabReader.getNextRow(row)) {
+			sampleNamesSet.emplace(row[tabReader.header_.getColPos("sample")]);
+		}
+	}
+
 	{
 		//sequence diversity
 		std::vector<bfs::path> seqDivMeasuresFnps;
