@@ -414,6 +414,9 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 		}
 		//add in blanks for any missing samples for any of the records
 		firstPVcf.addInBlnaksForAnyMissingSamples(sampleNamesSet);
+		if(firstPVcf.records_.empty()) {
+			firstPVcf.samples_ = VecStr{sampleNamesSet.begin(), sampleNamesSet.end()};
+		}
 		for(const auto & target : proteinVcfs) {
 			for(const auto & pvcfFnp : target.second) {
 				if(firstPVcfFnp == pvcfFnp) {
@@ -452,6 +455,47 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 		firstPVcf.addInBlnaksForAnyMissingSamples(sampleNamesSet);
 		firstPVcf.sortRecords();
 		//eliminate duplicate variant calls
+		/**@todo for now will just take the location with a larger number of samples, but would likely be beneficial to merge them */
+		{
+
+			if(firstPVcf.records_.size() > 1) {
+				std::set<uint32_t> positionsToErase;
+				std::set<uint32_t> currentPositionsToComp;
+				auto compSamePositions = [&currentPositionsToComp,&firstPVcf,&positionsToErase]() {
+					if(currentPositionsToComp.size() > 1) {
+						uint32_t bestPos = std::numeric_limits<uint32_t>::max();
+						uint32_t bestNS = 0;
+						for(const auto & checkPos : currentPositionsToComp) {
+							auto currentNS = firstPVcf.records_[checkPos].info_.getMeta<uint32_t>("NS");
+							if(currentNS > bestNS) {
+								bestNS = currentNS;
+								bestPos = checkPos;
+							}
+						}
+						for(const auto & checkPos : currentPositionsToComp) {
+							if(bestPos != checkPos) {
+								positionsToErase.emplace(checkPos);
+							}
+						}
+					}
+					currentPositionsToComp.clear();
+				};
+				for(uint32_t pos = 1; pos < firstPVcf.records_.size(); ++pos) {
+					if(firstPVcf.records_[pos].pos_ == firstPVcf.records_[pos-1].pos_ &&
+						firstPVcf.records_[pos].ref_ == firstPVcf.records_[pos-1].ref_) {
+						currentPositionsToComp.emplace(pos);
+						currentPositionsToComp.emplace(pos-1);
+					} else {
+						compSamePositions();
+					}
+				}
+				compSamePositions();
+				// std::cout << njh::conToStr(positionsToErase, ",") << std::endl;
+				for(const auto posToErase : iter::reversed(positionsToErase)) {
+					firstPVcf.records_.erase(firstPVcf.records_.begin() + posToErase);
+				}
+			}
+		}
 		OutputStream pvcf(njh::files::make_path(reportsDir, "allProteinVariantCalls.vcf"));
 		firstPVcf.writeOutFixedAndSampleMeta(pvcf);
 	}
@@ -465,6 +509,9 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 		}
 		//add in blanks for any missing samples for any of the records
 		firstGVcf.addInBlnaksForAnyMissingSamples(sampleNamesSet);
+		if(firstGVcf.records_.empty()) {
+			firstGVcf.samples_ = VecStr{sampleNamesSet.begin(), sampleNamesSet.end()};
+		}
 		for(const auto & target : genomicVcfs) {
 			for(const auto & gvcfFnp : target.second) {
 				if(firstGVcfFnp == gvcfFnp) {
@@ -502,7 +549,48 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 		}
 		firstGVcf.addInBlnaksForAnyMissingSamples(sampleNamesSet);
 		firstGVcf.sortRecords();
+		//eliminate duplicate variant calls
+		/**@todo for now will just take the location with a larger number of samples, but would likely be beneficial to merge them */
+		{
 
+			if(firstGVcf.records_.size() > 1) {
+				std::set<uint32_t> positionsToErase;
+				std::set<uint32_t> currentPositionsToComp;
+				auto compSamePositions = [&currentPositionsToComp,&firstGVcf,&positionsToErase]() {
+					if(currentPositionsToComp.size() > 1) {
+						uint32_t bestPos = std::numeric_limits<uint32_t>::max();
+						uint32_t bestNS = 0;
+						for(const auto & checkPos : currentPositionsToComp) {
+							auto currentNS = firstGVcf.records_[checkPos].info_.getMeta<uint32_t>("NS");
+							if(currentNS > bestNS) {
+								bestNS = currentNS;
+								bestPos = checkPos;
+							}
+						}
+						for(const auto & checkPos : currentPositionsToComp) {
+							if(bestPos != checkPos) {
+								positionsToErase.emplace(checkPos);
+							}
+						}
+					}
+					currentPositionsToComp.clear();
+				};
+				for(uint32_t pos = 1; pos < firstGVcf.records_.size(); ++pos) {
+					if(firstGVcf.records_[pos].pos_ == firstGVcf.records_[pos-1].pos_ &&
+						firstGVcf.records_[pos].ref_ == firstGVcf.records_[pos-1].ref_) {
+						currentPositionsToComp.emplace(pos);
+						currentPositionsToComp.emplace(pos-1);
+						} else {
+							compSamePositions();
+						}
+				}
+				compSamePositions();
+				// std::cout << njh::conToStr(positionsToErase, ",") << std::endl;
+				for(const auto posToErase : iter::reversed(positionsToErase)) {
+					firstGVcf.records_.erase(firstGVcf.records_.begin() + posToErase);
+				}
+			}
+		}
 		OutputStream pvcf(njh::files::make_path(reportsDir, "allGenomicVariantCalls.vcf"));
 		firstGVcf.writeOutFixedAndSampleMeta(pvcf);
 	}
