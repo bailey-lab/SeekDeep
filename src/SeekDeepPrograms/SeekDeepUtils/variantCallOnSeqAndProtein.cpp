@@ -60,7 +60,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	setUp.setOption(withinSampleReadCntColName, "--withinSampleReadCntColName", "within Sample Read Cnt Col Column Name", false, "Results Column Names");
 	setUp.setOption(popHapIdColName, "--popHapIdColName", "popHapIdColName", false, "Results Column Names");
 	setUp.setOption(popHapSeqColName, "--popHapSeqColName",
-									"population Haplotype Sequence Column Name, the seq to compare to expected", false, "Results Column Names");
+									"population Haplotype Sequence Column Name, the seq to call variants on", false, "Results Column Names");
 	setUp.setOption(targetNameColName, "--targetNameColName",
 									"target Name Column Name, the column name in the table which indicates the different targets", false, "Results Column Names");
 
