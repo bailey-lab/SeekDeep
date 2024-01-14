@@ -16,7 +16,7 @@ namespace njhseq {
 
 int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 		const njh::progutils::CmdArgs & inputCommands) {
-	VecStr acceptableTechs{"454", "IonTorrent", "Illumina", "Illumina-SingleEnd", "Nanopore"};
+	VecStr acceptableTechs{"454", "IonTorrent", "Illumina", "Illumina-SingleEnd", "Nanopore", "Pacbio"};
 	TarAmpAnalysisSetup::TarAmpPars pars;
 	seqSetUp setUp(inputCommands);
 	setUp.processVerbose();
@@ -50,7 +50,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	setUp.setOption(pars.samplesNamesFnp, "--samples", "A file containing the samples names, columns should go target,sample,pcr1,pcr2(optional)",
 			false, "ID Files");
 
-  setUp.setOption(pars.uniqueKmersPerTarget, "--uniqueKmersPerTarget", "unique Kmers Per Target", pars.techIsNanopore());
+  setUp.setOption(pars.uniqueKmersPerTarget, "--uniqueKmersPerTarget", "unique Kmers Per Target", pars.techIsNanoporeOrPacbio());
 	std::string overlapStatus{"auto"};
 	std::set<std::string> allowableOverlapStatuses{"AUTO", "R1BEGINSINR2", "R1ENDSINR2", "NOOVERLAP", "ALL"};
 
@@ -156,7 +156,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	setUp.setOption(pars.rescueFilteredHaplotypes, "--rescueFilteredHaplotypes", "Add on resuce of haplotypes that filtered due to low frequency or chimera filtering if it appears as a major haplotype in another sample", false, "processClusters");
 	setUp.setOption(pars.groupMeta, "--groupMeta", "Group Metadata", false, "Meta");
 	setUp.setOption(pars.lenCutOffsFnp, "--lenCutOffs",
-			"A file with 3 columns, 1)target, 2)minlen, 3)maxlen to supply length cut off specifically for each target", pars.techIsNanopore(), "Extractor");
+			"A file with 3 columns, 1)target, 2)minlen, 3)maxlen to supply length cut off specifically for each target", pars.techIsNanoporeOrPacbio(), "Extractor");
 	setUp.setOption(pars.refSeqsDir, "--refSeqsDir",
 			"A directory of fasta files where each file is named with the input target names", false, "Extractor");
   setUp.setOption(pars.previousPopSeqsDir, "--previousPopSeqsDir",
@@ -555,7 +555,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 		if (analysisSetup.pars_.techIsIllumina()) {
 			extractorCmdTemplate = setUp.commands_.masterProgram_
 					+ " extractorPairedEnd --dout {INDEX}_extraction --overWriteDir  "  ;
-		} else if (analysisSetup.pars_.techIsNanopore()) {
+		} else if (analysisSetup.pars_.techIsNanoporeOrPacbio()) {
       extractorCmdTemplate = setUp.commands_.masterProgram_
                              + " extractorByKmerMatching --dout {INDEX}_extraction --overWriteDir  "
                                " --uniqueKmersPerTarget info/ids/{TARS}_uniqueKmers.tab.txt.gz "
@@ -607,7 +607,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 						    "--illumina --qualThres 25,20"
 						;
 
-		if (pars.useKlusterClustering_ || pars.techIsNanopore()) {
+		if (pars.useKlusterClustering_ || pars.techIsNanoporeOrPacbio()) {
 			qlusterCmdTemplate =
 							"cd \"" + extractionDirs.string() + "\" && "
 							+ "if [ -f {TARGET}{MIDREP}.fastq.gz  ]; then "
@@ -791,7 +791,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 			 extractorCmdTemplate =
 							setUp.commands_.masterProgram_
 									+ " extractorPairedEnd --dout {REP}_extraction --overWriteDir  ";
-    } else if (analysisSetup.pars_.techIsNanopore()) {
+    } else if (analysisSetup.pars_.techIsNanoporeOrPacbio()) {
       extractorCmdTemplate = setUp.commands_.masterProgram_
                              + " extractorByKmerMatching --dout {REP}_extraction --overWriteDir  "
                                " --uniqueKmersPerTarget info/ids/{TARS}_uniqueKmers.tab.txt.gz "
@@ -843,7 +843,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 						"--overWrite --dout {TARGET}{MIDREP}_{MATEFILE}_qlusterOut "
 						"--illumina --qualThres 25,20";
 
-		if(pars.useKlusterClustering_ || pars.techIsNanopore()){
+		if(pars.useKlusterClustering_ || pars.techIsNanoporeOrPacbio()){
       qlusterCmdTemplate =
           "cd \"" + extractionDirs.string() + "\" && "
           + "if [ -f {TARGET}{MIDREP}.fastq.gz  ]; then "
@@ -1046,7 +1046,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 					+ " processClusters "
 							"--alnInfoDir alnCache --strictErrors --dout analysis --fastqgz output.fastq.gz --overWriteDir ";
 
-  if(pars.techIsNanopore()){
+  if(pars.techIsNanoporeOrPacbio()){
     processClusterTemplate += " --allowHomopolymerCollapse --qualThres 15,10 ";
   }
 

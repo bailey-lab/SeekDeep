@@ -110,6 +110,9 @@ public:
 		bool techIsIlluminaSingleEnd() const;
 		bool techIsIonTorrent() const;
 		bool techIsNanopore() const;
+		bool techIsPacbio() const;
+		bool techIsNanoporeOrPacbio() const;
+
 /*
  * pars.technology != "454" && pars.technology != "iontorrent" && pars.technology != "illumina"
  */

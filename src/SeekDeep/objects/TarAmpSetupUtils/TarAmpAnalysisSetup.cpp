@@ -79,6 +79,14 @@ bool TarAmpAnalysisSetup::TarAmpPars::techIsNanopore() const {
 	return "nanopore" == technology;
 }
 
+bool TarAmpAnalysisSetup::TarAmpPars::techIsPacbio() const {
+	return "pacbio" == technology;
+}
+
+bool TarAmpAnalysisSetup::TarAmpPars::techIsNanoporeOrPacbio() const {
+	return "nanopore" == technology || "pacbio" == technology;
+}
+
 
 bool TarAmpAnalysisSetup::TarAmpPars::checkForRequiredFnpPars(
 		VecStr & warnings) const {
