@@ -1144,23 +1144,22 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 			//by default will analyze R1 and R2 as two separate targets
 			genConfigCmds.emplace_back(
 					njh::replaceString(
-							genConfigTemplate + " --mainDir popClustering/{TARGET}/analysis",
+							genConfigTemplate + " --overWrite --mainDir popClustering/{TARGET}/analysis",
 							"{TARGET}", tar + "-R1"));
 			genConfigCmds.emplace_back(
 					njh::replaceString(
-							genConfigTemplate + " --mainDir popClustering/{TARGET}/analysis",
+							genConfigTemplate + " --overWrite --mainDir popClustering/{TARGET}/analysis",
 							"{TARGET}", tar + "-R2"));
-		}else{
+		} else {
 			genConfigCmds.emplace_back(
 					njh::replaceString(
-							genConfigTemplate + " --mainDir popClustering/{TARGET}/analysis",
+							genConfigTemplate + " --overWrite --mainDir popClustering/{TARGET}/analysis",
 							"{TARGET}", tar));
 		}
 	}
 	OutOptions genConfigCmdsOpts(
 			njh::files::make_path(analysisSetup.dir_, "genConfigCmds.txt"));
-	std::ofstream genConfigCmdsFile;
-	openTextFile(genConfigCmdsFile, genConfigCmdsOpts);
+	OutputStream genConfigCmdsFile(genConfigCmdsOpts);
 	printVector(genConfigCmds, "\n", genConfigCmdsFile);
 
 	//start server config
