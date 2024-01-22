@@ -57,6 +57,8 @@ class SeekDeepUtilsRunner : public njh::progutils::ProgramRunner {
 
 
 	static int variantCallOnSeqAndProtein(const njh::progutils::CmdArgs & inputCommands);
+	static int variantCallOnSeqAndProteinPost(const njh::progutils::CmdArgs & inputCommands);
+
 };
 
 } // namespace njhseq
