@@ -439,7 +439,8 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProteinPost(
 										} else if(!altsNotInBestPos.empty()){
 											//all other samples have to add the missing alts from the replacement
 											//if the replacement is also missing the original alts this will handle that as well
-											auto newAlts = concatVecs(firstPVcf.records_[bestRowPositionWithData].alts_, firstPVcf.records_[bestPos].alts_);
+											auto newAltsSet = njh::vecToSet(concatVecs(firstPVcf.records_[bestRowPositionWithData].alts_, firstPVcf.records_[bestPos].alts_));
+											VecStr newAlts(newAltsSet.begin(), newAltsSet.end());
 											njh::sort(newAlts);
 											std::unordered_map<std::string, uint32_t> altsInBestPosKey;
 											for(const auto & idx : iter::enumerate(firstPVcf.records_[bestPos].alts_)) {
@@ -599,12 +600,12 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProteinPost(
 			}
 		}
 		{
-			OutputStream pvcf(njh::files::make_path(reportsDir, "allProteinVariantCalls.vcf"));
+			OutputStream pvcf(njh::files::make_path(reportsDir, "allProteinVariantCalls.vcf.gz"));
 			firstPVcf.writeOutFixedAndSampleMeta(pvcf);
 		}
 
 		if(!collapseVarCallPars.transPars.knownAminoAcidMutationsFnp_.empty()) {
-			OutputStream pvcfOutFile(njh::files::make_path(reportsDir, "knownAAChangesProteinVariantCalls.vcf"));
+			OutputStream pvcfOutFile(njh::files::make_path(reportsDir, "knownAAChangesProteinVariantCalls.vcf.gz"));
 			std::vector<GenomicRegion> knownAAVariantRegions;
 			knownAAVariantRegions.reserve(locs.transcriptLocs.size());
 			for (const auto& b: locs.transcriptLocs) {
@@ -940,11 +941,11 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProteinPost(
 			}
 		}
 		{
-			OutputStream gvcfOutFile(njh::files::make_path(reportsDir, "allGenomicVariantCalls.vcf"));
+			OutputStream gvcfOutFile(njh::files::make_path(reportsDir, "allGenomicVariantCalls.vcf.gz"));
 			firstGVcf.writeOutFixedAndSampleMeta(gvcfOutFile);
 		}
 		if(!collapseVarCallPars.transPars.knownAminoAcidMutationsFnp_.empty()) {
-			OutputStream gvcfOutFile(njh::files::make_path(reportsDir, "knownAAChangesGenomicVariantCalls.vcf"));
+			OutputStream gvcfOutFile(njh::files::make_path(reportsDir, "knownAAChangesGenomicVariantCalls.vcf.gz"));
 			std::vector<GenomicRegion> knownSnpVariantRegions;
 			knownSnpVariantRegions.reserve(locs.genomicLocs.size());
 			for (const auto& b: locs.genomicLocs) {
