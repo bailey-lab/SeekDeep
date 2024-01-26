@@ -7,36 +7,26 @@
 
 namespace njhseq {
 
-int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
+
+int SeekDeepUtilsRunner::variantCallOnSeqAndProteinPost(
 				const njh::progutils::CmdArgs &inputCommands) {
 
 
-	bfs::path resultsFnp;
-	std::string sampleColName = "s_Sample";
-	std::string withinSampleReadCntColName = "c_ReadCnt";
-	std::string popHapIdColName = "h_popUID";
-	std::string popHapSeqColName = "h_Consensus";
-
-	std::string targetNameColName = "p_name";
-
-	bfs::path popSeqsDirFnp = "";
+	bfs::path resultDirs;
 
 	bfs::path metaFnp = "";
 	bool doNotRescueVariantCallsAccrossTargets = false;
-	std::string popSeqsRegexPatRemoval = R"(_([tf])?\d+(\.\d+)?$)";
 	uint32_t numThreads = 1;
 
 	CollapseAndCallVariantsPars collapseVarCallPars;
-	std::set<std::string> selectTargets;
-	std::set<std::string> selectSamples;
+	std::set<std::string> targetNamesSet;
 
 	seqSetUp setUp(inputCommands);
 	setUp.processVerbose();
 	setUp.processDebug();
 	setUp.setOption(doNotRescueVariantCallsAccrossTargets, "--doNotRescueVariantCallsAccrossTargets", "do Not Rescue Variant Calls Accross Targets");
 
-	setUp.setOption(selectTargets, "--selectTargets", "Only analzye these select targets");
-	setUp.setOption(selectSamples, "--selectSamples", "Only analzye these select samples");
+	setUp.setOption(targetNamesSet, "--selectTargets", "Only analzye these select targets", true);
 
 	setUp.setOption(collapseVarCallPars.variantCallerRunPars.occurrenceCutOff, "--variantOccurrenceCutOff", "Occurrence Cut Off, don't report variants below this count");
 	setUp.setOption(collapseVarCallPars.variantCallerRunPars.lowVariantCutOff, "--variantFrequencyCutOff", "Low Variant Cut Off, don't report variants below this frequency");
@@ -46,38 +36,23 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	setUp.setOption(collapseVarCallPars.noDiagAlnPairwiseComps, "--noDiagAlnPairwiseComps", "Use diagonal Alignment for Pairwise Comparisons");
 	collapseVarCallPars.calcPopMeasuresPars.diagAlnPairwiseComps = !collapseVarCallPars.noDiagAlnPairwiseComps;
 	//setOption(collapseVarCallPars.ignoreSubFields, "--ignoreSubFields", "Meta Sub Field values to ignore when calculating variants, e.g. --ignoreSubFields \"isFieldSample:TRUE,PreferredSample:FALSE\"");
-	setUp.setOption(collapseVarCallPars.calcPopMeasuresPars.numThreads, "--mappingNumThreads", "Number of threads to use for the alignment portion");
 	setUp.setOption(collapseVarCallPars.metaFieldsToCalcPopDiffs, "--metaFieldsToCalcPopDiffs", "meta Fields To Calc Pop Diffs");
 
 
 	setUp.setOption(numThreads, "--numThreads", "Number of threads to use");
 
 
-	setUp.setOption(resultsFnp, "--resultsFnp",
-									"results tab delimited file, each row is a haplotype, should have at least 5 columns, 1) sample (--sampleColName), 2)within sample freq (--withinSampleFreqColName), 3)within sample read count (--withinSampleReadCntColName), 4)haplotype pop ID (--popHapIdColName), 5)target name column (--targetNameColName), optionally 4th col with hap sequence (--popHapSeqColName) or read in from --popSeqsDirFnp",
-									true);
 
-	setUp.setOption(sampleColName, "--sampleColName", "sample Column Name", false, "Results Column Names");
-	setUp.setOption(withinSampleReadCntColName, "--withinSampleReadCntColName", "within Sample Read Cnt Col Column Name", false, "Results Column Names");
-	setUp.setOption(popHapIdColName, "--popHapIdColName", "popHapIdColName", false, "Results Column Names");
-	setUp.setOption(popHapSeqColName, "--popHapSeqColName",
-									"population Haplotype Sequence Column Name, the seq to call variants on", false, "Results Column Names");
-	setUp.setOption(targetNameColName, "--targetNameColName",
-									"target Name Column Name, the column name in the table which indicates the different targets", false, "Results Column Names");
-
-	setUp.setOption(popSeqsDirFnp, "--popSeqsDirFnp",
-									"Population Sequences, in this directory should be a fasta file with the name of each target");
+	setUp.setOption(resultDirs, "--resultDirs", "resultDirs", true);
 
 	setUp.setOption(metaFnp, "--metaFnp", "meta data for the control samples");
-	setUp.setOption(popSeqsRegexPatRemoval, "--popSeqsRegexPatRemoval",
-									"optional regex pattern to process the input pop sequences from --popSeqsFnp to make it match up with the input results folder");
 
 	setUp.processDirectoryOutputName("variantCalling_TODAY", true);
 	setUp.finishSetUp(std::cout);
 	setUp.startARunLog(setUp.pars_.directoryName_);
 
 
-	njh::files::checkExistenceThrow({resultsFnp},
+	njh::files::checkExistenceThrow({resultDirs},
 																	__PRETTY_FUNCTION__);
 
 
@@ -86,129 +61,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	if (exists(metaFnp)) {
 		metaGroupData = std::make_unique<MultipleGroupMetaData>(metaFnp);
 	}
-	std::unordered_map<std::string, std::unordered_map<std::string, std::unordered_map<std::string, double>>> readCountsPerHapPerSample;
-	std::unordered_map<std::string, std::unordered_map<std::string, std::string>> cNameToPopUID;
-	std::unordered_map<std::string, std::unordered_map<std::string, std::set<std::string>>> hPopUIDPopSamps;
-	std::unordered_map<std::string, std::unordered_map<std::string, std::string>> hPopUID_to_hConsensus;
 
-	std::set<std::string> targetNamesSet;
-	std::set<std::string> inputSampleNamesSet;
-	VecStr requiredColumns{sampleColName, withinSampleReadCntColName,
-												  withinSampleReadCntColName,
-												 popHapIdColName,
-												 targetNameColName};
-	if (!exists(popSeqsDirFnp)) {
-		requiredColumns.emplace_back(popHapSeqColName);
-	}
-	uint64_t maxLen = 0;
-	//population seqs;
-	std::unordered_map<std::string, std::vector<seqInfo>> popSeqs;
-	auto sampInfoFnp = resultsFnp;
-
-	std::unordered_map<std::string, std::unordered_set<std::string>> allSamplesInOutput;
-	//key1 == target, key2 == sample
-	std::unordered_map<std::string, std::unordered_map<std::string, std::vector<seqInfo>>> allResultSeqs;
-	{
-		TableReader sampInfoReader(TableIOOpts::genTabFileIn(sampInfoFnp, true));
-		sampInfoReader.header_.checkForColumnsThrow(requiredColumns, __PRETTY_FUNCTION__);
-		VecStr row;
-		while (sampInfoReader.getNextRow(row)) {
-			auto target = row[sampInfoReader.header_.getColPos(targetNameColName)];
-			//filter to just the select targets if filtering for that
-			if(!selectTargets.empty() && !njh::in(target, selectTargets)) {
-				continue;
-			}
-
-			auto sample = row[sampInfoReader.header_.getColPos(sampleColName)];
-			//filter to just the select samples if filtering for that
-			if(!selectSamples.empty() && njh::notIn(sample, selectSamples)) {
-				continue;;
-			}
-			targetNamesSet.emplace(target);
-			auto c_ReadCnt = njh::StrToNumConverter::stoToNum<double>(
-							row[sampInfoReader.header_.getColPos(withinSampleReadCntColName)]);
-			auto readCnt = njh::StrToNumConverter::stoToNum<double>(
-							row[sampInfoReader.header_.getColPos(withinSampleReadCntColName)]);
-
-			auto h_popUID = row[sampInfoReader.header_.getColPos(popHapIdColName)];
-			auto hapName = njh::pasteAsStr(sample, "__", h_popUID);
-			std::string hapSeq;
-			if (popSeqsDirFnp.empty()) {
-				hPopUID_to_hConsensus[target][h_popUID] = row[sampInfoReader.header_.getColPos(popHapSeqColName)];
-				hapSeq = row[sampInfoReader.header_.getColPos(popHapSeqColName)];
-			} else {
-				hapSeq = njh::mapAt(njh::mapAt(hPopUID_to_hConsensus, target), h_popUID);
-			}
-			seqInfo clus(hapName, hapSeq);
-			clus.cnt_ = c_ReadCnt;
-			bool add = true;
-			for (auto &seq: allResultSeqs[target][sample]) {
-				if (seq.seq_ == clus.seq_) {
-					add = false;
-					seq.cnt_ += c_ReadCnt;
-					readCountsPerHapPerSample[target][sample][hapName] += readCnt;
-					break;
-				}
-			}
-			if (add) {
-				readCountsPerHapPerSample[target][sample][hapName] = readCnt;
-				allResultSeqs[target][sample].emplace_back(clus);
-			}
-			readVec::getMaxLength(clus, maxLen);
-			cNameToPopUID[target][hapName] = h_popUID;
-			hPopUIDPopSamps[target][h_popUID].emplace(sample);
-			allSamplesInOutput[target].emplace(sample);
-			inputSampleNamesSet.emplace(sample);
-		}
-	}
-
-
-	if (!exists(popSeqsDirFnp)) {
-		for (const auto &tarPopHaps: hPopUID_to_hConsensus) {
-			for (const auto &popHap: tarPopHaps.second) {
-				popSeqs[tarPopHaps.first].emplace_back(popHap.first, popHap.second);
-			}
-		}
-	}
-
-	//write out seqs
-	for(const auto & tar : allResultSeqs) {
-		auto tarDir = njh::files::make_path(setUp.pars_.directoryName_, tar.first);
-		njh::files::makeDir(njh::files::MkdirPar{tarDir});
-		auto outSeqOpts = SeqIOOptions::genFastaOutGz(njh::files::make_path(setUp.pars_.directoryName_, tar.first, "inputSeqs.fasta.gz"));
-		SeqOutput writer(outSeqOpts);
-		writer.openOut();
-		for(const auto & sampSeqs : tar.second) {
-			for( auto  seq : sampSeqs.second) {
-				MetaDataInName meta;
-				if(nullptr != metaGroupData) {
-					meta = metaGroupData->getMetaForSample(sampSeqs.first);
-				}
-				meta.addMeta("sample", sampSeqs.first, true);
-				meta.addMeta("readCount", std::max(1.0, std::round(seq.cnt_)), true);
-				meta.resetMetaInName(seq.name_);
-				writer.write(seq);
-			}
-		}
-	}
-
-
-	njh::concurrent::LockableQueue<std::string> targetNamesQueue(targetNamesSet);
-
-	std::function<void()> callVariants = [&collapseVarCallPars,&targetNamesQueue, &setUp]() {
-		std::string target;
-		while(targetNamesQueue.getVal(target)) {
-			auto inputSeqsOpts = SeqIOOptions::genFastaInGz(njh::files::make_path(setUp.pars_.directoryName_, target, "inputSeqs.fasta.gz"));
-			auto inputSeqs = SeqInput::getSeqVec<seqInfo>(inputSeqsOpts);
-			const auto varCallDirPath = njh::files::make_path(setUp.pars_.directoryName_, target,  "variantCalling");
-			auto collapseVarCallParsForTar = collapseVarCallPars;
-			collapseVarCallParsForTar.identifier = target;
-			collapseVarCallParsForTar.outputDirectory = varCallDirPath;
-			collapseAndCallVariants(collapseVarCallParsForTar, inputSeqs);
-		}
-	};
-
-	njh::concurrent::runVoidFunctionThreaded(callVariants, numThreads	);
 
 	//concatenate diversity calls
 	auto reportsDir = njh::files::make_path(setUp.pars_.directoryName_, "reports");
@@ -219,7 +72,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	//get out the actual samples output were
 	std::set<std::string> sampleNamesSet;
 	for (const auto& tar: targetNamesVec) {
-		auto outputMetaFnp = njh::files::make_path(setUp.pars_.directoryName_, "/", tar, "/variantCalling/uniqueSeqs_meta.tab.txt.gz");
+		auto outputMetaFnp = njh::files::make_path(resultDirs.string(), "/", tar, "/variantCalling/uniqueSeqs_meta.tab.txt.gz");
 		TableReader tabReader(TableIOOpts::genTabFileIn(outputMetaFnp));
 		VecStr row;
 		while(tabReader.getNextRow(row)) {
@@ -231,7 +84,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 		//sequence diversity
 		std::vector<bfs::path> seqDivMeasuresFnps;
 		for (const auto& tar: targetNamesVec) {
-			auto divFnp = njh::pasteAsStr(setUp.pars_.directoryName_, "/", tar, "/variantCalling/divMeasures.tab.txt");
+			auto divFnp = njh::pasteAsStr(resultDirs.string(), "/", tar, "/variantCalling/divMeasures.tab.txt");
 			if (bfs::exists(divFnp) && 0 != njh::files::bfs::file_size(divFnp)) {
 				seqDivMeasuresFnps.emplace_back(divFnp);
 			}
@@ -269,7 +122,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 		//translated diversity
 		std::vector<bfs::path> transDivMeasuresFnps;
 		for (const auto& tar: targetNamesVec) {
-			auto divFnp = njh::pasteAsStr(setUp.pars_.directoryName_, "/", tar, "/variantCalling/variantCalls/translatedDivMeasures.tab.txt");
+			auto divFnp = njh::pasteAsStr(resultDirs.string(), "/", tar, "/variantCalling/variantCalls/translatedDivMeasures.tab.txt");
 			if (bfs::exists(divFnp) && 0 != njh::files::bfs::file_size(divFnp)) {
 				transDivMeasuresFnps.emplace_back(divFnp);
 			}
@@ -304,29 +157,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 		}
 	}
 
-	//all samples and target coverage counts
-	{
-		OutputStream readCountsOut(njh::files::make_path(reportsDir, "readCountsPerSamplePerTarget.tsv.gz"));
 
-		OutputStream hapCountsOut(njh::files::make_path(reportsDir, "hapCountsPerSamplePerTarget.tsv.gz"));
-		hapCountsOut << "target\t" << njh::conToStr(sampleNamesSet, "\t") << std::endl;
-		readCountsOut << "target\t" << njh::conToStr(sampleNamesSet, "\t") << std::endl;
-
-		for(const auto & tar : targetNamesVec) {
-			hapCountsOut << tar;
-			readCountsOut << tar;
-			for(const auto & samp : sampleNamesSet) {
-				hapCountsOut << "\t" << allResultSeqs[tar][samp].size();
-				uint32_t currentReadCount = 0;
-				for(const auto & r : allResultSeqs[tar][samp]) {
-					currentReadCount += r.cnt_;
-				}
-				readCountsOut << "\t" << currentReadCount;
-			}
-			hapCountsOut << std::endl;
-			readCountsOut << std::endl;
-		}
-	}
 
 	//copy in meta
 	if(!metaFnp.empty() && exists(metaFnp)) {
@@ -355,7 +186,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	{
 		table overlappingGeneInfo(VecStr{"target", "geneInfo"});
 		for(const auto & target : targetNamesVec) {
-			auto geneBedFiles = njh::files::listAllFiles(njh::files::make_path(setUp.pars_.directoryName_, "/", target, "/variantCalling/variantCalls/geneInfos"),false,
+			auto geneBedFiles = njh::files::listAllFiles(njh::files::make_path(resultDirs.string(), "/", target, "/variantCalling/variantCalls/geneInfos"),false,
 				std::vector<std::regex>{std::regex{".*.bed"}},
 				std::vector<std::regex>{std::regex{".*_exonIntronPositions.bed"}});
 			for(const auto  & f : geneBedFiles) {
@@ -381,7 +212,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	std::unordered_map<std::string, uint32_t> untranslatableHapCounts;
 	for(const auto & target : targetNamesVec) {
 		{
-			auto unmappableFnp = njh::files::make_path(setUp.pars_.directoryName_, "/", target, "/variantCalling/variantCalls/seqsUnableToBeMapped.txt");
+			auto unmappableFnp = njh::files::make_path(resultDirs.string(), "/", target, "/variantCalling/variantCalls/seqsUnableToBeMapped.txt");
 			auto allLines = njh::files::getAllLines(unmappableFnp);
 			uint32_t count = 0;
 			for(const auto & l : allLines) {
@@ -392,7 +223,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 			unmmappedHapCounts[target] = count;
 		}
 		{
-			auto untranslateable = njh::files::make_path(setUp.pars_.directoryName_, "/", target, "/variantCalling/variantCalls/seqsTranslationFiltered.txt");
+			auto untranslateable = njh::files::make_path(resultDirs.string(), "/", target, "/variantCalling/variantCalls/seqsTranslationFiltered.txt");
 			auto allLines = njh::files::getAllLines(untranslateable);
 			uint32_t count = 0;
 			for(const auto & l : allLines) {
@@ -415,15 +246,15 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 		}
 	}
 
-
+	//std::cout << __FILE__ << " " << __LINE__ << std::endl;
 	//gather vcfs
 	std::unordered_map<std::string, std::vector<bfs::path>> proteinVcfs;
 	std::unordered_map<std::string, std::vector<bfs::path>> genomicVcfs;
-
+	//std::cout << __FILE__ << " " << __LINE__ << std::endl;
 	for (const auto& target: targetNamesVec) {
-		auto proteinVcfFiles = njh::files::listAllFiles(njh::files::make_path(setUp.pars_.directoryName_, "/", target, "/variantCalling/variantCalls/"),false,
+		auto proteinVcfFiles = njh::files::listAllFiles(njh::files::make_path(resultDirs.string(), "/", target, "/variantCalling/variantCalls/"),false,
 				std::vector<std::regex>{std::regex{".*-protein.vcf"}});
-		auto genomicVcfFiles = njh::files::listAllFiles(njh::files::make_path(setUp.pars_.directoryName_, "/", target, "/variantCalling/variantCalls/"),false,
+		auto genomicVcfFiles = njh::files::listAllFiles(njh::files::make_path(resultDirs.string(), "/", target, "/variantCalling/variantCalls/"),false,
 			std::vector<std::regex>{std::regex{".*-genomic.vcf"}});
 		for(const auto & pvcf : proteinVcfFiles) {
 			proteinVcfs[target].emplace_back(pvcf.first);
@@ -432,6 +263,8 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 			genomicVcfs[target].emplace_back(gvcf.first);
 		}
 	}
+
+
 	//std::cout << __FILE__ << " " << __LINE__ << std::endl;
 	//processing protein vcfs;
 	{
@@ -1124,7 +957,6 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	//std::cout << __FILE__ << " " << __LINE__ << std::endl;
 
 	//add flag to count singler changes per certain meta and the haplotype known aa typed
-
 
 	return 0;
 
