@@ -26,7 +26,7 @@
 // You should have received a copy of the GNU General Public License
 // along with SeekDeep.  If not, see <http://www.gnu.org/licenses/>.
 //
-#include <njhseq/common.h>
+
 #include <njhseq/seqToolsUtils/determinators/MidDeterminator.hpp>
 #include <njhseq/seqToolsUtils/determinators/PrimerDeterminator.hpp>
 #include <njhseq/readVectorManipulation/readVectorHelpers/readChecker.hpp>
@@ -106,35 +106,35 @@ public:
 	void initMidDeterminator(const MidDeterminator::MidDeterminePars & midSearchPars);
 	void initPrimerDeterminator();
 
-	bool hasTarget(const std::string & target) const;
+	[[nodiscard]] bool hasTarget(const std::string & target) const;
 
-	VecStr getTargets() const;
+	[[nodiscard]] VecStr getTargets() const;
 
-	VecStr getMids() const;
+	[[nodiscard]] VecStr getMids() const;
 
-	bool hasMid(const std::string & mid) const;
+	[[nodiscard]] bool hasMid(const std::string & mid) const;
 	void addTarget(const std::string & primerName, const std::string & forPrimer,
 			const std::string & revPrimer);
 
 	void addMid(const std::string & midNmae, const std::string & barcode);
 	void addMid(const std::string & midNmae, const std::string & forBarcode, const std::string & revBarcode);
 
-	bool hasMultipleTargets() const;
+	[[nodiscard]] bool hasMultipleTargets() const;
 
-	bool containsMids() const;
-	bool containsTargets() const;
-	bool screeningForPossibleContamination() const;
+	[[nodiscard]] bool containsMids() const;
+	[[nodiscard]] bool containsTargets() const;
+	[[nodiscard]] bool screeningForPossibleContamination() const;
 
 	void writeIdFile(const OutOptions & outOpts) const;
 	void writeIdFile(const OutOptions & outOpts, const VecStr & targets) const;
 
-	table genLenCutOffs(const VecStr & targets) const;
-	table genOverlapStatuses(const VecStr & targets) const;
+	[[nodiscard]] table genLenCutOffs(const VecStr & targets) const;
+	[[nodiscard]] table genOverlapStatuses(const VecStr & targets) const;
 
-  table genUniqKmerCounts(const VecStr & targets) const;
+  [[nodiscard]] table genUniqKmerCounts(const VecStr & targets) const;
 
 
-	std::vector<seqInfo> getRefSeqs(const VecStr & targets) const;
+	[[nodiscard]] std::vector<seqInfo> getRefSeqs(const VecStr & targets) const;
 	void checkMidNamesThrow() const;
 
 	static std::map<std::string, PrimersAndMids::Target::lenCutOffs> readInLenCutOffs(
@@ -143,6 +143,7 @@ public:
 	void addLenCutOffs(const bfs::path & lenCutOffsFnp);
 	void addOverLapStatuses(const bfs::path & overlapStatuses);
   uint32_t addUniqKmerCounts(const bfs::path & uniqueKmersPerTargetFnp);
+	void genUniqKmerCountsFromRefSeqs(uint32_t kmerLen = 19);
 
 	void addOverLapStatuses(const std::vector<PairedReadProcessor::ReadPairOverLapStatus> & allStatus);
 
@@ -152,7 +153,7 @@ public:
 	void addDefaultLengthCutOffs(uint32_t minLength, uint32_t maxLength);
 
 
-	uint32_t getMaxMIDSize() const;
+	[[nodiscard]] uint32_t getMaxMIDSize() const;
 
 };
 

@@ -28,12 +28,12 @@
 
 #include <njhseq/objects/kmer/SimpleKmerHash.hpp>
 #include <njhseq/objects/dataContainers/tables/TableReader.hpp>
+#include <njhseq/objects/kmer/KmerGatherer.hpp>
 
 
 namespace njhseq {
-
 PrimersAndMids::Target::lenCutOffs::lenCutOffs(uint32_t minLen, uint32_t maxLen,
-		bool mark) :
+		const bool mark) :
 		minLenChecker_(ReadCheckerLenAbove(minLen, mark)), maxLenChecker_(
 				ReadCheckerLenBelow(maxLen, mark)) {
 }
@@ -101,11 +101,11 @@ PrimersAndMids::PrimersAndMids(const bfs::path & idFileFnp) : idFile_(idFileFnp)
 				<< " should start with either target, gene, or id (case insensitive)\n";
 		ss << "line: " << firstLine << "\n";
 		throw std::runtime_error { ss.str() };
-	}
+				}
 	bool readingPrimers = false;
 	bool readingMids = false;
 	InputStream idFile{InOptions{idFileFnp}};
-	std::string line = "";
+	std::string line;
 	while (njh::files::crossPlatGetline(idFile, line)) {
 		if (njh::beginsWith(line, "#") || njh::allWhiteSpaceStr(line)) {
 			continue;
@@ -118,38 +118,38 @@ PrimersAndMids::PrimersAndMids(const bfs::path & idFileFnp) : idFile_(idFileFnp)
 				|| "target" == lowerLineToks[0])) {
 			readingPrimers = true;
 			readingMids = false;
-		} else if (lowerLineToks.size() > 1 && "id" == lowerLineToks[0]) {
-			readingPrimers = false;
-			readingMids = true;
-		} else if (readingPrimers) {
-			auto toks = njh::tokenizeString(line, "whitespace");
-			if (3 != toks.size()) {
-				std::stringstream ss;
-				ss << __PRETTY_FUNCTION__ << ": error in id file "
-						<< njh::bashCT::boldRed(idFile_.string())
-						<< " primer line should contain 3 items not " << toks.size() << "\n";
-				ss << "line: " << line << "\n";
-				throw std::runtime_error { ss.str() };
-			}
-			addTarget(toks[0], toks[1], toks[2]);
-		} else if (readingMids) {
-			auto toks = njh::tokenizeString(line, "whitespace");
-			if (2 != toks.size() && 3 != toks.size() ) {
-				std::stringstream ss;
-				ss << __PRETTY_FUNCTION__ << ": error in id file "
-						<< njh::bashCT::boldRed(idFile_.string())
-						<< " barcode line should contain 2 or 3 items not " << toks.size()
-						<< "\n";
-				ss << "line: " << line << "\n";
-				throw std::runtime_error { ss.str() };
-			}
-			if (2 == toks.size()) {
-				addMid(toks[0], toks[1]);
-			} else if (3 == toks.size()) {
-				//addMid(toks[0], toks[1]);
-				addMid(toks[0], toks[1], toks[2]);
-			}
-		}
+				} else if (lowerLineToks.size() > 1 && "id" == lowerLineToks[0]) {
+					readingPrimers = false;
+					readingMids = true;
+				} else if (readingPrimers) {
+					auto toks = njh::tokenizeString(line, "whitespace");
+					if (3 != toks.size()) {
+						std::stringstream ss;
+						ss << __PRETTY_FUNCTION__ << ": error in id file "
+								<< njh::bashCT::boldRed(idFile_.string())
+								<< " primer line should contain 3 items not " << toks.size() << "\n";
+						ss << "line: " << line << "\n";
+						throw std::runtime_error { ss.str() };
+					}
+					addTarget(toks[0], toks[1], toks[2]);
+				} else if (readingMids) {
+					auto toks = njh::tokenizeString(line, "whitespace");
+					if (2 != toks.size() && 3 != toks.size() ) {
+						std::stringstream ss;
+						ss << __PRETTY_FUNCTION__ << ": error in id file "
+								<< njh::bashCT::boldRed(idFile_.string())
+								<< " barcode line should contain 2 or 3 items not " << toks.size()
+								<< "\n";
+						ss << "line: " << line << "\n";
+						throw std::runtime_error { ss.str() };
+					}
+					if (2 == toks.size()) {
+						addMid(toks[0], toks[1]);
+					} else if (3 == toks.size()) {
+						//addMid(toks[0], toks[1]);
+						addMid(toks[0], toks[1], toks[2]);
+					}
+				}
 	}
 }
 
@@ -301,21 +301,21 @@ table PrimersAndMids::genLenCutOffs(const VecStr & targets) const {
 }
 
 table PrimersAndMids::genUniqKmerCounts(const VecStr & targets) const {
-  table outTab(VecStr{"set", "kmer"});
-  outTab.hasHeader_ = false;
-  SimpleKmerHash hasher;
-  for(const auto & tar : targets){
-    if (!hasTarget(tar)) {
-      std::stringstream ss;
-      ss << __PRETTY_FUNCTION__ << ": error, doesn't contain " << tar
-         << std::endl;
-      throw std::runtime_error { ss.str() };
-    }
-    for(const auto hashedKmer : uniqueKmersPerTarget_.at(tar)){
-      outTab.addRow(tar, hasher.reverseHash(hashedKmer));
-    }
-  }
-  return outTab;
+	table outTab(VecStr{"set", "kmer"});
+	outTab.hasHeader_ = false;
+	SimpleKmerHash hasher;
+	for(const auto & tar : targets){
+		if (!hasTarget(tar)) {
+			std::stringstream ss;
+			ss << __PRETTY_FUNCTION__ << ": error, doesn't contain " << tar
+				 << std::endl;
+			throw std::runtime_error { ss.str() };
+		}
+		for(const auto hashedKmer : uniqueKmersPerTarget_.at(tar)){
+			outTab.addRow(tar, hasher.reverseHash(hashedKmer));
+		}
+	}
+	return outTab;
 }
 
 table PrimersAndMids::genOverlapStatuses(const VecStr & targets) const {
@@ -393,7 +393,7 @@ std::map<std::string, PrimersAndMids::Target::lenCutOffs> PrimersAndMids::readIn
 
 void PrimersAndMids::checkIfMIdsOrPrimersReadInThrow(
 		const std::string & funcName) const {
-	if (0 == getMids().size() && 0 == getTargets().size()) {
+	if (getMids().empty() && getTargets().empty()) {
 		std::stringstream ss;
 		ss << funcName << ", failed to read either targets or primers from "
 				<< idFile_ << "\n";
@@ -413,12 +413,12 @@ void PrimersAndMids::initAllAddLenCutsRefs(const InitPars & pars){
 	}
 
 	//add in any length cuts if any
-	if("" != pars.lenCutOffFilename_){
+	if(!pars.lenCutOffFilename_.empty()){
 		addLenCutOffs(pars.lenCutOffFilename_);
 	}
 
 	//add in ref sequences if any
-	if("" != pars.comparisonSeqFnp_){
+	if(!pars.comparisonSeqFnp_.empty()){
 		addRefSeqs(pars.comparisonSeqFnp_);
 		setRefSeqsKInfos(pars.compKmerLen_, true);
 	}
@@ -445,6 +445,32 @@ void PrimersAndMids::initPrimerDeterminator(){
 	}
 	pDeterminator_ = std::make_unique<PrimerDeterminator>(pInfos);
 }
+
+void PrimersAndMids::genUniqKmerCountsFromRefSeqs(uint32_t kmerLen) {
+
+	VecStr missingRefSeqs;
+	std::unordered_map<std::string, std::vector<seqInfo>> refSeqs;
+	for(const auto & tar : targets_) {
+		if(tar.second.refs_.empty()) {
+			missingRefSeqs.emplace_back(tar.first);
+		}else {
+			refSeqs[tar.first] = tar.second.refs_;
+		}
+	}
+	if(!missingRefSeqs.empty()) {
+		std::stringstream ss;
+		ss << __PRETTY_FUNCTION__ << ", error " << "adding unique kmer sets for targets via ref seqs but the following targets don't have references uploaded: " << njh::conToStr(missingRefSeqs, ",")<< "\n";
+		throw std::runtime_error{ss.str()};
+	}
+	KmerGatherer::KmerGathererPars kgatpars;
+	kgatpars.kmerLength_ = kmerLen;
+	kgatpars.allUpper_ = true;
+	kgatpars.noRevComp_ = true;
+	KmerGatherer kgat(kgatpars);
+	uniqueKmersPerTarget_ = kgat.getUniqueKmersSetHash(refSeqs);
+}
+
+
 
 uint32_t PrimersAndMids::addUniqKmerCounts(const bfs::path & uniqueKmersPerTargetFnp){
   uniqueKmersPerTarget_.clear();
@@ -486,7 +512,7 @@ void PrimersAndMids::addLenCutOffs(const bfs::path & lenCutOffsFnp){
 	std::stringstream errorStream;
 
 	std::map<std::string, PrimersAndMids::Target::lenCutOffs> ret;
-	table lenCutTab = table(lenCutOffsFnp, "whitespace", true);
+	table lenCutTab(lenCutOffsFnp, "whitespace", true);
 	njh::for_each(lenCutTab.columnNames_,
 			[](std::string & str) {stringToLower(str);});
 	lenCutTab.setColNamePositions();

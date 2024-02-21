@@ -2957,10 +2957,28 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
 
   std::string snpDir = njh::files::makeDir(setUp.pars_.directoryName_,
                                            njh::files::MkdirPar("internalSnpInfo")).string();
+
+
+
+  if (setUp.pars_.chiOpts_.checkChimeras_) {
+    setUp.rLog_.logCurrentTime("Checking Chimeras");
+
+    setUp.pars_.chiOpts_.chiOverlap_.oneBaseIndel_ = 0.99;
+    setUp.pars_.chiOpts_.chiOverlap_.twoBaseIndel_ = 0.99;
+    setUp.pars_.chiOpts_.chiOverlap_.lqMismatches_ = pars.chiAllowableError;
+    setUp.pars_.chiOpts_.chiOverlap_.hqMismatches_ = pars.chiAllowableError;
+    collapser collapserObj = collapser(setUp.pars_.colOpts_);
+    collapserObj.opts_.verboseOpts_.debug_ = setUp.pars_.debug_;
+    auto chiInfoTab = collapserObj.markChimeras(consensusReads, alignerObj,
+                                                setUp.pars_.chiOpts_);
+    chiInfoTab.outPutContents(
+        TableIOOpts(
+            OutOptions(setUp.pars_.directoryName_ + "chiParentsInfo.txt",
+                       ".txt"), "\t", true));
+  }
+
   //output info file on consensus
-  std::ofstream infoFile;
-  openTextFile(infoFile, setUp.pars_.directoryName_ + "outputInfo",
-               ".tab.txt", false, false);
+  OutputStream infoFile(njh::files::make_path(setUp.pars_.directoryName_ , "outputInfo.tab.txt"));
   readVec::allSetFractionByTotalCount(consensusReads);
   infoFile << "ClusterNumber\tClusterId\tClusterSize\tClusterFraction\n";
   for (const auto readPos : iter::range(consensusReads.size())) {
@@ -3006,24 +3024,6 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
         TableIOOpts(
             OutOptions(snpDir + consensusReads[readPos].seqBase_.name_,
                        ".tab.txt"), "\t", misTab.hasHeader_));
-  }
-
-
-  if (setUp.pars_.chiOpts_.checkChimeras_) {
-    setUp.rLog_.logCurrentTime("Checking Chimeras");
-
-    setUp.pars_.chiOpts_.chiOverlap_.oneBaseIndel_ = 0.99;
-    setUp.pars_.chiOpts_.chiOverlap_.twoBaseIndel_ = 0.99;
-    setUp.pars_.chiOpts_.chiOverlap_.lqMismatches_ = pars.chiAllowableError;
-    setUp.pars_.chiOpts_.chiOverlap_.hqMismatches_ = pars.chiAllowableError;
-    collapser collapserObj = collapser(setUp.pars_.colOpts_);
-    collapserObj.opts_.verboseOpts_.debug_ = setUp.pars_.debug_;
-    auto chiInfoTab = collapserObj.markChimeras(consensusReads, alignerObj,
-                                                setUp.pars_.chiOpts_);
-    chiInfoTab.outPutContents(
-        TableIOOpts(
-            OutOptions(setUp.pars_.directoryName_ + "chiParentsInfo.txt",
-                       ".txt"), "\t", true));
   }
 
   //write final consensus reads

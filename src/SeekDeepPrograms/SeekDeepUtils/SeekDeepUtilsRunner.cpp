@@ -203,12 +203,6 @@ int SeekDeepUtilsRunner::genTargetInfoFromGenomes(const njh::progutils::CmdArgs 
 					reader.write(seq);
 				}
 			}
-//      {
-//        TwoBit::faToTwoBitPars twoBitPars;
-//        twoBitPars.inputFilename = SeqIOOptions::genFastaInOut(primersRemovedFnp, primersRemovedFinalFnp).getPriamryOutName().string();
-//        twoBitPars.outFilename = njh::files::bfs::path(twoBitPars.inputFilename).replace_extension(".2bit").string();
-//        TwoBit::fastasToTwoBit(twoBitPars);
-//      }
 			{
 				std::vector<uint32_t> readLengths;
 				SeqInput reader(SeqIOOptions::genFastaIn(extractedSeqsFnp));

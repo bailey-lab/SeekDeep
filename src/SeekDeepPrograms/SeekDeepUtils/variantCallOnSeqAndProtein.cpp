@@ -30,6 +30,8 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	std::set<std::string> selectTargets;
 	std::set<std::string> selectSamples;
 
+	bfs::path bedLocs;
+
 	seqSetUp setUp(inputCommands);
 	setUp.processVerbose();
 	setUp.processDebug();
@@ -37,6 +39,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 
 	setUp.setOption(selectTargets, "--selectTargets", "Only analzye these select targets");
 	setUp.setOption(selectSamples, "--selectSamples", "Only analzye these select samples");
+	setUp.setOption(bedLocs, "--genomicLocations", "a bed file with specific genomic locations to align to, location name needs to match target name");
 
 	setUp.setOption(collapseVarCallPars.variantCallerRunPars.occurrenceCutOff, "--variantOccurrenceCutOff", "Occurrence Cut Off, don't report variants below this count");
 	setUp.setOption(collapseVarCallPars.variantCallerRunPars.lowVariantCutOff, "--variantFrequencyCutOff", "Low Variant Cut Off, don't report variants below this frequency");
@@ -80,8 +83,10 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	njh::files::checkExistenceThrow({resultsFnp},
 																	__PRETTY_FUNCTION__);
 
-
-
+	Json::Value runLog;
+	std::mutex runLogMut;
+	njh::stopWatch fullWatch;
+	fullWatch.setLapName("initial set up");
 	std::unique_ptr<MultipleGroupMetaData> metaGroupData;
 	if (exists(metaFnp)) {
 		metaGroupData = std::make_unique<MultipleGroupMetaData>(metaFnp);
@@ -192,30 +197,74 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 		}
 	}
 
-
+	std::unordered_map<std::string, std::shared_ptr<Bed6RecordCore>> genomicLocs;
+	if(!bedLocs.empty()) {
+		auto locs = getBeds(bedLocs);
+		for(const auto & loc : locs) {
+			if(njh::in(loc->name_, genomicLocs)) {
+				std::stringstream ss;
+				ss << __PRETTY_FUNCTION__ << ", error " << "already have location: " << loc->name_ << "\n";
+				throw std::runtime_error{ss.str()};
+			}
+			genomicLocs[loc->name_] = loc;
+		}
+		VecStr missingTargets;
+		for(const auto & tar : targetNamesSet) {
+			if(njh::notIn(tar, genomicLocs)) {
+				missingTargets.emplace_back(tar);
+			}
+		}
+		if(!missingTargets.empty()) {
+			std::stringstream ss;
+			ss << __PRETTY_FUNCTION__ << ", error " << "missing the following targets from " << bedLocs << "\n";
+			ss << njh::conToStr(missingTargets, "\n") << "\n";
+			throw std::runtime_error{ss.str()};
+		}
+	}
+	runLog["initial set up time"] = fullWatch.totalTime();
+	fullWatch.startNewLap("run variant calling on each target");
+	auto & runLogTargetTimes = runLog["targets"];
 	njh::concurrent::LockableQueue<std::string> targetNamesQueue(targetNamesSet);
 
-	std::function<void()> callVariants = [&collapseVarCallPars,&targetNamesQueue, &setUp]() {
+	std::function<void()> callVariants = [&collapseVarCallPars,&targetNamesQueue, &setUp,
+		&genomicLocs, &runLogMut, &runLogTargetTimes]() {
 		std::string target;
 		while(targetNamesQueue.getVal(target)) {
+			njh::stopWatch watch;
+			Json::Value currentLog;
+			currentLog["target"] = target;
 			auto inputSeqsOpts = SeqIOOptions::genFastaInGz(njh::files::make_path(setUp.pars_.directoryName_, target, "inputSeqs.fasta.gz"));
 			auto inputSeqs = SeqInput::getSeqVec<seqInfo>(inputSeqsOpts);
 			const auto varCallDirPath = njh::files::make_path(setUp.pars_.directoryName_, target,  "variantCalling");
 			auto collapseVarCallParsForTar = collapseVarCallPars;
 			collapseVarCallParsForTar.identifier = target;
 			collapseVarCallParsForTar.outputDirectory = varCallDirPath;
+			if(njh::in(target, genomicLocs)) {
+				collapseVarCallParsForTar.refSeqRegion = GenomicRegion(*njh::mapAt(genomicLocs, target));
+			}
+			collapseVarCallParsForTar.calcPopMeasuresPars.seqCountCutOffPloidyCalc_ = 2000;
 			collapseAndCallVariants(collapseVarCallParsForTar, inputSeqs);
+			currentLog["totalTime"] = watch.totalTime();
+			{
+				std::lock_guard<std::mutex> lock(runLogMut);
+				runLogTargetTimes.append(currentLog);
+			}
 		}
 	};
 
-	njh::concurrent::runVoidFunctionThreaded(callVariants, numThreads	);
+	njh::concurrent::runVoidFunctionThreaded(callVariants, numThreads);
 
-	//concatenate diversity calls
 	auto reportsDir = njh::files::make_path(setUp.pars_.directoryName_, "reports");
 	njh::files::makeDir(njh::files::MkdirPar{reportsDir});
+
+
+
+
+	//concatenate diversity calls
+
 	auto targetNamesVec = std::vector<std::string>(targetNamesSet.begin(), targetNamesSet.end());
 	njh::naturalSortNameSet(targetNamesVec);
-
+	fullWatch.startNewLap("get out the actual samples output were");
 	//get out the actual samples output were
 	std::set<std::string> sampleNamesSet;
 	for (const auto& tar: targetNamesVec) {
@@ -228,6 +277,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	}
 
 	{
+		fullWatch.startNewLap("gather sequence diversity");
 		//sequence diversity
 		std::vector<bfs::path> seqDivMeasuresFnps;
 		for (const auto& tar: targetNamesVec) {
@@ -266,6 +316,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 		}
 	}
 	{
+		fullWatch.startNewLap("gather translated diversity");
 		//translated diversity
 		std::vector<bfs::path> transDivMeasuresFnps;
 		for (const auto& tar: targetNamesVec) {
@@ -306,6 +357,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 
 	//all samples and target coverage counts
 	{
+		fullWatch.startNewLap("all samples and target coverage counts");
 		OutputStream readCountsOut(njh::files::make_path(reportsDir, "readCountsPerSamplePerTarget.tsv.gz"));
 
 		OutputStream hapCountsOut(njh::files::make_path(reportsDir, "hapCountsPerSamplePerTarget.tsv.gz"));
@@ -334,6 +386,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	}
 	TranslatorByAlignment::GetGenomicLocationsForAminoAcidPositionsRet locs;
 	if(!collapseVarCallPars.transPars.knownAminoAcidMutationsFnp_.empty()) {
+		fullWatch.startNewLap("add known mutations to bed files");
 		//add known to bed files
 		TranslatorByAlignment::GetGenomicLocationsForAminoAcidPositionsPars parsForBedFileGen;
 		parsForBedFileGen.gffFnp = collapseVarCallPars.transPars.gffFnp_;
@@ -350,7 +403,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 			transcriptOut << t.toDelimStrWithExtra() << std::endl;
 		}
 	}
-
+	fullWatch.startNewLap("add what genes are intersecting with the");
 	//add what genes are intersecting with the
 	{
 		table overlappingGeneInfo(VecStr{"target", "geneInfo"});
@@ -376,6 +429,27 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 		OutputStream geneInfoTabout(njh::files::make_path(reportsDir, "targetsIntersectingWithGenesInfo.tsv"));
 		splitTab.outPutContents(geneInfoTabout, "\t");
 	}
+	if(!genomicLocs.empty() && !locs.genomicLocs.empty()) {
+		OutputStream intersectionWithKnownLocsOut(njh::files::make_path(reportsDir, "targetsIntersectingWithLocsForKnownAAChanges.bed"));
+		std::vector<std::shared_ptr<Bed6RecordCore>> allLocs;
+		allLocs.reserve(genomicLocs.size());
+		for (const auto& g: genomicLocs) {
+			if(njh::in(g.first, targetNamesSet)) {
+				allLocs.emplace_back(g.second);
+			}
+		}
+		BedUtility::coordSort(allLocs);
+		for (const auto& loc: allLocs) {
+			VecStr intersected;
+			for (const auto& knownLoc: locs.genomicLocs) {
+				if (knownLoc.overlaps(*loc, 1)) {
+					intersected.emplace_back(knownLoc.name_);
+				}
+			}
+			intersectionWithKnownLocsOut << loc->toDelimStrWithExtra() << "\t" << njh::conToStr(intersected) << std::endl;
+		}
+	}
+	fullWatch.startNewLap("gather unmapped read counts and gather translation filter counts");
 	//gather unmapped read counts and gather translation filter counts
 	std::unordered_map<std::string, uint32_t> unmmappedHapCounts;
 	std::unordered_map<std::string, uint32_t> untranslatableHapCounts;
@@ -415,357 +489,29 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 		}
 	}
 
-
+	fullWatch.startNewLap("gather vcfs");
 	//gather vcfs
-	std::unordered_map<std::string, std::vector<bfs::path>> proteinVcfs;
-	std::unordered_map<std::string, std::vector<bfs::path>> genomicVcfs;
-
+	std::vector<bfs::path> proteinVcfs;
+	std::vector<bfs::path> genomicVcfs;
 	for (const auto& target: targetNamesVec) {
 		auto proteinVcfFiles = njh::files::listAllFiles(njh::files::make_path(setUp.pars_.directoryName_, "/", target, "/variantCalling/variantCalls/"),false,
-				std::vector<std::regex>{std::regex{".*-protein.vcf"}});
+				std::vector<std::regex>{std::regex{".*-protein.vcf.gz"}});
 		auto genomicVcfFiles = njh::files::listAllFiles(njh::files::make_path(setUp.pars_.directoryName_, "/", target, "/variantCalling/variantCalls/"),false,
-			std::vector<std::regex>{std::regex{".*-genomic.vcf"}});
+			std::vector<std::regex>{std::regex{".*-genomic.vcf.gz"}});
 		for(const auto & pvcf : proteinVcfFiles) {
-			proteinVcfs[target].emplace_back(pvcf.first);
+			proteinVcfs.emplace_back(pvcf.first);
 		}
 		for(const auto & gvcf : genomicVcfFiles) {
-			genomicVcfs[target].emplace_back(gvcf.first);
+			genomicVcfs.emplace_back(gvcf.first);
 		}
 	}
-	//std::cout << __FILE__ << " " << __LINE__ << std::endl;
+
+	//combine vcfs with handling of overlapping variant calls
 	//processing protein vcfs;
-	{
-		auto firstPVcfFnp = proteinVcfs.begin()->second.front();
-		auto firstPVcf = VCFOutput::readInHeader(firstPVcfFnp);
-		{
-			InputStream in(firstPVcfFnp);
-			firstPVcf.addInRecordsFromFile(in);
-		}
-		//std::cout << __FILE__ << " " << __LINE__ << std::endl;
-		//add in blanks for any missing samples for any of the records
-		firstPVcf.addInBlnaksForAnyMissingSamples(sampleNamesSet);
-		if(firstPVcf.records_.empty()) {
-			firstPVcf.samples_ = VecStr{sampleNamesSet.begin(), sampleNamesSet.end()};
-		}
-		//std::cout << __FILE__ << " " << __LINE__ << std::endl;
-		for(const auto & target : proteinVcfs) {
-			for(const auto & pvcfFnp : target.second) {
-				if(firstPVcfFnp == pvcfFnp) {
-					continue;
-				}
-				//std::cout << __FILE__ << " " << __LINE__ << std::endl;
-				auto currentPvcf = VCFOutput::readInHeader(pvcfFnp);
-				//std::cout << __FILE__ << " " << __LINE__ << std::endl;
-				{
-					InputStream in(pvcfFnp);
-					currentPvcf.addInRecordsFromFile(in);
-					// firstPVcf.addInRecordsFromFile(in);
-				}
-				//std::cout << __FILE__ << " " << __LINE__ << std::endl;
-				//add in header
-				//given we know what generated these vcf files there's not need to check the FORMAT, FILTER, or INFO tags
 
-				//add in new contigs if any
-				for(const auto & contig : currentPvcf.contigEntries_) {
-					if(!njh::in(contig.first, firstPVcf.contigEntries_)) {
-						firstPVcf.contigEntries_.emplace(contig);
-					} else if(!(firstPVcf.contigEntries_.at(contig.first) == contig.second)) {
-						std::stringstream ss;
-						ss << __PRETTY_FUNCTION__ << ", error " << "adding contig: " << contig.first << " but already have an entry for this but it doesn't match" << "\n";
-						ss << "contig in master header: " << njh::json::writeAsOneLine(njh::json::toJson(firstPVcf.contigEntries_.at(contig.first))) << "\n";
-						ss << "adding contig: " << njh::json::writeAsOneLine(njh::json::toJson(contig.second)) << "\n";
-						throw std::runtime_error{ss.str()};
-					}
-				}
-				//std::cout << __FILE__ << " " << __LINE__ << std::endl;
-				currentPvcf.addInBlnaksForAnyMissingSamples(sampleNamesSet);
-				firstPVcf.records_.reserve(firstPVcf.records_.size() + currentPvcf.records_.size());
-				for(auto & record : currentPvcf.records_) {
-					firstPVcf.records_.emplace_back(std::move(record));
-				}
-				//std::move(currentPvcf.records_.begin(), currentPvcf.records_.back(). std::back_inserter(firstPVcf.records_));
-			}
-		}
-		//std::cout << __FILE__ << " " << __LINE__ << std::endl;
-		firstPVcf.addInBlnaksForAnyMissingSamples(sampleNamesSet);
-		firstPVcf.sortRecords();
-		//eliminate duplicate variant calls and optional merge variants calls across amplicons that overlap that may have been missing in one target for a sample but present others
-		//std::cout << __FILE__ << " " << __LINE__ << std::endl;
-		{
-
-			if(firstPVcf.records_.size() > 1) {
-				std::set<uint32_t> positionsToErase;
-				std::set<uint32_t> currentPositionsToComp;
-				auto compSamePositions = [&currentPositionsToComp,&firstPVcf,&positionsToErase,
-				&doNotRescueVariantCallsAccrossTargets]() {
-					if(currentPositionsToComp.size() > 1) {
-						uint32_t bestPos = std::numeric_limits<uint32_t>::max();
-						uint32_t bestNS = 0;
-						for(const auto & checkPos : currentPositionsToComp) {
-							auto currentNS = firstPVcf.records_[checkPos].info_.getMeta<uint32_t>("NS");
-							if(currentNS > bestNS) {
-								bestNS = currentNS;
-								bestPos = checkPos;
-							}
-						}
-						for(const auto & checkPos : currentPositionsToComp) {
-							if(bestPos != checkPos) {
-								positionsToErase.emplace(checkPos);
-							}
-						}
-						if(!doNotRescueVariantCallsAccrossTargets) {
-
-							std::set<std::string> blankSamples;
-							std::regex blankDataPattern("\\.(,\\.)*");
-							for(const auto & sampInfo : firstPVcf.records_[bestPos].sampleFormatInfos_) {
-								//check to see if sample has all blank meta fields (e.g. . .,. .,.,. etc)
-								if(std::all_of(sampInfo.second.meta_.begin(), sampInfo.second.meta_.end(),
-									[&blankDataPattern](const auto & meta) {
-										return std::regex_match(meta.second, blankDataPattern);
-									})) {
-									blankSamples.emplace(sampInfo.first);
-								}
-							}
-
-							for(const auto & samp : blankSamples) {
-								std::vector<uint32_t> rowPositionsWithNonBlankSamples;
-								for(const auto & checkPos : currentPositionsToComp) {
-									if (bestPos != checkPos) {
-										//check to see if this blank sample has data for the overlapping variant call
-										if (!std::all_of(firstPVcf.records_[checkPos].sampleFormatInfos_[samp].meta_.begin(),
-										                firstPVcf.records_[checkPos].sampleFormatInfos_[samp].meta_.end(),
-										                [&blankDataPattern](const auto& meta) {
-											                return std::regex_match(meta.second, blankDataPattern);
-										                }) &&
-										                "." != firstPVcf.records_[checkPos].sampleFormatInfos_[samp].getMeta("DP") &&
-																		"0" != firstPVcf.records_[checkPos].sampleFormatInfos_[samp].getMeta("DP")) {
-
-											rowPositionsWithNonBlankSamples.emplace_back(checkPos);
-										}
-									}
-								}
-
-								if(!rowPositionsWithNonBlankSamples.empty()) {
-									//replace with the row with the best read depth
-									uint32_t bestReadDepth = 0;
-									uint32_t bestRowPositionWithData = std::numeric_limits<uint32_t>::max();
-									for(const auto currentPos : rowPositionsWithNonBlankSamples) {
-
-										auto readDepth = firstPVcf.records_[currentPos].sampleFormatInfos_[samp].getMeta<uint32_t>("DP");
-										if(readDepth > bestReadDepth) {
-											bestReadDepth = readDepth;
-											bestRowPositionWithData = currentPos;
-										}
-									}
-									firstPVcf.records_[bestPos].sampleFormatInfos_[samp] = firstPVcf.records_[bestRowPositionWithData].sampleFormatInfos_[samp];
-									//add to bestRefPos the NS, AN, AC
-									//// NS will increase by 1 (though have to investigate that it's possible a sample is blank from the first initial call becauase it might already be counted)
-									firstPVcf.records_[bestPos].info_.addMeta("NS",firstPVcf.records_[bestPos].info_.getMeta<uint32_t>("NS") + 1,true);
-																		//have to check to see if the same variants are present
-									if(firstPVcf.records_[bestRowPositionWithData].alts_ != firstPVcf.records_[bestPos].alts_) {
-										VecStr altsNotInBestPos;
-										for(const auto & alt : firstPVcf.records_[bestRowPositionWithData].alts_) {
-											if(njh::notIn(alt, firstPVcf.records_[bestPos].alts_)) {
-												altsNotInBestPos.emplace_back(alt);
-											}
-										}
-										VecStr altsNotInBestPosWithData;
-										for(const auto & alt : firstPVcf.records_[bestPos].alts_) {
-											if(njh::notIn(alt, firstPVcf.records_[bestRowPositionWithData].alts_)) {
-												altsNotInBestPosWithData.emplace_back(alt);
-											}
-										}
-										if(!altsNotInBestPosWithData.empty() && altsNotInBestPos.empty()){
-										   //replacement has to add the missing alt alleles
-											auto AD = firstPVcf.records_[bestPos].sampleFormatInfos_[samp].getMeta("AD");
-											auto AD_toks = tokenizeString(AD, ",");
-											auto AF = firstPVcf.records_[bestPos].sampleFormatInfos_[samp].getMeta("AF");
-											auto AF_toks = tokenizeString(AF, ",");
-
-											std::string AD_replacement = AD_toks.front();
-											std::string AF_replacement = AF_toks.front();
-											std::unordered_map<std::string, uint32_t> altsInBestPosWithDataKey;
-											for(const auto & idx : iter::enumerate(firstPVcf.records_[bestRowPositionWithData].alts_)) {
-												altsInBestPosWithDataKey[idx.element] = idx.index;
-											}
-											for(const auto & alt : firstPVcf.records_[bestPos].alts_) {
-												if(!AD_replacement.empty()) {
-													AD_replacement += ",";
-													AF_replacement += ",";
-												}
-												if(njh::in(alt, altsInBestPosWithDataKey)) {
-													AD_replacement += AD_toks[altsInBestPosWithDataKey[alt] + 1];
-													AF_replacement += AF_toks[altsInBestPosWithDataKey[alt] + 1];
-												} else {
-													AD_replacement += "0";
-													AF_replacement += "0";
-												}
-											}
-											firstPVcf.records_[bestPos].sampleFormatInfos_[samp].addMeta("AD", AD_replacement, true);
-											firstPVcf.records_[bestPos].sampleFormatInfos_[samp].addMeta("AF", AF_replacement, true);
-										} else if(!altsNotInBestPos.empty()){
-											//all other samples have to add the missing alts from the replacement
-											//if the replacement is also missing the original alts this will handle that as well
-											auto newAltsSet = njh::vecToSet(concatVecs(firstPVcf.records_[bestRowPositionWithData].alts_, firstPVcf.records_[bestPos].alts_));
-											VecStr newAlts(newAltsSet.begin(), newAltsSet.end());
-											njh::sort(newAlts);
-											std::unordered_map<std::string, uint32_t> altsInBestPosKey;
-											for(const auto & idx : iter::enumerate(firstPVcf.records_[bestPos].alts_)) {
-												altsInBestPosKey[idx.element] = idx.index;
-											}
-											for(const auto & currentSample : firstPVcf.samples_) {
-												if(samp == currentSample) {
-													continue;
-												}
-												//replacement has to add the missing alt alleles
-												auto AD = firstPVcf.records_[bestPos].sampleFormatInfos_[currentSample].getMeta("AD");
-												auto AD_toks = tokenizeString(AD, ",");
-												auto AF = firstPVcf.records_[bestPos].sampleFormatInfos_[currentSample].getMeta("AF");
-												auto AF_toks = tokenizeString(AF, ",");
-
-												std::string AD_replacement = AD_toks.front();
-												std::string AF_replacement = AF_toks.front();
-												for(const auto & alt : newAlts) {
-													if(!AD_replacement.empty()) {
-														AD_replacement += ",";
-														AF_replacement += ",";
-													}
-													if(njh::in(alt, altsInBestPosKey)) {
-														AD_replacement += AD_toks[altsInBestPosKey[alt] + 1];
-														AF_replacement += AF_toks[altsInBestPosKey[alt] + 1];
-													} else {
-														AD_replacement += "0";
-														AF_replacement += "0";
-													}
-												}
-												firstPVcf.records_[bestPos].sampleFormatInfos_[currentSample].addMeta("AD", AD_replacement, true);
-												firstPVcf.records_[bestPos].sampleFormatInfos_[currentSample].addMeta("AF", AF_replacement, true);
-											}
-
-											//
-											if(!altsNotInBestPosWithData.empty()) {
-												//replacement has to add the missing alt alleles
-												auto AD = firstPVcf.records_[bestPos].sampleFormatInfos_[samp].getMeta("AD");
-												auto AD_toks = tokenizeString(AD, ",");
-												auto AF = firstPVcf.records_[bestPos].sampleFormatInfos_[samp].getMeta("AF");
-												auto AF_toks = tokenizeString(AF, ",");
-
-												std::string AD_replacement = AD_toks.front();
-												std::string AF_replacement = AF_toks.front();
-												std::unordered_map<std::string, uint32_t> altsInBestPosWithDataKey;
-												for(const auto & idx : iter::enumerate(firstPVcf.records_[bestRowPositionWithData].alts_)) {
-													altsInBestPosWithDataKey[idx.element] = idx.index;
-												}
-												for(const auto & alt : newAlts) {
-													if(!AD_replacement.empty()) {
-														AD_replacement += ",";
-														AF_replacement += ",";
-													}
-													if(njh::in(alt, altsInBestPosWithDataKey)) {
-														AD_replacement += AD_toks[altsInBestPosWithDataKey[alt] + 1];
-														AF_replacement += AF_toks[altsInBestPosWithDataKey[alt] + 1];
-													} else {
-														AD_replacement += "0";
-														AF_replacement += "0";
-													}
-												}
-												firstPVcf.records_[bestPos].sampleFormatInfos_[samp].addMeta("AD", AD_replacement, true);
-												firstPVcf.records_[bestPos].sampleFormatInfos_[samp].addMeta("AF", AF_replacement, true);
-											}
-
-											//replace current alts
-											//replace AC and AF with zeros so that underneath they get properly modified
-											auto AC = firstPVcf.records_[bestPos].info_.getMeta("AC");
-											auto AC_toks = tokenizeString(AC, ",");
-											auto AF = firstPVcf.records_[bestPos].info_.getMeta("AF");
-											auto AF_toks = tokenizeString(AF, ",");
-											std::string AC_replacement;
-											std::string AF_replacement;
-											for(const auto & alt : newAlts) {
-												if(!AC_replacement.empty()) {
-													AC_replacement += ",";
-													AF_replacement += ",";
-												}
-												if(njh::in(alt, altsInBestPosKey)) {
-													AC_replacement += AC_toks[altsInBestPosKey[alt]];
-													AF_replacement += AF_toks[altsInBestPosKey[alt]];
-												} else {
-													AC_replacement += "0";
-													AF_replacement += "0";
-												}
-											}
-											firstPVcf.records_[bestPos].info_.addMeta("AC", AC_replacement, true);
-											firstPVcf.records_[bestPos].info_.addMeta("AF", AF_replacement, true);
-											firstPVcf.records_[bestPos].alts_ = newAlts;
-										}
-									}
-									//// AN will increase by the number non-zero allele calls for the sample
-									auto ADs = tokenizeString(firstPVcf.records_[bestPos].sampleFormatInfos_[samp].getMeta("AD"), ",");
-									auto ANcount = std::count_if(ADs.begin(), ADs.end(), [](const std::string & str){ return "0" != str;});
-									firstPVcf.records_[bestPos].info_.addMeta("AN",firstPVcf.records_[bestPos].info_.getMeta<uint32_t>("AN") + ANcount,true);
-									//// AC will increase the counts of allele that arent' 0 (and since we are adding samples with data there shouldn't be .)
-									//// subsequently AF will also have to re-calculated
-									////// will have to reconstruct the AC/AF for the best ref pos
-
-									////// AC
-									auto AC = firstPVcf.records_[bestPos].info_.getMeta("AC");
-									auto AC_toks = tokenizeString(AC, ",");
-									//the ADs go ref, variant1, variant2 etc
-									if(AC_toks.size() + 1 != ADs.size()) {
-										std::stringstream ss;
-										ss << __PRETTY_FUNCTION__ << ", error " << "AC_toks.size() + 1 should equal ADs.size()" << "\n";
-										ss << "AC_toks.size() + 1: " << AC_toks.size() + 1 << ", " << "ADs.size(): " << ADs.size() << "\n";
-										ss << "AC_toks: " << njh::conToStr(AC_toks, ",") << "; " << "ADs: " << njh::conToStr(ADs, ",") << "\n";
-										ss << "firstPVcf.records_[bestPos].alts_                : " << njh::conToStr(firstPVcf.records_[bestPos].alts_, ",") << "\n";
-										ss << "firstPVcf.records_[bestRowPositionWithData].alts_: " << njh::conToStr(firstPVcf.records_[bestRowPositionWithData].alts_, ",") << "\n";
-
-										throw std::runtime_error{ss.str()};
-									}
-									for (const auto& ADs_tok: iter::enumerate(ADs)) {
-										//skip reference
-										if (ADs_tok.index != 0) {
-											//if ADs_tok.element does not equal 0 then add 1
-											if (ADs_tok.element != "0") {
-												AC_toks[ADs_tok.index - 1] = estd::to_string(
-													njh::StrToNumConverter::stoToNum<uint32_t>(AC_toks[ADs_tok.index - 1]) + 1);
-											}
-										}
-									}
-									//replace the updated AC
-									firstPVcf.records_[bestPos].info_.addMeta("AC", njh::conToStr(AC_toks, ","), true);
-									//////// AF
-									// re-calculate the AFs based on the new AC and AN
-									double AN = firstPVcf.records_[bestPos].info_.getMeta<uint32_t>("AN");
-									VecStr AFs;
-									for(const auto & AC_tok : AC_toks) {
-										AFs.emplace_back(estd::to_string(njh::StrToNumConverter::stoToNum<uint32_t>(AC_tok)/AN));
-									}
-									//replace the updated AF
-									firstPVcf.records_[bestPos].info_.addMeta("AF", njh::conToStr(AFs, ","), true);
-								}
-							}
-						}
-					}
-
-					currentPositionsToComp.clear();
-				};
-				for(uint32_t pos = 1; pos < firstPVcf.records_.size(); ++pos) {
-					//if same exact position and refrence info than this needs to be compared
-					if(firstPVcf.records_[pos].pos_ == firstPVcf.records_[pos-1].pos_ &&
-						firstPVcf.records_[pos].ref_ == firstPVcf.records_[pos-1].ref_) {
-						currentPositionsToComp.emplace(pos);
-						currentPositionsToComp.emplace(pos-1);
-					} else {
-						compSamePositions();
-					}
-				}
-				compSamePositions();
-
-				for(const auto posToErase : iter::reversed(positionsToErase)) {
-					firstPVcf.records_.erase(firstPVcf.records_.begin() + posToErase);
-				}
-			}
-		}
+	if(!proteinVcfs.empty()){
+		fullWatch.startNewLap("combine protein vcfs");
+		auto firstPVcf = VCFOutput::comnbineVCFs(proteinVcfs, sampleNamesSet, doNotRescueVariantCallsAccrossTargets);
 		{
 			OutputStream pvcf(njh::files::make_path(reportsDir, "allProteinVariantCalls.vcf.gz"));
 			firstPVcf.writeOutFixedAndSampleMeta(pvcf);
@@ -781,332 +527,11 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 			firstPVcf.writeOutFixedAndSampleMeta(pvcfOutFile, knownAAVariantRegions);
 		}
 	}
-	//std::cout << __FILE__ << " " << __LINE__ << std::endl;
+
 	//process genomic
-	{
-		auto firstGVcfFnp = genomicVcfs.begin()->second.front();
-		auto firstGVcf = VCFOutput::readInHeader(firstGVcfFnp);
-		{
-			InputStream in(firstGVcfFnp);
-			firstGVcf.addInRecordsFromFile(in);
-		}
-		//add in blanks for any missing samples for any of the records
-		firstGVcf.addInBlnaksForAnyMissingSamples(sampleNamesSet);
-		if(firstGVcf.records_.empty()) {
-			firstGVcf.samples_ = VecStr{sampleNamesSet.begin(), sampleNamesSet.end()};
-		}
-		for(const auto & target : genomicVcfs) {
-			for(const auto & gvcfFnp : target.second) {
-				if(firstGVcfFnp == gvcfFnp) {
-					continue;
-				}
-				auto currentGvcf = VCFOutput::readInHeader(gvcfFnp);
-
-				{
-					InputStream in(gvcfFnp);
-					currentGvcf.addInRecordsFromFile(in);
-					// firstGVcf.addInRecordsFromFile(in);
-				}
-				//add in header
-				//given we know what generated these vcf files there's not need to check the FORMAT, FILTER, or INFO tags
-
-				//add in new contigs if any
-				for(const auto & contig : currentGvcf.contigEntries_) {
-					if(!njh::in(contig.first, firstGVcf.contigEntries_)) {
-						firstGVcf.contigEntries_.emplace(contig);
-					} else if(!(firstGVcf.contigEntries_.at(contig.first) == contig.second)) {
-						std::stringstream ss;
-						ss << __PRETTY_FUNCTION__ << ", error " << "adding contig: " << contig.first << " but already have an entry for this but it doesn't match" << "\n";
-						ss << "contig in master header: " << njh::json::writeAsOneLine(njh::json::toJson(firstGVcf.contigEntries_.at(contig.first))) << "\n";
-						ss << "adding contig: " << njh::json::writeAsOneLine(njh::json::toJson(contig.second)) << "\n";
-						throw std::runtime_error{ss.str()};
-					}
-				}
-				currentGvcf.addInBlnaksForAnyMissingSamples(sampleNamesSet);
-				firstGVcf.records_.reserve(firstGVcf.records_.size() + currentGvcf.records_.size());
-				for(auto & record : currentGvcf.records_) {
-					firstGVcf.records_.emplace_back(std::move(record));
-				}
-				//std::move(currentPvcf.records_.begin(), currentPvcf.records_.back(). std::back_inserter(firstPVcf.records_));
-			}
-		}
-		firstGVcf.addInBlnaksForAnyMissingSamples(sampleNamesSet);
-		firstGVcf.sortRecords();
-		//eliminate duplicate variant calls
-		{
-
-			if(firstGVcf.records_.size() > 1) {
-				std::set<uint32_t> positionsToErase;
-				std::set<uint32_t> currentPositionsToComp;
-				auto compSamePositions = [&currentPositionsToComp,&firstGVcf,&positionsToErase,
-					&doNotRescueVariantCallsAccrossTargets]() {
-					if(currentPositionsToComp.size() > 1) {
-						uint32_t bestPos = std::numeric_limits<uint32_t>::max();
-						uint32_t bestNS = 0;
-						for(const auto & checkPos : currentPositionsToComp) {
-							auto currentNS = firstGVcf.records_[checkPos].info_.getMeta<uint32_t>("NS");
-							if(currentNS > bestNS) {
-								bestNS = currentNS;
-								bestPos = checkPos;
-							}
-						}
-						for(const auto & checkPos : currentPositionsToComp) {
-							if(bestPos != checkPos) {
-								positionsToErase.emplace(checkPos);
-							}
-						}
-						if(!doNotRescueVariantCallsAccrossTargets) {
-
-							std::set<std::string> blankSamples;
-							std::regex blankDataPattern("\\.(,\\.)*");
-							for(const auto & sampInfo : firstGVcf.records_[bestPos].sampleFormatInfos_) {
-								//check to see if sample has all blank meta fields (e.g. . .,. .,.,. etc)
-								if(std::all_of(sampInfo.second.meta_.begin(), sampInfo.second.meta_.end(),
-									[&blankDataPattern](const auto & meta) {
-										return std::regex_match(meta.second, blankDataPattern);
-									})) {
-									blankSamples.emplace(sampInfo.first);
-								}
-							}
-
-							for(const auto & samp : blankSamples) {
-								std::vector<uint32_t> rowPositionsWithNonBlankSamples;
-								for(const auto & checkPos : currentPositionsToComp) {
-									if (bestPos != checkPos) {
-										//check to see if this blank sample has data for the overlapping variant call
-										if (!std::all_of(firstGVcf.records_[checkPos].sampleFormatInfos_[samp].meta_.begin(),
-										                firstGVcf.records_[checkPos].sampleFormatInfos_[samp].meta_.end(),
-										                [&blankDataPattern](const auto& meta) {
-											                return std::regex_match(meta.second, blankDataPattern);
-										                }) &&
-										                "." != firstGVcf.records_[checkPos].sampleFormatInfos_[samp].getMeta("DP") &&
-																		"0" != firstGVcf.records_[checkPos].sampleFormatInfos_[samp].getMeta("DP")) {
-
-											rowPositionsWithNonBlankSamples.emplace_back(checkPos);
-										}
-									}
-								}
-
-								if(!rowPositionsWithNonBlankSamples.empty()) {
-									//replace with the row with the best read depth
-									uint32_t bestReadDepth = 0;
-									uint32_t bestRowPositionWithData = std::numeric_limits<uint32_t>::max();
-									for(const auto currentPos : rowPositionsWithNonBlankSamples) {
-										auto readDepth = firstGVcf.records_[currentPos].sampleFormatInfos_[samp].getMeta<uint32_t>("DP");
-										if(readDepth > bestReadDepth) {
-											bestReadDepth = readDepth;
-											bestRowPositionWithData = currentPos;
-										}
-									}
-									firstGVcf.records_[bestPos].sampleFormatInfos_[samp] = firstGVcf.records_[bestRowPositionWithData].sampleFormatInfos_[samp];
-									//add to bestRefPos the NS, AN, AC
-									//// NS will increase by 1 (though have to investigate that it's possible a sample is blank from the first initial call becauase it might already be counted)
-									firstGVcf.records_[bestPos].info_.addMeta("NS",firstGVcf.records_[bestPos].info_.getMeta<uint32_t>("NS") + 1,true);
-
-									//have to check to see if the same variants are present
-									if(firstGVcf.records_[bestRowPositionWithData].alts_ != firstGVcf.records_[bestPos].alts_) {
-										VecStr altsNotInBestPos;
-										for(const auto & alt : firstGVcf.records_[bestRowPositionWithData].alts_) {
-											if(njh::notIn(alt, firstGVcf.records_[bestPos].alts_)) {
-												altsNotInBestPos.emplace_back(alt);
-											}
-										}
-										VecStr altsNotInBestPosWithData;
-										for(const auto & alt : firstGVcf.records_[bestPos].alts_) {
-											if(njh::notIn(alt, firstGVcf.records_[bestRowPositionWithData].alts_)) {
-												altsNotInBestPosWithData.emplace_back(alt);
-											}
-										}
-										if(!altsNotInBestPosWithData.empty() && altsNotInBestPos.empty()){
-										   //replacement has to add the missing alt alleles
-											auto AD = firstGVcf.records_[bestPos].sampleFormatInfos_[samp].getMeta("AD");
-											auto AD_toks = tokenizeString(AD, ",");
-											auto AF = firstGVcf.records_[bestPos].sampleFormatInfos_[samp].getMeta("AF");
-											auto AF_toks = tokenizeString(AF, ",");
-
-											std::string AD_replacement = AD_toks.front();
-											std::string AF_replacement = AF_toks.front();
-											std::unordered_map<std::string, uint32_t> altsInBestPosWithDataKey;
-											for(const auto & idx : iter::enumerate(firstGVcf.records_[bestRowPositionWithData].alts_)) {
-												altsInBestPosWithDataKey[idx.element] = idx.index;
-											}
-											for(const auto & alt : firstGVcf.records_[bestPos].alts_) {
-												if(!AD_replacement.empty()) {
-													AD_replacement += ",";
-													AF_replacement += ",";
-												}
-												if(njh::in(alt, altsInBestPosWithDataKey)) {
-													AD_replacement += AD_toks[altsInBestPosWithDataKey[alt] + 1];
-													AF_replacement += AF_toks[altsInBestPosWithDataKey[alt] + 1];
-												} else {
-													AD_replacement += "0";
-													AF_replacement += "0";
-												}
-											}
-											firstGVcf.records_[bestPos].sampleFormatInfos_[samp].addMeta("AD", AD_replacement, true);
-											firstGVcf.records_[bestPos].sampleFormatInfos_[samp].addMeta("AF", AF_replacement, true);
-										} else if(!altsNotInBestPos.empty()){
-											//all other samples have to add the missing alts from the replacement
-											//if the replacement is also missing the original alts this will handle that as well
-											auto newAltsSet = njh::vecToSet(concatVecs(firstGVcf.records_[bestRowPositionWithData].alts_, firstGVcf.records_[bestPos].alts_));
-											VecStr newAlts(newAltsSet.begin(), newAltsSet.end());
-											njh::sort(newAlts);
-											std::unordered_map<std::string, uint32_t> altsInBestPosKey;
-											for(const auto & idx : iter::enumerate(firstGVcf.records_[bestPos].alts_)) {
-												altsInBestPosKey[idx.element] = idx.index;
-											}
-											for(const auto & currentSample : firstGVcf.samples_) {
-												if(samp == currentSample) {
-													continue;
-												}
-												//replacement has to add the missing alt alleles
-												auto AD = firstGVcf.records_[bestPos].sampleFormatInfos_[currentSample].getMeta("AD");
-												auto AD_toks = tokenizeString(AD, ",");
-												auto AF = firstGVcf.records_[bestPos].sampleFormatInfos_[currentSample].getMeta("AF");
-												auto AF_toks = tokenizeString(AF, ",");
-
-												std::string AD_replacement = AD_toks.front();
-												std::string AF_replacement = AF_toks.front();
-												for(const auto & alt : newAlts) {
-													if(!AD_replacement.empty()) {
-														AD_replacement += ",";
-														AF_replacement += ",";
-													}
-													if(njh::in(alt, altsInBestPosKey)) {
-														AD_replacement += AD_toks[altsInBestPosKey[alt] + 1];
-														AF_replacement += AF_toks[altsInBestPosKey[alt] + 1];
-													} else {
-														AD_replacement += "0";
-														AF_replacement += "0";
-													}
-												}
-												firstGVcf.records_[bestPos].sampleFormatInfos_[currentSample].addMeta("AD", AD_replacement, true);
-												firstGVcf.records_[bestPos].sampleFormatInfos_[currentSample].addMeta("AF", AF_replacement, true);
-											}
-
-											//
-											if(!altsNotInBestPosWithData.empty()) {
-												//replacement has to add the missing alt alleles
-												auto AD = firstGVcf.records_[bestPos].sampleFormatInfos_[samp].getMeta("AD");
-												auto AD_toks = tokenizeString(AD, ",");
-												auto AF = firstGVcf.records_[bestPos].sampleFormatInfos_[samp].getMeta("AF");
-												auto AF_toks = tokenizeString(AF, ",");
-
-												std::string AD_replacement = AD_toks.front();
-												std::string AF_replacement = AF_toks.front();
-												std::unordered_map<std::string, uint32_t> altsInBestPosWithDataKey;
-												for(const auto & idx : iter::enumerate(firstGVcf.records_[bestRowPositionWithData].alts_)) {
-													altsInBestPosWithDataKey[idx.element] = idx.index;
-												}
-												for(const auto & alt : newAlts) {
-													if(!AD_replacement.empty()) {
-														AD_replacement += ",";
-														AF_replacement += ",";
-													}
-													if(njh::in(alt, altsInBestPosWithDataKey)) {
-														AD_replacement += AD_toks[altsInBestPosWithDataKey[alt] + 1];
-														AF_replacement += AF_toks[altsInBestPosWithDataKey[alt] + 1];
-													} else {
-														AD_replacement += "0";
-														AF_replacement += "0";
-													}
-												}
-												firstGVcf.records_[bestPos].sampleFormatInfos_[samp].addMeta("AD", AD_replacement, true);
-												firstGVcf.records_[bestPos].sampleFormatInfos_[samp].addMeta("AF", AF_replacement, true);
-											}
-
-											//replace current alts
-											//replace AC and AF with zeros so that underneath they get properly modified
-											auto AC = firstGVcf.records_[bestPos].info_.getMeta("AC");
-											auto AC_toks = tokenizeString(AC, ",");
-											auto AF = firstGVcf.records_[bestPos].info_.getMeta("AF");
-											auto AF_toks = tokenizeString(AF, ",");
-											std::string AC_replacement;
-											std::string AF_replacement;
-											for(const auto & alt : newAlts) {
-												if(!AC_replacement.empty()) {
-													AC_replacement += ",";
-													AF_replacement += ",";
-												}
-												if(njh::in(alt, altsInBestPosKey)) {
-													AC_replacement += AC_toks[altsInBestPosKey[alt]];
-													AF_replacement += AF_toks[altsInBestPosKey[alt]];
-												} else {
-													AC_replacement += "0";
-													AF_replacement += "0";
-												}
-											}
-											firstGVcf.records_[bestPos].info_.addMeta("AC", AC_replacement, true);
-											firstGVcf.records_[bestPos].info_.addMeta("AF", AF_replacement, true);
-											firstGVcf.records_[bestPos].alts_ = newAlts;
-										}
-									}
-									//// AN will increase by the number non-zero allele calls for the sample
-									auto ADs = tokenizeString(firstGVcf.records_[bestPos].sampleFormatInfos_[samp].getMeta("AD"), ",");
-									auto ANcount = std::count_if(ADs.begin(), ADs.end(), [](const std::string & str){ return "0" != str;});
-									firstGVcf.records_[bestPos].info_.addMeta("AN",firstGVcf.records_[bestPos].info_.getMeta<uint32_t>("AN") + ANcount,true);
-
-									//// AC will increase the counts of allele that arent' 0 (and since we are adding samples with data there shouldn't be .)
-									//// subsequently AF will also have to re-calculated
-									////// will have to reconstruct the AC/AF for the best ref pos
-
-									////// AC
-									auto AC = firstGVcf.records_[bestPos].info_.getMeta("AC");
-									auto AC_toks = tokenizeString(AC, ",");
-
-									//the ADs go ref, variant1, variant2 etc
-									if(AC_toks.size() + 1 != ADs.size()) {
-										std::stringstream ss;
-										ss << __PRETTY_FUNCTION__ << ", error " << "AC_toks.size() + 1 should equal ADs.size()" << "\n";
-										ss << "AC_toks.size() + 1: " << AC_toks.size() + 1 << ", " << "ADs.size(): " << ADs.size() << "\n";
-										ss << "firstGVcf.records_[bestPos].alts_                : " << njh::conToStr(firstGVcf.records_[bestPos].alts_, ",") << "\n";
-										ss << "firstGVcf.records_[bestRowPositionWithData].alts_: " << njh::conToStr(firstGVcf.records_[bestRowPositionWithData].alts_, ",") << "\n";
-
-										throw std::runtime_error{ss.str()};
-									}
-									for (const auto& ADs_tok: iter::enumerate(ADs)) {
-										//skip reference
-										if (ADs_tok.index != 0) {
-											//if ADs_tok.element does not equal 0 then add 1
-											if (ADs_tok.element != "0") {
-												AC_toks[ADs_tok.index - 1] = estd::to_string(
-													njh::StrToNumConverter::stoToNum<uint32_t>(AC_toks[ADs_tok.index - 1]) + 1);
-											}
-										}
-									}
-									//replace the updated AC
-									firstGVcf.records_[bestPos].info_.addMeta("AC", njh::conToStr(AC_toks, ","), true);
-									//////// AF
-									// re-calculate the AFs based on the new AC and AN
-									double AN = firstGVcf.records_[bestPos].info_.getMeta<uint32_t>("AN");
-									VecStr AFs;
-									for(const auto & AC_tok : AC_toks) {
-										AFs.emplace_back(estd::to_string(njh::StrToNumConverter::stoToNum<uint32_t>(AC_tok)/AN));
-									}
-									//replace the updated AF
-									firstGVcf.records_[bestPos].info_.addMeta("AF", njh::conToStr(AFs, ","), true);
-								}
-							}
-						}
-					}
-					currentPositionsToComp.clear();
-				};
-				for(uint32_t pos = 1; pos < firstGVcf.records_.size(); ++pos) {
-					if(firstGVcf.records_[pos].pos_ == firstGVcf.records_[pos-1].pos_ &&
-						firstGVcf.records_[pos].ref_ == firstGVcf.records_[pos-1].ref_) {
-						currentPositionsToComp.emplace(pos);
-						currentPositionsToComp.emplace(pos-1);
-						} else {
-							compSamePositions();
-						}
-				}
-				compSamePositions();
-				// std::cout << njh::conToStr(positionsToErase, ",") << std::endl;
-				for(const auto posToErase : iter::reversed(positionsToErase)) {
-					firstGVcf.records_.erase(firstGVcf.records_.begin() + posToErase);
-				}
-			}
-		}
+	if(!genomicVcfs.empty()) {
+		fullWatch.startNewLap("combine genomic vcfs");
+		auto firstGVcf = VCFOutput::comnbineVCFs(genomicVcfs, sampleNamesSet, doNotRescueVariantCallsAccrossTargets);
 		{
 			OutputStream gvcfOutFile(njh::files::make_path(reportsDir, "allGenomicVariantCalls.vcf.gz"));
 			firstGVcf.writeOutFixedAndSampleMeta(gvcfOutFile);
@@ -1120,13 +545,17 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 			}
 			firstGVcf.writeOutFixedAndSampleMeta(gvcfOutFile, knownSnpVariantRegions);
 		}
-		//std::cout << __FILE__ << " " << __LINE__ << std::endl;
 	}
-	//std::cout << __FILE__ << " " << __LINE__ << std::endl;
+
+	//run log
+	{
+		fullWatch.startNewLap("end");
+		runLog["run_times"] = fullWatch.toJson();
+		OutputStream logOut(njh::files::make_path(reportsDir, "log.txt"));
+		logOut << runLog << std::endl;
+	}
 
 	//add flag to count singler changes per certain meta and the haplotype known aa typed
-
-
 	return 0;
 
 }

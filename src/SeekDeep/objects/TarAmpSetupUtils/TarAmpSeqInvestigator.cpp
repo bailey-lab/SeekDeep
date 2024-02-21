@@ -640,6 +640,7 @@ uint32_t TarAmpSeqInvestigator::maxPrecedingBases() const{
 	uint32_t ret = 0;
 	for(const auto & row : precedingBasesCountsTab_){
 		auto NumOfBases = njh::StrToNumConverter::stoToNum<uint32_t>(row[precedingBasesCountsTab_.getColPos("NumOfBases")]);
+		// std::cout << "NumOfBases: " << NumOfBases << std::endl;
 		if(NumOfBases > ret){
 			ret = NumOfBases;
 		}

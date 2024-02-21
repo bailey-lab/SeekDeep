@@ -59,6 +59,7 @@ public:
 		bool doNotGuessRecFlags = false;
 		uint32_t numberOfFilesToInvestigate = 10;
 		uint32_t testNumberOfReadsToInvestigate = 10000;
+		uint32_t primerWithinToInvesitgate = 40;
 
 		std::string replicatePattern = "";
 		VecStr ignoreSamples{"Undetermined", "undetermined"};

@@ -94,7 +94,8 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
                   "Bin qualities at this quality to do filtering on fraction above this", false, "Post Processing");
   setUp.setOption(corePars.qPars_.qualCheckCutOff_, "--qualCheckCutOff",
                   "The fractions of bases that have to be above the qualCheckLevel to be kept", false, "Post Processing");
-
+  corePars.primIdsPars.mPars_.allowableErrors_ = 1;
+  setUp.setOption(corePars.primIdsPars.mPars_.allowableErrors_, "--MIDAllowableErrors", "Number of errors to allow in MIDs, more errors allowed can lead to mis-sorting of reads by MIDs", false, "MID");
   setUp.finishSetUp(std::cout);
   // run log
   setUp.startARunLog(setUp.pars_.directoryName_);
@@ -110,9 +111,12 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
     throw std::runtime_error { ss.str() };
   }
 
-  //init primer determinator
+  //init determinators
   ids.initPrimerDeterminator();
 
+  if(ids.containsMids()) {
+    ids.initMidDeterminator(corePars.primIdsPars.mPars_);
+  }
   //read in extra info
   ids.addLenCutOffs(lenCutOffsFnp);
   if(!refSeqDir.empty()){
@@ -153,14 +157,30 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
   }
 
   for(const auto & name : names){
-    auto seqOutOpts = SeqIOOptions::genFastqOutGz(njh::files::make_path(setUp.pars_.directoryName_, njh::pasteAsStr(name, sampleName) ) );
-    seqOut.addReader(njh::pasteAsStr(name, "-passed"), seqOutOpts);
+    if(ids.containsMids()) {
+      for(const auto & midname : getVectorOfMapKeys(ids.mids_)) {
+        auto seqOutOpts = SeqIOOptions::genFastqOutGz(njh::files::make_path(setUp.pars_.directoryName_, njh::pasteAsStr(name, midname) ) );
+        seqOut.addReader(njh::pasteAsStr(name, midname, "-passed"), seqOutOpts);
+
+        auto failedSeqOutOpts = SeqIOOptions::genFastqOutGz(njh::files::make_path(failedExtractionDir, name + midname) );
+        seqOut.addReader(njh::pasteAsStr(name, midname, "-failed"), failedSeqOutOpts);
+      }
+      seqOut.addReader(njh::pasteAsStr(name, "-MIDUnrecognized", "-failed"),
+                       SeqIOOptions::genFastqOutGz(
+                         njh::files::make_path(failedExtractionDir, name+ "-MIDUnrecognized")));
+      seqOut.addReader(njh::pasteAsStr(name, "-MIDunknown", "-failed"),
+                 SeqIOOptions::genFastqOutGz(
+                   njh::files::make_path(failedExtractionDir, name + "-MIDunknown")));
+    } else {
+      auto seqOutOpts = SeqIOOptions::genFastqOutGz(njh::files::make_path(setUp.pars_.directoryName_, njh::pasteAsStr(name, sampleName) ) );
+      seqOut.addReader(njh::pasteAsStr(name, "-passed"), seqOutOpts);
+
+      auto failedSeqOutOpts = SeqIOOptions::genFastqOutGz(njh::files::make_path(failedExtractionDir, name) );
+      seqOut.addReader(njh::pasteAsStr(name, "-failed"), failedSeqOutOpts);
+
+    }
   }
 
-  for(const auto & name : names){
-    auto seqOutOpts = SeqIOOptions::genFastqOutGz(njh::files::make_path(failedExtractionDir, name) );
-    seqOut.addReader(njh::pasteAsStr(name, "-failed"), seqOutOpts);
-  }
 
   seqOut.addReader("undetermined", SeqIOOptions::genFastqOutGz(njh::files::make_path(setUp.pars_.directoryName_, "undetermined")));
 
@@ -199,6 +219,7 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
                                       &corePars,&alnPool,
                                       &qualChecker,
                                       &masterCounts]() {
+    auto maxMidSize = ids.getMaxMIDSize() + 2;
     SimpleKmerHash hasher;
     seqInfo seq;
     std::unordered_map<std::string, uint32_t> readsPerSetCurrent;
@@ -288,84 +309,105 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
       if(!seq.on_){
         extractorCase = ExtractionStator::extractCase::MINLENBAD;
       }
-      if(seq.on_){
 
-        std::string frontPrimerName = ids.pDeterminator_->determineForwardPrimer(seq, corePars.pDetPars, *currentAlignerObj, VecStr{winnerSet});
-//        if("unrecognized" == frontPrimerName){
-//          currentAlignerObj->alignObjectA_.seqBase_.outPutSeqAnsi(std::cout);
-//          currentAlignerObj->alignObjectB_.seqBase_.outPutSeqAnsi(std::cout);
-//          std::cout << njh::bashCT::cyan ;
-//          std::cout << "currentAlignerObj->comp_.distances_.query_.coverage_: " << currentAlignerObj->comp_.distances_.query_.coverage_ << std::endl;
-//          std::cout << "currentAlignerObj->comp_.oneBaseIndel_:      " << currentAlignerObj->comp_.oneBaseIndel_ << std::endl;
-//          std::cout << "currentAlignerObj->comp_.twoBaseIndel_:      " << currentAlignerObj->comp_.twoBaseIndel_ << std::endl;
-//          std::cout << "currentAlignerObj->comp_.largeBaseIndel_:    " << currentAlignerObj->comp_.largeBaseIndel_ << std::endl;
-//          std::cout << "currentAlignerObj->comp_.hqMismatches_:      " << currentAlignerObj->comp_.hqMismatches_ << std::endl;
-//          std::cout << "currentAlignerObj->comp_.lqMismatches_:      " << currentAlignerObj->comp_.lqMismatches_ << std::endl;
-//          std::cout << "currentAlignerObj->comp_.lowKmerMismatches_: " << currentAlignerObj->comp_.lowKmerMismatches_ << std::endl;
-//          std::cout << njh::bashCT::reset ;
-//        } else {
-//          currentAlignerObj->alignObjectA_.seqBase_.outPutSeqAnsi(std::cout);
-//          currentAlignerObj->alignObjectB_.seqBase_.outPutSeqAnsi(std::cout);
-//          std::cout << njh::bashCT::green ;
-//          std::cout << "currentAlignerObj->comp_.distances_.query_.coverage_: " << currentAlignerObj->comp_.distances_.query_.coverage_ << std::endl;
-//          std::cout << "currentAlignerObj->comp_.oneBaseIndel_:      " << currentAlignerObj->comp_.oneBaseIndel_ << std::endl;
-//          std::cout << "currentAlignerObj->comp_.twoBaseIndel_:      " << currentAlignerObj->comp_.twoBaseIndel_ << std::endl;
-//          std::cout << "currentAlignerObj->comp_.largeBaseIndel_:    " << currentAlignerObj->comp_.largeBaseIndel_ << std::endl;
-//          std::cout << "currentAlignerObj->comp_.hqMismatches_:      " << currentAlignerObj->comp_.hqMismatches_ << std::endl;
-//          std::cout << "currentAlignerObj->comp_.lqMismatches_:      " << currentAlignerObj->comp_.lqMismatches_ << std::endl;
-//          std::cout << "currentAlignerObj->comp_.lowKmerMismatches_: " << currentAlignerObj->comp_.lowKmerMismatches_ << std::endl;
-//          std::cout << njh::bashCT::reset ;
-//        }
-        seq.reverseComplementRead(false, true);
-        std::string backPrimerName = ids.pDeterminator_->determineWithReversePrimer(seq, corePars.backEndpDetPars, *currentAlignerObj, VecStr{winnerSet});
-        seq.reverseComplementRead(false, true);
+      std::string MIDunknownName = ids.containsMids() ? "-MIDunknown" : "";
+      if(seq.on_){
+        std::string frontPrimerName = "unrecognized";
+        std::string backPrimerName = "unrecognized";
+        std::string midName;
+        bool passesMID = false;
+        if(ids.containsMids()) {
+          //if also contains mids check for those, the previous extraction by kmer step would have re-oriented everything into forward primer direction
+          auto positionForwardResults = ids.pDeterminator_->determineBestForwardPrimerPosFront(seq, corePars.pDetPars, *currentAlignerObj, VecStr{winnerSet});
+          seq.reverseComplementRead(false, true);
+          auto positionReverseResults = ids.pDeterminator_->determineBestReversePrimerPosFront(seq, corePars.backEndpDetPars, *currentAlignerObj, VecStr{winnerSet});
+          seq.reverseComplementRead(false, true);
+          frontPrimerName = positionForwardResults.primerName_;
+          backPrimerName = positionReverseResults.primerName_;
+          //check for mid only if the read passed for both primers
+          if(winnerSet == positionForwardResults.primerName_ && winnerSet == positionReverseResults.primerName_) {
+            MidDeterminator::MidDeterminePars midpars;
+            midpars.searchStart_ = positionForwardResults.start_ > maxMidSize ? positionForwardResults.start_ - maxMidSize : 0;
+            midpars.searchStop_ = midpars.searchStart_ + maxMidSize;
+            midpars.allowableErrors_ = corePars.primIdsPars.mPars_.allowableErrors_;
+            auto midResults = ids.mDeterminator_->searchRead(seq, midpars, midpars);
+            auto midResultsProcessed = ids.mDeterminator_->processSearchRead(seq, midResults);
+            if(midResultsProcessed.case_ == MidDeterminator::ProcessedRes::PROCESSED_CASE::MATCH) {
+              //process the primers locations
+              //this will both trim and determine the primers, redundant to do this twice for the forward primer with the trimming of the MID it's easier to just recheck
+              //the modification below only makes sense if there's only 1 MID and it's attached to the forward primer which is the most common scernario
+              auto modifiedSearchPars = corePars.pDetPars;
+              modifiedSearchPars.primerStart_ = 0;
+              modifiedSearchPars.primerWithin_ = ids.pDeterminator_->getMaxPrimerSize();
+              frontPrimerName = ids.pDeterminator_->determineForwardPrimer(seq, modifiedSearchPars, *currentAlignerObj, VecStr{winnerSet});
+              seq.reverseComplementRead(false, true);
+              backPrimerName = ids.pDeterminator_->determineWithReversePrimer(seq, corePars.backEndpDetPars, *currentAlignerObj, VecStr{winnerSet});
+              seq.reverseComplementRead(false, true);
+              midName = midResultsProcessed.midName_;
+              passesMID = true;
+            }
+          }
+        } else {
+          //this will both trim and determine the primers
+          frontPrimerName = ids.pDeterminator_->determineForwardPrimer(seq, corePars.pDetPars, *currentAlignerObj, VecStr{winnerSet});
+          seq.reverseComplementRead(false, true);
+          backPrimerName = ids.pDeterminator_->determineWithReversePrimer(seq, corePars.backEndpDetPars, *currentAlignerObj, VecStr{winnerSet});
+          seq.reverseComplementRead(false, true);
+        }
+        //passes if the front and end primer both match the expected primer based on the winder set from the kmer matching
         bool passesFront = frontPrimerName == winnerSet;
         bool passesBack = backPrimerName == winnerSet;
-
         if (!passesBack && !passesFront) {
-					extractorCase = ExtractionStator::extractCase::FAILEDBOTHPRIMERS;
+          extractorCase = ExtractionStator::extractCase::FAILEDBOTHPRIMERS;
         } else if(!passesFront){
-					extractorCase = ExtractionStator::extractCase::BADFORWARD;
+          extractorCase = ExtractionStator::extractCase::BADFORWARD;
         } else if(!passesBack){
-					extractorCase = ExtractionStator::extractCase::BADREVERSE;
+          extractorCase = ExtractionStator::extractCase::BADREVERSE;
         }
         if (passesBack && passesFront) {
-          //min len
-          ids.targets_.at(winnerSet).lenCuts_->minLenChecker_.checkRead(seq);
-          if(!seq.on_){
-            extractorCase = ExtractionStator::extractCase::MINLENBAD;
-          }
-
-          //max len
-          if(seq.on_){
-            ids.targets_.at(winnerSet).lenCuts_->maxLenChecker_.checkRead(seq);
-            if(!seq.on_){
-              extractorCase = ExtractionStator::extractCase::MAXLENBAD;
-            }
-          }
-
-          //quality
-          if(seq.on_){
-            qualChecker->checkRead(seq);
-            if(!seq.on_){
-              extractorCase = ExtractionStator::extractCase::QUALITYFAILED;
-            }
-          }
-          if (seq.on_) {
-            //passed all filters
-            seqOut.openWrite(njh::pasteAsStr(winnerSet, "-passed"), seq);
+          //check for MID, if no mids the pass MIDs is always true
+          if(!passesMID) {
+            //failed first min length pass
+            seqOut.openWrite(njh::pasteAsStr(winnerSet, "-MIDUnrecognized", "-failed"), seq);
+            extractorCase = ExtractionStator::extractCase::BADMID;
           } else {
-            //failed
-            seqOut.openWrite(njh::pasteAsStr(winnerSet, "-failed"), seq);
+            //min len
+            ids.targets_.at(winnerSet).lenCuts_->minLenChecker_.checkRead(seq);
+            if(!seq.on_){
+              extractorCase = ExtractionStator::extractCase::MINLENBAD;
+            }
+
+            //max len
+            if(seq.on_){
+              ids.targets_.at(winnerSet).lenCuts_->maxLenChecker_.checkRead(seq);
+              if(!seq.on_){
+                extractorCase = ExtractionStator::extractCase::MAXLENBAD;
+              }
+            }
+
+            //quality
+            if(seq.on_){
+              qualChecker->checkRead(seq);
+              if(!seq.on_){
+                extractorCase = ExtractionStator::extractCase::QUALITYFAILED;
+              }
+            }
+            if (seq.on_) {
+              //passed all filters
+              seqOut.openWrite(njh::pasteAsStr(njh::pasteAsStr(winnerSet, midName), "-passed"), seq);
+            } else {
+              //failed
+              seqOut.openWrite(njh::pasteAsStr(njh::pasteAsStr(winnerSet, midName), "-failed"), seq);
+            }
           }
         } else {
           seq.name_.append(njh::pasteAsStr("[", "frontPrimerName=", frontPrimerName, ";", "backPrimerName=", backPrimerName, ";","]"));
           //failed primer check
-          seqOut.openWrite(njh::pasteAsStr(winnerSet, "-failed"), seq);
+          seqOut.openWrite(njh::pasteAsStr(njh::pasteAsStr(winnerSet, MIDunknownName), "-failed"), seq);
         }
-      }else{
+      } else {
         //failed first min length pass
-        seqOut.openWrite(njh::pasteAsStr(winnerSet, "-failed"), seq);
+        seqOut.openWrite(njh::pasteAsStr(njh::pasteAsStr(winnerSet, MIDunknownName), "-failed"), seq);
       }
       masterCountsCurrent.increaseCounts(winnerSet, seq.name_, extractorCase);
     }
@@ -404,6 +446,7 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
   outCounts << "\tforwardPrimerFailed\tforwardPrimerFailedFrac";
   outCounts << "\treversePrimerFailed\treversePrimerFailedFrac";
   outCounts << "\tbothForRevPrimerFailed\tbothForRevPrimerFailedFrac";
+  outCounts << "\tMIDFailed\tMIDFailedFrac";
   outCounts << "\ttotalFailed\ttotalFailedFrac";
   outCounts << "\tpassed\tpassedFrac";
   outCounts << std::endl;
@@ -424,7 +467,8 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
         masterCounts.counts_[setName][false].qualityFailed_ + masterCounts.counts_[setName][true].qualityFailed_ +
         masterCounts.counts_[setName][false].badForward_ + masterCounts.counts_[setName][true].badForward_ +
         masterCounts.counts_[setName][false].badReverse_ + masterCounts.counts_[setName][true].badReverse_ +
-        masterCounts.counts_[setName][false].failedBothPrimers_ + masterCounts.counts_[setName][true].failedBothPrimers_;
+        masterCounts.counts_[setName][false].failedBothPrimers_ + masterCounts.counts_[setName][true].failedBothPrimers_+
+        masterCounts.counts_[setName][false].badmid_ + masterCounts.counts_[setName][true].badmid_;
 
     outCounts << sampleName
               << "\t" << totalReadsProcessed
@@ -451,6 +495,10 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
     //both bad reverse and failed forward
     outCounts << "\t" << masterCounts.counts_[setName][false].failedBothPrimers_ + masterCounts.counts_[setName][true].failedBothPrimers_
               << "\t" << (totalBad == 0 ? 0 : static_cast<double>(masterCounts.counts_[setName][false].failedBothPrimers_ + masterCounts.counts_[setName][true].failedBothPrimers_)/static_cast<double>(totalBad));
+    //failed MID
+    outCounts << "\t" << masterCounts.counts_[setName][false].badmid_ + masterCounts.counts_[setName][true].badmid_
+              << "\t" << (totalBad == 0 ? 0 : static_cast<double>(masterCounts.counts_[setName][false].badmid_ + masterCounts.counts_[setName][true].badmid_)/static_cast<double>(totalBad));
+
     //bad
     outCounts << "\t" << totalBad
               << "\t" << (totalExtracted == 0 ? 0 : static_cast<double>(totalBad) / static_cast<double>(totalExtracted));
@@ -469,6 +517,8 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
               << "\t" << (totalReadsProcessed == 0 ? 0 : static_cast<double>(totalExtracted) / static_cast<double>(totalReadsProcessed))
               << "\t" << readsPerSet["undetermined"]
               << "\t" << (totalExtracted == 0 ? 0 : static_cast<double>(readsPerSet["undetermined"]) / static_cast<double>(totalExtracted))
+        << "\t" << 0
+        << "\t" << 0
         << "\t" << 0
         << "\t" << 0
         << "\t" << 0
