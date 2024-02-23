@@ -491,9 +491,9 @@ uint32_t PrimersAndMids::addUniqKmerCounts(const bfs::path & uniqueKmersPerTarge
     }
   }
   VecStr missingTargets;
-  for(const auto & name : uniqueKmersPerTarget_){
-    if(!njh::in(name.first, uniqueKmersPerTarget_)){
-      missingTargets.emplace_back(name.first);
+  for(const auto & name : getVectorOfMapKeys(targets_)){
+    if(!njh::in(name, uniqueKmersPerTarget_)){
+      missingTargets.emplace_back(name);
     }
   }
 
@@ -502,6 +502,19 @@ uint32_t PrimersAndMids::addUniqKmerCounts(const bfs::path & uniqueKmersPerTarge
     ss << __PRETTY_FUNCTION__ << ", error " << "missing the following targets from the unique kmer sets: " << njh::conToStr(missingTargets) << "\n";
     throw std::runtime_error { ss.str() };
   }
+
+	VecStr addKmerTargetsButMissingFromTars;
+	for(const auto & name : getVectorOfMapKeys(uniqueKmersPerTarget_)){
+		if(!njh::in(name, targets_)){
+			addKmerTargetsButMissingFromTars.emplace_back(name);
+		}
+	}
+
+	if(!addKmerTargetsButMissingFromTars.empty()){
+		std::stringstream ss;
+		ss << __PRETTY_FUNCTION__ << ", error " << "unique kmer sets added for the following targets but no info for them in targets_ : " << njh::conToStr(addKmerTargetsButMissingFromTars) << "\n";
+		throw std::runtime_error { ss.str() };
+	}
 
   return klen;
 }
