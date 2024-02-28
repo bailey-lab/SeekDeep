@@ -51,6 +51,7 @@ SeekDeepUtilsRunner::SeekDeepUtilsRunner() :
 					addFunc("benchmarkControlMixturesOnProcessedClustersDir", benchmarkControlMixturesOnProcessedClustersDir, false),
 					addFunc("variantCallOnSeqAndProtein", variantCallOnSeqAndProtein, false),
 					addFunc("variantCallOnSeqAndProteinPost", variantCallOnSeqAndProteinPost, true),
+					addFunc("combineBasicResultsFiles", combineBasicResultsFiles, false),
 				}, //
 				"SeekDeepUtils") {
 }

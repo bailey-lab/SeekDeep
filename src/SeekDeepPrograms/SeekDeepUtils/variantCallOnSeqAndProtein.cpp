@@ -31,6 +31,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	std::set<std::string> selectSamples;
 
 	bfs::path bedLocs;
+	bool genomicLocsChangePeriodToDash = false;
 
 	seqSetUp setUp(inputCommands);
 	setUp.processVerbose();
@@ -40,6 +41,8 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	setUp.setOption(selectTargets, "--selectTargets", "Only analzye these select targets");
 	setUp.setOption(selectSamples, "--selectSamples", "Only analzye these select samples");
 	setUp.setOption(bedLocs, "--genomicLocations", "a bed file with specific genomic locations to align to, location name needs to match target name");
+	setUp.setOption(genomicLocsChangePeriodToDash, "--genomicLocationsChangePeriodToDash", "when supplying a location name, change periods to dashes in the name");
+
 
 	setUp.setOption(collapseVarCallPars.variantCallerRunPars.occurrenceCutOff, "--variantOccurrenceCutOff", "Occurrence Cut Off, don't report variants below this count");
 	setUp.setOption(collapseVarCallPars.variantCallerRunPars.lowVariantCutOff, "--variantFrequencyCutOff", "Low Variant Cut Off, don't report variants below this frequency");
@@ -87,10 +90,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	std::mutex runLogMut;
 	njh::stopWatch fullWatch;
 	fullWatch.setLapName("initial set up");
-	std::unique_ptr<MultipleGroupMetaData> metaGroupData;
-	if (exists(metaFnp)) {
-		metaGroupData = std::make_unique<MultipleGroupMetaData>(metaFnp);
-	}
+
 	std::unordered_map<std::string, std::unordered_map<std::string, std::unordered_map<std::string, double>>> readCountsPerHapPerSample;
 	std::unordered_map<std::string, std::unordered_map<std::string, std::string>> cNameToPopUID;
 	std::unordered_map<std::string, std::unordered_map<std::string, std::set<std::string>>> hPopUIDPopSamps;
@@ -113,6 +113,10 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	std::unordered_map<std::string, std::unordered_set<std::string>> allSamplesInOutput;
 	//key1 == target, key2 == sample
 	std::unordered_map<std::string, std::unordered_map<std::string, std::vector<seqInfo>>> allResultSeqs;
+	std::unique_ptr<MultipleGroupMetaData> metaGroupData;
+	if (exists(metaFnp)) {
+		metaGroupData = std::make_unique<MultipleGroupMetaData>(metaFnp);
+	}
 	{
 		TableReader sampInfoReader(TableIOOpts::genTabFileIn(sampInfoFnp, true));
 		sampInfoReader.header_.checkForColumnsThrow(requiredColumns, __PRETTY_FUNCTION__);
@@ -130,11 +134,9 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 				continue;;
 			}
 			targetNamesSet.emplace(target);
-			auto c_ReadCnt = njh::StrToNumConverter::stoToNum<double>(
-							row[sampInfoReader.header_.getColPos(withinSampleReadCntColName)]);
+
 			auto readCnt = njh::StrToNumConverter::stoToNum<double>(
 							row[sampInfoReader.header_.getColPos(withinSampleReadCntColName)]);
-
 			auto h_popUID = row[sampInfoReader.header_.getColPos(popHapIdColName)];
 			auto hapName = njh::pasteAsStr(sample, "__", h_popUID);
 			std::string hapSeq;
@@ -145,12 +147,12 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 				hapSeq = njh::mapAt(njh::mapAt(hPopUID_to_hConsensus, target), h_popUID);
 			}
 			seqInfo clus(hapName, hapSeq);
-			clus.cnt_ = c_ReadCnt;
+			clus.cnt_ = readCnt;
 			bool add = true;
 			for (auto &seq: allResultSeqs[target][sample]) {
 				if (seq.seq_ == clus.seq_) {
 					add = false;
-					seq.cnt_ += c_ReadCnt;
+					seq.cnt_ += readCnt;
 					readCountsPerHapPerSample[target][sample][hapName] += readCnt;
 					break;
 				}
@@ -166,7 +168,6 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 			inputSampleNamesSet.emplace(sample);
 		}
 	}
-
 
 	if (!exists(popSeqsDirFnp)) {
 		for (const auto &tarPopHaps: hPopUID_to_hConsensus) {
@@ -200,7 +201,10 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	std::unordered_map<std::string, std::shared_ptr<Bed6RecordCore>> genomicLocs;
 	if(!bedLocs.empty()) {
 		auto locs = getBeds(bedLocs);
-		for(const auto & loc : locs) {
+		for(auto & loc : locs) {
+			if(genomicLocsChangePeriodToDash) {
+				loc->name_ = njh::replaceString(loc->name_, ".", "-");
+			}
 			if(njh::in(loc->name_, genomicLocs)) {
 				std::stringstream ss;
 				ss << __PRETTY_FUNCTION__ << ", error " << "already have location: " << loc->name_ << "\n";
@@ -381,8 +385,10 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	}
 
 	//copy in meta
-	if(!metaFnp.empty() && exists(metaFnp)) {
-		bfs::copy_file(metaFnp, njh::files::make_path(reportsDir, "meta.tsv"));
+	if(!metaFnp.empty() && exists(metaFnp) && metaGroupData) {
+
+		// bfs::copy_file(metaFnp, njh::files::make_path(reportsDir, "meta.tsv"));
+		metaGroupData->writeOutMetaFile(njh::files::make_path(reportsDir, "meta.tsv"),	inputSampleNamesSet);
 	}
 	TranslatorByAlignment::GetGenomicLocationsForAminoAcidPositionsRet locs;
 	if(!collapseVarCallPars.transPars.knownAminoAcidMutationsFnp_.empty()) {
