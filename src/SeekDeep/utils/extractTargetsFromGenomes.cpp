@@ -12,12 +12,17 @@
 #include <njhseq/GenomeUtils/GenomeExtraction/ParsingAlignmentInfo/GenomeExtractResult.hpp>
 #include <njhseq/objects/Gene/GeneFromGffs.hpp>
 #include <njhseq/objects/dataContainers/tables/TableReader.hpp>
-#include <utility>
 #include <njhseq/objects/BioDataObject/BLASTHitTabular.hpp>
 #include <njhseq/BamToolsUtils/ReAlignedSeq.hpp>
+#include <njhseq/objects/BioDataObject/BioRecordsUtils/BedUtility.hpp>
 
 
 namespace njhseq {
+
+
+
+
+
 
 void extractBetweenSeqsPars::setUpCoreOptions(seqSetUp & setUp, bool needReadLength){
 
@@ -1463,6 +1468,7 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 
 			if(!allRegions.empty()){
 				if(!gMapper->genomes_.at(genome)->gffFnp_.empty()){
+
 					intersectBedLocsWtihGffRecordsPars pars(gMapper->genomes_.at(genome)->gffFnp_);
 					pars.selectFeatures_ = VecStr{"gene", "protein_coding_gene"};
 					pars.extraAttributes_ = tokenizeString(extractPars.gffExtraAttributesStr, ",");
@@ -1538,7 +1544,7 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 									geneMeta.addMeta(info.first + "-AAStart", aaStartPos );
 									geneMeta.addMeta(info.first + "-AAStop", aaStopPos );
 								}
-								if("" != replacement){
+								if(!replacement.empty()){
 									replacement += ",";
 								}
 								replacement += geneMeta.createMetaName();
@@ -1567,25 +1573,16 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 	njh::concurrent::runVoidFunctionThreaded(getOuterRegionInfos, extractPars.pars.numThreads_);
 
 
-	struct InsertProteinInfo {
-		InsertProteinInfo(std::string  id, uint32_t aaStart, uint32_t aaStop,
-				std::string  desc) :
-				id_(std::move(id)), aaStart_(aaStart), aaStop_(aaStop), description_(std::move(desc)) {
-		}
-		std::string id_;
-		uint32_t aaStart_; //1-based
-		uint32_t aaStop_; //1-based
-		std::string description_;
-	};
 
-	std::unordered_map<std::string, std::vector<InsertProteinInfo>> proteinInsertInfoByName;
+
+	std::unordered_map<std::string, std::vector<MultiGenomeMapper::IntersectedProteinInfo>> proteinInsertInfoByName;
 	std::mutex proteinInsertInfoByNameMut;
 	njh::concurrent::LockableQueue<std::string> genomeQueueForInsert(getVectorOfMapKeys(gMapper->genomes_));
 	std::function<void()> getInsertInfo = [&proteinInsertInfoByName,&genomeQueueForInsert,
 																				 &gMapper,&extractPars,&locationsCombined,&outputDir,
 																				 &proteinInsertInfoByNameMut,&ids](){
 		std::string genome;
-		std::unordered_map<std::string, std::vector<InsertProteinInfo>> proteinInsertInfoByNameCurrent;
+		std::unordered_map<std::string, std::vector<MultiGenomeMapper::IntersectedProteinInfo>> proteinInsertInfoByNameCurrent;
 
 		while(genomeQueueForInsert.getVal(genome)){
 			auto genomeBedOpts = njh::files::make_path(locationsCombined, genome + "_inner.bed");
@@ -1600,6 +1597,7 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 
 			if(!allRegions.empty()){
 				if(!gMapper->genomes_.at(genome)->gffFnp_.empty()){
+
 					intersectBedLocsWtihGffRecordsPars pars(gMapper->genomes_.at(genome)->gffFnp_);
 					pars.selectFeatures_ = VecStr{"gene", "protein_coding_gene"};
 					pars.extraAttributes_ = tokenizeString(extractPars.gffExtraAttributesStr, ",");
@@ -1673,18 +1671,6 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 										++aaStopPos;
 										++aaStartPos;
 									}
-//									auto aaStartPos = std::min(posInfos[startPos].aaPos_, posInfos[stopPos].aaPos_) + 1;
-//									auto aaStopPos =  std::max(posInfos[startPos].aaPos_, posInfos[stopPos].aaPos_) + 1;
-
-//									std::cout << __FILE__ << " " << __LINE__ << std::endl;
-//									std::cout << "minPos: " << minPos << std::endl;
-//									std::cout << "maxPos: " << maxPos << std::endl;
-//									std::cout << "startPos: " << startPos << std::endl;
-//									std::cout << "stopPos: " << stopPos << std::endl;
-//									std::cout << "aaStartPos: " << aaStartPos << std::endl;
-//									std::cout << "aaStopPos: " << aaStopPos << std::endl;
-//									std::cout << "posInfos[startPos].aaPos_: " << posInfos[startPos].aaPos_ << std::endl;
-//									std::cout << "posInfos[stopPos].aaPos_: " << posInfos[stopPos].aaPos_ << std::endl;
 									geneMeta.addMeta(info.first + "-AAStart", aaStartPos);
 									geneMeta.addMeta(info.first + "-AAStop", aaStopPos);
 									std::string description;
@@ -1714,16 +1700,7 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 					}
 				}
 				OutputStream genomeBedOut(genomeBedOpts);
-				njh::sort(allRegions, [](
-						const std::shared_ptr<Bed3RecordCore> & bed1,
-						const std::shared_ptr<Bed3RecordCore> & bed2
-						){
-					if(bed1->chrom_ == bed2->chrom_){
-						return bed1->chromStart_ < bed2->chromStart_;
-					}else{
-						return bed1->chrom_ < bed2->chrom_;
-					}
-				});
+			  BedUtility::coordSort(allRegions);
 				for(const auto & loc : allRegions){
 					genomeBedOut << loc->toDelimStrWithExtra() << std::endl;
 				}

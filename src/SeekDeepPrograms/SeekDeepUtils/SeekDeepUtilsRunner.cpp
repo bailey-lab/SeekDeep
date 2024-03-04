@@ -189,6 +189,7 @@ int SeekDeepUtilsRunner::genTargetInfoFromGenomes(const njh::progutils::CmdArgs 
 	overlapStatusOut << "target\tstatus" << "\n";
 
 
+
 	for(const auto & tar : ids.getTargets()){
 		auto primersRemovedFnp = njh::files::make_path(pars.outputDirPars.dirName_, tar, tar + "_primersRemoved.fasta");
 		auto extractedSeqsFnp = njh::files::make_path(pars.outputDirPars.dirName_, tar, tar + ".fasta");
@@ -243,7 +244,7 @@ int SeekDeepUtilsRunner::genTargetInfoFromGenomes(const njh::progutils::CmdArgs 
 				}
 				overlapStatusOut << tar << "\t" << njh::conToStr(statuses, ",") << std::endl;
 			}
-		}else{
+		} else {
 			std::cerr << "Warning, no sequences extracted for " << tar << std::endl;
 		}
 	}

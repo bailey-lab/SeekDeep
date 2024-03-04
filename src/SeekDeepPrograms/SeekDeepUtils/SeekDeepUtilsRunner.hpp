@@ -36,16 +36,16 @@ class SeekDeepUtilsRunner : public njh::progutils::ProgramRunner {
   SeekDeepUtilsRunner();
   
   static int dryRunQualityFiltering(const njh::progutils::CmdArgs & inputCommands);
-	static int runMultipleCommands(const njh::progutils::CmdArgs & inputCommands);
+  static int runMultipleCommands(const njh::progutils::CmdArgs & inputCommands);
 
-	static int setupTarAmpAnalysis(const njh::progutils::CmdArgs & inputCommands);
-	static int replaceUnderscores(const njh::progutils::CmdArgs & inputCommands);
+  static int setupTarAmpAnalysis(const njh::progutils::CmdArgs & inputCommands);
+  static int replaceUnderscores(const njh::progutils::CmdArgs & inputCommands);
 
-	static int genTargetInfoFromGenomes(const njh::progutils::CmdArgs & inputCommands);
+  static int genTargetInfoFromGenomes(const njh::progutils::CmdArgs & inputCommands);
 
-	static int benchmarkControlMixturesOnProcessedClustersDir(const njh::progutils::CmdArgs & inputCommands);
-	static int benchmarkTarAmpControlMixtures(const njh::progutils::CmdArgs & inputCommands);
-	static int benchmarkMultiTarAmpControlMixtures(const njh::progutils::CmdArgs & inputCommands);
+  static int benchmarkControlMixturesOnProcessedClustersDir(const njh::progutils::CmdArgs & inputCommands);
+  static int benchmarkTarAmpControlMixtures(const njh::progutils::CmdArgs & inputCommands);
+  static int benchmarkMultiTarAmpControlMixtures(const njh::progutils::CmdArgs & inputCommands);
 
   static int gatherInfoOnTargetedAmpliconSeqFile(const njh::progutils::CmdArgs & inputCommands);
 
@@ -53,12 +53,12 @@ class SeekDeepUtilsRunner : public njh::progutils::ProgramRunner {
   static int SampleBarcodeFileToSeekDeepInput(const njh::progutils::CmdArgs & inputCommands);
 
   static int primersToFasta(const njh::progutils::CmdArgs & inputCommands);
-	static int deRepPopClusDir(const njh::progutils::CmdArgs & inputCommands);
+  static int deRepPopClusDir(const njh::progutils::CmdArgs & inputCommands);
 
-	static int combineBasicResultsFiles(const njh::progutils::CmdArgs & inputCommands);
+  static int combineBasicResultsFiles(const njh::progutils::CmdArgs & inputCommands);
 
-	static int variantCallOnSeqAndProtein(const njh::progutils::CmdArgs & inputCommands);
-	static int variantCallOnSeqAndProteinPost(const njh::progutils::CmdArgs & inputCommands);
+  static int variantCallOnSeqAndProtein(const njh::progutils::CmdArgs & inputCommands);
+  static int variantCallOnSeqAndProteinPost(const njh::progutils::CmdArgs & inputCommands);
 
 };
 

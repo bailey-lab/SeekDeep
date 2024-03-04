@@ -386,7 +386,6 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 
 	//copy in meta
 	if(!metaFnp.empty() && exists(metaFnp) && metaGroupData) {
-
 		// bfs::copy_file(metaFnp, njh::files::make_path(reportsDir, "meta.tsv"));
 		metaGroupData->writeOutMetaFile(njh::files::make_path(reportsDir, "meta.tsv"),	inputSampleNamesSet);
 	}
