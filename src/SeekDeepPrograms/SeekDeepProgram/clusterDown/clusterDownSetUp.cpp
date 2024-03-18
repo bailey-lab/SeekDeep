@@ -389,7 +389,7 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 	setOption(pars.sortBy, "--sortBy", "Sort Clusters By");
 	pars.additionalOut = setOption(pars.additionalOutLocationFile,
 			"--additionalOut", "Additional out filename for sorting final results", false, "Additional Output");
-	//setOption(pars.collapsingTandems, "--collapseTandems", "Collapsing Tandems");
+	setOption(pars.collapsingTandems, "--collapseTandems", "Collapsing Tandems");
 
 	setOption(pars_.colOpts_.alignOpts_.noAlign_, "--noAlignCompare",
 			"Do comparisons without globally aligning", false, "Alignment");
