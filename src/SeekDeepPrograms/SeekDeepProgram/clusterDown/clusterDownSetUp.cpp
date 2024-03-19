@@ -389,7 +389,11 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 	setOption(pars.sortBy, "--sortBy", "Sort Clusters By");
 	pars.additionalOut = setOption(pars.additionalOutLocationFile,
 			"--additionalOut", "Additional out filename for sorting final results", false, "Additional Output");
-	setOption(pars.collapsingTandems, "--collapseTandems", "Collapsing Tandems");
+	setOption(pars.collapsingTandems, "--collapseTandems", "Collapsing clusters if they only differ by gaps in tandem repeats");
+	setOption(pars.collapseTandemPars.freqCutoff, "--collapseTandemsFreqMultiplier", "When collapse tandem repeat gaps, larger cluster's frequency must be this many times the frequency of the smaller cluster");
+	pars.collapseTandemPars.allowableMismatches.lqMismatches_ = 1;
+	setOption(pars.collapseTandemPars.allowableMismatches.lqMismatches_, "--collapseTandemsLowQualityMismatchesAllowed", "When collapse tandem repeat gaps, allow this many low quality mismatches to also exist");
+	setOption(pars.collapseTandemPars.allowableTandems, "--collapseTandemsAllowableTandems", "When collapse tandem repeat gaps, allow this many tandem repeat gap to allow collapse");
 
 	setOption(pars_.colOpts_.alignOpts_.noAlign_, "--noAlignCompare",
 			"Do comparisons without globally aligning", false, "Alignment");
