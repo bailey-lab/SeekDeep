@@ -353,6 +353,7 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
           seq.reverseComplementRead(false, true);
           backPrimerName = ids.pDeterminator_->determineWithReversePrimer(seq, corePars.backEndpDetPars, *currentAlignerObj, VecStr{winnerSet});
           seq.reverseComplementRead(false, true);
+          passesMID = true;
         }
         //passes if the front and end primer both match the expected primer based on the winder set from the kmer matching
         bool passesFront = frontPrimerName == winnerSet;
