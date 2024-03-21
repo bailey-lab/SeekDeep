@@ -607,22 +607,26 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 
 	if (pars.collapsingTandems) {
 		setUp.rLog_.logCurrentTime("Collapsing tandems");
-		SeqOutput::write(clusters,
-				SeqIOOptions(
-						setUp.pars_.directoryName_
-								+ setUp.pars_.ioOptions_.out_.outFilename_.string() + "_befroeTanCol",
-						setUp.pars_.ioOptions_.outFormat_, setUp.pars_.ioOptions_.out_));
-		std::cout << "Collapsing on tandem repeat gaps" << std::endl;
-		std::cout << "Starting with " << clusters.size() << " clusters"
-				<< std::endl;
+		if (pars.development) {
+			SeqOutput::write(clusters,
+			                 SeqIOOptions(
+				                 setUp.pars_.directoryName_
+				                 + setUp.pars_.ioOptions_.out_.outFilename_.string() + "_beforeTanCol",
+				                 setUp.pars_.ioOptions_.outFormat_, setUp.pars_.ioOptions_.out_));
+		}
+		if(setUp.pars_.verbose_) {
+			std::cout << "Collapsing on tandem repeat gaps" << std::endl;
+			std::cout << "Starting with " << clusters.size() << " clusters" << std::endl;
+		}
+
 		clusterCollapser::collapseTandems(clusters, alignerObj,
-				setUp.pars_.colOpts_.kmerOpts_.runCutOff_,
-				setUp.pars_.colOpts_.kmerOpts_.kLength_,
-				setUp.pars_.colOpts_.kmerOpts_.kmersByPosition_, setUp.pars_.chiOpts_.parentFreqs_,
-				setUp.pars_.local_, true);
+				pars.collapseTandemPars);
 		clusters = readVecSplitter::splitVectorOnRemove(clusters).first;
-		std::cout << "Collapsed down to " << clusters.size() << " clusters"
-				<< std::endl;
+		readVec::allUpdateName(clusters);
+		if (setUp.pars_.verbose_) {
+			std::cout << "Collapsed down to " << clusters.size() << " clusters"
+					<< std::endl;
+		}
 	}
 	setUp.rLog_.logCurrentTime("Writing outputs");
 	if(pars.development){

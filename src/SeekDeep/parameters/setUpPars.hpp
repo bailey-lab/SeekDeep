@@ -40,6 +40,7 @@
 #include "SeekDeep/objects/TarAmpSetupUtils/PrimersAndMids.hpp"
 #include "SeekDeep/objects/IlluminaUtils/IlluminaNameFormatDecoder.hpp"
 #include <njhseq/PopulationGeneticsUtils.h>
+#include <njhseq/helpers/clusterCollapser.hpp>
 
 namespace njhseq {
 
@@ -119,6 +120,7 @@ struct clusterDownPars {
 	std::string sortBy = "totalCount";
 
 	bool collapsingTandems = false;
+	clusterCollapser::collapseTandemsPars collapseTandemPars;
 	bool additionalOut = false;
 	std::string additionalOutLocationFile;
 
