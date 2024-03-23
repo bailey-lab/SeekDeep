@@ -27,7 +27,9 @@ struct KmerClusteringRatePars {
   double cutOff = 0.05;
   uint32_t repCutOff = 1;
   double freqCutOff = 0.005;
-  std::string sizeCutOffStr = "0.05%,1";
+  std::string sizeCutOffStr = "1%,3";
+  // std::string sizeCutOffStr = "0.05%,3";
+
   double idCutOff = .90;
   bool byScore = false;
   bool map = false;
@@ -534,6 +536,15 @@ void simpleCollapseWithPars(std::vector<cluster> & consensusReads,
 
 
 int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputCommands) {
+
+
+  // --sizeCutOff 1%,3
+  // --map
+  // --recalcConsensus
+  // --checkIndelsWhenMapping
+  // --checkChimeras
+
+
   KmerClusteringRatePars pars;
   SimpleCollapsePars postCollapsePars;
   bool sortToTopBeforeSubGrouping = false;
@@ -543,13 +554,19 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
   bool checkIndelsWhenMapping = false;
   bool checkIndelsAgainstSNPsWhenMapping = false;
   bool doNotCheckIndelsAgainstSNPsWhenMapping = false;
+  uint32_t maxReadAmountForDownsample = 10000;
+  uint64_t randomSeed = std::numeric_limits<uint64_t>::max();
   seqSetUp setUp(inputCommands);
   setUp.processDebug();
   setUp.processVerbose();
   pars.verbose = setUp.pars_.verbose_;
+  setUp.setOption(maxReadAmountForDownsample, "--maxReadAmountForDownsample", "Randomly Downsample the input reads to this amount before clustering");
+  setUp.setOption(randomSeed, "--randomSeedForDownSampling", "When Randomly Downsampling, use this random seed, this way the same downsample would happen each time");
 
 	setUp.setOption(pars.development, "--development", "run in development mode, will generate a lot more output");
-  setUp.setOption(checkIndelsWhenMapping, "--checkIndelsWhenMapping", "check Indels When Mapping");
+  bool doNotCheckIndelWhenMapping = false;
+  setUp.setOption(doNotCheckIndelWhenMapping, "--doNotCheckIndelWhenMapping", "do not check Indels When Mapping");
+  checkIndelsWhenMapping = !doNotCheckIndelWhenMapping;
   //setUp.setOption(checkIndelsAgainstSNPsWhenMapping, "--checkIndelsAgainstSNPsWhenMapping", "check Indels Against SNPs When Mapping");
   setUp.setOption(doNotCheckIndelsAgainstSNPsWhenMapping, "--doNotCheckIndelsAgainstSNPsWhenMapping", "don't check Indels Against SNPs When Mapping");
   checkIndelsAgainstSNPsWhenMapping = !doNotCheckIndelsAgainstSNPsWhenMapping;
@@ -559,7 +576,7 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
   setUp.setOption(klenForPreSort, "--klenForPreSort", "k-len For Pre Sort");
 
   pars.readLengthMinDiff = 400;
-  setUp.setOption(pars.readLengthMinDiff, "--readLengthMinDiff", "The Read Length Mininum Difference to form a connection");
+  bool readLengthDiffSet = setUp.setOption(pars.readLengthMinDiff, "--readLengthMinDiff", "The Read Length Mininum Difference to form a connection");
 
   setUp.setOption(pars.subSamplingAmount_, "--subSamplingAmount", "Amount to sub-sample for each group to run initial clustering on to save on memory and speed, the input be divied in groups of this size and clustering ran on each group");
   setUp.setOption(pars.subSamplingMinAmount_, "--subSamplingMinAmount", "Minimum amount in a sub grouping if multiple groups");
@@ -586,12 +603,16 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
   setUp.setOption(pars.largeGapSizeCutOff, "--largeGapSizeCutOff", "During Mapping Exclude any reads have a gap larger than this value");
   setUp.setOption(pars.writeInitialClusters, "--writeInitialClusters", "Write the initial clusters before further collapsing");
   setUp.setOption(pars.chiAllowableError, "--chiAllowableError", "Allowable Error For Chi Overlap");
-  setUp.setOption(setUp.pars_.chiOpts_.checkChimeras_, "--checkChimeras", "Check For Possible chimeric sequence");
+  bool doNotCheckChimeras = false;
+  setUp.setOption(doNotCheckChimeras, "--doNotCheckChimeras", "Do not Check For Possible chimeric sequence");
+  setUp.pars_.chiOpts_.checkChimeras_ = !doNotCheckChimeras;
   setUp.setOption(setUp.pars_.chiOpts_.parentFreqs_, "--parFreqs", "Chimeric parent frequency multiplier");
   setUp.setOption(pars.additionalOutLocationFile, "--additionalOut",
                   "A location file created by makeSampleDirectories");
   setUp.setOption(pars.numThreads, "--numThreads,-t", "Number of Threads to Use");
-  setUp.setOption(pars.map, "--map", "Map the Input Reads Against Consensus Seqs");
+  bool doNotMap = false;
+  setUp.setOption(doNotMap, "--doNotMap", "Don't Map the Input Reads Against Consensus Seqs");
+  pars.map = !doNotMap;
   setUp.setOption(pars.byScore, "--byScore", "By Alignment Score");
   setUp.setOption(pars.repCutOff, "--repCutOff", "PCR Rep Count Cut Off");
   setUp.setOption(pars.sizeCutOffStr, "--sizeCutOff",
@@ -660,7 +681,9 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
   setUp.processQualThres();
   setUp.processScoringPars();
   setUp.processAlnInfoInput();
-  setUp.setOption(pars.recalcConsensus, "--recalcConsensus", "Recalculate consensus after mapping reads to the consensus sequences");
+  bool doNot_recalcConsensus = false;
+  setUp.setOption(doNot_recalcConsensus, "--doNotRecalcConsensus", "Do not recalculate consensus after mapping reads to the consensus sequences");
+  pars.recalcConsensus = !doNot_recalcConsensus;
   pars.breakoutPars.minSnps = postCollapsePars.passableErrors_.hqMismatches_ + 1;
   pars.breakoutPars.hardCutOff = pars.dbPars_.minEpNeighbors_;
   pars.breakoutPars.qScorePars = setUp.pars_.qScorePars_;
@@ -705,11 +728,59 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
   uint64_t maxReadLength = 0;
   if(setUp.pars_.verbose_){
     std::cout << njh::bashCT::bold << "Reading" << std::endl;;
-
   }
+  uint32_t inputReadAmount = 0;
   {
+    std::vector<uint64_t> readLengths;
     seqInfo seq;
     SeqInput reader(setUp.pars_.ioOptions_);
+    reader.openIn();
+    while (reader.readNextRead(seq)) {
+      ++inputReadAmount;
+      readLengths.emplace_back(len(seq));
+    }
+    auto readLenMedian = vectorMedianRef(readLengths);
+    if(!readLengthDiffSet) {
+      pars.readLengthMinDiff = 0.10 * readLenMedian;//set to 10% of the read length median of the input if not setting the read length difference
+    }
+  }
+  auto inOptsForReading = setUp.pars_.ioOptions_;
+  if(inputReadAmount > maxReadAmountForDownsample) {
+    if(setUp.pars_.verbose_){
+      std::cout << "There are " << inputReadAmount << " input reads, will down sample to " << maxReadAmountForDownsample << std::endl;;
+    }
+    SeqIOOptions downsampleOut(njh::files::make_path(setUp.pars_.directoryName_, "downsampled"), SeqIOOptions::getOutFormat(setUp.pars_.ioOptions_.inFormat_));
+    njh::randomGenerator rgen;
+    if(std::numeric_limits<uint64_t>::max() != randomSeed) {
+      rgen.seedNum(randomSeed);
+    }
+    {
+      OutputStream randomSeedUsedForSamplingOut(njh::files::make_path(setUp.pars_.directoryName_, "randomSeedForSampling.txt"));
+      randomSeedUsedForSamplingOut << rgen.currentSeed_ << std::endl;
+    }
+    double downsampleFraction = static_cast<double>(maxReadAmountForDownsample)/static_cast<double>(inputReadAmount);
+    seqInfo seq;
+    SeqInput reader(setUp.pars_.ioOptions_);
+    reader.openIn();
+    SeqOutput writer(downsampleOut);
+    writer.openOut();
+    inOptsForReading.firstName_ = downsampleOut.getPriamryOutName();
+    uint64_t numberWritten = 0;
+    while (reader.readNextRead(seq)) {
+      if(rgen.unifRand() <= downsampleFraction) {
+       writer.write(seq);
+        ++numberWritten;
+        if(numberWritten>=maxReadAmountForDownsample) {
+          break;
+        }
+      }
+    }
+  }
+
+
+  {
+    seqInfo seq;
+    SeqInput reader(inOptsForReading);
     reader.openIn();
     while (reader.readNextRead(seq)) {
       readVec::getMaxLength(seq, maxReadLength);
@@ -834,10 +905,16 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
             [](const std::vector<readObject> & vec1,
                const std::vector<readObject> & vec2) {return vec1.size() > vec2.size();});
   //create various output directories
-  auto clusDir = njh::files::makeDir(setUp.pars_.directoryName_, njh::files::MkdirPar("clusters"));
-  auto singlesDir = njh::files::makeDir(clusDir, njh::files::MkdirPar("belowSizeCutOff"));
+
+  auto clusDir = njh::files::make_path(setUp.pars_.directoryName_, "clusters");
+  auto singlesDir = njh::files::make_path(clusDir, "belowSizeCutOff");
+  if(pars.development) {
+    njh::files::makeDir(njh::files::MkdirPar(clusDir));
+    njh::files::makeDir(njh::files::MkdirPar(singlesDir));
+  }
+
   std::string repDir;
-  if(pars.repCutOff > 1){
+  if(pars.repCutOff > 1 && pars.development){
     repDir = njh::files::makeDir(clusDir, njh::files::MkdirPar("belowRepCutOff")).string();
   }
   if(setUp.pars_.debug_){
@@ -846,10 +923,12 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
   //create consensus sequence and filter clusters on replicate count and cluster size cut off
   std::vector<cluster> consensusReads;
   std::ofstream initialClusterInfoFile;
-  openTextFile(initialClusterInfoFile,
-               setUp.pars_.directoryName_ + "initialClusterInfo.tab.txt", ".tab.txt",
-               false, false);
-  initialClusterInfoFile << "kmerClusterId\treadCount\n";
+  if(pars.development) {
+    openTextFile(initialClusterInfoFile,
+             setUp.pars_.directoryName_ + "initialClusterInfo.tab.txt", ".tab.txt",
+             false, false);
+    initialClusterInfoFile << "kmerClusterId\treadCount\n";
+  }
   setUp.rLog_.logCurrentTime("Building Consensus Sequences");
 
   uint32_t totalClusterCount = 0;
@@ -858,18 +937,22 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
     if (outReads[vecPos].size() > clustersizeCutOff) {
       ++totalClusterCount;
     }else{
-      SeqOutput::write(outReads[vecPos],
-                       SeqIOOptions(singlesDir.string() + leftPadNumStr<uint32_t>(vecPos, outReads.size()),
-                                    setUp.pars_.ioOptions_.outFormat_, setUp.pars_.ioOptions_.out_));
+      if(pars.development) {
+        SeqOutput::write(outReads[vecPos],
+                 SeqIOOptions(njh::files::make_path(singlesDir.string(), leftPadNumStr<uint32_t>(vecPos, outReads.size())),
+                              setUp.pars_.ioOptions_.outFormat_, setUp.pars_.ioOptions_.out_));
+      }
     }
   }
   if(setUp.pars_.verbose_){
     std::cout << njh::bashCT::bold << "Building Consensus Sequences for " << totalClusterCount << " groups" << njh::bashCT::reset << std::endl;
   }
-  for (const auto vecPos : iter::range(outReads.size())) {
-    initialClusterInfoFile << vecPos << '\t'
-                           << getPercentageString(readVec::getTotalReadCount(outReads[vecPos]),
-                                                  totalReadCnt) << '\n';
+  if(pars.development) {
+    for (const auto vecPos : iter::range(outReads.size())) {
+      initialClusterInfoFile << vecPos << '\t'
+                             << getPercentageString(readVec::getTotalReadCount(outReads[vecPos]),
+                                                    totalReadCnt) << '\n';
+    }
   }
   {
     std::vector<uint32_t> readPositions(totalClusterCount);
@@ -1317,16 +1400,19 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
       t.join();
     }
 
-
-    mappingDir = njh::files::makeDir(setUp.pars_.directoryName_,
-                                     njh::files::MkdirPar("mappingInfo")).string();
-    SeqOutput::write(unmappable, SeqIOOptions(mappingDir + "unmappable", setUp.pars_.ioOptions_.outFormat_,setUp.pars_.ioOptions_.out_));
-    SeqOutput::write(indeterminate, SeqIOOptions(mappingDir + "indeterminate", setUp.pars_.ioOptions_.outFormat_,setUp.pars_.ioOptions_.out_));
+    if(pars.development) {
+      mappingDir = njh::files::makeDir(setUp.pars_.directoryName_,
+                                  njh::files::MkdirPar("mappingInfo")).string();
+      SeqOutput::write(unmappable, SeqIOOptions(mappingDir + "unmappable", setUp.pars_.ioOptions_.outFormat_,setUp.pars_.ioOptions_.out_));
+      SeqOutput::write(indeterminate, SeqIOOptions(mappingDir + "indeterminate", setUp.pars_.ioOptions_.outFormat_,setUp.pars_.ioOptions_.out_));
+    }
     std::vector<readObject> tiesObj;
     std::ofstream tiesInfo;
-    openTextFile(tiesInfo, mappingDir + "tiesInfo", ".tab.txt",
-                 setUp.pars_.ioOptions_.out_);
-    tiesInfo << "readName\trefs\n";
+    if(pars.development) {
+      openTextFile(tiesInfo, mappingDir + "tiesInfo", ".tab.txt",
+                   setUp.pars_.ioOptions_.out_);
+      tiesInfo << "readName\trefs\n";
+    }
     for (const auto & tie : ties) {
       tiesObj.emplace_back(allInputReads[tie.first]->seqBase_);
       tiesInfo << allInputReads[tie.first]->seqBase_.name_ << "\t";
@@ -1334,9 +1420,13 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
       for (const auto & r : tie.second) {
         refNames.emplace_back(readCounts[r].seqBase_.name_);
       }
-      tiesInfo << vectorToString(refNames, ",") << "\n";
+      if(pars.development) {
+        tiesInfo << vectorToString(refNames, ",") << "\n";
+      }
     }
-    SeqOutput::write(tiesObj, SeqIOOptions(mappingDir + "ties", setUp.pars_.ioOptions_.outFormat_,setUp.pars_.ioOptions_.out_));
+    if(pars.development) {
+      SeqOutput::write(tiesObj, SeqIOOptions(mappingDir + "ties", setUp.pars_.ioOptions_.outFormat_,setUp.pars_.ioOptions_.out_));
+    }
     unmappableAmount = std::accumulate(unmappable.begin(),
                                        unmappable.end(), 0.0,
                                        [](double init, const seqInfo & seq) {return init + seq.cnt_;});
@@ -1349,7 +1439,9 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
     {
       if(pars.map){
         std::ofstream mapInfo;
-        openTextFile(mapInfo, mappingDir + "initialMapInfo", ".tab.txt", setUp.pars_.ioOptions_.out_);
+        if(pars.development) {
+          openTextFile(mapInfo, mappingDir + "initialMapInfo", ".tab.txt", setUp.pars_.ioOptions_.out_);
+        }
         std::set<std::string> repNames;
         for (const auto & read : allInputReads) {
           if("" != pars.aSetRepName){
@@ -1360,15 +1452,17 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
           }
 
         }
-        mapInfo << "seqName\trefId\tftotalReadsMapped\ttotalMappedFraction";
-        for (const auto & n : repNames) {
-          mapInfo << "\t" << n << "_readsMapped\t" << n << "_mappedFraction";
+        if(pars.development) {
+          mapInfo << "seqName\trefId\tftotalReadsMapped\ttotalMappedFraction";
+          for (const auto & n : repNames) {
+            mapInfo << "\t" << n << "_readsMapped\t" << n << "_mappedFraction";
+          }
+          if (setUp.pars_.refIoOptions_.firstName_ != "") {
+            mapInfo << "\tBestRef\tscore\t1bIndel\t2bI"
+                       "ndel\t>2bIndel\tlqMismatch\thqMismatch";
+          }
+          mapInfo << "\n";
         }
-        if (setUp.pars_.refIoOptions_.firstName_ != "") {
-          mapInfo << "\tBestRef\tscore\t1bIndel\t2bI"
-                     "ndel\t>2bIndel\tlqMismatch\thqMismatch";
-        }
-        mapInfo << "\n";
         std::string seqName = bfs::basename(setUp.pars_.ioOptions_.firstName_);
         std::map<std::string, double> repTotals;
         for (const auto & ref : readCounts) {
@@ -1389,30 +1483,38 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
             auto toks = tokenizeString(read.name_, ".");
             repCounts[njh::replaceString(toks[0], "_Comp", "")] += read.cnt_;
           }
-          mapInfo << seqName << "\t" << ref.seqBase_.name_ << "\t"
-                  << ref.seqBase_.cnt_ << "\t" << ref.seqBase_.cnt_ / totalReadCnt;
-          for (const auto & n : repNames) {
-            if (repCounts.find(n) != repCounts.end()) {
-              mapInfo << "\t" << repCounts[n] << "\t"
-                      << repCounts[n] / repTotals[n];
-            } else {
-              mapInfo << "\t0\t0";
+          if(pars.development) {
+            mapInfo << seqName << "\t" << ref.seqBase_.name_ << "\t"
+                    << ref.seqBase_.cnt_ << "\t" << ref.seqBase_.cnt_ / totalReadCnt;
+            for (const auto & n : repNames) {
+              if (repCounts.find(n) != repCounts.end()) {
+                mapInfo << "\t" << repCounts[n] << "\t"
+                        << repCounts[n] / repTotals[n];
+              } else {
+                mapInfo << "\t0\t0";
+              }
             }
           }
           if (setUp.pars_.refIoOptions_.firstName_ != "") {
             bool eventBased = true;
-            mapInfo << "\t"
-                    << profiler::compareToRefSingle(refSeqs, ref, alignerObj,
-                                                    setUp.pars_.local_, eventBased).front();
+            if(pars.development) {
+              mapInfo << "\t"
+                      << profiler::compareToRefSingle(refSeqs, ref, alignerObj,
+                                                      setUp.pars_.local_, eventBased).front();
+            }
           }
-          mapInfo << "\n";
+          if(pars.development) {
+            mapInfo << "\n";
+          }
         }
-        mapInfo << seqName << "\t" << "unmappable\t" << unmappableAmount << "\t"
-                << unmappableAmount / totalReadCnt << "\n";
-        mapInfo << seqName << "\t" << "indeterminate\t" << indeterminateAmount
-                << "\t" << indeterminateAmount / totalReadCnt << "\n";
-        mapInfo << seqName << "\t" << "ties\t" << tiesAmount
-                << "\t" << tiesAmount / totalReadCnt << "\n";
+        if(pars.development) {
+          mapInfo << seqName << "\t" << "unmappable\t" << unmappableAmount << "\t"
+                  << unmappableAmount / totalReadCnt << "\n";
+          mapInfo << seqName << "\t" << "indeterminate\t" << indeterminateAmount
+                  << "\t" << indeterminateAmount / totalReadCnt << "\n";
+          mapInfo << seqName << "\t" << "ties\t" << tiesAmount
+                  << "\t" << tiesAmount / totalReadCnt << "\n";
+        }
       }
     }
   }
@@ -1687,8 +1789,9 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
 
       readCounts.clear();
       //njh::files::rmDirForce(mappingDir);
-      njh::files::bfs::rename(mappingDir, njh::files::make_path(setUp.pars_.directoryName_, "initialMappingInfo"));
-
+      if(pars.development) {
+        njh::files::bfs::rename(mappingDir, njh::files::make_path(setUp.pars_.directoryName_, "initialMappingInfo"));
+      }
       unmappableAmount = 0.0;
       indeterminateAmount = 0.0;
       tiesAmount = 0.0;
@@ -2014,24 +2117,31 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
         t.join();
       }
 
-
-      mappingDir = njh::files::makeDir(setUp.pars_.directoryName_,
-                                       njh::files::MkdirPar("mappingInfo")).string();
-      SeqOutput::write(unmappable, SeqIOOptions(mappingDir + "unmappable", setUp.pars_.ioOptions_.outFormat_,setUp.pars_.ioOptions_.out_));
-      SeqOutput::write(indeterminate, SeqIOOptions(mappingDir + "indeterminate", setUp.pars_.ioOptions_.outFormat_,setUp.pars_.ioOptions_.out_));
+      if(pars.development) {
+        mappingDir = njh::files::makeDir(setUp.pars_.directoryName_,
+                                         njh::files::MkdirPar("mappingInfo")).string();
+        SeqOutput::write(unmappable, SeqIOOptions(mappingDir + "unmappable", setUp.pars_.ioOptions_.outFormat_,setUp.pars_.ioOptions_.out_));
+        SeqOutput::write(indeterminate, SeqIOOptions(mappingDir + "indeterminate", setUp.pars_.ioOptions_.outFormat_,setUp.pars_.ioOptions_.out_));
+      }
       std::vector<readObject> tiesObj;
       std::ofstream tiesInfo;
-      openTextFile(tiesInfo, mappingDir + "tiesInfo", ".tab.txt",
-                   setUp.pars_.ioOptions_.out_);
-      tiesInfo << "readName\trefs\n";
+      if(pars.development) {
+        openTextFile(tiesInfo, mappingDir + "tiesInfo", ".tab.txt",
+                     setUp.pars_.ioOptions_.out_);
+        tiesInfo << "readName\trefs\n";
+      }
       for (const auto & tie : ties) {
         tiesObj.emplace_back(allInputReads[tie.first]->seqBase_);
-        tiesInfo << allInputReads[tie.first]->seqBase_.name_ << "\t";
+        if(pars.development) {
+          tiesInfo << allInputReads[tie.first]->seqBase_.name_ << "\t";
+        }
         VecStr refNames;
         for (const auto & r : tie.second) {
           refNames.emplace_back(readCounts[r].seqBase_.name_);
         }
-        tiesInfo << vectorToString(refNames, ",") << "\n";
+        if(pars.development) {
+          tiesInfo << vectorToString(refNames, ",") << "\n";
+        }
       }
       SeqOutput::write(tiesObj, SeqIOOptions(mappingDir + "ties", setUp.pars_.ioOptions_.outFormat_,setUp.pars_.ioOptions_.out_));
       unmappableAmount = std::accumulate(unmappable.begin(),
@@ -2182,7 +2292,9 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
       setUp.rLog_ << "Finished with " << consensusReads.size()
                   << " Consensus Sequences after Breakout" << "\n";
       std::ofstream mapInfo;
-      openTextFile(mapInfo, mappingDir + "mapInfo", ".tab.txt", setUp.pars_.ioOptions_.out_);
+      if(pars.development) {
+        openTextFile(mapInfo, mappingDir + "mapInfo", ".tab.txt", setUp.pars_.ioOptions_.out_);
+      }
       std::set<std::string> repNames;
       for (const auto & read : allInputReads) {
         if("" != pars.aSetRepName){
@@ -2193,15 +2305,17 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
         }
 
       }
-      mapInfo << "seqName\trefId\tftotalReadsMapped\ttotalMappedFraction";
-      for (const auto & n : repNames) {
-        mapInfo << "\t" << n << "_readsMapped\t" << n << "_mappedFraction";
+      if(pars.development) {
+        mapInfo << "seqName\trefId\tftotalReadsMapped\ttotalMappedFraction";
+        for (const auto & n : repNames) {
+          mapInfo << "\t" << n << "_readsMapped\t" << n << "_mappedFraction";
+        }
+        if (setUp.pars_.refIoOptions_.firstName_ != "") {
+          mapInfo << "\tBestRef\tscore\t1bIndel\t2bI"
+                     "ndel\t>2bIndel\tlqMismatch\thqMismatch";
+        }
+        mapInfo << "\n";
       }
-      if (setUp.pars_.refIoOptions_.firstName_ != "") {
-        mapInfo << "\tBestRef\tscore\t1bIndel\t2bI"
-                   "ndel\t>2bIndel\tlqMismatch\thqMismatch";
-      }
-      mapInfo << "\n";
       std::string seqName = bfs::basename(setUp.pars_.ioOptions_.firstName_);
       std::map<std::string, double> repTotals;
       for (const auto & ref : readCounts) {
@@ -2222,32 +2336,38 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
           auto toks = tokenizeString(read.name_, ".");
           repCounts[njh::replaceString(toks[0], "_Comp", "")] += read.cnt_;
         }
-        mapInfo << seqName << "\t" << ref.seqBase_.name_ << "\t"
-                << ref.seqBase_.cnt_ << "\t" << ref.seqBase_.cnt_ / totalReadCnt;
-        for (const auto & n : repNames) {
-          if (repCounts.find(n) != repCounts.end()) {
-            mapInfo << "\t" << repCounts[n] << "\t"
-                    << repCounts[n] / repTotals[n];
-          } else {
-            mapInfo << "\t0\t0";
+        if(pars.development) {
+          mapInfo << seqName << "\t" << ref.seqBase_.name_ << "\t"
+                  << ref.seqBase_.cnt_ << "\t" << ref.seqBase_.cnt_ / totalReadCnt;
+          for (const auto & n : repNames) {
+            if (repCounts.find(n) != repCounts.end()) {
+              mapInfo << "\t" << repCounts[n] << "\t"
+                      << repCounts[n] / repTotals[n];
+            } else {
+              mapInfo << "\t0\t0";
+            }
           }
         }
         if (setUp.pars_.refIoOptions_.firstName_ != "") {
           bool eventBased = true;
-          mapInfo << "\t"
-                  << profiler::compareToRefSingle(refSeqs, ref, alignerObj,
-                                                  setUp.pars_.local_, eventBased).front();
+          if(pars.development) {
+            mapInfo << "\t"
+                    << profiler::compareToRefSingle(refSeqs, ref, alignerObj,
+                                                    setUp.pars_.local_, eventBased).front();
+          }
         }
-        mapInfo << "\n";
+        if(pars.development) {
+          mapInfo << "\n";
+        }
       }
-
-      mapInfo << seqName << "\t" << "unmappable\t" << unmappableAmount << "\t"
-              << unmappableAmount / totalReadCnt << "\n";
-      mapInfo << seqName << "\t" << "indeterminate\t" << indeterminateAmount
-              << "\t" << indeterminateAmount / totalReadCnt << "\n";
-      mapInfo << seqName << "\t" << "ties\t" << tiesAmount
-              << "\t" << tiesAmount / totalReadCnt << "\n";
-
+      if(pars.development) {
+        mapInfo << seqName << "\t" << "unmappable\t" << unmappableAmount << "\t"
+                << unmappableAmount / totalReadCnt << "\n";
+        mapInfo << seqName << "\t" << "indeterminate\t" << indeterminateAmount
+                << "\t" << indeterminateAmount / totalReadCnt << "\n";
+        mapInfo << seqName << "\t" << "ties\t" << tiesAmount
+                << "\t" << tiesAmount / totalReadCnt << "\n";
+      }
     }
 
 
@@ -2586,26 +2706,35 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
         t.join();
       }
 
-
-      mappingDir = njh::files::makeDir(setUp.pars_.directoryName_,
-                                       njh::files::MkdirPar("finalMappingInfo")).string();
-      SeqOutput::write(unmappable, SeqIOOptions(mappingDir + "unmappable", setUp.pars_.ioOptions_.outFormat_,setUp.pars_.ioOptions_.out_));
-      SeqOutput::write(indeterminate, SeqIOOptions(mappingDir + "indeterminate", setUp.pars_.ioOptions_.outFormat_,setUp.pars_.ioOptions_.out_));
+      if(pars.development) {
+        mappingDir = njh::files::makeDir(setUp.pars_.directoryName_,
+                                         njh::files::MkdirPar("finalMappingInfo")).string();
+        SeqOutput::write(unmappable, SeqIOOptions(mappingDir + "unmappable", setUp.pars_.ioOptions_.outFormat_,setUp.pars_.ioOptions_.out_));
+        SeqOutput::write(indeterminate, SeqIOOptions(mappingDir + "indeterminate", setUp.pars_.ioOptions_.outFormat_,setUp.pars_.ioOptions_.out_));
+      }
       std::vector<readObject> tiesObj;
       std::ofstream tiesInfo;
-      openTextFile(tiesInfo, mappingDir + "tiesInfo", ".tab.txt",
-                   setUp.pars_.ioOptions_.out_);
-      tiesInfo << "readName\trefs\n";
+      if(pars.development) {
+        openTextFile(tiesInfo, mappingDir + "tiesInfo", ".tab.txt",
+                     setUp.pars_.ioOptions_.out_);
+        tiesInfo << "readName\trefs\n";
+      }
       for (const auto & tie : ties) {
         tiesObj.emplace_back(allInputReads[tie.first]->seqBase_);
-        tiesInfo << allInputReads[tie.first]->seqBase_.name_ << "\t";
+        if(pars.development) {
+          tiesInfo << allInputReads[tie.first]->seqBase_.name_ << "\t";
+        }
         VecStr refNames;
         for (const auto & r : tie.second) {
           refNames.emplace_back(readCounts[r].seqBase_.name_);
         }
-        tiesInfo << vectorToString(refNames, ",") << "\n";
+        if(pars.development) {
+          tiesInfo << vectorToString(refNames, ",") << "\n";
+        }
       }
-      SeqOutput::write(tiesObj, SeqIOOptions(mappingDir + "ties", setUp.pars_.ioOptions_.outFormat_,setUp.pars_.ioOptions_.out_));
+      if(pars.development) {
+        SeqOutput::write(tiesObj, SeqIOOptions(mappingDir + "ties", setUp.pars_.ioOptions_.outFormat_,setUp.pars_.ioOptions_.out_));
+      }
       unmappableAmount = std::accumulate(unmappable.begin(),
                                          unmappable.end(), 0.0,
                                          [](double init, const seqInfo & seq) {return init + seq.cnt_;});
@@ -2754,7 +2883,9 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
       setUp.rLog_ << "Finished with " << consensusReads.size()
                   << " Consensus Sequences after Breakout, final" << "\n";
       std::ofstream mapInfo;
-      openTextFile(mapInfo, mappingDir + "mapInfo", ".tab.txt", setUp.pars_.ioOptions_.out_);
+      if(pars.development) {
+        openTextFile(mapInfo, mappingDir + "mapInfo", ".tab.txt", setUp.pars_.ioOptions_.out_);
+      }
       std::set<std::string> repNames;
       for (const auto & read : allInputReads) {
         if("" != pars.aSetRepName){
@@ -2763,17 +2894,18 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
           auto toks = tokenizeString(read->seqBase_.name_, ".");
           repNames.emplace(njh::replaceString(toks[0], "_Comp", ""));
         }
-
       }
-      mapInfo << "seqName\trefId\tftotalReadsMapped\ttotalMappedFraction";
-      for (const auto & n : repNames) {
-        mapInfo << "\t" << n << "_readsMapped\t" << n << "_mappedFraction";
+      if(pars.development) {
+        mapInfo << "seqName\trefId\tftotalReadsMapped\ttotalMappedFraction";
+        for (const auto & n : repNames) {
+          mapInfo << "\t" << n << "_readsMapped\t" << n << "_mappedFraction";
+        }
+        if (setUp.pars_.refIoOptions_.firstName_ != "") {
+          mapInfo << "\tBestRef\tscore\t1bIndel\t2bI"
+                     "ndel\t>2bIndel\tlqMismatch\thqMismatch";
+        }
+        mapInfo << "\n";
       }
-      if (setUp.pars_.refIoOptions_.firstName_ != "") {
-        mapInfo << "\tBestRef\tscore\t1bIndel\t2bI"
-                   "ndel\t>2bIndel\tlqMismatch\thqMismatch";
-      }
-      mapInfo << "\n";
       std::string seqName = bfs::basename(setUp.pars_.ioOptions_.firstName_);
       std::map<std::string, double> repTotals;
       for (const auto & ref : readCounts) {
@@ -2794,31 +2926,38 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
           auto toks = tokenizeString(read.name_, ".");
           repCounts[njh::replaceString(toks[0], "_Comp", "")] += read.cnt_;
         }
-        mapInfo << seqName << "\t" << ref.seqBase_.name_ << "\t"
-                << ref.seqBase_.cnt_ << "\t" << ref.seqBase_.cnt_ / totalReadCnt;
-        for (const auto & n : repNames) {
-          if (repCounts.find(n) != repCounts.end()) {
-            mapInfo << "\t" << repCounts[n] << "\t"
-                    << repCounts[n] / repTotals[n];
-          } else {
-            mapInfo << "\t0\t0";
+        if(pars.development) {
+          mapInfo << seqName << "\t" << ref.seqBase_.name_ << "\t"
+                  << ref.seqBase_.cnt_ << "\t" << ref.seqBase_.cnt_ / totalReadCnt;
+          for (const auto & n : repNames) {
+            if (repCounts.find(n) != repCounts.end()) {
+              mapInfo << "\t" << repCounts[n] << "\t"
+                      << repCounts[n] / repTotals[n];
+            } else {
+              mapInfo << "\t0\t0";
+            }
           }
         }
         if (setUp.pars_.refIoOptions_.firstName_ != "") {
           bool eventBased = true;
-          mapInfo << "\t"
-                  << profiler::compareToRefSingle(refSeqs, ref, alignerObj,
-                                                  setUp.pars_.local_, eventBased).front();
+          if(pars.development) {
+            mapInfo << "\t"
+                    << profiler::compareToRefSingle(refSeqs, ref, alignerObj,
+                                                    setUp.pars_.local_, eventBased).front();
+          }
         }
-        mapInfo << "\n";
+        if(pars.development) {
+          mapInfo << "\n";
+        }
       }
-
-      mapInfo << seqName << "\t" << "unmappable\t" << unmappableAmount << "\t"
-              << unmappableAmount / totalReadCnt << "\n";
-      mapInfo << seqName << "\t" << "indeterminate\t" << indeterminateAmount
-              << "\t" << indeterminateAmount / totalReadCnt << "\n";
-      mapInfo << seqName << "\t" << "ties\t" << tiesAmount
-              << "\t" << tiesAmount / totalReadCnt << "\n";
+      if(pars.development) {
+        mapInfo << seqName << "\t" << "unmappable\t" << unmappableAmount << "\t"
+                << unmappableAmount / totalReadCnt << "\n";
+        mapInfo << seqName << "\t" << "indeterminate\t" << indeterminateAmount
+                << "\t" << indeterminateAmount / totalReadCnt << "\n";
+        mapInfo << seqName << "\t" << "ties\t" << tiesAmount
+                << "\t" << tiesAmount / totalReadCnt << "\n";
+      }
     }
     renameReadNames(consensusReads,
                     bfs::basename(setUp.pars_.ioOptions_.firstName_), true, true,
@@ -2955,9 +3094,11 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
     }
   }
 
-  std::string snpDir = njh::files::makeDir(setUp.pars_.directoryName_,
+  std::string snpDir;
+  if(pars.development) {
+    snpDir = njh::files::makeDir(setUp.pars_.directoryName_,
                                            njh::files::MkdirPar("internalSnpInfo")).string();
-
+  }
 
 
   if (setUp.pars_.chiOpts_.checkChimeras_) {
@@ -2971,77 +3112,82 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
     collapserObj.opts_.verboseOpts_.debug_ = setUp.pars_.debug_;
     auto chiInfoTab = collapserObj.markChimeras(consensusReads, alignerObj,
                                                 setUp.pars_.chiOpts_);
-    chiInfoTab.outPutContents(
-        TableIOOpts(
-            OutOptions(setUp.pars_.directoryName_ + "chiParentsInfo.txt",
-                       ".txt"), "\t", true));
+    if(pars.development) {
+      chiInfoTab.outPutContents(
+          TableIOOpts(
+              OutOptions(setUp.pars_.directoryName_ + "chiParentsInfo.txt",
+                         ".txt"), "\t", true));
+    }
   }
-
-  //output info file on consensus
-  OutputStream infoFile(njh::files::make_path(setUp.pars_.directoryName_ , "outputInfo.tab.txt"));
   readVec::allSetFractionByTotalCount(consensusReads);
-  infoFile << "ClusterNumber\tClusterId\tClusterSize\tClusterFraction\n";
-  for (const auto readPos : iter::range(consensusReads.size())) {
-    //write out cluster info
-    infoFile << readPos
-             << '\t' << consensusReads[readPos].seqBase_.name_
-             << '\t' << consensusReads[readPos].seqBase_.cnt_
-             << '\t' << consensusReads[readPos].seqBase_.frac_ << '\n';
-    SeqOutput::write(consensusReads[readPos].reads_,
-                     SeqIOOptions(clusDir.string() + consensusReads[readPos].seqBase_.name_,
-                                  setUp.pars_.ioOptions_.outFormat_, setUp.pars_.ioOptions_.out_));
-    //log snp information
-    /**@todo add indel information, less informative since pacbio have a lot*/
-    std::unordered_map<uint32_t, std::unordered_map<char, VecStr>> mismatches;
-    for (const auto subReadPos : iter::range(
-        consensusReads[readPos].reads_.size())) {
-      const auto & subRead = consensusReads[readPos].reads_[subReadPos];
-      alignerObj.alignCache(consensusReads[readPos], subRead, false);
-      //count gaps and mismatches and get identity
-      alignerObj.profilePrimerAlignment(consensusReads[readPos], subRead);
-      for (const auto & m : alignerObj.comp_.distances_.mismatches_) {
-        if(m.second.highQuality(setUp.pars_.qScorePars_)){
-          mismatches[m.second.refBasePos][m.second.seqBase].emplace_back(
-              subRead->seqBase_.name_);
+  if(pars.development) {
+    //output info file on consensus
+    OutputStream infoFile(njh::files::make_path(setUp.pars_.directoryName_ , "outputInfo.tab.txt"));
+    infoFile << "ClusterNumber\tClusterId\tClusterSize\tClusterFraction\n";
+    for (const auto readPos : iter::range(consensusReads.size())) {
+      //write out cluster info
+      infoFile << readPos
+               << '\t' << consensusReads[readPos].seqBase_.name_
+               << '\t' << consensusReads[readPos].seqBase_.cnt_
+               << '\t' << consensusReads[readPos].seqBase_.frac_ << '\n';
+      if(pars.development) {
+        SeqOutput::write(consensusReads[readPos].reads_,
+                         SeqIOOptions(njh::files::make_path(clusDir.string(), consensusReads[readPos].seqBase_.name_),
+                                      setUp.pars_.ioOptions_.outFormat_, setUp.pars_.ioOptions_.out_));
+      }
+      //log snp information
+      /**@todo add indel information, less informative since pacbio have a lot*/
+      std::unordered_map<uint32_t, std::unordered_map<char, VecStr>> mismatches;
+      for (const auto subReadPos : iter::range(
+          consensusReads[readPos].reads_.size())) {
+        const auto & subRead = consensusReads[readPos].reads_[subReadPos];
+        alignerObj.alignCache(consensusReads[readPos], subRead, false);
+        //count gaps and mismatches and get identity
+        alignerObj.profilePrimerAlignment(consensusReads[readPos], subRead);
+        for (const auto & m : alignerObj.comp_.distances_.mismatches_) {
+          if(m.second.highQuality(setUp.pars_.qScorePars_)){
+            mismatches[m.second.refBasePos][m.second.seqBase].emplace_back(
+                subRead->seqBase_.name_);
+          }
+        }
+          }
+      table misTab { VecStr { "refPos", "refBase", "seqBase", "freq", "fraction",
+                              "seqs" } };
+      for (const auto & m : mismatches) {
+        for (const auto & seqM : m.second) {
+
+          misTab.content_.emplace_back(
+              toVecStr(m.first, consensusReads[readPos].seqBase_.seq_[m.first],
+                       seqM.first, seqM.second.size(),
+                       seqM.second.size() / consensusReads[readPos].seqBase_.cnt_,
+                       vectorToString(seqM.second, ",")));
         }
       }
+      misTab.sortTable("seqBase", false);
+      misTab.sortTable("refPos", false);
+      misTab.outPutContents(
+          TableIOOpts(
+              OutOptions(snpDir + consensusReads[readPos].seqBase_.name_,
+                         ".tab.txt"), "\t", misTab.hasHeader_));
     }
-    table misTab { VecStr { "refPos", "refBase", "seqBase", "freq", "fraction",
-                            "seqs" } };
-    for (const auto & m : mismatches) {
-      for (const auto & seqM : m.second) {
-
-        misTab.content_.emplace_back(
-            toVecStr(m.first, consensusReads[readPos].seqBase_.seq_[m.first],
-                     seqM.first, seqM.second.size(),
-                     seqM.second.size() / consensusReads[readPos].seqBase_.cnt_,
-                     vectorToString(seqM.second, ",")));
-      }
-    }
-    misTab.sortTable("seqBase", false);
-    misTab.sortTable("refPos", false);
-    misTab.outPutContents(
-        TableIOOpts(
-            OutOptions(snpDir + consensusReads[readPos].seqBase_.name_,
-                       ".tab.txt"), "\t", misTab.hasHeader_));
   }
-
   //write final consensus reads
   SeqOutput::write(consensusReads,
                    SeqIOOptions(setUp.pars_.directoryName_ + "output",
                                 setUp.pars_.ioOptions_.outFormat_, setUp.pars_.ioOptions_.out_));
   //write out which reads went into which cluster
   std::ofstream clusterNamesFile;
-  openTextFile(clusterNamesFile, setUp.pars_.directoryName_ + "clusterNames",
-               ".tab.txt", false, false);
-  clusterNamesFile << "clusterName\treadName\n";
-  for (const auto & con : consensusReads) {
-    for (const auto & read : con.reads_) {
-      clusterNamesFile << con.seqBase_.name_ << "\t" << read->seqBase_.name_
-                       << std::endl;
+  if(pars.development) {
+    openTextFile(clusterNamesFile, setUp.pars_.directoryName_ + "clusterNames",
+                 ".tab.txt", false, false);
+    clusterNamesFile << "clusterName\treadName\n";
+    for (const auto & con : consensusReads) {
+      for (const auto & read : con.reads_) {
+        clusterNamesFile << con.seqBase_.name_ << "\t" << read->seqBase_.name_
+                         << std::endl;
+      }
     }
   }
-
   //check if writing out additional location file
   if (pars.additionalOutLocationFile != "") {
     auto fnp = setUp.pars_.ioOptions_.firstName_.filename().string();

@@ -193,6 +193,12 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	setUp.setOption(pars.doNotGuessRecFlags, "--doNotGuessRecFlags", "Don't guess at additional SeekDeep extractor/extratorPairedEnd flags by investigating input sequence files", false, "Extra Commands");
 	setUp.setOption(pars.numberOfFilesToInvestigate, "--numberOfFilesToInvestigate", "Number of files to investigate when adding additional recommended flags", false, "Extra Commands");
 	setUp.setOption(pars.testNumberOfReadsToInvestigate, "--testNumberOfReadsToInvestigate", "Number of reads per file to investigate when adding additional recommended flags", false, "Extra Commands");
+
+
+	if(pars.techIsNanoporeOrPacbio()) {
+		pars.primerWithinToInvesitgate = 500;
+	}
+
 	setUp.setOption(pars.primerWithinToInvesitgate, "--primerWithinToInvesitgate", "primer within distant to investigate when adding additional recommended flags", false, "Extra Commands");
 
 
@@ -527,7 +533,12 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 			trimAtFirstWhitespace(rflag);
 			njh::lstrip(rflag, '-');
 			if(std::string::npos == currentExtraExtractorCmds.find(rflag)){
-				flagsToAdd.emplace_back(recFlag);
+				// std::cout << "recFlag: " << recFlag << std::endl;
+				// std::cout << "recFlag: " << recFlag << std::endl;
+
+				if(!(pars.techIsNanoporeOrPacbio() && "checkrevcomplementforprimers" == rflag)) {
+					flagsToAdd.emplace_back(recFlag);
+				}
 			} else {
 				if(setUp.pars_.verbose_){
 					std::cout << "Already have " << recFlag << " no need to add" << std::endl;
@@ -626,7 +637,8 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 													 "--overWrite --dout {TARGET}{MIDREP}_klusterOut ";
       //add in current defaults commonly used
       //qlusterCmdTemplate += " --cutOff 0.05  --sizeCutOff 1%,3  --map --recalcConsensus --writeInitialClusters --qualThres 15,10 -checkIndelsWhenMapping --checkChimeras  ";
-      qlusterCmdTemplate += " --sizeCutOff 1%,3  --map --recalcConsensus --writeInitialClusters --qualThres 15,10 -checkIndelsWhenMapping --checkChimeras  ";
+      // qlusterCmdTemplate += " --sizeCutOff 1%,3  --map --recalcConsensus --writeInitialClusters --qualThres 15,10 -checkIndelsWhenMapping --checkChimeras  ";
+			qlusterCmdTemplate += " --qualThres 15,10 ";
 
 //			qlusterCmdTemplate = "cd \"" + extractionDirs.string() + "\" && "
 //					+ " if [ -f {TARGET}{MIDREP}.fastq.gz  ]; then "
@@ -860,7 +872,8 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 			qlusterCmdTemplate = qlusterCmdTemplate + " --overWriteDir  --additionalOut \"../popClustering/locationByIndex/{TARGET}.tab.txt\" "
             "--overWrite --dout {TARGET}{MIDREP}_klusterOut ";
       //add in current defaults commonly used
-      qlusterCmdTemplate += " --sizeCutOff 1%,3  --map --recalcConsensus --writeInitialClusters --qualThres 15,10 -checkIndelsWhenMapping --checkChimeras  ";
+			// qlusterCmdTemplate += " --sizeCutOff 1%,3  --map --recalcConsensus --writeInitialClusters --qualThres 15,10 -checkIndelsWhenMapping --checkChimeras  ";
+			qlusterCmdTemplate += " --qualThres 15,10 ";
       //qlusterCmdTemplate += " --cutOff 0.05  --sizeCutOff 1%,3  --map --recalcConsensus --writeInitialClusters --qualThres 15,10 -checkIndelsWhenMapping --checkChimeras  ";
 		}
 		if (analysisSetup.pars_.techIsIllumina() || analysisSetup.pars_.techIsIlluminaSingleEnd()) {
