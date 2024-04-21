@@ -1026,42 +1026,42 @@ class Packages():
 
 
 
-    '''
-    def __mlpack(self):
-        url = "http://www.mlpack.org/files/mlpack-1.0.8.tar.gz"
-        armadillo_dir = Utils.shellquote(i.local_dir).replace("mlpack", "armadillo")
-        boost_dir = Utils.shellquote(i.local_dir).replace("mlpack", "boost")
-        cmd = """
-        mkdir -p build
-        && cd build
-        && CC={CC} CXX={CXX} cmake -D DEBUG=OFF -D PROFILE=OFF
-         -D ARMADILLO_LIBRARY={armadillo_dir}/lib/libarmadillo.so.4.0.2
-         -D ARMADILLO_INCLUDE_DIR={armadillo_dir}/include/
-         -D CMAKE_INSTALL_PREFIX:PATH={local_dir} ..
-         -DBoost_NO_SYSTEM_PATHS=TRUE -DBOOST_INCLUDEDIR={boost}/include/ -DBOOST_LIBRARYDIR={boost}/lib/
-        && make -j {num_cores} install
-        """.format(local_dir=Utils.shellquote(i.local_dir),
-           armadillo_dir=armadillo_dir,
-           num_cores=self.num_cores(),
-           boost=boost_dir, CC=self.CC, CXX=self.CXX)
-        cmd = " ".join(cmd.split('\n'))
-        return self.__package_dirs(url, "mlpack")
+    #'''
+    #def __mlpack(self):
+    #    url = "http://www.mlpack.org/files/mlpack-1.0.8.tar.gz"
+    #    armadillo_dir = Utils.shellquote(i.local_dir).replace("mlpack", "armadillo")
+    #    boost_dir = Utils.shellquote(i.local_dir).replace("mlpack", "boost")
+    #    cmd = """
+    #    mkdir -p build
+    #    && cd build
+    #    && CC={CC} CXX={CXX} cmake -D DEBUG=OFF -D PROFILE=OFF
+    #     -D ARMADILLO_LIBRARY={armadillo_dir}/lib/libarmadillo.so.4.0.2
+    #     -D ARMADILLO_INCLUDE_DIR={armadillo_dir}/include/
+    #     -D CMAKE_INSTALL_PREFIX:PATH={local_dir} ..
+    #     -DBoost_NO_SYSTEM_PATHS=TRUE -DBOOST_INCLUDEDIR={boost}/include/ -DBOOST_LIBRARYDIR={boost}/lib/
+    #    && make -j {num_cores} install
+    #    """.format(local_dir=Utils.shellquote(i.local_dir),
+    #       armadillo_dir=armadillo_dir,
+    #       num_cores=self.num_cores(),
+    #       boost=boost_dir, CC=self.CC, CXX=self.CXX)
+    #    cmd = " ".join(cmd.split('\n'))
+    #    return self.__package_dirs(url, "mlpack")
 
-    def __liblinear(self):
-        name = "liblinear"
-        url = "http://www.csie.ntu.edu.tw/~cjlin/liblinear/oldfiles/liblinear-1.94.tar.gz"
-        cmd = """
-            perl -p -i -e 's/if\(check_probability_model/if\(1 || check_probability_model/' linear.cpp &&
-            make &&
-            mkdir -p {local_dir} &&
-            cp predict train {local_dir} &&
-            make lib &&
-            cp linear.h liblinear.so.1 README {local_dir} &&
-            ln -s {local_dir}/liblinear.so.1 {local_dir}/liblinear.so
-            """.format(local_dir=Utils.shellquote(i.local_dir))
-        cmd = " ".join(cmd.split())
-        return self.__package_dirs(url, "liblinear")
-    '''
+    #def __liblinear(self):
+    #    name = "liblinear"
+    #    url = "http://www.csie.ntu.edu.tw/~cjlin/liblinear/oldfiles/liblinear-1.94.tar.gz"
+    #    cmd = """
+    #        perl -p -i -e 's/if\(check_probability_model/if\(1 || check_probability_model/' linear.cpp &&
+    #        make &&
+    #        mkdir -p {local_dir} &&
+    #        cp predict train {local_dir} &&
+    #        make lib &&
+    #        cp linear.h liblinear.so.1 README {local_dir} &&
+    #        ln -s {local_dir}/liblinear.so.1 {local_dir}/liblinear.so
+    #        """.format(local_dir=Utils.shellquote(i.local_dir))
+    #    cmd = " ".join(cmd.split())
+    #    return self.__package_dirs(url, "liblinear")
+    #'''
 
     def __magic(self):
         name = "magic"
@@ -2465,7 +2465,7 @@ class Setup:
             #if Utils.isMac():
             #    rHomeLoc = "R.framework/Resources/bin/R RHOME"
             cmd = """echo '.libPaths(.libPaths()[length(.libPaths()  )] ); install.packages(\"{SOURCEFILE}\", repos = NULL, type="source", Ncpus = {num_cores}, lib =.libPaths()[length(.libPaths()  )])' | $({local_dir}/{RHOMELOC})/bin/R --slave --vanilla
-                """.format(local_dir=Utils.shellquote(bPath.local_dir).replace(' ', '\ '),SOURCEFILE = pack, RHOMELOC =rHomeLoc, num_cores=self.num_cores())
+                """.format(local_dir=Utils.shellquote(bPath.local_dir).replace(' ', '\\ '),SOURCEFILE = pack, RHOMELOC =rHomeLoc, num_cores=self.num_cores())
             print(CT.boldBlack(cmd))
             cmd = " ".join(cmd.split())
             Utils.run(cmd)
@@ -2480,7 +2480,7 @@ class Setup:
             #if Utils.isMac():
             #    rHomeLoc = "R.framework/Resources/bin/R RHOME"
             cmd = """echo '.libPaths(.libPaths()[length(.libPaths()  )] ); install.packages(\"{PACKAGENAME}\", repos=\"http://cran.us.r-project.org\", Ncpus = {num_cores}, lib =.libPaths()[length(.libPaths()  )])'  | $({local_dir}/{RHOMELOC})/bin/R --slave --vanilla
-                """.format(local_dir=Utils.shellquote(bPath.local_dir).replace(' ', '\ '),PACKAGENAME = pack, RHOMELOC =rHomeLoc,num_cores=self.num_cores() )
+                """.format(local_dir=Utils.shellquote(bPath.local_dir).replace(' ', '\\ '),PACKAGENAME = pack, RHOMELOC =rHomeLoc,num_cores=self.num_cores() )
             print(CT.boldBlack(cmd))
             cmd = " ".join(cmd.split())
             Utils.run(cmd)
@@ -2510,7 +2510,7 @@ class Setup:
             #rlapack needs r and rblas
             #rinside needs r
             #install_name_tool -change $(otool -L $(realpath .)/lib/R/library/RInside/lib/libRInside.dylib | egrep -o "\s.*libR.dylib") $(realpath .)/lib/R/lib/libR.dylib $(realpath .)/lib/R/library/RInside/lib/libRInside.dylib
-            buildCmd = """./configure --prefix={local_dir} --enable-R-shlib --with-x=no CC={CC} CXX={CXX} OBJC={CC}
+            buildCmd = r"""./configure --prefix={local_dir} --enable-R-shlib --with-x=no CC={CC} CXX={CXX} OBJC={CC}
                     && make -j {num_cores}
                     && make install
                     && install_name_tool -id {local_dir}/lib/R/lib/libR.dylib {local_dir}/lib/R/lib/libR.dylib
@@ -2520,7 +2520,7 @@ class Setup:
                     && install_name_tool -change $(otool -L {local_dir}/lib/R/lib/libRlapack.dylib | egrep -o "\s.*libRblas.dylib") {local_dir}/lib/R/lib/libRblas.dylib {local_dir}/lib/R/lib/libRlapack.dylib
                     && install_name_tool -change $(otool -L {local_dir}/lib/R/lib/libRlapack.dylib | egrep -o "\s.*libR.dylib") {local_dir}/lib/R/lib/libR.dylib {local_dir}/lib/R/lib/libRlapack.dylib
                     && echo 'install.packages(c(\"gridExtra\", \"ape\", \"ggplot2\", \"seqinr\",\"Rcpp\", \"RInside\"),
-                    repos=\"http://cran.us.r-project.org\", Ncpus = {num_cores}, lib =.libPaths()[length(.libPaths()  )])' | $({local_dir}/""" + rHomeLoc + """)/bin/R --slave --vanilla
+                    repos=\"http://cran.us.r-project.org\", Ncpus = {num_cores}, lib =.libPaths()[length(.libPaths()  )])' | $({local_dir}/""" + rHomeLoc + r""")/bin/R --slave --vanilla
                     """
             buildCmd = " ".join(buildCmd.split())
             pack.defaultBuildCmd_ = buildCmd
