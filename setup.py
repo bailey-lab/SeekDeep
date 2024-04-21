@@ -470,9 +470,9 @@ class Packages():
 #            buildCmd = "sed -i.bak s/git:/http:/g .gitmodules && CC={CC} CXX={CXX} ./autogen.sh --enable-ssl --enable-sasl --prefix={local_dir} && make -j {num_cores}  && make install"
 #
         if Utils.isMac():
-            buildCmd = """sed -i.bak s/git:/http:/g .gitmodules && CC={CC} CXX={CXX} PKG_CONFIG_PATH=/usr/local/opt/openssl/lib/pkgconfig:$PKG_CONFIG_PATH LDFLAGS="$(echo $(pkg-config openssl --libs) | sed 's/-L/-Wl,-rpath,/g' | sed 's/lib\ .*/lib/g')" ./autogen.sh --enable-ssl --enable-sasl --prefix={local_dir}&& make -j {num_cores}  && make install"""
+            buildCmd = r"""sed -i.bak s/git:/http:/g .gitmodules && CC={CC} CXX={CXX} PKG_CONFIG_PATH=/usr/local/opt/openssl/lib/pkgconfig:$PKG_CONFIG_PATH LDFLAGS="$(echo $(pkg-config openssl --libs) | sed 's/-L/-Wl,-rpath,/g' | sed 's/lib\ .*/lib/g')" ./autogen.sh --enable-ssl --enable-sasl --prefix={local_dir}&& make -j {num_cores}  && make install"""
         else:
-            buildCmd = """sed -i.bak s/git:/http:/g .gitmodules && CC={CC} CXX={CXX} LDFLAGS="$(echo $(pkg-config openssl --libs) | sed 's/-L/-Wl,-rpath,/g' | sed 's/lib\ .*/lib/g')" ./autogen.sh --enable-ssl --enable-sasl --prefix={local_dir} && make -j {num_cores}  && make install"""
+            buildCmd = r"""sed -i.bak s/git:/http:/g .gitmodules && CC={CC} CXX={CXX} LDFLAGS="$(echo $(pkg-config openssl --libs) | sed 's/-L/-Wl,-rpath,/g' | sed 's/lib\ .*/lib/g')" ./autogen.sh --enable-ssl --enable-sasl --prefix={local_dir} && make -j {num_cores}  && make install"""
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "1.3.3")
         pack.addVersion(url, "1.3.3")
         pack.versions_["1.3.3"].additionalIncludePaths_.append(pack.versions_["1.3.3"].includePath_ + "/libmongoc-1.0")
