@@ -50,7 +50,7 @@ def main():
         else:
             graph.addNode(os.path.basename(file).replace(".", "_"), fileNode.headerColor, "internal", statbuf.st_mtime, os.path.getsize(file))
         
-    pattern = re.compile("^[\w]*#include.*\".*\.h")
+    pattern = re.compile(r"^[\w]*#include.*\".*\.h")
     for file in allFiles:
         for i, line in enumerate(open(file, 'rt', encoding = 'utf-8')):
             for match in re.finditer(pattern, line):
