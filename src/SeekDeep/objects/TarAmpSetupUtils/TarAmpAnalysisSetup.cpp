@@ -217,6 +217,37 @@ TarAmpAnalysisSetup::TarAmpAnalysisSetup(const TarAmpPars & inputPars) :
 	addSamplesNames(pars_.samplesNamesFnp);
 	writeSampleNamesFile();
 	if(pars_.byIndex){
+
+		VecStr midsInSampleFileNotInIDFile;
+		VecStr midsInIDFileNotInSampleFile;
+
+		auto allReps = getReps();
+
+		for(const auto & rep : allReps) {
+			if(njh::notIn(rep, idsMids_->mids_)) {
+				midsInSampleFileNotInIDFile.emplace_back(rep);
+			}
+		}
+		for(const auto & mid : idsMids_->mids_) {
+			if(njh::notIn(mid.first, allReps)) {
+				midsInIDFileNotInSampleFile.emplace_back(mid.first);
+			}
+		}
+
+
+
+		if(!midsInIDFileNotInSampleFile.empty() || !midsInSampleFileNotInIDFile.empty()) {
+			std::stringstream ss;
+			ss << __PRETTY_FUNCTION__ << ", error " << "mismatch in the MIDs supplied in ID file and the MID names in sample names file" << "\n";
+			if(!midsInIDFileNotInSampleFile.empty()) {
+				ss << "the following MIDs were found in the ID file but not in the sample names file: " << njh::conToStr(midsInIDFileNotInSampleFile, ", ") << "\n";
+			}
+			if(!midsInSampleFileNotInIDFile.empty()) {
+				ss << "the following MIDs were found in the sample names file but not in ID file: " << njh::conToStr(midsInSampleFileNotInIDFile, ", ") << "\n";
+			}
+			throw std::runtime_error { ss.str() };
+		}
+
 		addIndexToTargetsNames(pars_.targetsToIndexFnp);
 		if("" == pars_.targetsToIndexFnp){
 			table indexToTargetsTab(VecStr{"index", "	targets"});
@@ -225,7 +256,7 @@ TarAmpAnalysisSetup::TarAmpAnalysisSetup(const TarAmpPars & inputPars) :
 			}
 			OutputStream indexToTargetsOut(OutOptions(njh::files::make_path(infoDir_, "indexToTargets.tab.txt")));
 			indexToTargetsTab.outPutContents(indexToTargetsOut, "\t");
-		}else{
+		} else {
 			bfs::copy_file(pars_.targetsToIndexFnp, njh::files::make_path(infoDir_, "indexToTargets.tab.txt"));
 		}
 	}

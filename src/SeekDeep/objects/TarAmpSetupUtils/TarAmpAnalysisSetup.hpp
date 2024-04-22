@@ -28,7 +28,7 @@
 // along with SeekDeep.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-#include <njhseq/common.h>
+
 #include <njhseq/objects/Meta/MultipleGroupMetaData.hpp>
 #include "SeekDeep/objects/TarAmpSetupUtils/PrimersAndMids.hpp"
 #include "SeekDeep/objects/IlluminaUtils/PairedReadProcessor.hpp"
@@ -61,7 +61,7 @@ public:
 		uint32_t testNumberOfReadsToInvestigate = 10000;
 		uint32_t primerWithinToInvesitgate = 40;
 
-		std::string replicatePattern = "";
+		std::string replicatePattern;
 		VecStr ignoreSamples{"Undetermined", "undetermined"};
 
 		bool noAutoDetermine = false;
@@ -106,20 +106,20 @@ public:
 
 		static bool checkIfFnpExists(const bfs::path & fnp, VecStr & warnings);
 
-		bool techIs454() const;
-		bool techIsIllumina() const;
-		bool techIsIlluminaSingleEnd() const;
-		bool techIsIonTorrent() const;
-		bool techIsNanopore() const;
-		bool techIsPacbio() const;
-		bool techIsNanoporeOrPacbio() const;
+		[[nodiscard]] bool techIs454() const;
+		[[nodiscard]] bool techIsIllumina() const;
+		[[nodiscard]] bool techIsIlluminaSingleEnd() const;
+		[[nodiscard]] bool techIsIonTorrent() const;
+		[[nodiscard]] bool techIsNanopore() const;
+		[[nodiscard]] bool techIsPacbio() const;
+		[[nodiscard]] bool techIsNanoporeOrPacbio() const;
 
 /*
  * pars.technology != "454" && pars.technology != "iontorrent" && pars.technology != "illumina"
  */
 	};
 
-	TarAmpAnalysisSetup(const TarAmpPars & pars);
+	explicit TarAmpAnalysisSetup(const TarAmpPars & pars);
 
 	struct Sample {
 		explicit Sample(const std::string & name);
@@ -130,13 +130,13 @@ public:
 
 		void addReps(const VecStr & reps);
 
-		VecStr getReps() const;
+		[[nodiscard]] VecStr getReps() const;
 
 	};
 
 	struct Samples {
 
-		Samples(const std::string & target);
+		explicit Samples(const std::string & target);
 
 		std::string target_;
 		std::unordered_map<std::string, Sample> samples_;
@@ -147,9 +147,9 @@ public:
 
 		void addSample(const std::string & sample, const VecStr & reps);
 
-		VecStr getSamples() const;
+		[[nodiscard]] VecStr getSamples() const;
 
-		std::vector<std::string> getReps() const;
+		[[nodiscard]] std::vector<std::string> getReps() const;
 
 	};
 
@@ -181,9 +181,9 @@ public:
 	TargetsInfoAgreement forRefSeqs_;
 	TargetsInfoAgreement forLenCutOffs_;
 
-	std::set<std::string> getSamples() const;
+	[[nodiscard]] std::set<std::string> getSamples() const;
 
-	VecStr getReps() const;
+	[[nodiscard]] VecStr getReps() const;
 
 	void addGroupingMetaData(const bfs::path & groupingsFileFnp);
 
@@ -191,8 +191,8 @@ public:
 
 	void writeSampleNamesFile() const;
 
-	VecStr getTargets() const;
-	VecStr getIndexes() const;
+	[[nodiscard]] VecStr getTargets() const;
+	[[nodiscard]] VecStr getIndexes() const;
 
 	void addSamplesNames(const bfs::path & samplesNamesFnp);
 	void addSamplesNames(const table & samplesNamesTab);
@@ -208,9 +208,9 @@ public:
 
 	void writeOutIdFiles();
 
-	std::vector<VecStr> getTarCombos() const;
+	[[nodiscard]] std::vector<VecStr> getTarCombos() const;
 
-	VecStr getExpectantInputNames() const;
+	[[nodiscard]] VecStr getExpectantInputNames() const;
 
 	void setUpPopClusteringDirs(bool verbose = false) const;
 
