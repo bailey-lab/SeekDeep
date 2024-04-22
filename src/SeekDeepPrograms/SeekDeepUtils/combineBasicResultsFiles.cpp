@@ -17,7 +17,7 @@ int SeekDeepUtilsRunner::combineBasicResultsFiles(
 	std::string popHapIdColName = "h_popUID";
 	std::string popHapSeqColName = "h_Consensus";
 	std::string targetNameColName = "p_name";
-
+	std::set<std::string> additionalColumns;
 	std::set<std::string> selectTargets;
 	std::set<std::string> selectSamples;
 
@@ -26,6 +26,7 @@ int SeekDeepUtilsRunner::combineBasicResultsFiles(
 	seqSetUp setUp(inputCommands);
 	setUp.processVerbose();
 	setUp.processDebug();
+	setUp.setOption(additionalColumns, "--additionalColumns", "additional Columns to include");
 
 	setUp.setOption(selectTargets, "--selectTargets", "Only analzye these select targets");
 	setUp.setOption(selectSamples, "--selectSamples", "Only analzye these select samples");
@@ -45,7 +46,7 @@ int SeekDeepUtilsRunner::combineBasicResultsFiles(
 
 	setUp.processWritingOptions(out_options);
 	setUp.finishSetUp(std::cout);
-	setUp.startARunLog(setUp.pars_.directoryName_);
+	// setUp.startARunLog(setUp.pars_.directoryName_);
 
 
 	njh::files::checkExistenceThrow(resultFnps,
@@ -55,11 +56,12 @@ int SeekDeepUtilsRunner::combineBasicResultsFiles(
 	//key1 == target, key2 == hap seq, value = count
 	//used for renaming
 	std::unordered_map<std::string, std::unordered_map<std::string, uint32_t>> hapSeqsForTargets;
-
+	VecStr allColumns(additionalColumns.begin(), additionalColumns.end());
+	addOtherVec(allColumns, VecStr{sampleColName, popHapSeqColName, targetNameColName, withinSampleReadCntColName});
 	//read through to get seqs to count
 	for(const auto & fnp : resultFnps) {
 		TableReader tabIn(TableIOOpts::genTabFileIn(fnp));
-		tabIn.header_.checkForColumnsThrow(VecStr{sampleColName, popHapSeqColName, targetNameColName, withinSampleReadCntColName}, __PRETTY_FUNCTION__);
+		tabIn.header_.checkForColumnsThrow(allColumns, __PRETTY_FUNCTION__);
 
 		VecStr row;
 		while(tabIn.getNextRow(row)) {
@@ -100,11 +102,15 @@ int SeekDeepUtilsRunner::combineBasicResultsFiles(
 	<< "\t" << targetNameColName
 	<< "\t" << popHapIdColName
 	<< "\t" << withinSampleReadCntColName
-	<< "\t" << popHapSeqColName << std::endl;
+	<< "\t" << popHapSeqColName;
+	for(const auto & add : additionalColumns) {
+		out << "\t" << add;
+	}
+	out << std::endl;
 
 	for(const auto & fnp : resultFnps) {
 		TableReader tabIn(TableIOOpts::genTabFileIn(fnp));
-		tabIn.header_.checkForColumnsThrow(VecStr{sampleColName, popHapSeqColName, targetNameColName, withinSampleReadCntColName}, __PRETTY_FUNCTION__);
+		tabIn.header_.checkForColumnsThrow(allColumns, __PRETTY_FUNCTION__);
 
 		VecStr row;
 		while(tabIn.getNextRow(row)) {
@@ -126,8 +132,11 @@ int SeekDeepUtilsRunner::combineBasicResultsFiles(
 			<< "\t" << target
 			<< "\t" << hapSeqsForTargetsRenamed[target][seq]
 			<< "\t" << readCnt
-			<< "\t" << seq
-			<< std::endl;
+			<< "\t" << seq;
+			for(const auto & add : additionalColumns) {
+				out << "\t" << row[tabIn.header_.getColPos(add)];
+			}
+			out << std::endl;
 		}
 	}
 
