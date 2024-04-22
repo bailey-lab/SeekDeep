@@ -536,7 +536,10 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 				// std::cout << "recFlag: " << recFlag << std::endl;
 				// std::cout << "recFlag: " << recFlag << std::endl;
 
-				if(!(pars.techIsNanoporeOrPacbio() && "checkrevcomplementforprimers" == rflag)) {
+				if(!(pars.techIsNanoporeOrPacbio() && "checkrevcomplementforprimers" == rflag) &&
+				!(pars.techIsNanoporeOrPacbio() && "checkrevcomplementformids" == rflag) &&
+				!(pars.techIsNanoporeOrPacbio() && njh::beginsWith(rflag, "midwithinstart") )) {
+					// std::cout << "rflag: " << rflag << std::endl;
 					flagsToAdd.emplace_back(recFlag);
 				}
 			} else {
@@ -563,8 +566,6 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 			std::cout << "Samples:" << std::endl;
 			std::cout << njh::conToStr(getVectorOfMapKeys(analysisSetup.samples_), "\n") << std::endl;
 		}
-
-
 		//extractor cmds
 		std::string extractorCmdTemplate;
 		if (analysisSetup.pars_.techIsIllumina()) {
@@ -695,6 +696,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 				auto currentExtractCmd = njh::conToStr(cmds, " ");
 				currentExtractCmd = njh::replaceString(currentExtractCmd, "{INDEX}",
 						index);
+				bool foundInputFile = false;
 				if(pars.techIsIllumina()){
 					//INDEX_R1, INDEX_R2
 					auto searchForPairs = readsByPairs.find(index);
@@ -703,6 +705,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 								bfs::absolute(searchForPairs->second.first.front()).string() );
 						currentExtractCmd = njh::replaceString(currentExtractCmd, "{INDEX_R2}",
 								bfs::absolute(searchForPairs->second.second.front()).string() );
+						foundInputFile = true;
 					}else{
 						std::stringstream ss;
 						ss << __PRETTY_FUNCTION__ << ", error index: " << index << " was not found in readsByPairs" << "\n";
@@ -714,89 +717,94 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 					if(searchForFile != filesByPossibleName.end()){
 						currentExtractCmd = njh::replaceString(currentExtractCmd, "{INDEX_InFile}",
 								bfs::absolute(searchForFile->second).string());
+						foundInputFile = true;
 					}else{
 						std::stringstream ss;
 						ss << __PRETTY_FUNCTION__ << ", error index: " << index << " was not found in filesByPossibleName" << "\n";
 						ss << "Options: " << njh::conToStr(njh::getVecOfMapKeys(filesByPossibleName), ", ");
 					}
 				}
-				currentExtractCmd = njh::replaceString(currentExtractCmd, "{TARS}",
+				if(foundInputFile) {
+					currentExtractCmd = njh::replaceString(currentExtractCmd, "{TARS}",
 						analysisSetup.tarsToTargetSubSets_[tarsNames]);
-				extractorCmds.emplace_back(currentExtractCmd);
 
-				std::set<std::string> midsForIndex;
-				for(const auto & sampleMid : njh::mapAt(analysisSetup.samples_, index).samples_ ){
-					midsForIndex.insert(sampleMid.second.reps_.begin(),sampleMid.second.reps_.end() );
-				}
-				for (const auto & mid : midsForIndex) {
-				//for (const auto & mid : analysisSetup.idsMids_->getMids()) {
+					extractorCmds.emplace_back(currentExtractCmd);
 
-					for (const auto & tar : analysisSetup.indexToTars_[index]) {
-						auto currentQlusterCmdTemplate = qlusterCmdTemplate;
-						if (1
-								== njh::mapAt(analysisSetup.idsMids_->targets_,tar).overlapStatuses_.size()
-								&& PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP
-										== njh::mapAt(analysisSetup.idsMids_->targets_,tar).overlapStatuses_.front() &&
-										analysisSetup.pars_.techIsIllumina()) {
-							//by default will analyze R1 and R2 as two separate targets
-							currentQlusterCmdTemplate = qlusterCmdSepMatesTemplate;
-						}
+					std::set<std::string> midsForIndex;
+					for(const auto & sampleMid : njh::mapAt(analysisSetup.samples_, index).samples_ ){
+						midsForIndex.insert(sampleMid.second.reps_.begin(),sampleMid.second.reps_.end() );
+					}
+					for (const auto & mid : midsForIndex) {
+					//for (const auto & mid : analysisSetup.idsMids_->getMids()) {
 
-						if ("" != analysisSetup.pars_.extraQlusterCmds) {
-							currentQlusterCmdTemplate += " "
-									+ analysisSetup.pars_.extraQlusterCmds;
-						}
-
-						if (1 == njh::mapAt(analysisSetup.idsMids_->targets_,tar).overlapStatuses_.size() &&
-								PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP == njh::mapAt(analysisSetup.idsMids_->targets_,tar).overlapStatuses_.front() &&
-								analysisSetup.pars_.techIsIllumina()
-										) {
-							if(njh::in(tar + "-R1", analysisSetup.pars_.extraQlusterCmdsPerTarget)){
-								currentQlusterCmdTemplate += " {EXTRAR1ARGS}";
+						for (const auto & tar : analysisSetup.indexToTars_[index]) {
+							auto currentQlusterCmdTemplate = qlusterCmdTemplate;
+							if (1
+									== njh::mapAt(analysisSetup.idsMids_->targets_,tar).overlapStatuses_.size()
+									&& PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP
+											== njh::mapAt(analysisSetup.idsMids_->targets_,tar).overlapStatuses_.front() &&
+											analysisSetup.pars_.techIsIllumina()) {
+								//by default will analyze R1 and R2 as two separate targets
+								currentQlusterCmdTemplate = qlusterCmdSepMatesTemplate;
 							}
-							if(njh::in(tar + "-R2", analysisSetup.pars_.extraQlusterCmdsPerTarget)){
-								currentQlusterCmdTemplate += " {EXTRAR2ARGS}";
-							}
-						}else{
-							if(njh::in(tar, analysisSetup.pars_.extraQlusterCmdsPerTarget)){
+
+							if ("" != analysisSetup.pars_.extraQlusterCmds) {
 								currentQlusterCmdTemplate += " "
-										+ analysisSetup.pars_.extraQlusterCmdsPerTarget[tar];
+										+ analysisSetup.pars_.extraQlusterCmds;
 							}
-						}
 
-						currentQlusterCmdTemplate += "; fi";
+							if (1 == njh::mapAt(analysisSetup.idsMids_->targets_,tar).overlapStatuses_.size() &&
+									PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP == njh::mapAt(analysisSetup.idsMids_->targets_,tar).overlapStatuses_.front() &&
+									analysisSetup.pars_.techIsIllumina()
+											) {
+								if(njh::in(tar + "-R1", analysisSetup.pars_.extraQlusterCmdsPerTarget)){
+									currentQlusterCmdTemplate += " {EXTRAR1ARGS}";
+								}
+								if(njh::in(tar + "-R2", analysisSetup.pars_.extraQlusterCmdsPerTarget)){
+									currentQlusterCmdTemplate += " {EXTRAR2ARGS}";
+								}
+							}else{
+								if(njh::in(tar, analysisSetup.pars_.extraQlusterCmdsPerTarget)){
+									currentQlusterCmdTemplate += " "
+											+ analysisSetup.pars_.extraQlusterCmdsPerTarget[tar];
+								}
+							}
 
-						currentQlusterCmdTemplate = njh::replaceString(
-								currentQlusterCmdTemplate, "{INDEX}", index);
-						currentQlusterCmdTemplate = njh::replaceString(
-								currentQlusterCmdTemplate, "{TARGET}", tar);
-						currentQlusterCmdTemplate = njh::replaceString(
-								currentQlusterCmdTemplate, "{MIDREP}", mid);
-						if (1
-								== njh::mapAt(analysisSetup.idsMids_->targets_,tar).overlapStatuses_.size()
-								&& PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP
-										== njh::mapAt(analysisSetup.idsMids_->targets_,tar).overlapStatuses_.front() &&
-										analysisSetup.pars_.techIsIllumina()) {
-							auto r1TemplateCmd = njh::replaceString(
-									currentQlusterCmdTemplate, "{MATEFILE}", "R1");
-							auto r2TemplateCmd = njh::replaceString(
-									currentQlusterCmdTemplate, "{MATEFILE}", "R2");
-							if(njh::in(tar + "-R1", analysisSetup.pars_.extraQlusterCmdsPerTarget)){
-								r1TemplateCmd= njh::replaceString(
-										r1TemplateCmd, "{EXTRAR1ARGS}", analysisSetup.pars_.extraQlusterCmdsPerTarget[tar + "-R1"]);
-								r2TemplateCmd = njh::replaceString(r2TemplateCmd, "{EXTRAR1ARGS}","");
+							currentQlusterCmdTemplate += "; fi";
+
+							currentQlusterCmdTemplate = njh::replaceString(
+									currentQlusterCmdTemplate, "{INDEX}", index);
+							currentQlusterCmdTemplate = njh::replaceString(
+									currentQlusterCmdTemplate, "{TARGET}", tar);
+							currentQlusterCmdTemplate = njh::replaceString(
+									currentQlusterCmdTemplate, "{MIDREP}", mid);
+							if (1
+									== njh::mapAt(analysisSetup.idsMids_->targets_,tar).overlapStatuses_.size()
+									&& PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP
+											== njh::mapAt(analysisSetup.idsMids_->targets_,tar).overlapStatuses_.front() &&
+											analysisSetup.pars_.techIsIllumina()) {
+								auto r1TemplateCmd = njh::replaceString(
+										currentQlusterCmdTemplate, "{MATEFILE}", "R1");
+								auto r2TemplateCmd = njh::replaceString(
+										currentQlusterCmdTemplate, "{MATEFILE}", "R2");
+								if(njh::in(tar + "-R1", analysisSetup.pars_.extraQlusterCmdsPerTarget)){
+									r1TemplateCmd= njh::replaceString(
+											r1TemplateCmd, "{EXTRAR1ARGS}", analysisSetup.pars_.extraQlusterCmdsPerTarget[tar + "-R1"]);
+									r2TemplateCmd = njh::replaceString(r2TemplateCmd, "{EXTRAR1ARGS}","");
+								}
+								if(njh::in(tar + "-R2", analysisSetup.pars_.extraQlusterCmdsPerTarget)){
+									r2TemplateCmd= njh::replaceString(
+											r2TemplateCmd, "{EXTRAR2ARGS}", analysisSetup.pars_.extraQlusterCmdsPerTarget[tar + "-R2"]);
+									r1TemplateCmd = njh::replaceString(r1TemplateCmd, "{EXTRAR2ARGS}","");
+								}
+								qlusterCmds.emplace_back(r1TemplateCmd);
+								qlusterCmds.emplace_back(r2TemplateCmd);
+							} else {
+								qlusterCmds.emplace_back(currentQlusterCmdTemplate);
 							}
-							if(njh::in(tar + "-R2", analysisSetup.pars_.extraQlusterCmdsPerTarget)){
-								r2TemplateCmd= njh::replaceString(
-										r2TemplateCmd, "{EXTRAR2ARGS}", analysisSetup.pars_.extraQlusterCmdsPerTarget[tar + "-R2"]);
-								r1TemplateCmd = njh::replaceString(r1TemplateCmd, "{EXTRAR2ARGS}","");
-							}
-							qlusterCmds.emplace_back(r1TemplateCmd);
-							qlusterCmds.emplace_back(r2TemplateCmd);
-						} else {
-							qlusterCmds.emplace_back(currentQlusterCmdTemplate);
 						}
 					}
+
 				}
 			}
 		}
@@ -873,7 +881,8 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
             "--overWrite --dout {TARGET}{MIDREP}_klusterOut ";
       //add in current defaults commonly used
 			// qlusterCmdTemplate += " --sizeCutOff 1%,3  --map --recalcConsensus --writeInitialClusters --qualThres 15,10 -checkIndelsWhenMapping --checkChimeras  ";
-			qlusterCmdTemplate += " --qualThres 15,10 ";
+			qlusterCmdTemplate += "  ";
+			// qlusterCmdTemplate += " --qualThres 15,10 ";
       //qlusterCmdTemplate += " --cutOff 0.05  --sizeCutOff 1%,3  --map --recalcConsensus --writeInitialClusters --qualThres 15,10 -checkIndelsWhenMapping --checkChimeras  ";
 		}
 		if (analysisSetup.pars_.techIsIllumina() || analysisSetup.pars_.techIsIlluminaSingleEnd()) {
@@ -1064,7 +1073,8 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 							"--alnInfoDir alnCache --strictErrors --dout analysis --fastqgz output.fastq.gz --overWriteDir ";
 
   if(pars.techIsNanoporeOrPacbio()){
-    processClusterTemplate += " --allowHomopolymerCollapse --qualThres 15,10 ";
+    processClusterTemplate += " --allowHomopolymerCollapse  ";
+  	// processClusterTemplate += " --allowHomopolymerCollapse --qualThres 15,10 ";
   }
 
 	if(pars.techIsIllumina() || pars.techIsIlluminaSingleEnd()){

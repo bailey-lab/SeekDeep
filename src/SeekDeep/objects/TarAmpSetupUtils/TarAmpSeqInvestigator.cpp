@@ -622,10 +622,10 @@ bool TarAmpSeqInvestigator::hasPossibleRandomPrecedingBasesReversePrimer(uint32_
 		for(const auto & orientation : tar.second){
 			if(orientation.second > minReadAmount){
 				double total = orientation.second + countsBelow[tar.first][orientation.first];
-				std::cout << "orientation.first: " << orientation.first << std::endl;
-				std::cout << "orientation.second/total: " << orientation.second/total << std::endl;
-				std::cout << "orientation.second: " << orientation.second << std::endl;
-				std::cout << "total: " << total << std::endl;
+				// std::cout << "orientation.first: " << orientation.first << std::endl;
+				// std::cout << "orientation.second/total: " << orientation.second/total << std::endl;
+				// std::cout << "orientation.second: " << orientation.second << std::endl;
+				// std::cout << "total: " << total << std::endl;
 
 				if(orientation.second/total > cutOff){
 					return true;
