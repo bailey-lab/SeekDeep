@@ -119,10 +119,10 @@ public:
  */
 	};
 
-	explicit TarAmpAnalysisSetup(const TarAmpPars & pars);
+	explicit TarAmpAnalysisSetup(TarAmpPars  pars);
 
 	struct Sample {
-		explicit Sample(const std::string & name);
+		explicit Sample(std::string  name);
 		std::string name_;
 		std::vector<std::string> reps_;
 
@@ -136,7 +136,7 @@ public:
 
 	struct Samples {
 
-		explicit Samples(const std::string & target);
+		explicit Samples(std::string  target);
 
 		std::string target_;
 		std::unordered_map<std::string, Sample> samples_;
