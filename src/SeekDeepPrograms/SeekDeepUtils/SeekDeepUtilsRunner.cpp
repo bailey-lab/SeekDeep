@@ -298,6 +298,20 @@ int SeekDeepUtilsRunner::genTargetInfoFromGenomes(const njh::progutils::CmdArgs 
     std::map<std::string, std::set<uint64_t>> uniqueKmersFinal;
     setUp.rLog_.logCurrentTime("compare");
     setUp.rLog_.runLogFile_.flush();
+
+		{
+    	SimpleKmerHash hasher;
+    	OutputStream out(njh::files::make_path(forSeekDeepDir, "allKmers.tab.txt.gz"));
+    	OutputStream outInfo(njh::files::make_path(forSeekDeepDir, "allKmersCounts.tsv"));
+    	outInfo << "target\tKmerCount" << std::endl;
+    	for(const auto & kmersForSet : kmersPerSet){
+    		outInfo << kmersForSet.first << "\t" << kmersForSet.second.size() << std::endl;
+    		for(const auto & kmer : kmersForSet.second){
+    			out << kmersForSet.first
+							<< "\t" << hasher.reverseHash(kmer) << "\n";
+    		}
+    	}
+		}
     for(const auto & kmersForSet : kmersPerSet){
       uniqueKmersFinal[kmersForSet.first] = std::set<uint64_t>{};
     }
@@ -341,16 +355,18 @@ int SeekDeepUtilsRunner::genTargetInfoFromGenomes(const njh::progutils::CmdArgs 
       }
     }
 
-    SimpleKmerHash hasher;
-    OutputStream out(njh::files::make_path(forSeekDeepDir, "uniqueKmers.tab.txt.gz"));
-		OutputStream outInfo(njh::files::make_path(forSeekDeepDir, "uniqueKmersCounts.tsv"));
-		outInfo << "target\tuniqueKmerCount" << std::endl;
-    for(const auto & kmersForSet : uniqueKmersFinal){
-			outInfo << kmersForSet.first << "\t" << kmersForSet.second.size() << std::endl;
-      for(const auto & kmer : kmersForSet.second){
-        out << kmersForSet.first
-            << "\t" << hasher.reverseHash(kmer) << "\n";
-      }
+    {
+    	SimpleKmerHash hasher;
+    	OutputStream out(njh::files::make_path(forSeekDeepDir, "uniqueKmers.tab.txt.gz"));
+    	OutputStream outInfo(njh::files::make_path(forSeekDeepDir, "uniqueKmersCounts.tsv"));
+    	outInfo << "target\tuniqueKmerCount" << std::endl;
+    	for(const auto & kmersForSet : uniqueKmersFinal){
+    		outInfo << kmersForSet.first << "\t" << kmersForSet.second.size() << std::endl;
+    		for(const auto & kmer : kmersForSet.second){
+    			out << kmersForSet.first
+							<< "\t" << hasher.reverseHash(kmer) << "\n";
+    		}
+    	}
     }
   }
 
