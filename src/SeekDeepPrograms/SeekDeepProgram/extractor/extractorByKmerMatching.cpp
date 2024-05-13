@@ -19,8 +19,10 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
 
   std::string sampleName = "sample";
   bool rename = false;
-
+  bool ignoreMissingKmerSets = false;
   SeekDeepSetUp setUp(inputCommands);
+  setUp.setOption(ignoreMissingKmerSets, "--ignoreMissingKmerSets", "ignore Missing Kmer Sets");
+
   //id
   setUp.setOption(idFnp, "--ids,--id", "Primers file", true, "IDs");
 
@@ -122,7 +124,7 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
   if(!refSeqDir.empty()){
     ids.addRefSeqs(refSeqDir);
   }
-  uint32_t extractionKmer = ids.addUniqKmerCounts(uniqueKmersPerTargetFnp);
+  uint32_t extractionKmer = ids.addUniqKmerCounts(uniqueKmersPerTargetFnp, ignoreMissingKmerSets);
 
 
   // set up input

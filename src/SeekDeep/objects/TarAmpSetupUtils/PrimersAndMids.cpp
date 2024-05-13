@@ -472,18 +472,17 @@ void PrimersAndMids::genUniqKmerCountsFromRefSeqs(uint32_t kmerLen) {
 
 
 
-uint32_t PrimersAndMids::addUniqKmerCounts(const bfs::path & uniqueKmersPerTargetFnp){
+uint32_t PrimersAndMids::addUniqKmerCounts(const bfs::path & uniqueKmersPerTargetFnp, bool ignoreMissingTargets){
   uniqueKmersPerTarget_.clear();
   uint32_t klen = 0;
   {
-    SimpleKmerHash hasher;
-
     TableReader uniqKmers(TableIOOpts::genTabFileIn(uniqueKmersPerTargetFnp, false));
     if(uniqKmers.header_.nCol() < 2){
       std::stringstream ss;
       ss << __PRETTY_FUNCTION__ << ", error " << "need to have 2 columns" << "\n";
       throw std::runtime_error{ss.str()};
     }
+  	SimpleKmerHash hasher;
     VecStr row;
     while(uniqKmers.getNextRow(row)){
       klen = row[1].size();
@@ -497,7 +496,7 @@ uint32_t PrimersAndMids::addUniqKmerCounts(const bfs::path & uniqueKmersPerTarge
     }
   }
 
-  if(!missingTargets.empty()){
+  if(!ignoreMissingTargets && !missingTargets.empty()){
     std::stringstream ss;
     ss << __PRETTY_FUNCTION__ << ", error " << "missing the following targets from the unique kmer sets: " << njh::conToStr(missingTargets) << "\n";
     throw std::runtime_error { ss.str() };
@@ -510,7 +509,7 @@ uint32_t PrimersAndMids::addUniqKmerCounts(const bfs::path & uniqueKmersPerTarge
 		}
 	}
 
-	if(!addKmerTargetsButMissingFromTars.empty()){
+	if(!ignoreMissingTargets && !addKmerTargetsButMissingFromTars.empty()){
 		std::stringstream ss;
 		ss << __PRETTY_FUNCTION__ << ", error " << "unique kmer sets added for the following targets but no info for them in targets_ : " << njh::conToStr(addKmerTargetsButMissingFromTars) << "\n";
 		throw std::runtime_error { ss.str() };

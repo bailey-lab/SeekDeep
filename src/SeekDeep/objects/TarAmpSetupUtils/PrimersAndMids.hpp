@@ -140,14 +140,18 @@ public:
 	static std::map<std::string, PrimersAndMids::Target::lenCutOffs> readInLenCutOffs(
 			const bfs::path & lenCutOffsFnp);
 
-	void addLenCutOffs(const bfs::path & lenCutOffsFnp);
-	void addOverLapStatuses(const bfs::path & overlapStatuses);
-  uint32_t addUniqKmerCounts(const bfs::path & uniqueKmersPerTargetFnp);
+	void addLenCutOffs(const bfs::path& lenCutOffsFnp);
+
+	void addOverLapStatuses(const bfs::path& overlapStatuses);
+
+	uint32_t addUniqKmerCounts(const bfs::path& uniqueKmersPerTargetFnp, bool ignoreMissingTargets = false);
+
 	void genUniqKmerCountsFromRefSeqs(uint32_t kmerLen = 19);
 
-	void addOverLapStatuses(const std::vector<PairedReadProcessor::ReadPairOverLapStatus> & allStatus);
+	void addOverLapStatuses(const std::vector<PairedReadProcessor::ReadPairOverLapStatus>& allStatus);
 
-	void addRefSeqs(const bfs::path & refDirectory);
+	void addRefSeqs(const bfs::path& refDirectory);
+
 	void setRefSeqsKInfos(uint32_t klen, bool setRevComp);
 
 	void addDefaultLengthCutOffs(uint32_t minLength, uint32_t maxLength);
