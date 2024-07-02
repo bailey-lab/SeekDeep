@@ -230,17 +230,27 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
       std::cout << output.seqBase_.name_ << std::endl;
     }
   }
+  // std::cout << __FILE__ << " " << __PRETTY_FUNCTION__ << " " << __LINE__ << std::endl;
+
 	sampColl.doPopulationClustering(sampColl.createPopInput(), alignerObj, collapserObj, pars.popIteratorMap);
 
+	// std::cout << __FILE__ << " " << __PRETTY_FUNCTION__ << " " << __LINE__ << std::endl;
 
 	if(pars.rescuePars_.performResuce()){
+		// std::cout << __FILE__ << " " << __PRETTY_FUNCTION__ << " " << __LINE__ << std::endl;
 		sampColl.conductResuceOperations(pars.rescuePars_, alignerObj, collapserObj, pars.popIteratorMap);
+		// std::cout << __FILE__ << " " << __PRETTY_FUNCTION__ << " " << __LINE__ << std::endl;
+
 	}
+	// std::cout << __FILE__ << " " << __PRETTY_FUNCTION__ << " " << __LINE__ << std::endl;
+
 	sampColl.performLowLevelFilters(pars.lowLevelPopFiltPars_, alignerObj, collapserObj, pars.popIteratorMap);
+	// std::cout << __FILE__ << " " << __PRETTY_FUNCTION__ << " " << __LINE__ << std::endl;
 
 	if(pars.rescueMatchingExpected && !expectedSeqs.empty()){
 		sampColl.rescueMatchingSeqs(expectedSeqs, alignerObj, collapserObj, pars.popIteratorMap);
 	}
+	// std::cout << __FILE__ << " " << __PRETTY_FUNCTION__ << " " << __LINE__ << std::endl;
 
 	if(setUp.pars_.verbose_){
 		std::cout << njh::bashCT::boldRed("Done Pop Clustering") << std::endl;
