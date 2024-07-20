@@ -22,7 +22,8 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	bfs::path popSeqsDirFnp = "";
 
 	bfs::path metaFnp = "";
-	bool doNotRescueVariantCallsAccrossTargets = false;
+	VCFOutput::comnbineVCFsPars combiningVcfPars;
+	// bool doNotRescueVariantCallsAccrossTargets = false;
 	std::string popSeqsRegexPatRemoval = R"(_([tf])?\d+(\.\d+)?$)";
 	uint32_t numThreads = 1;
 
@@ -36,10 +37,11 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	seqSetUp setUp(inputCommands);
 	setUp.processVerbose();
 	setUp.processDebug();
-	setUp.setOption(doNotRescueVariantCallsAccrossTargets, "--doNotRescueVariantCallsAccrossTargets", "do Not Rescue Variant Calls Accross Targets");
+	setUp.setOption(combiningVcfPars.doNotRescueVariantCallsAcrossTargets, "--doNotRescueVariantCallsAcrossTargets", "do Not Rescue Variant Calls Across Targets");
+	setUp.setOption(combiningVcfPars.combinedOverlappingCallsAcrossTargets, "--combineOverlappingCallsAcrossTargets", "Rather than taking the best variant call for overlapping targets, sum them instead");
 
-	setUp.setOption(selectTargets, "--selectTargets", "Only analzye these select targets");
-	setUp.setOption(selectSamples, "--selectSamples", "Only analzye these select samples");
+	setUp.setOption(selectTargets, "--selectTargets", "Only analyze these select targets");
+	setUp.setOption(selectSamples, "--selectSamples", "Only analyze these select samples");
 	setUp.setOption(bedLocs, "--genomicLocations", "a bed file with specific genomic locations to align to, location name needs to match target name");
 	setUp.setOption(genomicLocsChangePeriodToDash, "--genomicLocationsChangePeriodToDash", "when supplying a location name, change periods to dashes in the name");
 
@@ -134,7 +136,16 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 				continue;;
 			}
 			targetNamesSet.emplace(target);
-
+			if(!isDoubleStr(row[sampInfoReader.header_.getColPos(withinSampleReadCntColName)])) {
+				std::stringstream ss;
+				ss << __PRETTY_FUNCTION__ << " " << __FILE__ << " " << __LINE__ << ", error " << " for row: "<< "\n";
+				ss << njh::conToStr(row, "\t") << "\n";
+				ss << "Within Sample Read Count column, " << withinSampleReadCntColName << ":" << row[sampInfoReader.header_.getColPos(withinSampleReadCntColName)] << ", does not look like a number" << "\n";
+				if(allWhiteSpaceStr(row[sampInfoReader.header_.getColPos(withinSampleReadCntColName)])) {
+					ss << "value can't be empty, has to be a number" << "\n";
+				}
+				throw std::runtime_error{ss.str()};
+			}
 			auto readCnt = njh::StrToNumConverter::stoToNum<double>(
 							row[sampInfoReader.header_.getColPos(withinSampleReadCntColName)]);
 			auto h_popUID = row[sampInfoReader.header_.getColPos(popHapIdColName)];
@@ -516,7 +527,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 
 	if(!proteinVcfs.empty()){
 		fullWatch.startNewLap("combine protein vcfs");
-		auto firstPVcf = VCFOutput::comnbineVCFs(proteinVcfs, sampleNamesSet, doNotRescueVariantCallsAccrossTargets);
+		auto firstPVcf = VCFOutput::comnbineVCFs(proteinVcfs, sampleNamesSet, combiningVcfPars);
 		{
 			OutputStream pvcf(njh::files::make_path(reportsDir, "allProteinVariantCalls.vcf.gz"));
 			firstPVcf.writeOutFixedAndSampleMeta(pvcf);
@@ -536,7 +547,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	//process genomic
 	if(!genomicVcfs.empty()) {
 		fullWatch.startNewLap("combine genomic vcfs");
-		auto firstGVcf = VCFOutput::comnbineVCFs(genomicVcfs, sampleNamesSet, doNotRescueVariantCallsAccrossTargets);
+		auto firstGVcf = VCFOutput::comnbineVCFs(genomicVcfs, sampleNamesSet, combiningVcfPars);
 		{
 			OutputStream gvcfOutFile(njh::files::make_path(reportsDir, "allGenomicVariantCalls.vcf.gz"));
 			firstGVcf.writeOutFixedAndSampleMeta(gvcfOutFile);
