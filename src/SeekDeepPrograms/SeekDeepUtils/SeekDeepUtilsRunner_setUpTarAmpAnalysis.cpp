@@ -169,6 +169,8 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 
 	setUp.setOption(pars.inputFilePat, "--inputFilePat",
 			"The input file pattern in the input directory to work on", false, "Input");
+	setUp.setOption(pars.illuminaInputFilePat, "--illuminaInputFilePat",
+			"The input file pattern for illumina files, everything in the first capture will be treated as the actual name of the file", false, "Input");
 
 	setUp.setOption(pars.noGuessSampNames, "--noGuessSampNames",
 			"Don't guess the sample names from the raw fastq directory input", false, "Input");

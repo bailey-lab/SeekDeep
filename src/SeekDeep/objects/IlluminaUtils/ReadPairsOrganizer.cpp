@@ -30,7 +30,6 @@
 
 namespace njhseq {
 
-std::regex ReadPairsOrganizer::illuminaPat_{"(.*?)((_S[0-9]+)?(_L[0-9]+)?_(R[12])(_[0-9]+)?\\.fastq(\\.gz)?)"};
 
 
 ReadPairsOrganizer::ReadPairsOrganizer(const VecStr & expectedSamples) :
@@ -43,7 +42,7 @@ void ReadPairsOrganizer::processFiles(const std::map<bfs::path, bool> & files) {
 
 	for (const auto & f : files) {
 		auto filename = f.first.filename().string();
-		auto underPos = filename.find("_");
+		auto underPos = filename.find('_');
 		if (0 == underPos) {
 			std::stringstream ss;
 			ss << __PRETTY_FUNCTION__ << ": Error, in processing file name "

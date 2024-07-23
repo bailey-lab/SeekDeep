@@ -116,6 +116,7 @@ int SeekDeepUtilsRunner::getPossibleSampleNamesFromRawInput(const njh::progutils
 
 	setUp.setOption(pars.inputDir, "--inputDir", "Input Directory", true);
 	setUp.setOption(pars.inputFilePat, "--inputFilePat", "Input File Pat");
+	setUp.setOption(pars.illuminaInputFilePat, "--illuminaInputFilePat", "The input file pattern for illumina files, everything in the first capture will be treated as the actual name of the file");
 	setUp.setOption(pars.technology, "--technology", "Technology");
 	setUp.setOption(pars.ignoreSamples, "--ignoreSamples", "Ignore these Samples if found");
 	setUp.setOption(pars.replicatePattern, "--replicatePattern", "Replicate Pattern to match on to indicate replicates when guessing sample names, should have two groups e.g. (.*)(-rep.*)");

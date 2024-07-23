@@ -36,11 +36,11 @@ namespace njhseq {
 
 class ReadPairsOrganizer {
 public:
-	ReadPairsOrganizer(const VecStr & expectedSamples);
+	explicit ReadPairsOrganizer(const VecStr & expectedSamples);
 
 	VecStr expectedSamples_;
 	bool doNotGuessSampleNames_{false};
-	static std::regex illuminaPat_;
+	std::regex illuminaPat_{"(.*?)((_[AGCT]{,8}-[AGCT]{,8})?(_S[0-9]+)?(_L[0-9]+)?_(R[12])(_[0-9]+)?\\.fastq(\\.gz)?)"};
 
 	std::map<std::string, VecStr> readPairs_;
 	std::map<std::string, VecStr> readPairsUnrecognized_;
