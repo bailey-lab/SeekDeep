@@ -1291,7 +1291,7 @@ fi)" << std::endl;
 	runAnalysisFile << "" << setUp.commands_.masterProgram_
 			<< " runMultipleCommands --cmdFile genConfigCmds.txt      --numThreads $numThreads --raw --logDir logs "
 			<< std::endl;
-  runAnalysisFile << "/bin/ls popClustering/*/analysis/selectedClustersInfo.tab.txt.gz | elucidator rBind --files STDIN --delim tab --header --overWrite --out popClustering/allSelectedClustersInfo.tab.txt.gz" << std::endl;
+  runAnalysisFile << "/bin/ls popClustering/*/analysis/selectedClustersInfo.tab.txt.gz | elucidator rBind --fill --files STDIN --delim tab --header --overWrite --out popClustering/allSelectedClustersInfo.tab.txt.gz" << std::endl;
 	runAnalysisFile << "" << std::endl;
 	//make file executable
 	chmod(runAnalysisOpts.outFilename_.c_str(),

@@ -663,6 +663,10 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 //			}
 //		}
 //	}
+	if(setUp.pars_.debug_) {
+		std::cout << __FILE__ << " " << __LINE__ << std::endl;
+	}
+
 
   std::map<std::string, std::string> fullAATyped;
   //if typing file exists, read it in and set in map
@@ -695,7 +699,9 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
       }
     }
   }
-
+	if(setUp.pars_.debug_) {
+		std::cout << __FILE__ << " " << __LINE__ << std::endl;
+	}
 	for(auto & clus : sampColl.popCollapse_->collapsed_.clusters_){
 		auto popName = clus.seqBase_.name_.substr(0, clus.seqBase_.name_.rfind("_f"));
 		std::string typed = fullAATyped[popName];
@@ -705,10 +711,15 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 //    std::cout << njh::conToStr(njh::getVecOfMapKeys(fullAATyped), ",") << std::endl;
 		clus.meta_.addMeta("h_AATyped", typed);
 	}
+	if(setUp.pars_.debug_) {
+		std::cout << __FILE__ << " " << __LINE__ << std::endl;
+	}
 	sampColl.printSampleCollapseInfo(
 			njh::files::make_path(sampColl.masterOutputDir_,
 					"selectedClustersInfo.tab.txt.gz"));
-
+	if(setUp.pars_.debug_) {
+		std::cout << __FILE__ << " " << __LINE__ << std::endl;
+	}
 	if(pars.writeOutAllInfoFile){
 		sampColl.printAllSubClusterInfo(
 					njh::files::make_path(sampColl.masterOutputDir_,
