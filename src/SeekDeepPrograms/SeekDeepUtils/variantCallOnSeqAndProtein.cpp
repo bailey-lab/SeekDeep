@@ -180,6 +180,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 			inputSampleNamesSet.emplace(sample);
 		}
 	}
+	//std::cout << __PRETTY_FUNCTION__ << " " << __FILE__ << " " << __LINE__ << std::endl;
 
 	if (!exists(popSeqsDirFnp)) {
 		for (const auto &tarPopHaps: hPopUID_to_hConsensus) {
@@ -188,6 +189,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 			}
 		}
 	}
+	//std::cout << __PRETTY_FUNCTION__ << " " << __FILE__ << " " << __LINE__ << std::endl;
 
 	//write out seqs
 	for(const auto & tar : allResultSeqs) {
@@ -209,6 +211,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 			}
 		}
 	}
+	//std::cout << __PRETTY_FUNCTION__ << " " << __FILE__ << " " << __LINE__ << std::endl;
 
 	std::unordered_map<std::string, std::shared_ptr<Bed6RecordCore>> genomicLocs;
 	if(!bedLocs.empty()) {
@@ -237,10 +240,13 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 			throw std::runtime_error{ss.str()};
 		}
 	}
+	//std::cout << __PRETTY_FUNCTION__ << " " << __FILE__ << " " << __LINE__ << std::endl;
+
 	runLog["initial set up time"] = fullWatch.totalTime();
 	fullWatch.startNewLap("run variant calling on each target");
 	auto & runLogTargetTimes = runLog["targets"];
 	njh::concurrent::LockableQueue<std::string> targetNamesQueue(targetNamesSet);
+	//std::cout << __PRETTY_FUNCTION__ << " " << __FILE__ << " " << __LINE__ << std::endl;
 
 	std::function<void()> callVariants = [&collapseVarCallPars,&targetNamesQueue, &setUp,
 		&genomicLocs, &runLogMut, &runLogTargetTimes]() {
@@ -249,18 +255,26 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 			njh::stopWatch watch;
 			Json::Value currentLog;
 			currentLog["target"] = target;
+			//std::cout << __PRETTY_FUNCTION__ << " " << __FILE__ << " " << __LINE__ << std::endl;
+
 			auto inputSeqsOpts = SeqIOOptions::genFastaInGz(njh::files::make_path(setUp.pars_.directoryName_, target, "inputSeqs.fasta.gz"));
 			auto inputSeqs = SeqInput::getSeqVec<seqInfo>(inputSeqsOpts);
 			const auto varCallDirPath = njh::files::make_path(setUp.pars_.directoryName_, target,  "variantCalling");
 			auto collapseVarCallParsForTar = collapseVarCallPars;
 			collapseVarCallParsForTar.identifier = target;
 			collapseVarCallParsForTar.outputDirectory = varCallDirPath;
+			//std::cout << __PRETTY_FUNCTION__ << " " << __FILE__ << " " << __LINE__ << std::endl;
+
 			if(njh::in(target, genomicLocs)) {
 				collapseVarCallParsForTar.refSeqRegion = GenomicRegion(*njh::mapAt(genomicLocs, target));
 			}
+			//std::cout << __PRETTY_FUNCTION__ << " " << __FILE__ << " " << __LINE__ << std::endl;
+
 			collapseVarCallParsForTar.calcPopMeasuresPars.seqCountCutOffPloidyCalc_ = 2000;
 			collapseAndCallVariants(collapseVarCallParsForTar, inputSeqs);
 			currentLog["totalTime"] = watch.totalTime();
+			//std::cout << __PRETTY_FUNCTION__ << " " << __FILE__ << " " << __LINE__ << std::endl;
+
 			{
 				std::lock_guard<std::mutex> lock(runLogMut);
 				runLogTargetTimes.append(currentLog);
