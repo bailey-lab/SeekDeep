@@ -37,6 +37,8 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	seqSetUp setUp(inputCommands);
 	setUp.processVerbose();
 	setUp.processDebug();
+	setUp.setOption(collapseVarCallPars.variantCallerRunPars.ploidy, "--ploidy", "Ploidy to force for the sample for the vcf files");
+	combiningVcfPars.ploidy = collapseVarCallPars.variantCallerRunPars.ploidy;
 	setUp.setOption(combiningVcfPars.doNotRescueVariantCallsAcrossTargets, "--doNotRescueVariantCallsAcrossTargets", "do Not Rescue Variant Calls Across Targets");
 	setUp.setOption(combiningVcfPars.combinedOverlappingCallsAcrossTargets, "--combineOverlappingCallsAcrossTargets", "Rather than taking the best variant call for overlapping targets, sum them instead");
 
@@ -542,7 +544,9 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 
 	if(!proteinVcfs.empty()){
 		fullWatch.startNewLap("combine protein vcfs");
+		// std::cout << __PRETTY_FUNCTION__ << " " << __FILE__ << " " << __LINE__ << std::endl;
 		auto firstPVcf = VCFOutput::comnbineVCFs(proteinVcfs, sampleNamesSet, combiningVcfPars);
+		// std::cout << __PRETTY_FUNCTION__ << " " << __FILE__ << " " << __LINE__ << std::endl;
 		{
 			OutputStream pvcf(njh::files::make_path(reportsDir, "allProteinVariantCalls.vcf.gz"));
 			firstPVcf.writeOutFixedAndSampleMeta(pvcf);
@@ -562,7 +566,9 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	//process genomic
 	if(!genomicVcfs.empty()) {
 		fullWatch.startNewLap("combine genomic vcfs");
+		// std::cout << __PRETTY_FUNCTION__ << " " << __FILE__ << " " << __LINE__ << std::endl;
 		auto firstGVcf = VCFOutput::comnbineVCFs(genomicVcfs, sampleNamesSet, combiningVcfPars);
+		// std::cout << __PRETTY_FUNCTION__ << " " << __FILE__ << " " << __LINE__ << std::endl;
 		{
 			OutputStream gvcfOutFile(njh::files::make_path(reportsDir, "allGenomicVariantCalls.vcf.gz"));
 			firstGVcf.writeOutFixedAndSampleMeta(gvcfOutFile);
