@@ -58,7 +58,7 @@ class SeekDeepUtilsRunner : public njh::progutils::ProgramRunner {
   static int combineBasicResultsFiles(const njh::progutils::CmdArgs & inputCommands);
 
   static int variantCallOnSeqAndProtein(const njh::progutils::CmdArgs & inputCommands);
-  static int variantCallOnSeqAndProteinPost(const njh::progutils::CmdArgs & inputCommands);
+  // static int variantCallOnSeqAndProteinPost(const njh::progutils::CmdArgs & inputCommands);
 
 };
 

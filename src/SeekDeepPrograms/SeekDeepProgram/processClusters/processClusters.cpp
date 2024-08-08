@@ -79,7 +79,9 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 		if(njh::in(fileToks[0], pars.excludeSamples)){
 			continue;
 		}
-		samplesDirsSet.insert(fileToks[0]);
+		if(pars.includeSamples.empty() || njh::in(fileToks[0], pars.includeSamples)) {
+			samplesDirsSet.insert(fileToks[0]);
+		}
 	}
 
 	VecStr samplesDirs(samplesDirsSet.begin(), samplesDirsSet.end());
@@ -764,11 +766,13 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 		if(njh::in(fileToks[0], pars.excludeSamples)){
 			continue;
 		}
-		auto metaDataJsonFnp = njh::files::make_path(file.first.parent_path(), "metaData.json");
-		if(bfs::exists(metaDataJsonFnp)){
-			auto metaJson = njh::json::parseFile(metaDataJsonFnp.string());
-			if(metaJson.isMember("extractionDir")){
-				extractionDirs.emplace(metaJson["extractionDir"].asString());
+		if(pars.includeSamples.empty() || njh::in(fileToks[0], pars.includeSamples)) {
+			auto metaDataJsonFnp = njh::files::make_path(file.first.parent_path(), "metaData.json");
+			if(bfs::exists(metaDataJsonFnp)){
+				auto metaJson = njh::json::parseFile(metaDataJsonFnp.string());
+				if(metaJson.isMember("extractionDir")){
+					extractionDirs.emplace(metaJson["extractionDir"].asString());
+				}
 			}
 		}
 	}

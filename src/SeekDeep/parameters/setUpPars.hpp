@@ -209,6 +209,7 @@ struct processClustersPars {
   bfs::path popSeqsFnp = "";
 
   VecStr excludeSamples;
+	VecStr includeSamples;
 
 
 //  TranslatorByAlignment::TranslatorByAlignmentPars transPars;
