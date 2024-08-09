@@ -59,7 +59,7 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 
 	//population seqs;
 	std::vector<seqInfo> globalPopSeqs;
-	if("" != pars.popSeqsFnp){
+	if(!pars.popSeqsFnp.empty()){
 		globalPopSeqs = SeqInput::getSeqVec<seqInfo>(SeqIOOptions::genFastaIn(pars.popSeqsFnp));
 	}
 
@@ -135,7 +135,7 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 	sampColl.keepSampleInfoInMemory_ = pars.keepSampleInfoInMemory_;
 	sampColl.development_ = pars.development;
 
-	if("" != pars.groupingsFile){
+	if(!pars.groupingsFile.empty()){
 		sampColl.addGroupMetaData(pars.groupingsFile);
 	}
 
@@ -153,7 +153,7 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 																&expectedSeqs,&sampColl,&customCutOffsMap,
 																&customCutOffsMapPerRep](){
 
-			std::string samp = "";
+			std::string samp;
 			auto currentAligner = alnPool.popAligner();
 			while(sampleQueue.getVal(samp)){
 				if(setUp.pars_.verbose_){

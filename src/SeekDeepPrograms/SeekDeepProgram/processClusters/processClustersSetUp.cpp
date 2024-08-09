@@ -125,7 +125,7 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 	setOption(pars.binParameters, "--binPar", "bin Parameters Filename", false, "Clustering");
 
 
-	pars.preFiltCutOffs.sampleMinReadCount = 250;
+	pars.preFiltCutOffs.sampleMinReadCount = 50;
 	bool sampMinSet = setOption(pars.preFiltCutOffs.sampleMinReadCount, "--sampleMinTotalReadCutOff",
 			"Sample Minimum Total Read Cut Off, if the total read count for the sample is below this it will be thrown out", false, "Filtering");
 
