@@ -583,8 +583,12 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	for (const auto& target: targetNamesVec) {
 		auto proteinVcfFiles = njh::files::listAllFiles(njh::files::make_path(setUp.pars_.directoryName_, "/", target, "/variantCalling/variantCalls/"),false,
 				std::vector<std::regex>{std::regex{".*-protein.vcf.gz"}});
-		auto genomicVcfFiles = njh::files::listAllFiles(njh::files::make_path(setUp.pars_.directoryName_, "/", target, "/variantCalling/variantCalls/"),false,
-			std::vector<std::regex>{std::regex{".*-genomic.vcf.gz"}});
+		auto genomicVcfFiles = njh::files::listAllFiles(
+			njh::files::make_path(setUp.pars_.directoryName_, "/", target, "/variantCalling/variantCalls/"), false,
+			std::vector<std::regex>{std::regex{".*-genomic.vcf.gz"}},
+			std::vector<std::regex>{
+				std::regex{".*-complex-genomic.vcf.gz"}
+			});
 		auto complexGenomicVcfFiles = njh::files::listAllFiles(njh::files::make_path(setUp.pars_.directoryName_, "/", target, "/variantCalling/variantCalls/"),false,
 		                                                       std::vector<std::regex>{
 			                                                       std::regex{".*-complex-genomic.vcf.gz"}
@@ -624,12 +628,12 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 		{
 			// aminoAcidInfo::infos::allInfo
 			OutputStream aminoAcidChangesTable(njh::files::make_path(reportsDir, "AAChangesInfo.tsv.gz"));
-			aminoAcidChangesTable << "Gene ID"
-					<< "\t" << "Gene Transcript ID"
+			aminoAcidChangesTable << "Gene_ID"
+					<< "\t" << "Gene_Transcript_ID"
 					<< "\t" << "Gene"
-					<< "\t" << "Mutation Name"
+					<< "\t" << "Mutation_Name"
 					<< "\t" << "ExonicFunc"
-					<< "\t" << "AA Change"
+					<< "\t" << "AA_Change"
 					<< "\t" << "Targeted"
 			    << "\t" << "CoveredBy"
 					<< "\t" << "sample";
@@ -806,14 +810,54 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	//create counts of summary table
 	{
 		table allSummaryTable(TableIOOpts::genTabFileIn(njh::files::make_path(reportsDir, "allSummaryTables.tab.txt.gz")));
-		auto genomicLocCounts = allSummaryTable.countGroupColumns(VecStr{"target", "chrom", "0based_start", "0based_end", "strand"});
-		genomicLocCounts.naturlSortTable("target", false);
-		genomicLocCounts.outPutContents(TableIOOpts::genTabFileOut(njh::files::make_path(reportsDir, "genomicLocPerTargetsCounts.tab.txt.gz")));
+		{
+			auto genomicLocCounts = allSummaryTable.countGroupColumns(VecStr{ "chrom", "0based_start", "0based_end","target", "length", "strand"});
+			VecStr isMax;
+			std::unordered_map<std::string, uint32_t> maxCounts;
+			for(const auto & row : genomicLocCounts) {
+				auto n = njh::StrToNumConverter::stoToNum<uint32_t>(row[genomicLocCounts.getColPos("n")]);
+				if(n > maxCounts[row[genomicLocCounts.getColPos("target")]]) {
+					maxCounts[row[genomicLocCounts.getColPos("target")]] = n;
+				}
+			}
+			for(const auto & row : genomicLocCounts) {
+				auto n = njh::StrToNumConverter::stoToNum<uint32_t>(row[genomicLocCounts.getColPos("n")]);
+				if(n == maxCounts[row[genomicLocCounts.getColPos("target")]]) {
+					isMax.emplace_back("true");
+				} else {
+					isMax.emplace_back("false");
+				}
+			}
+			genomicLocCounts.addColumn(isMax, "isMaxCount");
+			genomicLocCounts.naturlSortTable("target", false);
+			genomicLocCounts.outPutContents(TableIOOpts::genTabFileOut(njh::files::make_path(reportsDir, "genomicLocPerTargetsCounts.tab.txt.gz")));
 
-		auto proteinLocCounts = allSummaryTable.countGroupColumns(VecStr{"target", "transcript", "transcript_1based_start", "transcript_1based_end"});
-		proteinLocCounts.naturlSortTable("target", false);
-		proteinLocCounts.outPutContents(TableIOOpts::genTabFileOut(njh::files::make_path(reportsDir, "proteinLocPerTargetsCounts.tab.txt.gz")));
+		}
+		{
+			auto proteinLocCounts = allSummaryTable.countGroupColumns(VecStr{"transcript", "transcript_1based_start", "transcript_1based_end", "target",  "transcript_length"});
+			proteinLocCounts.addColumn(VecStr{"+"}, "transcript_strand");
+			proteinLocCounts = proteinLocCounts.getColumns(VecStr{"transcript", "transcript_1based_start", "transcript_1based_end", "target",  "transcript_length", "transcript_strand", "n"});
+			VecStr isMax;
+			std::unordered_map<std::string, uint32_t> maxCounts;
+			for(const auto & row : proteinLocCounts) {
+				auto n = njh::StrToNumConverter::stoToNum<uint32_t>(row[proteinLocCounts.getColPos("n")]);
+				if(n > maxCounts[row[proteinLocCounts.getColPos("target")]]) {
+					maxCounts[row[proteinLocCounts.getColPos("target")]] = n;
+				}
+			}
+			for(const auto & row : proteinLocCounts) {
+				auto n = njh::StrToNumConverter::stoToNum<uint32_t>(row[proteinLocCounts.getColPos("n")]);
+				if(n == maxCounts[row[proteinLocCounts.getColPos("target")]]) {
+					isMax.emplace_back("true");
+				} else {
+					isMax.emplace_back("false");
+				}
+			}
+			proteinLocCounts.addColumn(isMax, "isMaxCount");
+			proteinLocCounts.naturlSortTable("target", false);
+			proteinLocCounts.outPutContents(TableIOOpts::genTabFileOut(njh::files::make_path(reportsDir, "proteinLocPerTargetsCounts.tab.txt.gz")));
 
+		}
 		/*
 		*allSummaryTable_genomicLocations = allSummaryTable %>%
 	group_by(target, chrom, `0based_start`, `0based_end`) %>%
