@@ -45,7 +45,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	setUp.setOption(bedLocs, "--genomicLocations", "a bed file with specific genomic locations to align to, location name needs to match target name");
 	setUp.setOption(genomicLocsChangePeriodToDash, "--genomicLocationsChangePeriodToDash", "when supplying a location name, change periods to dashes in the name");
 
-
+	setUp.setOption(collapseVarCallPars.exportLabIsolateSeqs, "--exportLabIsolateSeqs", "Export Lab Isolate Seqs, will export seqs with meta of site==LabIsolate");
 	setUp.setOption(collapseVarCallPars.variantCallerRunPars.occurrenceCutOff, "--variantOccurrenceCutOff", "Occurrence Cut Off, don't report variants below this count");
 	setUp.setOption(collapseVarCallPars.variantCallerRunPars.lowVariantCutOff, "--variantFrequencyCutOff", "Low Variant Cut Off, don't report variants below this frequency");
 	collapseVarCallPars.variantCallerRunPars.totalReadDepthCutOff = 10;
@@ -680,9 +680,14 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 						auto alt = altEnum.element;
 						std::string altTriCodeName;
 						for(const auto c : alt) {
-							auto currentTriCode = aminoAcidInfo::infos::allInfo.at(c).triCode_;
-							currentTriCode[0] = toupper(currentTriCode[0]);
-							altTriCodeName+= currentTriCode;
+							if(c != 'X' && c != 'x') {
+								auto currentTriCode = aminoAcidInfo::infos::allInfo.at(c).triCode_;
+								currentTriCode[0] = toupper(currentTriCode[0]);
+								altTriCodeName+= currentTriCode;
+							} else {
+								std::string currentTriCode = "XXX";
+								altTriCodeName+= currentTriCode;
+							}
 						}
 
 						std::string ExonicFunc;

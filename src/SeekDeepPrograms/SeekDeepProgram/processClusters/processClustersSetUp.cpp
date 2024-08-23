@@ -137,11 +137,11 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 	}
 	setOption(pars.runsRequired, "--runsRequired", "Number of PCR runs Required for a haplotype to be kept", false, "Filtering");
 	setOption(pars.experimentNames.populationName_, "--experimentName", "Name given to the final population haplotypes", false, "Population");
-	if (njh::containsSubString(pars.experimentNames.populationName_, ".")) {
-		addWarning("Error in populationCollapse::populationCollapse, populationName can't contain '.', "
-						+ pars.experimentNames.populationName_);
-		failed_ = true;
-	}
+	// if (njh::containsSubString(pars.experimentNames.populationName_, ".")) {
+	// 	addWarning("Error in populationCollapse::populationCollapse, populationName can't contain '.', "
+	// 					+ pars.experimentNames.populationName_);
+	// 	failed_ = true;
+	// }
 
   pars.collapseVarCallPars.identifier = pars.experimentNames.populationName_;
 
