@@ -342,10 +342,18 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	auto reportsDir = njh::files::make_path(setUp.pars_.directoryName_, "reports");
 	njh::files::makeDir(njh::files::MkdirPar{reportsDir});
 
-
-
-
-	//concatenate diversity calls
+	//vcfs
+	auto reportsVcfsDir = njh::files::make_path(reportsDir, "vcfs");
+	njh::files::makeDir(njh::files::MkdirPar{reportsVcfsDir});
+	//info
+	auto reportsInfoDir = njh::files::make_path(reportsDir, "info");
+	njh::files::makeDir(njh::files::MkdirPar{reportsInfoDir});
+	//summary
+	auto reportsSummaryDir = njh::files::make_path(reportsDir, "summary");
+	njh::files::makeDir(njh::files::MkdirPar{reportsSummaryDir});
+	//popGenetics
+	auto reportsPopGeneticsDir = njh::files::make_path(reportsDir, "popGenetics");
+	njh::files::makeDir(njh::files::MkdirPar{reportsPopGeneticsDir});
 
 	auto targetNamesVec = std::vector<std::string>(targetNamesSet.begin(), targetNamesSet.end());
 	njh::naturalSortNameSet(targetNamesVec);
@@ -361,66 +369,25 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 		}
 	}
 
-	{
-		fullWatch.startNewLap("gather sequence diversity");
-		//sequence diversity
-		std::vector<bfs::path> seqDivMeasuresFnps;
+	auto collectAndWriteMasterFile = [&targetNamesVec,&setUp](const std::string & pathUnderTarDirectory, const bfs::path & outputFnp) {
+		std::vector<bfs::path> divMeasuresFnps;
 		for (const auto& tar: targetNamesVec) {
-			auto divFnp = njh::pasteAsStr(setUp.pars_.directoryName_, "/", tar, "/variantCalling/divMeasures.tab.txt");
+			auto divFnp = njh::pasteAsStr(setUp.pars_.directoryName_, "/", tar, "/", pathUnderTarDirectory);
 			if (bfs::exists(divFnp) && 0 != njh::files::bfs::file_size(divFnp)) {
-				seqDivMeasuresFnps.emplace_back(divFnp);
+				divMeasuresFnps.emplace_back(divFnp);
 			}
 		}
-		if (!seqDivMeasuresFnps.empty()) {
-			njh::files::bfs::path firstFileFnp = seqDivMeasuresFnps.front();
+		if (!divMeasuresFnps.empty()) {
+			njh::files::bfs::path firstFileFnp = divMeasuresFnps.front();
 			TableReader firstTable(TableIOOpts(InOptions(firstFileFnp), "\t", true));
-			OutputStream out(njh::files::make_path(reportsDir, "allDiversityMeasures.tsv.gz"));
+			OutputStream out(outputFnp);
 			out << njh::conToStr(firstTable.header_.columnNames_, "\t") << '\n'; {
 				VecStr firstTableRow;
 				while (firstTable.getNextRow(firstTableRow)) {
 					out << njh::conToStr(firstTableRow, "\t") << '\n';
 				}
 			}
-			for (const auto& file: seqDivMeasuresFnps) {
-				if (file != firstFileFnp) {
-					TableReader currentTable(TableIOOpts(InOptions(file), "\t", true));
-					VecStr currentRow;
-					if (!std::equal(firstTable.header_.columnNames_.begin(), firstTable.header_.columnNames_.end(),
-					                currentTable.header_.columnNames_.begin(), currentTable.header_.columnNames_.end())) {
-						std::stringstream ss;
-						ss << __PRETTY_FUNCTION__ << ", error " << "header for " << file << " doesn't match other columns" << "\n";
-						ss << "expected header: " << njh::conToStr(firstTable.header_.columnNames_) << "\n";
-						ss << "found    header: " << njh::conToStr(currentTable.header_.columnNames_) << '\n';
-						throw std::runtime_error{ss.str()};
-					}
-					while (currentTable.getNextRow(currentRow)) {
-						out << njh::conToStr(currentRow, "\t") << '\n';
-					}
-				}
-			}
-		}
-	}
-	{
-		fullWatch.startNewLap("gather translated diversity");
-		//translated diversity
-		std::vector<bfs::path> transDivMeasuresFnps;
-		for (const auto& tar: targetNamesVec) {
-			auto divFnp = njh::pasteAsStr(setUp.pars_.directoryName_, "/", tar, "/variantCalling/variantCalls/translatedDivMeasures.tab.txt");
-			if (bfs::exists(divFnp) && 0 != njh::files::bfs::file_size(divFnp)) {
-				transDivMeasuresFnps.emplace_back(divFnp);
-			}
-		}
-		if (!transDivMeasuresFnps.empty()) {
-			njh::files::bfs::path firstFileFnp = transDivMeasuresFnps.front();
-			TableReader firstTable(TableIOOpts(InOptions(firstFileFnp), "\t", true));
-			OutputStream out(njh::files::make_path(reportsDir, "allTranslatedDivMeasures.tsv.gz"));
-			out << njh::conToStr(firstTable.header_.columnNames_, "\t") << '\n'; {
-				VecStr firstTableRow;
-				while (firstTable.getNextRow(firstTableRow)) {
-					out << njh::conToStr(firstTableRow, "\t") << '\n';
-				}
-			}
-			for (const auto& file: transDivMeasuresFnps) {
+			for (const auto& file: divMeasuresFnps) {
 				if (file != firstFileFnp) {
 					TableReader currentTable(TableIOOpts(InOptions(file), "\t", true));
 					VecStr currentRow;
@@ -438,14 +405,47 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 				}
 			}
 		}
+	};
+
+	//concatenate diversity calls
+	{
+		fullWatch.startNewLap("gather sequence diversity");
+		//sequence diversity
+		collectAndWriteMasterFile(njh::pasteAsStr("/variantCalling/divMeasures.tab.txt"),
+			njh::files::make_path(reportsPopGeneticsDir, "allDiversityMeasures.tsv.gz"));
+	}
+	{
+		fullWatch.startNewLap("gather translated diversity");
+		//translated diversity
+		collectAndWriteMasterFile(njh::pasteAsStr("/variantCalling/variantCalls/translatedDivMeasures.tab.txt"),
+	njh::files::make_path(reportsPopGeneticsDir, "allTranslatedDivMeasures.tsv.gz"));
+	}
+
+	if(!collapseVarCallPars.metaFieldsToCalcPopDiffs.empty()){
+		fullWatch.startNewLap("gather sub meta fields diversity info");
+		for(const auto & metaField : collapseVarCallPars.metaFieldsToCalcPopDiffs) {
+			{
+				collectAndWriteMasterFile(
+					njh::pasteAsStr("/variantCalling/perMetaFields/", metaField, "_divMeasures.tab.txt.gz"),
+					njh::files::make_path(reportsPopGeneticsDir, njh::pasteAsStr("all_", metaField, "_divMeasures.tsv.gz" )));
+
+				collectAndWriteMasterFile(
+					njh::pasteAsStr("/variantCalling/perMetaFields/", metaField, "_diffMeasures.tab.txt.gz"),
+					njh::files::make_path(reportsPopGeneticsDir, njh::pasteAsStr("all_", metaField, "_diffMeasures.tsv.gz")));
+
+				collectAndWriteMasterFile(
+					njh::pasteAsStr("/variantCalling/perMetaFields/", metaField, "_pairwiseDiffMeasures.tab.txt.gz"),
+					njh::files::make_path(reportsPopGeneticsDir, njh::pasteAsStr("all_", metaField, "_pairwiseDiffMeasures.tsv.gz")));
+			}
+		}
 	}
 
 	//all samples and target coverage counts
 	{
 		fullWatch.startNewLap("all samples and target coverage counts");
-		OutputStream readCountsOut(njh::files::make_path(reportsDir, "readCountsPerSamplePerTarget.tsv.gz"));
+		OutputStream readCountsOut(njh::files::make_path(reportsSummaryDir, "readCountsPerSamplePerTarget.tsv.gz"));
 
-		OutputStream hapCountsOut(njh::files::make_path(reportsDir, "hapCountsPerSamplePerTarget.tsv.gz"));
+		OutputStream hapCountsOut(njh::files::make_path(reportsSummaryDir, "hapCountsPerSamplePerTarget.tsv.gz"));
 		hapCountsOut << "target\t" << njh::conToStr(sampleNamesSet, "\t") << std::endl;
 		readCountsOut << "target\t" << njh::conToStr(sampleNamesSet, "\t") << std::endl;
 
@@ -467,8 +467,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 
 	//copy in meta
 	if(!metaFnp.empty() && exists(metaFnp) && metaGroupData) {
-		// bfs::copy_file(metaFnp, njh::files::make_path(reportsDir, "meta.tsv"));
-		metaGroupData->writeOutMetaFile(njh::files::make_path(reportsDir, "meta.tsv"),	inputSampleNamesSet);
+		metaGroupData->writeOutMetaFile(njh::files::make_path(reportsInfoDir, "meta.tsv"),	inputSampleNamesSet);
 	}
 	TranslatorByAlignment::GetGenomicLocationsForAminoAcidPositionsRet locs;
 	if(!collapseVarCallPars.transPars.knownAminoAcidMutationsFnp_.empty()) {
@@ -476,7 +475,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 		//add known to bed files
 		TranslatorByAlignment::GetGenomicLocationsForAminoAcidPositionsPars parsForBedFileGen;
 		parsForBedFileGen.gffFnp = collapseVarCallPars.transPars.gffFnp_;
-		parsForBedFileGen.outOpts = OutOptions(njh::files::make_path(reportsDir, "genomicLocsForKnownAAChanges.bed"));
+		parsForBedFileGen.outOpts = OutOptions(njh::files::make_path(reportsInfoDir, "genomicLocsForKnownAAChanges.bed"));
 		auto gprefix = bfs::path(collapseVarCallPars.transPars.lzPars_.genomeFnp).replace_extension("");
 		auto twoBitFnp = gprefix.string() + ".2bit";
 		parsForBedFileGen.twoBitFnp = twoBitFnp;
@@ -484,7 +483,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 
 		locs = TranslatorByAlignment::getGenomicLocationsForAminoAcidPositions(parsForBedFileGen);
 
-		OutputStream transcriptOut(njh::files::make_path(reportsDir, "transcriptLocsForKnownAAChanges.bed"));
+		OutputStream transcriptOut(njh::files::make_path(reportsInfoDir, "transcriptLocsForKnownAAChanges.bed"));
 		for(const auto & t : locs.transcriptLocs) {
 			transcriptOut << t.toDelimStrWithExtra() << std::endl;
 		}
@@ -512,11 +511,11 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 		splitPars.column_ = "geneInfo";
 		splitPars.removeEmptyColumn_ = true;
 		auto splitTab = table::splitColWithMeta(overlappingGeneInfo, splitPars);
-		OutputStream geneInfoTabout(njh::files::make_path(reportsDir, "targetsIntersectingWithGenesInfo.tsv"));
+		OutputStream geneInfoTabout(njh::files::make_path(reportsInfoDir, "targetsIntersectingWithGenesInfo.tsv"));
 		splitTab.outPutContents(geneInfoTabout, "\t");
 	}
 	if(!genomicLocs.empty() && !locs.genomicLocs.empty()) {
-		OutputStream intersectionWithKnownLocsOut(njh::files::make_path(reportsDir, "targetsIntersectingWithLocsForKnownAAChanges.bed"));
+		OutputStream intersectionWithKnownLocsOut(njh::files::make_path(reportsInfoDir, "targetsIntersectingWithLocsForKnownAAChanges.bed"));
 		std::vector<std::shared_ptr<Bed6RecordCore>> allLocs;
 		allLocs.reserve(genomicLocs.size());
 		for (const auto& g: genomicLocs) {
@@ -532,7 +531,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 					intersected.emplace_back(knownLoc.name_);
 				}
 			}
-			intersectionWithKnownLocsOut << loc->toDelimStrWithExtra() << "\t" << njh::conToStr(intersected) << std::endl;
+			intersectionWithKnownLocsOut << loc->toDelimStrWithExtra() << "\t" << njh::conToStr(intersected, ",") << std::endl;
 		}
 	}
 	fullWatch.startNewLap("gather unmapped read counts and gather translation filter counts");
@@ -552,8 +551,8 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 			unmmappedHapCounts[target] = count;
 		}
 		{
-			auto untranslateable = njh::files::make_path(setUp.pars_.directoryName_, "/", target, "/variantCalling/variantCalls/seqsTranslationFiltered.txt");
-			auto allLines = njh::files::getAllLines(untranslateable);
+			auto untranslatable = njh::files::make_path(setUp.pars_.directoryName_, "/", target, "/variantCalling/variantCalls/seqsTranslationFiltered.txt");
+			auto allLines = njh::files::getAllLines(untranslatable);
 			uint32_t count = 0;
 			for(const auto & l : allLines) {
 				if(!l.empty()) {
@@ -565,8 +564,8 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	}
 
 	{
-		OutputStream unmmappedHapCountsOut(njh::files::make_path(reportsDir, "unmmappedUntranslatableHapCounts.tsv.gz"));
-		unmmappedHapCountsOut << "target\tunmmapedHaps\tmappedButUntranslatable" << std::endl;
+		OutputStream unmmappedHapCountsOut(njh::files::make_path(reportsSummaryDir, "unmappedUntranslatableHapCounts.tsv.gz"));
+		unmmappedHapCountsOut << "target\tunmappedHaps\tmappedButUntranslatable" << std::endl;
 		for (const auto& target: targetNamesVec) {
 			unmmappedHapCountsOut << target
 					<< "\t" << unmmappedHapCounts[target]
@@ -617,17 +616,17 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 		auto firstPVcf = VCFOutput::comnbineVCFs(proteinVcfs, sampleNamesSet, combiningVcfPars);
 		// std::cout << __PRETTY_FUNCTION__ << " " << __FILE__ << " " << __LINE__ << std::endl;
 		{
-			OutputStream pvcf(njh::files::make_path(reportsDir, "allProteinVariantCalls.vcf.gz"));
+			OutputStream pvcf(njh::files::make_path(reportsVcfsDir, "allProteinVariantCalls.vcf.gz"));
 			firstPVcf.writeOutFixedAndSampleMeta(pvcf);
 		}
 		if(!collapseVarCallPars.transPars.knownAminoAcidMutationsFnp_.empty()) {
-			OutputStream pvcfOutFile(njh::files::make_path(reportsDir, "knownAAChangesProteinVariantCalls.vcf.gz"));
+			OutputStream pvcfOutFile(njh::files::make_path(reportsVcfsDir, "knownAAChangesProteinVariantCalls.vcf.gz"));
 
 			firstPVcf.writeOutFixedAndSampleMeta(pvcfOutFile, knownAAVariantRegions);
 		}
 		{
 			// aminoAcidInfo::infos::allInfo
-			OutputStream aminoAcidChangesTable(njh::files::make_path(reportsDir, "AAChangesInfo.tsv.gz"));
+			OutputStream aminoAcidChangesTable(njh::files::make_path(reportsSummaryDir, "AAChangesInfo.tsv.gz"));
 			aminoAcidChangesTable << "Gene_ID"
 					<< "\t" << "Gene_Transcript_ID"
 					<< "\t" << "Gene"
@@ -746,11 +745,11 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 		auto firstGVcf = VCFOutput::comnbineVCFs(genomicVcfs, sampleNamesSet, combiningVcfPars);
 		// std::cout << __PRETTY_FUNCTION__ << " " << __FILE__ << " " << __LINE__ << std::endl;
 		{
-			OutputStream gvcfOutFile(njh::files::make_path(reportsDir, "allGenomicVariantCalls.vcf.gz"));
+			OutputStream gvcfOutFile(njh::files::make_path(reportsVcfsDir, "allGenomicVariantCalls.vcf.gz"));
 			firstGVcf.writeOutFixedAndSampleMeta(gvcfOutFile);
 		}
 		if(!collapseVarCallPars.transPars.knownAminoAcidMutationsFnp_.empty()) {
-			OutputStream gvcfOutFile(njh::files::make_path(reportsDir, "knownAAChangesGenomicVariantCalls.vcf.gz"));
+			OutputStream gvcfOutFile(njh::files::make_path(reportsVcfsDir, "knownAAChangesGenomicVariantCalls.vcf.gz"));
 			std::vector<GenomicRegion> knownSnpVariantRegions;
 			knownSnpVariantRegions.reserve(locs.genomicLocs.size());
 			for (const auto& b: locs.genomicLocs) {
@@ -767,7 +766,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 		auto firstGVcf = VCFOutput::comnbineVCFs(complexGenomicVcfs, sampleNamesSet, combiningVcfPars);
 		// std::cout << __PRETTY_FUNCTION__ << " " << __FILE__ << " " << __LINE__ << std::endl;
 		{
-			OutputStream gvcfOutFile(njh::files::make_path(reportsDir, "allComplexGenomicVariantCalls.vcf.gz"));
+			OutputStream gvcfOutFile(njh::files::make_path(reportsVcfsDir, "allComplexGenomicVariantCalls.vcf.gz"));
 			firstGVcf.writeOutFixedAndSampleMeta(gvcfOutFile);
 		}
 	}
@@ -786,7 +785,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 		if (!summaryFnps.empty()) {
 			njh::files::bfs::path firstFileFnp = summaryFnps.front();
 			TableReader firstTable(TableIOOpts(InOptions(firstFileFnp), "\t", true));
-			OutputStream out(njh::files::make_path(reportsDir, "allSummaryTables.tab.txt.gz"));
+			OutputStream out(njh::files::make_path(reportsSummaryDir, "allSummaryTables.tab.txt.gz"));
 			out << njh::conToStr(firstTable.header_.columnNames_, "\t") << '\n'; {
 				VecStr firstTableRow;
 				while (firstTable.getNextRow(firstTableRow)) {
@@ -814,7 +813,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	}
 	//create counts of summary table
 	{
-		table allSummaryTable(TableIOOpts::genTabFileIn(njh::files::make_path(reportsDir, "allSummaryTables.tab.txt.gz")));
+		table allSummaryTable(TableIOOpts::genTabFileIn(njh::files::make_path(reportsSummaryDir, "allSummaryTables.tab.txt.gz")));
 		{
 			auto genomicLocCounts = allSummaryTable.countGroupColumns(VecStr{ "chrom", "0based_start", "0based_end","target", "length", "strand"});
 			VecStr isMax;
@@ -835,7 +834,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 			}
 			genomicLocCounts.addColumn(isMax, "isMaxCount");
 			genomicLocCounts.naturlSortTable("target", false);
-			genomicLocCounts.outPutContents(TableIOOpts::genTabFileOut(njh::files::make_path(reportsDir, "genomicLocPerTargetsCounts.tab.txt.gz")));
+			genomicLocCounts.outPutContents(TableIOOpts::genTabFileOut(njh::files::make_path(reportsInfoDir, "genomicLocPerTargetsCounts.tab.txt.gz")));
 
 		}
 		{
@@ -860,19 +859,8 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 			}
 			proteinLocCounts.addColumn(isMax, "isMaxCount");
 			proteinLocCounts.naturlSortTable("target", false);
-			proteinLocCounts.outPutContents(TableIOOpts::genTabFileOut(njh::files::make_path(reportsDir, "proteinLocPerTargetsCounts.tab.txt.gz")));
-
+			proteinLocCounts.outPutContents(TableIOOpts::genTabFileOut(njh::files::make_path(reportsInfoDir, "proteinLocPerTargetsCounts.tab.txt.gz")));
 		}
-		/*
-		*allSummaryTable_genomicLocations = allSummaryTable %>%
-	group_by(target, chrom, `0based_start`, `0based_end`) %>%
-	count()
-
-allSummaryTable_proteinLocations = allSummaryTable %>%
-	group_by(target, , ``, ``) %>%
-	count()
-		 **/
-
 	}
 
 	//run log
@@ -883,7 +871,6 @@ allSummaryTable_proteinLocations = allSummaryTable %>%
 		logOut << runLog << std::endl;
 	}
 
-	//add flag to count singler changes per certain meta and the haplotype known aa typed
 	return 0;
 
 }
