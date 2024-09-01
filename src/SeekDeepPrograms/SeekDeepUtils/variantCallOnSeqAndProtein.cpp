@@ -440,6 +440,19 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 		}
 	}
 
+	if(collapseVarCallPars.exportLabIsolateSeqs) {
+		//refSeqs.fasta.gz
+		auto reportsRefSeqsDir = njh::files::make_path(reportsDir, "refSeqs");
+		njh::files::makeDir(njh::files::MkdirPar{reportsRefSeqsDir});
+		for (const auto& tar: targetNamesVec) {
+			auto refSeqsFnp = njh::pasteAsStr(setUp.pars_.directoryName_, "/", tar, "/", "variantCalling/refSeqs.fasta.gz");
+			if (bfs::exists(refSeqsFnp) && 0 != njh::files::bfs::file_size(refSeqsFnp)) {
+				auto outputFnp = njh::files::make_path(reportsRefSeqsDir, tar + ".fasta.gz");
+				bfs::copy_file(refSeqsFnp, outputFnp);
+			}
+		}
+	}
+
 	//all samples and target coverage counts
 	{
 		fullWatch.startNewLap("all samples and target coverage counts");
