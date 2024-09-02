@@ -303,8 +303,8 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	njh::concurrent::LockableQueue<std::string> targetNamesQueue(targetNamesSet);
 	//std::cout << __PRETTY_FUNCTION__ << " " << __FILE__ << " " << __LINE__ << std::endl;
 
-	sleep(100000);
-	
+	// sleep(100000);
+
 	{
 		std::function<void()> callVariants = [&collapseVarCallPars,&targetNamesQueue, &setUp,
 					&genomicLocs, &runLogMut, &runLogTargetTimes]() {
