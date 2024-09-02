@@ -21,7 +21,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 
 	bfs::path metaFnp = "";
 	VCFOutput::comnbineVCFsPars combiningVcfPars;
-	// bool doNotRescueVariantCallsAccrossTargets = false;
+	// bool doNotRescueVariantCallsAcrossTargets = false;
 	std::string popSeqsRegexPatRemoval = R"(_([tf])?\d+(\.\d+)?$)";
 	uint32_t numThreads = 1;
 
@@ -96,9 +96,6 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	njh::stopWatch fullWatch;
 	fullWatch.setLapName("initial set up");
 
-	std::unordered_map<std::string, std::unordered_map<std::string, std::unordered_map<std::string, double>>> readCountsPerHapPerSample;
-	std::unordered_map<std::string, std::unordered_map<std::string, std::string>> cNameToPopUID;
-	std::unordered_map<std::string, std::unordered_map<std::string, std::set<std::string>>> hPopUIDPopSamps;
 	std::unordered_map<std::string, std::unordered_map<std::string, std::string>> hPopUID_to_hConsensus;
 	std::unordered_map<std::string, std::unordered_map<std::string, std::string>> hConsensus_to_hPopUID;
 
@@ -113,10 +110,8 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	}
 	uint64_t maxLen = 0;
 	//population seqs;
-	std::unordered_map<std::string, std::vector<seqInfo>> popSeqs;
 	auto sampInfoFnp = resultsFnp;
 
-	std::unordered_map<std::string, std::unordered_set<std::string>> allSamplesInOutput;
 	//key1 == target, key2 == sample
 	std::unordered_map<std::string, std::unordered_map<std::string, std::vector<seqInfo>>> allResultSeqs;
 	//key1 == target, key2 == seq, value = popUID
@@ -173,6 +168,10 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	}
 
 	{
+		std::unordered_map<std::string, std::unordered_set<std::string>> allSamplesInOutput;
+		std::unordered_map<std::string, std::unordered_map<std::string, std::set<std::string>>> hPopUIDPopSamps;
+		std::unordered_map<std::string, std::unordered_map<std::string, std::string>> cNameToPopUID;
+		std::unordered_map<std::string, std::unordered_map<std::string, std::unordered_map<std::string, double>>> readCountsPerHapPerSample;
 		TableReader sampInfoReader(TableIOOpts::genTabFileIn(sampInfoFnp, true));
 		sampInfoReader.header_.checkForColumnsThrow(requiredColumns, __PRETTY_FUNCTION__);
 		VecStr row;
@@ -237,6 +236,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	//std::cout << __PRETTY_FUNCTION__ << " " << __FILE__ << " " << __LINE__ << std::endl;
 
 	if (!exists(popSeqsDirFnp)) {
+		std::unordered_map<std::string, std::vector<seqInfo>> popSeqs;
 		for (const auto &tarPopHaps: hPopUID_to_hConsensus) {
 			for (const auto &popHap: tarPopHaps.second) {
 				popSeqs[tarPopHaps.first].emplace_back(popHap.first, popHap.second);
@@ -303,41 +303,45 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	njh::concurrent::LockableQueue<std::string> targetNamesQueue(targetNamesSet);
 	//std::cout << __PRETTY_FUNCTION__ << " " << __FILE__ << " " << __LINE__ << std::endl;
 
-	std::function<void()> callVariants = [&collapseVarCallPars,&targetNamesQueue, &setUp,
-		&genomicLocs, &runLogMut, &runLogTargetTimes]() {
-		std::string target;
-		while(targetNamesQueue.getVal(target)) {
-			njh::stopWatch watch;
-			Json::Value currentLog;
-			currentLog["target"] = target;
-			//std::cout << __PRETTY_FUNCTION__ << " " << __FILE__ << " " << __LINE__ << std::endl;
+	sleep(100000);
+	
+	{
+		std::function<void()> callVariants = [&collapseVarCallPars,&targetNamesQueue, &setUp,
+					&genomicLocs, &runLogMut, &runLogTargetTimes]() {
+			std::string target;
+			while(targetNamesQueue.getVal(target)) {
+				njh::stopWatch watch;
+				Json::Value currentLog;
+				currentLog["target"] = target;
+				//std::cout << __PRETTY_FUNCTION__ << " " << __FILE__ << " " << __LINE__ << std::endl;
 
-			auto inputSeqsOpts = SeqIOOptions::genFastaInGz(njh::files::make_path(setUp.pars_.directoryName_, target, "inputSeqs.fasta.gz"));
-			auto inputSeqs = SeqInput::getSeqVec<seqInfo>(inputSeqsOpts);
-			const auto varCallDirPath = njh::files::make_path(setUp.pars_.directoryName_, target,  "variantCalling");
-			auto collapseVarCallParsForTar = collapseVarCallPars;
-			collapseVarCallParsForTar.identifier = target;
-			collapseVarCallParsForTar.outputDirectory = varCallDirPath;
-			//std::cout << __PRETTY_FUNCTION__ << " " << __FILE__ << " " << __LINE__ << std::endl;
+				auto inputSeqsOpts = SeqIOOptions::genFastaInGz(njh::files::make_path(setUp.pars_.directoryName_, target, "inputSeqs.fasta.gz"));
+				auto inputSeqs = SeqInput::getSeqVec<seqInfo>(inputSeqsOpts);
+				const auto varCallDirPath = njh::files::make_path(setUp.pars_.directoryName_, target,  "variantCalling");
+				auto collapseVarCallParsForTar = collapseVarCallPars;
+				collapseVarCallParsForTar.identifier = target;
+				collapseVarCallParsForTar.outputDirectory = varCallDirPath;
+				//std::cout << __PRETTY_FUNCTION__ << " " << __FILE__ << " " << __LINE__ << std::endl;
 
-			if(njh::in(target, genomicLocs)) {
-				collapseVarCallParsForTar.refSeqRegion = GenomicRegion(*njh::mapAt(genomicLocs, target));
+				if(njh::in(target, genomicLocs)) {
+					collapseVarCallParsForTar.refSeqRegion = GenomicRegion(*njh::mapAt(genomicLocs, target));
+				}
+				//std::cout << __PRETTY_FUNCTION__ << " " << __FILE__ << " " << __LINE__ << std::endl;
+
+				collapseVarCallParsForTar.calcPopMeasuresPars.seqCountCutOffPloidyCalc_ = 2000;
+				collapseAndCallVariants(collapseVarCallParsForTar, inputSeqs);
+				currentLog["totalTime"] = watch.totalTime();
+				//std::cout << __PRETTY_FUNCTION__ << " " << __FILE__ << " " << __LINE__ << std::endl;
+
+				{
+					std::lock_guard<std::mutex> lock(runLogMut);
+					runLogTargetTimes.append(currentLog);
+				}
 			}
-			//std::cout << __PRETTY_FUNCTION__ << " " << __FILE__ << " " << __LINE__ << std::endl;
+		};
+		njh::concurrent::runVoidFunctionThreaded(callVariants, numThreads);
+	}
 
-			collapseVarCallParsForTar.calcPopMeasuresPars.seqCountCutOffPloidyCalc_ = 2000;
-			collapseAndCallVariants(collapseVarCallParsForTar, inputSeqs);
-			currentLog["totalTime"] = watch.totalTime();
-			//std::cout << __PRETTY_FUNCTION__ << " " << __FILE__ << " " << __LINE__ << std::endl;
-
-			{
-				std::lock_guard<std::mutex> lock(runLogMut);
-				runLogTargetTimes.append(currentLog);
-			}
-		}
-	};
-
-	njh::concurrent::runVoidFunctionThreaded(callVariants, numThreads);
 
 	auto reportsDir = njh::files::make_path(setUp.pars_.directoryName_, "reports");
 	njh::files::makeDir(njh::files::MkdirPar{reportsDir});
@@ -469,7 +473,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 				hapCountsOut << "\t" << allResultSeqs[tar][samp].size();
 				uint32_t currentReadCount = 0;
 				for(const auto & r : allResultSeqs[tar][samp]) {
-					currentReadCount += r.cnt_;
+					currentReadCount += static_cast<uint32_t>(std::round(r.cnt_));
 				}
 				readCountsOut << "\t" << currentReadCount;
 			}
@@ -686,7 +690,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 						std::string refTriCodeName;
 						for(const auto c : ref) {
 							auto currentTriCode = aminoAcidInfo::infos::allInfo.at(c).triCode_;
-							currentTriCode[0] = toupper(currentTriCode[0]);
+							currentTriCode[0] = static_cast<char>(toupper(currentTriCode[0]));
 							refTriCodeName+= currentTriCode;
 						}
 						auto alt = altEnum.element;
@@ -694,7 +698,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 						for(const auto c : alt) {
 							if(c != 'X' && c != 'x') {
 								auto currentTriCode = aminoAcidInfo::infos::allInfo.at(c).triCode_;
-								currentTriCode[0] = toupper(currentTriCode[0]);
+								currentTriCode[0] = static_cast<char>(toupper(currentTriCode[0]));
 								altTriCodeName+= currentTriCode;
 							} else {
 								std::string currentTriCode = "XXX";
@@ -776,9 +780,9 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	if(!complexGenomicVcfs.empty()) {
 		fullWatch.startNewLap("combine genomic vcfs");
 		// std::cout << __PRETTY_FUNCTION__ << " " << __FILE__ << " " << __LINE__ << std::endl;
-		auto firstGVcf = VCFOutput::comnbineVCFs(complexGenomicVcfs, sampleNamesSet, combiningVcfPars);
 		// std::cout << __PRETTY_FUNCTION__ << " " << __FILE__ << " " << __LINE__ << std::endl;
 		{
+			auto firstGVcf = VCFOutput::comnbineVCFs(complexGenomicVcfs, sampleNamesSet, combiningVcfPars);
 			OutputStream gvcfOutFile(njh::files::make_path(reportsVcfsDir, "allComplexGenomicVariantCalls.vcf.gz"));
 			firstGVcf.writeOutFixedAndSampleMeta(gvcfOutFile);
 		}
