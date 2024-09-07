@@ -335,7 +335,7 @@ int SeekDeepUtilsRunner::runMultipleCommands(
 				<< njh::bashCT::boldRed(filename) << std::endl;
 		throw std::runtime_error { ss.str() };
 	}
-	std::string cmd;
+	VecStr templateCmds;
 	VecStr rawPrepCmds;
 	VecStr finalPrepCmds;
 	VecStr rawPostCmds;
@@ -370,7 +370,7 @@ int SeekDeepUtilsRunner::runMultipleCommands(
 			}
 			VecStr toks { line.substr(0, colonPos), line.substr(colonPos + 1) };
 			if (toks.front() == "CMD") {
-				cmd = toks.back();
+				templateCmds.emplace_back(toks.back());
 			}else if (toks.front() == "PREP") {
 				rawPrepCmds.emplace_back(toks.back());
 			} else if (toks.front() == "POST") {
@@ -397,7 +397,6 @@ int SeekDeepUtilsRunner::runMultipleCommands(
 			auto addFieldToks = tokenizeString(additionalFields, ";");
 			for(const auto & addFieldTok : addFieldToks){
 				auto colonPos = addFieldTok.find(":");
-
 				if (std::string::npos == colonPos) {
 					std::stringstream ss;
 					ss << "Error in processing argument: " << njh::bashCT::boldRed(addFieldTok)
@@ -426,7 +425,9 @@ int SeekDeepUtilsRunner::runMultipleCommands(
 		for (const auto & r : replacements) {
 			if (cmds.empty()) {
 				for (const auto & subR : r.second) {
-					cmds.emplace_back(njh::replaceString(cmd, r.first, subR));
+					for(const auto & cmd : templateCmds) {
+						cmds.emplace_back(njh::replaceString(cmd, r.first, subR));
+					}
 				}
 			} else {
 				VecStr newCmds;
