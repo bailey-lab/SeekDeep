@@ -269,6 +269,7 @@ int SeekDeepUtilsRunner::runMultipleCommands(
 	std::string filename;
 	std::string logFile;
 	bfs::path logDir = "./";
+	bool noLog = false;
 	uint32_t numThreads = 1;
 	bool raw = false;
 	bool noFilesInReplacementToks = false;
@@ -277,6 +278,8 @@ int SeekDeepUtilsRunner::runMultipleCommands(
 	seqSetUp setUp(inputCommands);
 	setUp.processVerbose();
 	setUp.processDebug();
+	setUp.setOption(noLog, "--noLog", "no log file");
+
 	setUp.setOption(logDir, "--logDir", "Directory to create log file");
 	setUp.setOption(numThreads, "--numThreads", "Number of threads to use");
 	setUp.setOption(logFile, "--logFile", "Name of a file to log the output of the commands, this will cause --logDir to be ignored");
@@ -314,7 +317,8 @@ int SeekDeepUtilsRunner::runMultipleCommands(
 	if (logFile.empty()) {
 		logFile = njh::files::make_path(logDir, bfs::path(filename).filename().replace_extension("").string() + "_TODAY_Log.json").string();
 	}
-	std::ofstream outFile;
+
+	std::unique_ptr<OutputStream> outFile;
 
 	if (!setUp.pars_.debug_) {
 		logFile = njh::replaceString(logFile, "TODAY", njh::getCurrentDate());
@@ -325,16 +329,14 @@ int SeekDeepUtilsRunner::runMultipleCommands(
 				++number;
 			}
 		}
-		openTextFile(outFile, logFile, ".json", setUp.pars_.ioOptions_.out_);
+		OutOptions outOpts(logFile, ".json");
+		outOpts.transferOverwriteOpts(setUp.pars_.ioOptions_.out_);
+		if(!noLog) {
+			outFile = std::make_unique<OutputStream>(outOpts);
+		}
 	}
 
-	std::ifstream inFile(filename);
-	if (!inFile) {
-		std::stringstream ss;
-		ss << njh::bashCT::bold << "Error in opening "
-				<< njh::bashCT::boldRed(filename) << std::endl;
-		throw std::runtime_error { ss.str() };
-	}
+	InputStream inFile(InOptions{bfs::path(filename)});
 	VecStr templateCmds;
 	VecStr rawPrepCmds;
 	VecStr finalPrepCmds;
@@ -533,8 +535,8 @@ int SeekDeepUtilsRunner::runMultipleCommands(
 		}
 	}
 
-	if (!setUp.pars_.debug_) {
-		outFile << allLog << std::endl;
+	if (!setUp.pars_.debug_ && !noLog) {
+		*outFile << allLog << std::endl;
 	}
 
 	return 0;
