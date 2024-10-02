@@ -102,13 +102,16 @@ void ReadPairsOrganizer::processFiles(const std::map<bfs::path, bool> & files) {
 std::map<std::string, std::pair<VecStr, VecStr>> ReadPairsOrganizer::processReadPairs() {
 	std::map<std::string, std::pair<VecStr, VecStr>> readsByPairs;
 	for (const auto & reads : readPairs_) {
+		std::cout << __FILE__ << " " << __LINE__ << std::endl;
+		std::cout << "reads.first: " << reads.first << std::endl;
+		std::cout << "reads.second.size(): " << reads.second.size() << std::endl;
 		for (const auto & read : reads.second) {
 			auto filename = bfs::path(read).filename().string();
 			auto lastUnderPos = filename.rfind("_");
 			auto periodPos = filename.find(".", lastUnderPos);
-			std::cout << __FILE__ << " " << __LINE__ << std::endl;
-			std::cout << "reads.first: " << reads.first << std::endl;
-			std::cout << "filename: " << filename << std::endl;
+
+
+			std::cout << "filename:    " << filename << std::endl;
 			if(std::string::npos == lastUnderPos){
 				std::stringstream ss;
 				ss << __PRETTY_FUNCTION__ << ": Error, in processing file name "
@@ -144,7 +147,6 @@ std::map<std::string, std::pair<VecStr, VecStr>> ReadPairsOrganizer::processRead
 			}
 			std::cout << __FILE__ << " " << __LINE__ << std::endl;
 			std::cout << "\tpairNum: " << pairNum << std::endl;
-			std::cout << "reads.first: " << std::endl;
 			if("R1" == pairNum || "1" == pairNum){
 				readsByPairs[reads.first].first.emplace_back(read);
 			}else if("R2" == pairNum || "2" == pairNum){
