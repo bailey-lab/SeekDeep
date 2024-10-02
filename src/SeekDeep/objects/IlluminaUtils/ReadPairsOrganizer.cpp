@@ -39,7 +39,10 @@ ReadPairsOrganizer::ReadPairsOrganizer(const VecStr & expectedSamples) :
 
 
 void ReadPairsOrganizer::processFiles(const std::map<bfs::path, bool> & files) {
-
+	std::cout << __FILE__ << " " << __LINE__ << std::endl;
+	for(const auto & f : files ) {
+		std::cout << "\t" << f.first << std::endl;
+	}
 	for (const auto & f : files) {
 		auto filename = f.first.filename().string();
 		auto underPos = filename.find('_');
@@ -59,10 +62,8 @@ void ReadPairsOrganizer::processFiles(const std::map<bfs::path, bool> & files) {
 					<< "\n";
 			throw std::runtime_error { ss.str() };
 		}
-
-
-
 		if (doNotGuessSampleNames_) {
+			std::cout << __FILE__ << " " << __LINE__ << std::endl;
 			VecStr matchingSamples;
 			for(const auto & sampName : expectedSamples_){
 				if(njh::beginsWith(filename, sampName)){
@@ -84,6 +85,7 @@ void ReadPairsOrganizer::processFiles(const std::map<bfs::path, bool> & files) {
 				throw std::runtime_error{ss.str()};
 			}
 		} else {
+			std::cout << __FILE__ << " " << __LINE__ << std::endl;
 			std::smatch matchRes;
 			std::string sampName = filename.substr(0, underPos);
 			if(std::regex_match(filename, matchRes, illuminaPat_)){
