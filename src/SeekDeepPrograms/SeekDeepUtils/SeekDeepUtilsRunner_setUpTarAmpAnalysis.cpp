@@ -364,7 +364,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	//now write id files
 	analysisSetup.writeOutIdFiles();
 	std::regex inputFilePat( analysisSetup.pars_.inputFilePat );
-	auto files = njh::files::listAllFiles(pars.inputDir.string(), false, {inputFilePat});
+	auto files = njh::files::listAllFilesThrowOnDupSymlink(pars.inputDir.string(), false, {inputFilePat});
 	// auto files =  listAllFiles(pars.inputDir.string(), false, {inputFilePat});
 	if (setUp.pars_.debug_) {
 		std::cout << "Files: " << std::endl;
