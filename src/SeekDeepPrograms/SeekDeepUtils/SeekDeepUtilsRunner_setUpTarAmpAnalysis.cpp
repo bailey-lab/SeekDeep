@@ -13,6 +13,30 @@
 namespace njhseq {
 
 
+inline std::map<bfs::path, bool> listAllFiles(const bfs::path & dirName,
+		bool recursive, const std::vector<std::regex>& contains, uint32_t levels =
+				std::numeric_limits<uint32_t>::max()) {
+	std::map<bfs::path, bfs::path> filesGathering;
+	njh::files::listAllFilesHelper(dirName, recursive, filesGathering, 1, levels);
+	for(const auto & file : filesGathering) {
+		if(file.second.string().find("8070381024") != std::string::npos) {
+			std::cout << file.first << "\t" << file.second << std::endl;
+		}
+	}
+	std::map<bfs::path, bool> files = njh::files::convertMapFnpFnpToFnpIsDir(filesGathering);
+
+	if (!contains.empty()) {
+		std::map<bfs::path, bool> specificFiles;
+		for (const auto & f : files) {
+			if (njh::checkForPats(f.first.filename().string(), contains)) {
+				specificFiles.emplace(f);
+			}
+		}
+		return specificFiles;
+	}
+	return files;
+}
+
 
 int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 		const njh::progutils::CmdArgs & inputCommands) {
@@ -340,8 +364,8 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	//now write id files
 	analysisSetup.writeOutIdFiles();
 	std::regex inputFilePat( analysisSetup.pars_.inputFilePat );
-	auto files = njh::files::listAllFiles(pars.inputDir.string(), false, {inputFilePat});
-
+	// auto files = njh::files::listAllFiles(pars.inputDir.string(), false, {inputFilePat});
+	auto files =  listAllFiles(pars.inputDir.string(), false, {inputFilePat});
 	if (setUp.pars_.debug_) {
 		std::cout << "Files: " << std::endl;
 		printOutMapContents(files, "\t", std::cout);
