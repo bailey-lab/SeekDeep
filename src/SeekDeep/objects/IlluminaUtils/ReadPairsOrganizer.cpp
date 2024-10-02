@@ -41,7 +41,9 @@ ReadPairsOrganizer::ReadPairsOrganizer(const VecStr & expectedSamples) :
 void ReadPairsOrganizer::processFiles(const std::map<bfs::path, bool> & files) {
 	std::cout << __FILE__ << " " << __LINE__ << std::endl;
 	for(const auto & f : files ) {
-		std::cout << "\t" << f.first << std::endl;
+		if(std::string::npos != f.first.string().find("8070381024")) {
+			std::cout << "\t" << f.first << std::endl;
+		}
 	}
 	for (const auto & f : files) {
 		auto filename = f.first.filename().string();
@@ -63,7 +65,6 @@ void ReadPairsOrganizer::processFiles(const std::map<bfs::path, bool> & files) {
 			throw std::runtime_error { ss.str() };
 		}
 		if (doNotGuessSampleNames_) {
-			std::cout << __FILE__ << " " << __LINE__ << std::endl;
 			VecStr matchingSamples;
 			for(const auto & sampName : expectedSamples_){
 				if(njh::beginsWith(filename, sampName)){
@@ -85,11 +86,21 @@ void ReadPairsOrganizer::processFiles(const std::map<bfs::path, bool> & files) {
 				throw std::runtime_error{ss.str()};
 			}
 		} else {
-			std::cout << __FILE__ << " " << __LINE__ << std::endl;
+			if(std::string::npos != f.first.string().find("8070381024")) {
+				std::cout << __FILE__ << " " << __LINE__ << std::endl;
+			}
 			std::smatch matchRes;
 			std::string sampName = filename.substr(0, underPos);
+			if(std::string::npos != f.first.string().find("8070381024")) {
+				std::cout << __FILE__ << " " << __LINE__ << std::endl;
+				std::cout << "sampName: " << sampName << std::endl;
+			}
 			if(std::regex_match(filename, matchRes, illuminaPat_)){
 				sampName = matchRes[1];
+			}
+			if(std::string::npos != f.first.string().find("8070381024")) {
+				std::cout << __FILE__ << " " << __LINE__ << std::endl;
+				std::cout << "sampName: " << sampName << std::endl << std::endl;
 			}
 			if (njh::in(sampName, expectedSamples_)
 					|| njh::in("MID" + sampName, expectedSamples_)) {
