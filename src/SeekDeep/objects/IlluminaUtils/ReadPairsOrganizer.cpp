@@ -106,6 +106,9 @@ std::map<std::string, std::pair<VecStr, VecStr>> ReadPairsOrganizer::processRead
 			auto filename = bfs::path(read).filename().string();
 			auto lastUnderPos = filename.rfind("_");
 			auto periodPos = filename.find(".", lastUnderPos);
+			std::cout << __FILE__ << " " << __LINE__ << std::endl;
+			std::cout << "reads.first: " << reads.first << std::endl;
+			std::cout << "filename: " << filename << std::endl;
 			if(std::string::npos == lastUnderPos){
 				std::stringstream ss;
 				ss << __PRETTY_FUNCTION__ << ": Error, in processing file name "
@@ -118,7 +121,10 @@ std::map<std::string, std::pair<VecStr, VecStr>> ReadPairsOrganizer::processRead
 						<< read <<  ", should contain an . after the read designation, normally for the file extension\n";
 				throw std::runtime_error{ss.str()};
 			}
+
 			std::string pairNum = filename.substr(lastUnderPos + 1, periodPos - lastUnderPos - 1);
+			std::cout << __FILE__ << " " << __LINE__ << std::endl;
+			std::cout << "\tpairNum: " << pairNum << std::endl;
 			while("R1" != pairNum
 					&& "1" != pairNum
 					&& "R2" != pairNum
@@ -136,6 +142,9 @@ std::map<std::string, std::pair<VecStr, VecStr>> ReadPairsOrganizer::processRead
 				}
 				pairNum = filename.substr(lastUnderPos + 1, periodPos - lastUnderPos - 1);
 			}
+			std::cout << __FILE__ << " " << __LINE__ << std::endl;
+			std::cout << "\tpairNum: " << pairNum << std::endl;
+			std::cout << "reads.first: " << std::endl;
 			if("R1" == pairNum || "1" == pairNum){
 				readsByPairs[reads.first].first.emplace_back(read);
 			}else if("R2" == pairNum || "2" == pairNum){
