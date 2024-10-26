@@ -557,8 +557,24 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 		if (!splitClus.second.empty()) {
 			clusters = splitClus.first;
 			clusterVec::allSetFractionClusters(clusters);
-			SeqOutput::write(splitClus.second,SeqIOOptions(setUp.pars_.directoryName_ + "allOneDirection",
-					setUp.pars_.ioOptions_.outFormat_,setUp.pars_.ioOptions_.out_));
+			if(pars.development) {
+				SeqOutput::write(splitClus.second,SeqIOOptions(setUp.pars_.directoryName_ + "allOneDirection",
+			setUp.pars_.ioOptions_.outFormat_,setUp.pars_.ioOptions_.out_));
+			}
+		}
+	}
+
+	if(pars.minReadCountRequired > 0) {
+		//non inclusive min read count
+		auto splitClus = readVecSplitter::splitVectorOnReadCount(clusters, pars.minReadCountRequired - 1);
+		if (!splitClus.second.empty()) {
+			clusters = splitClus.first;
+			clusterVec::allSetFractionClusters(clusters);
+			if (pars.development && !splitClus.second.empty()) {
+				SeqOutput::write(splitClus.second, SeqIOOptions(setUp.pars_.directoryName_ + njh::pasteAsStr("belowReadCountOf_", pars.minReadCountRequired),
+				                                                setUp.pars_.ioOptions_.outFormat_,
+				                                                setUp.pars_.ioOptions_.out_));
+			}
 		}
 	}
 

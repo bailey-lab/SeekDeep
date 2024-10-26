@@ -348,8 +348,12 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 			"Start The Clustering With Singletons, rather then adding them afterwards", false, "Clustering");
 //	setOption(pars.mapBackSinglets, "--mapBackSinglets",
 //				"If Singlets are left out, map them back in for frequency estimates");
-	setOption(pars.singletCutOff, "--singletCutOff",
-				"Naturally the cut off for being a singlet is by default 1 but can use --singletCutOff to raise the number", false, "Clustering");
+	// setOption(pars.singletCutOff, "--singletCutOff",
+				// "Naturally the cut off for being a singlet is by default 1 but can use --singletCutOff to raise the number", false, "Clustering");
+	setOption(pars.minReadCountRequired, "--minReadCountRequired",
+			"Minimal read cut off to be included in output", false, "Clustering");
+
+
 	setOption(pars.createMinTree, "--createMinTree",
 			"Create Pseudo minimum Spanning Trees For Mismatches for Final Clusters", false, "Additional Output");
 	setOption(pars_.colOpts_.kmerBinOpts_.useKmerBinning_, "--useKmerBinning", "Use Kmer Binning for initial clustering to speed up clustering", false, "Clustering");

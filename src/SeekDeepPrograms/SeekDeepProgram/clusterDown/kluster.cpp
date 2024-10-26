@@ -55,6 +55,8 @@ struct KmerClusteringRatePars {
 
   uint32_t readLengthMinDiff{0};
 
+  bool collapsingTandems = false;
+  clusterCollapser::collapseTandemsPars collapseTandemPars;
 
   readDistGraph<double>::dbscanPars dbPars_{};
 
@@ -695,6 +697,11 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
   setUp.setOption(pars.breakoutPars.snpFreqCutOff, "--snpFreqCutOff", "Cut off for when breaking out snp frequencies");
   setUp.setOption(pars.breakoutPars.hardSnpFreqCutOff, "--hardSnpFreqCutOff", "Hard SNP Freq Cut Off");
   setUp.setOption(pars.breakoutPars.minSnps, "--snpBreakoutMinSnps", "SNP Breakout Min Snps");
+  setUp. setOption(pars.collapsingTandems, "--collapseTandems", "Collapsing clusters if they only differ by gaps in tandem repeats");
+  setUp.setOption(pars.collapseTandemPars.freqCutoff, "--collapseTandemsFreqMultiplier", "When collapse tandem repeat gaps, larger cluster's frequency must be this many times the frequency of the smaller cluster");
+  pars.collapseTandemPars.allowableMismatches.lqMismatches_ = 1;
+  setUp.setOption(pars.collapseTandemPars.allowableMismatches.lqMismatches_, "--collapseTandemsLowQualityMismatchesAllowed", "When collapse tandem repeat gaps, allow this many low quality mismatches to also exist");
+  setUp.setOption(pars.collapseTandemPars.allowableTandems, "--collapseTandemsAllowableTandems", "When collapse tandem repeat gaps, allow this many tandem repeat gap to allow collapse");
 
   double kDistCutOff = .90;
   uint32_t kLenComp = 6;
@@ -3100,7 +3107,29 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
                                            njh::files::MkdirPar("internalSnpInfo")).string();
   }
 
+  if (pars.collapsingTandems) {
+    setUp.rLog_.logCurrentTime("Collapsing tandems");
+    if (pars.development) {
+      SeqOutput::write(consensusReads,
+                       SeqIOOptions(
+                         setUp.pars_.directoryName_
+                         + setUp.pars_.ioOptions_.out_.outFilename_.string() + "_beforeTanCol",
+                         setUp.pars_.ioOptions_.outFormat_, setUp.pars_.ioOptions_.out_));
+    }
+    if(setUp.pars_.verbose_) {
+      std::cout << "Collapsing on tandem repeat gaps" << std::endl;
+      std::cout << "Starting with " << consensusReads.size() << " clusters" << std::endl;
+    }
 
+    clusterCollapser::collapseTandems(consensusReads, alignerObj,
+        pars.collapseTandemPars);
+    consensusReads = readVecSplitter::splitVectorOnRemove(consensusReads).first;
+    readVec::allUpdateName(consensusReads);
+    if (setUp.pars_.verbose_) {
+      std::cout << "Collapsed down to " << consensusReads.size() << " clusters"
+          << std::endl;
+    }
+  }
   if (setUp.pars_.chiOpts_.checkChimeras_) {
     setUp.rLog_.logCurrentTime("Checking Chimeras");
 
@@ -3171,6 +3200,10 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
                          ".tab.txt"), "\t", misTab.hasHeader_));
     }
   }
+
+
+
+
   //write final consensus reads
   SeqOutput::write(consensusReads,
                    SeqIOOptions(setUp.pars_.directoryName_ + "output",

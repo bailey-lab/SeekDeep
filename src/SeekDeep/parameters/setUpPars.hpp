@@ -111,11 +111,11 @@ struct ExtractorPairedEndPars{
 };
 
 struct clusterDownPars {
-
 	bool development = false;
 
 	cluster::snpBreakoutPars breakoutPars;
 	bool breakoutClusters = false;
+
 	std::string qualRep = "median";
 	std::string sortBy = "totalCount";
 
@@ -131,11 +131,14 @@ struct clusterDownPars {
 	CollapseIterations iteratorMap;
 	CollapseIterations binIteratorMap;
 
+	uint32_t minReadCountRequired = 3;
+	// uint32_t clusterCutOff = 2;
+
   bool dontRecalLowFreqMismatchAndReRun = false;
   bool startWithSingles = false;
   bool leaveOutSinglets = false;
-  bool mapBackSinglets = false;
-  uint32_t singletCutOff = 1;
+  // bool mapBackSinglets = false;
+  // uint32_t singletCutOff = 1;
 
   bool createMinTree = false;
   std::string diffCutOffStr = "0.1";
