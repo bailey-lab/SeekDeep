@@ -106,7 +106,7 @@ samplesToMixs_mod = samplesToMixs %>%
 mixturesSampleNames_mix_mod_plot = ggplot(samplesToMixs_mod) +
   geom_tile(aes(x = label, y = strain, fill = relative_abundance),
             color = "black", width = 0.8) +
-  geom_text(aes(x = label, y = strain, label = paste0(relative_abundance *100, "%"), color = ifelse(relative_abundance > 50, "black", "white")), angle = "-90", fontsize = 12) +
+  geom_text(aes(x = label, y = strain, label = paste0(relative_abundance *100, "%"), color = ifelse(relative_abundance *100 > 50, "black", "white")), angle = "-90", fontsize = 12) +
   sofonias_theme_xRotate + labs(x = "Sample/Mixture", fill = "Within Sample\nAbunance") +
   scale_fill_gradient(high = "#fed976", low = "#bd0026",
                       limits=c(0,1)) +
@@ -215,6 +215,9 @@ int SeekDeepUtilsRunner::benchmarkMultiTarAmpControlMixtures(
 	std::string elementStr;
 	std::string columnName;
 
+	std::set<std::string> selectTargets;
+	std::set<std::string> excludeTargets;
+
 
 	comparison allowableError;
 	seqSetUp setUp(inputCommands);
@@ -223,6 +226,8 @@ int SeekDeepUtilsRunner::benchmarkMultiTarAmpControlMixtures(
 	setUp.setOption(resultsFnp, "--resultsFnp",
 									"results tab delimited file, each row is a haplotype, should have at least 5 columns, 1) sample (--sampleColName), 2)within sample freq (--withinSampleFreqColName), 3)within sample read count (--withinSampleReadCntColName), 4)haplotype pop ID (--popHapIdColName), 5)target name column (--targetNameColName), optionally 4th col with hap sequence (--popHapSeqColName) or read in from --popSeqsDirFnp",
 									true);
+	setUp.setOption(selectTargets, "--selectTargets", "only analyze these select targets", false);
+	setUp.setOption(excludeTargets, "--excludeTargets", "exclude these Targets", false);
 
 	setUp.setOption(sampleColName, "--sampleColName", "sample Column Name", false, "Results Column Names");
 	setUp.setOption(withinSampleFreqColName, "--withinSampleFreqColName",
@@ -294,8 +299,19 @@ int SeekDeepUtilsRunner::benchmarkMultiTarAmpControlMixtures(
 	VecStr row;
 	std::unordered_map<std::string, std::unordered_set<std::string>> allSamplesInOutput;
 	std::unordered_map<std::string, std::unordered_map<std::string, std::vector<seqInfo>>> allResultSeqs;
+
+	auto passTargetFilter = [&selectTargets, &excludeTargets](const std::string& target) {
+		return (selectTargets.empty() && excludeTargets.empty()) ||
+		       (!selectTargets.empty() && njh::in(target, selectTargets)) ||
+		       (!excludeTargets.empty() && njh::notIn(target, excludeTargets));
+	};
+
 	while (sampInfoReader.getNextRow(row)) {
 		auto target = row[sampInfoReader.header_.getColPos(targetNameColName)];
+		//check if only including select targets or excluding targets
+		if(!passTargetFilter (target)) {
+			continue;
+		}
 		targetNamesSet.emplace(target);
 		auto sample = row[sampInfoReader.header_.getColPos(sampleColName)];
 
@@ -345,7 +361,11 @@ int SeekDeepUtilsRunner::benchmarkMultiTarAmpControlMixtures(
 			}
 		}
 	}
-
+	if(targetNamesSet.empty()) {
+		std::stringstream ss;
+		ss << __PRETTY_FUNCTION__ << ", error " << "targetNamesSet is empty, if excluding or selecting only specific targets there may now be no targets" << "\n";
+		throw std::runtime_error{ss.str()};
+	}
 	auto targetNames = std::vector<std::string>(targetNamesSet.begin(), targetNamesSet.end());
 	njh::naturalSortNameSet(targetNames);
 
@@ -557,7 +577,6 @@ int SeekDeepUtilsRunner::benchmarkMultiTarAmpControlMixtures(
 
 	}
 	bfs::copy(njh::files::normalize(conBenchPars.samplesToMixFnp_), njh::files::make_path(setUp.pars_.directoryName_, "samplesToMix.tsv"));
-
 	if (njh::in(targetNameColName, sampleToMixTab.columnNames_) &&
 			njh::in(targetNameColName, mixSetUpTab.columnNames_)) {
 		//all benches are basically the same so just use the beginning
@@ -566,7 +585,6 @@ int SeekDeepUtilsRunner::benchmarkMultiTarAmpControlMixtures(
 		auto tarBenchNames = njh::getVecOfMapKeys(benchers);
 		njh::naturalSortNameSet(tarBenchNames);
 		for (const auto &tarBenchName: tarBenchNames) {
-
 			auto mixTab = benchers.at(tarBenchName)->genMixSetUpsInSamplesTab();
 			mixTab.addColumn(VecStr{tarBenchName}, targetNameColName);
 			if (allMixTab.empty()) {
@@ -580,7 +598,6 @@ int SeekDeepUtilsRunner::benchmarkMultiTarAmpControlMixtures(
 		benchers.begin()->second->writeMixSetUpsInSamples(
 						njh::files::make_path(setUp.pars_.directoryName_, "mixSetUps.tsv"));
 	}
-
 
 	OutputStream falseHaplotypesToExpClassified(
 					njh::files::make_path(setUp.pars_.directoryName_, "falseHaplotypesComparedToExpected.tsv"));
@@ -1137,7 +1154,7 @@ samplesToMixs_mod = samplesToMixs %>%
 mixturesSampleNames_mix_mod_plot = ggplot(samplesToMixs_mod) +
   geom_tile(aes(x = label, y = strain, fill = relative_abundance),
             color = "black", width = 0.8) +
-  geom_text(aes(x = label, y = strain, label = paste0(relative_abundance *100, "%"), color = ifelse(relative_abundance > 50, "black", "white")), angle = "-90", fontsize = 12) +
+  geom_text(aes(x = label, y = strain, label = paste0(relative_abundance *100, "%"), color = ifelse(relative_abundance *100 > 50, "black", "white")), angle = "-90", fontsize = 12) +
   sofonias_theme_xRotate + labs(x = "Sample/Mixture", fill = "Within Sample\nAbunance") +
   scale_fill_gradient(high = "#fed976", low = "#bd0026",
                       limits=c(0,1)) +

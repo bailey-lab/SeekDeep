@@ -28,12 +28,12 @@ int SeekDeepUtilsRunner::combineBasicResultsFiles(
 	setUp.processDebug();
 	setUp.setOption(additionalColumns, "--additionalColumns", "additional Columns to include");
 
-	setUp.setOption(selectTargets, "--selectTargets", "Only analzye these select targets");
-	setUp.setOption(selectSamples, "--selectSamples", "Only analzye these select samples");
+	setUp.setOption(selectTargets, "--selectTargets", "Only analyze these select targets");
+	setUp.setOption(selectSamples, "--selectSamples", "Only analyze these select samples");
 
 
 	setUp.setOption(resultFnps, "--resultFnps",
-									"results tab delimited files, each row is a haplotype, should have at least 5 columns, 1) sample (--sampleColName), 2)within sample freq (--withinSampleFreqColName), 3)within sample read count (--withinSampleReadCntColName), 4)haplotype pop ID (--popHapIdColName), 5)target name column (--targetNameColName), optionally 4th col with hap sequence (--popHapSeqColName) or read in from --popSeqsDirFnp",
+									"results tab delimited files, each row is a haplotype, should have at least 4 columns, 1) sample (--sampleColName), 2)within sample read count (--withinSampleReadCntColName), 3)haplotype pop ID (--popHapIdColName), 4)target name column (--targetNameColName), optionally 5th col with hap sequence (--popHapSeqColName) or read in from --popSeqsDirFnp",
 									true);
 
 	setUp.setOption(sampleColName, "--sampleColName", "sample Column Name", false, "Results Column Names");

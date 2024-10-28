@@ -119,6 +119,7 @@ struct clusterDownPars {
 	std::string qualRep = "median";
 	std::string sortBy = "totalCount";
 
+
 	bool collapsingTandems = false;
 	clusterCollapser::collapseTandemsPars collapseTandemPars;
 	bool additionalOut = false;

@@ -52,6 +52,7 @@ SeekDeepUtilsRunner::SeekDeepUtilsRunner() :
 					addFunc("variantCallOnSeqAndProtein", variantCallOnSeqAndProtein, false),
 					// addFunc("variantCallOnSeqAndProteinPost", variantCallOnSeqAndProteinPost, true),
 					addFunc("combineBasicResultsFiles", combineBasicResultsFiles, false),
+					addFunc("alleleTableToSeekDeepProcessClusters", alleleTableToSeekDeepProcessClusters, false),
 				}, //
 				"SeekDeepUtils") {
 }

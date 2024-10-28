@@ -260,7 +260,7 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 	//if ("" != pars.previousPopFilename && !pars.noPopulation) {
 	if ("" != pars.previousPopFilename) {
 		auto previousPopSeqsRaw = getSeqs<readObject>(pars.previousPopFilename);
-		//collapse indentical seqs
+		//collapse identical seqs
 		std::vector<readObject> previousPopSeqs;
 		std::vector<std::set<std::string>> allNamesForPreviousPops;
 		for(const auto & seq : previousPopSeqsRaw){
