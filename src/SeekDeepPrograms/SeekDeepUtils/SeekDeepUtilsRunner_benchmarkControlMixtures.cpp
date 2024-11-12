@@ -656,7 +656,7 @@ int SeekDeepUtilsRunner::benchmarkMultiTarAmpControlMixtures(
 	falseHaplotypesToOtherResultsClassified << std::endl;
 	aligner alignerObj(maxLen, gapScoringParameters(5, 1, 0, 0, 0, 0));
 	alignerObj.weighHomopolymers_ = setUp.pars_.colOpts_.iTOpts_.weighHomopolyer_;
-	alignerObj.countEndGaps_ = true;
+	alignerObj.countEndGaps_ = setUp.pars_.colOpts_.alignOpts_.countEndGaps_;
 	alignerObj.processAlnInfoInput(setUp.pars_.alnInfoDirName_, false);
 	for (const auto &target: targetNames) {
 		if(setUp.pars_.verbose_){
