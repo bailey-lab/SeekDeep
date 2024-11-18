@@ -60,6 +60,9 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	setUp.setOption(collapseVarCallPars.metaFieldsToCalcPopDiffs, "--metaFieldsToCalcPopDiffs", "meta Fields To Calc Pop Diffs");
 	setUp.setOption(collapseVarCallPars.ignoreSubFields, "--ignoreSubFields", "Meta Sub Field values to ignore when calculating variants, e.g. --ignoreSubFields \"isFieldSample:TRUE,PreferredSample:FALSE\"");
 
+	setUp.setOption(collapseVarCallPars.variantCallerRunPars.complexVarPars.withinDist, "--complexVariantWithinDist", "The distance within to link complex variants");
+	setUp.setOption(collapseVarCallPars.variantCallerRunPars.complexVarPars.fractionOfCoveredSamples, "--complexVariantFractionOfCoveredSamples", "complex Variant Fraction Of Covered Samples");
+
 
 	setUp.setOption(numThreads, "--numThreads", "Number of threads to use");
 

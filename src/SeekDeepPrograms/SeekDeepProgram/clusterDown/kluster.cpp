@@ -3130,6 +3130,8 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
           << std::endl;
     }
   }
+
+
   if (setUp.pars_.chiOpts_.checkChimeras_) {
     setUp.rLog_.logCurrentTime("Checking Chimeras");
 
@@ -3141,6 +3143,7 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
     collapserObj.opts_.verboseOpts_.debug_ = setUp.pars_.debug_;
     auto chiInfoTab = collapserObj.markChimeras(consensusReads, alignerObj,
                                                 setUp.pars_.chiOpts_);
+
     if(pars.development) {
       chiInfoTab.outPutContents(
           TableIOOpts(
