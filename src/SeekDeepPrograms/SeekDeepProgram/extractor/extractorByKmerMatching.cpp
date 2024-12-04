@@ -45,6 +45,11 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
   // filtering
   setUp.setOption(corePars.smallFragmentCutoff, "--minLenCutOff", "Hard cut off min length", false, "filtering");
 
+  uint32_t hardKmersPerTarget = 5;
+  double kmerFracPerTarget = 0.10;
+  setUp.setOption(hardKmersPerTarget, "--hardKmersPerTarget", "hard occurencet cut off Kmers Per Target", false, "filtering");
+  setUp.setOption(kmerFracPerTarget, "--kmerFracPerTarget", "at minimum have to have this fraction of kmers in a Target", false, "filtering");
+
   //running
   setUp.setOption(numThreads, "--numThreads", "number of threads");
 
@@ -215,12 +220,16 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
   concurrent::AlignerPool alnPool(alignObj, numThreads);
   alnPool.initAligners();
 
+
+
   std::mutex mut;
   std::function<void()> readInComp = [&reader, &ids, &readsPerSet,&readsPerSetRevComp,&mut,
                                       &extractionKmer,&seqOut,&sampleName,&rename,
                                       &corePars,&alnPool,
                                       &qualChecker,
-                                      &masterCounts]() {
+                                      &masterCounts,
+                                      &hardKmersPerTarget,
+                                      &kmerFracPerTarget]() {
     auto maxMidSize = ids.getMaxMIDSize() + 2;
     SimpleKmerHash hasher;
     seqInfo seq;
@@ -272,6 +281,20 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
           }
         }
       }
+
+      //filter
+      for (auto & perSet : foundPerSet) {
+        if(perSet.second < hardKmersPerTarget || static_cast<double>(perSet.second)/static_cast<double>(hashedInputKmers.size()) <= kmerFracPerTarget) {
+          perSet.second = 0;
+        }
+      }
+
+      for (auto & perSet : foundPerSetRevComp) {
+        if(perSet.second < hardKmersPerTarget || static_cast<double>(perSet.second)/static_cast<double>(hashedInputKmers.size()) <= kmerFracPerTarget) {
+          perSet.second = 0;
+        }
+      }
+
       std::string winnerSet = "undetermined";
       double bestFrac = 0;
       bool winnerRevComp = false;
