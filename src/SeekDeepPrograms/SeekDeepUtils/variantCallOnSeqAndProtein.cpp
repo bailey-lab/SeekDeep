@@ -28,6 +28,8 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	CollapseAndCallVariantsPars collapseVarCallPars;
 	std::set<std::string> selectTargets;
 	std::set<std::string> selectSamples;
+	std::set<std::string> excludeTargets;
+	std::set<std::string> excludeSamples;
 
 	bfs::path bedLocs;
 	bool genomicLocsChangePeriodToDash = false;
@@ -40,6 +42,8 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	setUp.setOption(combiningVcfPars.doNotRescueVariantCallsAcrossTargets, "--doNotRescueVariantCallsAcrossTargets", "do Not Rescue Variant Calls Across Targets");
 	setUp.setOption(combiningVcfPars.combinedOverlappingCallsAcrossTargets, "--combineOverlappingCallsAcrossTargets", "Rather than taking the best variant call for overlapping targets, sum them instead");
 
+	setUp.setOption(excludeTargets, "--excludeTargets", "exclude these select targets from analyze");
+	setUp.setOption(excludeSamples, "--excludeSamples", "exclude these select samples from analyze");
 	setUp.setOption(selectTargets, "--selectTargets", "Only analyze these select targets");
 	setUp.setOption(selectSamples, "--selectSamples", "Only analyze these select samples");
 	setUp.setOption(bedLocs, "--genomicLocations", "a bed file with specific genomic locations to align to, location name needs to match target name");
@@ -131,13 +135,15 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 		while (sampInfoReader.getNextRow(row)) {
 			auto target = row[sampInfoReader.header_.getColPos(targetNameColName)];
 			//filter to just the select targets if filtering for that
-			if(!selectTargets.empty() && !njh::in(target, selectTargets)) {
+			if((!selectTargets.empty() && njh::notIn(target, selectTargets)) ||
+				 (!excludeTargets.empty() && njh::in(target, excludeTargets))) {
 				continue;
 			}
 
 			const auto& sample = row[sampInfoReader.header_.getColPos(sampleColName)];
 			//filter to just the select samples if filtering for that
-			if(!selectSamples.empty() && njh::notIn(sample, selectSamples)) {
+			if((!selectSamples.empty() && njh::notIn(sample, selectSamples)) ||
+				 (!excludeSamples.empty() && njh::in(sample, excludeSamples))) {
 				continue;
 			}
 			targetNamesSet.emplace(target);
@@ -181,14 +187,16 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 		while (sampInfoReader.getNextRow(row)) {
 			auto target = row[sampInfoReader.header_.getColPos(targetNameColName)];
 			//filter to just the select targets if filtering for that
-			if(!selectTargets.empty() && !njh::in(target, selectTargets)) {
+			if ((!selectTargets.empty() && njh::notIn(target, selectTargets)) ||
+			    (!excludeTargets.empty() && njh::in(target, excludeTargets))) {
 				continue;
 			}
 
 			auto sample = row[sampInfoReader.header_.getColPos(sampleColName)];
 			//filter to just the select samples if filtering for that
-			if(!selectSamples.empty() && njh::notIn(sample, selectSamples)) {
-				continue;;
+			if ((!selectSamples.empty() && njh::notIn(sample, selectSamples)) ||
+			    (!excludeSamples.empty() && njh::in(sample, excludeSamples))) {
+				continue;
 			}
 			targetNamesSet.emplace(target);
 			if(!isDoubleStr(row[sampInfoReader.header_.getColPos(withinSampleReadCntColName)])) {
