@@ -37,6 +37,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	seqSetUp setUp(inputCommands);
 	setUp.processVerbose();
 	setUp.processDebug();
+
 	setUp.setOption(collapseVarCallPars.variantCallerRunPars.ploidy, "--ploidy", "Ploidy to force for the sample for the vcf files");
 	combiningVcfPars.ploidy = collapseVarCallPars.variantCallerRunPars.ploidy;
 	setUp.setOption(combiningVcfPars.doNotRescueVariantCallsAcrossTargets, "--doNotRescueVariantCallsAcrossTargets", "do Not Rescue Variant Calls Across Targets");
@@ -559,7 +560,9 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 					intersected.emplace_back(knownLoc.name_);
 				}
 			}
-			intersectionWithKnownLocsOut << loc->toDelimStrWithExtra() << "\t" << njh::conToStr(intersected, ",") << std::endl;
+			if (!intersected.empty()) {
+				intersectionWithKnownLocsOut << loc->toDelimStrWithExtra() << "\t" << njh::conToStr(intersected, ",") << std::endl;
+			}
 		}
 	}
 	fullWatch.startNewLap("gather unmapped read counts and gather translation filter counts");
