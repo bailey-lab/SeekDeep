@@ -667,7 +667,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 					<< "\t" << "Targeted"
 			        << "\t" << "CoveredBy"
 					<< "\t" << "sample";
-			aminoAcidChangesTable << "\t" << "AA_Position"
+			aminoAcidChangesTable << "\t" << "reference_AA_pos"
 			                      << "\t" << "reference_AA"
 			                      << "\t" << "alternate_AA";
 
