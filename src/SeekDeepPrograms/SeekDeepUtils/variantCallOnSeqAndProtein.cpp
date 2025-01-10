@@ -665,9 +665,12 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 					<< "\t" << "ExonicFunc"
 					<< "\t" << "AA_Change"
 					<< "\t" << "Targeted"
-			    << "\t" << "CoveredBy"
+			        << "\t" << "CoveredBy"
 					<< "\t" << "sample";
-					aminoAcidChangesTable << "\t" << "AA_Position";
+			aminoAcidChangesTable << "\t" << "AA_Position"
+			                      << "\t" << "reference_AA"
+			                      << "\t" << "alternate_AA";
+
 					aminoAcidChangesTable << "\t" << "reference_AA_cnt"
 			    << "\t" << "reference_AA_freq"
 					<< "\t" << "alternate_AA_cnt"
@@ -695,8 +698,8 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 					auto DP = sample.second.getMeta("DP");
 					auto sample_ADs = tokenizeString(sample.second.getMeta("AD"), ",");
 					auto sample_AFs = tokenizeString(sample.second.getMeta("AF"), ",");
-					auto ACs = tokenizeString(rec.info_.getMeta("AC"), ",");
-					auto AFs = tokenizeString(rec.info_.getMeta("AF"), ",");
+					auto ACs = tokenizeString(rec.info_.getMeta("AC_REAL"), ",");
+					auto AFs = tokenizeString(rec.info_.getMeta("AF_REAL"), ",");
 					auto SCs = tokenizeString(rec.info_.getMeta("SC"), ",");
 					auto PREVs = tokenizeString(rec.info_.getMeta("PREV"), ",");
 					for(const auto & altEnum : iter::enumerate(rec.alts_)) {
@@ -742,7 +745,9 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 						  << "\t" << rec.info_.getMeta("TARGET")
 							<< "\t" << sample.first;
 
-						aminoAcidChangesTable << "\t" << rec.pos_;
+						aminoAcidChangesTable << "\t" << rec.pos_
+											  << "\t" << rec.ref_
+											  << "\t" << alt;
 
 						if("." == DP) {
 							//no coverage
