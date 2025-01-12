@@ -546,39 +546,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 		OutputStream geneInfoTabout(njh::files::make_path(reportsInfoDir, "targetsIntersectingWithGenesInfo.tsv"));
 		splitTab.outPutContents(geneInfoTabout, "\t");
 	}
-	if(!genomicLocs.empty() && !locs.genomicLocs.empty()) {
-		std::unordered_map<std::string, VecStr> coveredBy;
-		OutputStream intersectionWithKnownLocsOut(njh::files::make_path(reportsInfoDir, "targetsIntersectingWithLocsForKnownAAChanges.bed"));
-		std::vector<std::shared_ptr<Bed6RecordCore>> allLocs;
-		allLocs.reserve(genomicLocs.size());
-		for (const auto& g: genomicLocs) {
-			if(njh::in(g.first, targetNamesSet)) {
-				allLocs.emplace_back(g.second);
-			}
-		}
-		BedUtility::coordSort(allLocs);
-		for (const auto& loc: allLocs) {
-			VecStr intersected;
-			for (const auto& knownLoc: locs.genomicLocs) {
-				if (knownLoc.overlaps(*loc, 1)) {
-					intersected.emplace_back(knownLoc.name_);
-					coveredBy[knownLoc.name_].emplace_back(loc->name_);
-				}
-			}
-			if (!intersected.empty()) {
-				intersectionWithKnownLocsOut << loc->toDelimStrWithExtra() << "\t" << njh::conToStr(intersected, ",") << std::endl;
-			}
-		}
-		OutputStream knownLocCoverageOut(njh::files::make_path(reportsInfoDir, "knownLocCoverage.tsv"));
-		knownLocCoverageOut << "knownLoc\tcovered_by" << std::endl;
-		for (const auto& knownLoc: locs.genomicLocs) {
-			if (njh::in(knownLoc.name_, coveredBy)) {
-				knownLocCoverageOut << knownLoc.name_ << "\t" << njh::conToStr(coveredBy[knownLoc.name_], ",") << std::endl;
-			} else {
-				knownLocCoverageOut << knownLoc.name_ << "\t" << "not_covered" << std::endl;
-			}
-		}
-	}
+
 	fullWatch.startNewLap("gather unmapped read counts and gather translation filter counts");
 	//gather unmapped read counts and gather translation filter counts
 	std::unordered_map<std::string, uint32_t> unmmappedHapCounts;
@@ -878,6 +846,10 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 				auto n = njh::StrToNumConverter::stoToNum<uint32_t>(row[genomicLocCounts.getColPos("n")]);
 				if(n == maxCounts[row[genomicLocCounts.getColPos("target")]]) {
 					isMax.emplace_back("true");
+					//if more than two maxes, then the first max will be added but not the others
+					if (njh::notIn(row[genomicLocCounts.getColPos("target")], genomicLocs)) {
+						genomicLocs[row[genomicLocCounts.getColPos("target")]] = std::make_shared<Bed6RecordCore>(njh::conToStr(row, "\t"));
+					}
 				} else {
 					isMax.emplace_back("false");
 				}
@@ -910,6 +882,41 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 			proteinLocCounts.addColumn(isMax, "isMaxCount");
 			proteinLocCounts.naturlSortTable("target", false);
 			proteinLocCounts.outPutContents(TableIOOpts::genTabFileOut(njh::files::make_path(reportsInfoDir, "proteinLocPerTargetsCounts.tab.txt.gz")));
+		}
+	}
+
+	if(!genomicLocs.empty() && !locs.genomicLocs.empty()) {
+		fullWatch.startNewLap("add what known locs are intersecting with the targets");
+		std::unordered_map<std::string, VecStr> coveredBy;
+		OutputStream intersectionWithKnownLocsOut(njh::files::make_path(reportsInfoDir, "targetsIntersectingWithLocsForKnownAAChanges.bed"));
+		std::vector<std::shared_ptr<Bed6RecordCore>> allLocs;
+		allLocs.reserve(genomicLocs.size());
+		for (const auto& g: genomicLocs) {
+			if(njh::in(g.first, targetNamesSet)) {
+				allLocs.emplace_back(g.second);
+			}
+		}
+		BedUtility::coordSort(allLocs);
+		for (const auto& loc: allLocs) {
+			VecStr intersected;
+			for (const auto& knownLoc: locs.genomicLocs) {
+				if (knownLoc.overlaps(*loc, 1)) {
+					intersected.emplace_back(knownLoc.name_);
+					coveredBy[knownLoc.name_].emplace_back(loc->name_);
+				}
+			}
+			if (!intersected.empty()) {
+				intersectionWithKnownLocsOut << loc->toDelimStrWithExtra() << "\t" << njh::conToStr(intersected, ",") << std::endl;
+			}
+		}
+		OutputStream knownLocCoverageOut(njh::files::make_path(reportsInfoDir, "knownLocCoverage.tsv"));
+		knownLocCoverageOut << "knownLoc\tcovered_by" << std::endl;
+		for (const auto& knownLoc: locs.genomicLocs) {
+			if (njh::in(knownLoc.name_, coveredBy)) {
+				knownLocCoverageOut << knownLoc.name_ << "\t" << njh::conToStr(coveredBy[knownLoc.name_], ",") << std::endl;
+			} else {
+				knownLocCoverageOut << knownLoc.name_ << "\t" << "not_covered" << std::endl;
+			}
 		}
 	}
 
