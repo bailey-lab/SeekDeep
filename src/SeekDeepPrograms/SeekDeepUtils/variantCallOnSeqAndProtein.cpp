@@ -544,6 +544,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 		splitTab.outPutContents(geneInfoTabout, "\t");
 	}
 	if(!genomicLocs.empty() && !locs.genomicLocs.empty()) {
+		std::unordered_map<std::string, VecStr> coveredBy;
 		OutputStream intersectionWithKnownLocsOut(njh::files::make_path(reportsInfoDir, "targetsIntersectingWithLocsForKnownAAChanges.bed"));
 		std::vector<std::shared_ptr<Bed6RecordCore>> allLocs;
 		allLocs.reserve(genomicLocs.size());
@@ -558,10 +559,20 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 			for (const auto& knownLoc: locs.genomicLocs) {
 				if (knownLoc.overlaps(*loc, 1)) {
 					intersected.emplace_back(knownLoc.name_);
+					coveredBy[knownLoc.name_].emplace_back(loc->name_);
 				}
 			}
 			if (!intersected.empty()) {
 				intersectionWithKnownLocsOut << loc->toDelimStrWithExtra() << "\t" << njh::conToStr(intersected, ",") << std::endl;
+			}
+		}
+		OutputStream knownLocCoverageOut(njh::files::make_path(reportsInfoDir, "knownLocCoverage.tsv"));
+		knownLocCoverageOut << "knownLoc\tcovered_by" << std::endl;
+		for (const auto& knownLoc: locs.genomicLocs) {
+			if (njh::in(knownLoc.name_, coveredBy)) {
+				knownLocCoverageOut << knownLoc.name_ << "\t" << njh::conToStr(coveredBy[knownLoc.name_], ",") << std::endl;
+			} else {
+				knownLocCoverageOut << knownLoc.name_ << "\t" << "not_covered" << std::endl;
 			}
 		}
 	}
