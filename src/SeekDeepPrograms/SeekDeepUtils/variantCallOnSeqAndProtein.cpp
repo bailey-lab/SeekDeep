@@ -25,6 +25,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	std::string popSeqsRegexPatRemoval = R"(_([tf])?\d+(\.\d+)?$)";
 	uint32_t numThreads = 1;
 
+	bool skipMissingInputBedRegions = false;
 	CollapseAndCallVariantsPars collapseVarCallPars;
 	std::set<std::string> selectTargets;
 	std::set<std::string> selectSamples;
@@ -49,6 +50,8 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	setUp.setOption(selectSamples, "--selectSamples", "Only analyze these select samples");
 	setUp.setOption(bedLocs, "--genomicLocations", "a bed file with specific genomic locations to align to, location name needs to match target name");
 	setUp.setOption(genomicLocsChangePeriodToDash, "--genomicLocationsChangePeriodToDash", "when supplying a location name, change periods to dashes in the name");
+	setUp.setOption(skipMissingInputBedRegions, "--skipMissingInputBedRegions", "when supplying a location skip warning on missing Input Bed Regions");
+
 
 	setUp.setOption(collapseVarCallPars.exportLabIsolateSeqs, "--exportLabIsolateSeqs", "Export Lab Isolate Seqs, will export seqs with meta of site==LabIsolate");
 	setUp.setOption(collapseVarCallPars.variantCallerRunPars.occurrenceCutOff, "--variantOccurrenceCutOff", "Occurrence Cut Off, don't report variants below this count");
@@ -300,7 +303,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 				missingTargets.emplace_back(tar);
 			}
 		}
-		if(!missingTargets.empty()) {
+		if(!missingTargets.empty() && !skipMissingInputBedRegions) {
 			std::stringstream ss;
 			ss << __PRETTY_FUNCTION__ << ", error " << "missing the following targets from " << bedLocs << "\n";
 			ss << njh::conToStr(missingTargets, "\n") << "\n";
