@@ -193,6 +193,8 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 
 	setUp.setOption(pars.inputFilePat, "--inputFilePat",
 			"The input file pattern in the input directory to work on", false, "Input");
+	// setUp.setOption(pars.inputFileEndingPat, "--inputFileEndingPat",
+	// 	"The input file pattern extension in the input directory to work on", false, "Input");
 	setUp.setOption(pars.illuminaInputFilePat, "--illuminaInputFilePat",
 			"The input file pattern for illumina files, everything in the first capture will be treated as the actual name of the file", false, "Input");
 
@@ -437,17 +439,25 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 		// need to find samples that are empty
 		// add to inputPassed
 		// just checking for possible compression with file ending, might consider changing to libmagic or something to make sure
-		bool compressed = false;
-		if (njh::endsWith(analysisSetup.pars_.inputFilePat, ".gz")) {
-			compressed = true;
-		}
+		// bool compressed = false;
+		// if (njh::endsWith(analysisSetup.pars_.inputFilePat, ".gz")) {
+		// 	compressed = true;
+		// }
+		std::regex filePatReg{analysisSetup.pars_.inputFilePat};
 		for (const auto & file : files) {
-			auto fNameNoExt = file.first.filename().replace_extension("");
-			if (compressed) {
-				fNameNoExt.replace_extension("");
-			}
-			if (njh::in(fNameNoExt.string(), expectedSamples)) {
-				filesByPossibleName[fNameNoExt.string()] = file.first;
+			// std::cout << "file.first.filename(): " << file.first.filename() << std::endl;
+			// auto fNameNoExt = std::regex_replace(file.first.filename().string(), filePatReg, std::string(""));
+			auto fNameNoExt = njh::files::removeExtension(file.first.filename());
+			// std::cout << "fNameNoExt: " << fNameNoExt << std::endl;
+			// std::cout << "file.first.filename(): " << file.first.filename() << std::endl;
+			// auto fNameNoExt = file.first.filename().replace_extension("");
+			// std::cout << "fNameNoExt: " << fNameNoExt << std::endl;
+			// if (compressed) {
+			// 	fNameNoExt.replace_extension("");
+			// }
+			// std::cout << "fNameNoExt: " << fNameNoExt << std::endl;
+			if (njh::in(fNameNoExt, expectedSamples)) {
+				filesByPossibleName[fNameNoExt] = file.first;
 			} else {
 				unrecognizedInput.emplace_back(file.first.string());
 			}

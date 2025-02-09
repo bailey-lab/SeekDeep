@@ -80,6 +80,7 @@ public:
 		std::string technology = "illumina";
 
 		std::string inputFilePat = ".*.fastq(\\.gz)?";
+		std::string inputFileEndingPat = ".fastq(\\.gz)?";
 		std::string illuminaInputFilePat = "(.*?)((_[AGCT]{8,}-[AGCT]{8,})?(_S[0-9]+)?(_L[0-9]+)?_(R[12])(_[0-9]+)?\\.fastq(\\.gz)?)";
 	  std::vector<PairedReadProcessor::ReadPairOverLapStatus> defaultStatuses_;//{PairedReadProcessor::ReadPairOverLapStatus::NONE};
 

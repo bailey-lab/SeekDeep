@@ -15,10 +15,10 @@ RUN ulimit -n 10000
 # install basics
 RUN apt-get update
 RUN apt-get -yq dist-upgrade
-RUN apt-get install -yq --no-install-recommends autotools-dev autoconf libtool automake build-essential curl wget file git locales libssl-dev libcurl4-gnutls-dev ca-certificates xz-utils zlib1g-dev libbz2-dev liblzma5 liblzma-doc liblzma-dev openssh-client gcc-10 g++-10 python3-dev python3-pip ccache
+RUN apt-get install -yq --no-install-recommends autotools-dev autoconf libtool automake build-essential curl wget file git locales libssl-dev libcurl4-gnutls-dev ca-certificates xz-utils zlib1g-dev libbz2-dev liblzma5 liblzma-doc liblzma-dev openssh-client gcc-10 g++-10 python3-dev python3-pip ccache git-lfs
 
 # install common bio tools
-RUN apt-get install -yq --no-install-recommends lastz ncbi-blast+ ncbi-tools-bin hmmer minimap2 bwa bowtie2 cmake samtools mummer muscle
+RUN apt-get install -yq --no-install-recommends lastz ncbi-blast+ ncbi-tools-bin hmmer minimap2 bwa bowtie2 cmake samtools mummer muscle pigz
 
 # install snakemake
 RUN pip3 install snakemake

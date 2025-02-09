@@ -739,7 +739,8 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 									<< "\t" << "0"
 									<< "\t" << "0";
 						} else {
-							aminoAcidChangesTable << "\t" << sample_ADs[0]
+							aminoAcidChangesTable
+							<< "\t" << sample_ADs[0]
 							<< "\t" << sample_AFs[0]
 							<< "\t" << sample_ADs[altEnum.index + 1]
 							<< "\t" << sample_AFs[altEnum.index + 1]
