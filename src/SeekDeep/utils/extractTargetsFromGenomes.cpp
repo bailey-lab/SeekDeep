@@ -31,9 +31,12 @@ void extractBetweenSeqsPars::setUpCoreOptions(seqSetUp & setUp, bool needReadLen
 		sizeLimit  = 10000;
 		needReadLength = false;
 	}
-	setUp.setOption(writeOutAllSeqsFile, "--writeOutAllSeqsFile", "Write Out All Seqs File without collpasing to unique sequences");
-
+	setUp.setOption(writeOutAllSeqsFile, "--writeOutAllSeqsFile", "Write Out All Seqs File without collapsing to unique sequences");
+	bool longNames = false;
+	setUp.setOption(longNames, "--longNames", "Create long names for reference genomes extractions");
+	shortNames = !longNames;
 	setUp.setOption(shortNames, "--shortNames", "Create short names for reference genomes extractions");
+
 	if(setUp.setOption(minLenCutOffSizeExpand, "--lenCutOffSizeExpand", "When creating length cut off file how much to expand the length of the found targets")){
     maxLenCutOffSizeExpand = minLenCutOffSizeExpand;
   }
