@@ -453,7 +453,7 @@ std::unordered_map<std::string, std::string> TarAmpAnalysisSetup::getRepToSample
 	for (const auto & tar : samples_) {
 		for (const auto & sample : tar.second.samples_) {
 			for (const auto & rep : sample.second.reps_) {
-				ret.insert(std::make_pair(sample.first, rep));
+				ret.insert(std::make_pair(rep, sample.first));
 			}
 		}
 	}
