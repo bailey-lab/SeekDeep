@@ -363,6 +363,8 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 		}
 	}
 
+	auto repToSamplesKey = analysisSetup.getRepToSamplesKey();
+
 	//now write id files
 	analysisSetup.writeOutIdFiles();
 	std::regex inputFilePat( analysisSetup.pars_.inputFilePat );
@@ -664,7 +666,10 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 							+ "if [ -f {TARGET}{MIDREP}.fastq.gz  ]; then "
 							+ " SeekDeep "
 							+ " kluster "
-								"--fastqgz \"{TARGET}{MIDREP}.fastq.gz\" ";
+							+	" --sample {SAMPLE} "
+							+ " --replicate {MIDREP} "
+							+	" --target {TARGET} "
+							+	"--fastqgz \"{TARGET}{MIDREP}.fastq.gz\" ";
 			if (pars.development) {
 				qlusterCmdTemplate = qlusterCmdTemplate + "--alnInfoDir {TARGET}{MIDREP}_alnCache --development ";
 			}
@@ -839,7 +844,6 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 							}
 						}
 					}
-
 				}
 			}
 		}
@@ -908,7 +912,10 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
           + "if [ -f {TARGET}{MIDREP}.fastq.gz  ]; then "
           + " SeekDeep "
           + " kluster "
-            "--fastqgz \"{TARGET}{MIDREP}.fastq.gz\" ";
+					+	" --sample {SAMPLE} "
+					+ " --replicate {MIDREP} "
+					+	" --target {TARGET} "
+          +  "--fastqgz \"{TARGET}{MIDREP}.fastq.gz\" ";
 			if (pars.development) {
 				qlusterCmdTemplate = qlusterCmdTemplate + "--alnInfoDir {TARGET}{MIDREP}_alnCache --development ";
 			}
@@ -939,6 +946,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 		for (const auto & tars : analysisSetup.samples_) {
 			for (const auto & rep : tars.second.getReps()) {
 				targetsForReps[rep].emplace_back(tars.first);
+
 			}
 		}
 		for (auto & rep : targetsForReps) {
@@ -1061,6 +1069,8 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 							currentQlusterCmdTemplate, "{REP}", fName);
 					currentQlusterCmdTemplate = njh::replaceString(
 							currentQlusterCmdTemplate, "{MIDREP}", sampName);
+					currentQlusterCmdTemplate = njh::replaceString(
+									currentQlusterCmdTemplate, "{SAMPLE}", njh::mapAt(repToSamplesKey, sampName));
 					currentQlusterCmdTemplate = njh::replaceString(
 							currentQlusterCmdTemplate, "{TARGET}", tar);
 					if(1 == njh::mapAt(analysisSetup.idsMids_->targets_,tar).overlapStatuses_.size()

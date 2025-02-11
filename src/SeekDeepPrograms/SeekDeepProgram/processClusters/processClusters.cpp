@@ -68,6 +68,7 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 			{ std::regex { "^" + setUp.pars_.ioOptions_.firstName_.string() + "$" } }, 2);
 
 	std::set<std::string> samplesDirsSet;
+	std::unordered_map<std::string, std::vector<collapse::SampleCollapseCollection::RepFile>> repFiles;
 	for (const auto & af : analysisFiles) {
 		auto fileToks = njh::tokenizeString(bfs::relative(af.first, pars.masterDir).string(), "/");
 		if (3 != fileToks.size()) {
@@ -81,6 +82,7 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 		}
 		if(pars.includeSamples.empty() || njh::in(fileToks[0], pars.includeSamples)) {
 			samplesDirsSet.insert(fileToks[0]);
+			repFiles[fileToks[0]].emplace_back(fileToks[1], af.first);
 		}
 	}
 
@@ -128,10 +130,12 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 	collapserObj.opts_.kmerOpts_.checkKmers_ = false;
 	// output info about the read In reads
 	pars.experimentNames.samples_ = std::set<std::string>{samplesDirs.begin(), samplesDirs.end()};
-	collapse::SampleCollapseCollection sampColl(setUp.pars_.ioOptions_, pars.masterDir,
+	collapse::SampleCollapseCollection sampColl(setUp.pars_.ioOptions_,
+		pars.masterDir,
 			setUp.pars_.directoryName_,
 			pars.experimentNames,
 			pars.preFiltCutOffs);
+
 	sampColl.keepSampleInfoInMemory_ = pars.keepSampleInfoInMemory_;
 	sampColl.development_ = pars.development;
 
@@ -151,7 +155,8 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 
 		std::function<void()> setupClusterSamples = [&sampleQueue, &alnPool,&collapserObj,&pars,&setUp,
 																&expectedSeqs,&sampColl,&customCutOffsMap,
-																&customCutOffsMapPerRep](){
+																&customCutOffsMapPerRep,
+																&repFiles](){
 
 			std::string samp;
 			auto currentAligner = alnPool.popAligner();
@@ -159,7 +164,7 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 				if(setUp.pars_.verbose_){
 					std::cout << "Starting: " << samp << std::endl;
 				}
-				sampColl.setUpSample(samp, *currentAligner, collapserObj, setUp.pars_.chiOpts_);
+				sampColl.setUpSample(samp, repFiles.at(samp), *currentAligner, collapserObj, setUp.pars_.chiOpts_);
 
 				sampColl.clusterSample(samp, *currentAligner, collapserObj, pars.iteratorMap);
 				sampColl.sampleCollapses_.at(samp)->markChimeras(pars.chiCutOff);

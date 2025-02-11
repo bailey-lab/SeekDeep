@@ -546,6 +546,9 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
   // --checkIndelsWhenMapping
   // --checkChimeras
 
+  std::string sample = "sample";
+  std::string target = "target";
+  std::string replicate = "replicate";
 
   KmerClusteringRatePars pars;
   SimpleCollapsePars postCollapsePars;
@@ -564,8 +567,11 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
   pars.verbose = setUp.pars_.verbose_;
   setUp.setOption(maxReadAmountForDownsample, "--maxReadAmountForDownsample", "Randomly Downsample the input reads to this amount before clustering");
   setUp.setOption(randomSeed, "--randomSeedForDownSampling", "When Randomly Downsampling, use this random seed, this way the same downsample would happen each time");
+  bool sampleSet = setUp.setOption(sample, "--sample", "sample name to give to output");
+  bool targetSet = setUp.setOption(target, "--target", "target name to give to output");
+  bool replicateSet = setUp.setOption(replicate, "--replicate", "replicate name to give to output");
 
-	setUp.setOption(pars.development, "--development", "run in development mode, will generate a lot more output");
+  setUp.setOption(pars.development, "--development", "run in development mode, will generate a lot more output");
   bool doNotCheckIndelWhenMapping = false;
   setUp.setOption(doNotCheckIndelWhenMapping, "--doNotCheckIndelWhenMapping", "do not check Indels When Mapping");
   checkIndelsWhenMapping = !doNotCheckIndelWhenMapping;
@@ -2974,6 +2980,20 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
                   bfs::basename(setUp.pars_.ioOptions_.firstName_), true, true,
                   true, "totalCount");
 
+  for (auto & seq : consensusReads) {
+    MetaDataInName meta;
+    meta.addMeta("readCount", seq.seqBase_.cnt_);
+    if (sampleSet) {
+      meta.addMeta("sample", sample);
+    }
+    if (targetSet) {
+      meta.addMeta("target", target);
+    }
+    if (replicateSet) {
+      meta.addMeta("replicate", replicate);
+    }
+    meta.resetMetaInName(seq.seqBase_.name_, seq.seqBase_.name_.rfind("_t"));
+  }
 
   if(pars.visualize){
     //output visualization where clusters are written and colored either by a comparison to a reference sequence

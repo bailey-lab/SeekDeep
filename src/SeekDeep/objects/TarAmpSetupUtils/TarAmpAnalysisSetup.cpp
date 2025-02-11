@@ -448,6 +448,20 @@ std::vector<std::string> TarAmpAnalysisSetup::getReps() const {
 	return VecStr{ret.begin(), ret.end()};
 }
 
+std::unordered_map<std::string, std::string> TarAmpAnalysisSetup::getRepToSamplesKey() const {
+	std::unordered_map<std::string, std::string> ret;
+	for (const auto & tar : samples_) {
+		for (const auto & sample : tar.second.samples_) {
+			for (const auto & rep : sample.second.reps_) {
+				ret.insert(std::make_pair(sample.first, rep));
+			}
+		}
+	}
+	return ret;
+}
+
+
+
 void TarAmpAnalysisSetup::addGroupingMetaData(const bfs::path & groupingsFileFnp) {
 	groupMetaData_ = std::make_unique<MultipleGroupMetaData>(
 			njh::files::normalize(groupingsFileFnp), getSamples());

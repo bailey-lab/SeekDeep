@@ -183,6 +183,7 @@ public:
 	TargetsInfoAgreement forLenCutOffs_;
 
 	[[nodiscard]] std::set<std::string> getSamples() const;
+	[[nodiscard]] std::unordered_map<std::string, std::string> getRepToSamplesKey() const;
 
 	[[nodiscard]] VecStr getReps() const;
 
