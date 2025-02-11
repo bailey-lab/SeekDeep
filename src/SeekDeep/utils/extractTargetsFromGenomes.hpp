@@ -31,7 +31,7 @@ struct extractBetweenSeqsPars{
 
   bool useBlast = false;
   uint32_t blastExpandSize = 10;
-
+	bool doNotRenameBeds = false;
 	bool shortNames = false;
 	std::string selectedGenomesStr;
 	bool writeOutAllSeqsFile = false;

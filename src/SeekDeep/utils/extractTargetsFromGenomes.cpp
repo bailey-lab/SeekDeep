@@ -28,9 +28,12 @@ void extractBetweenSeqsPars::setUpCoreOptions(seqSetUp & setUp, bool needReadLen
 
 	setUp.setOption(longRangeAmplicon, "--longRangeAmplicon", "long Range Amplicon extraction");
 	if(longRangeAmplicon){
-		sizeLimit  = 10000;
+		sizeLimit  = 8000;
 		needReadLength = false;
 	}
+
+	setUp.setOption(doNotRenameBeds, "--doNotRenameBeds", "Do Not Rename Beds");
+
 	setUp.setOption(writeOutAllSeqsFile, "--writeOutAllSeqsFile", "Write Out All Seqs File without collapsing to unique sequences");
 	bool longNames = false;
 	setUp.setOption(longNames, "--longNames", "Create long names for reference genomes extractions");
@@ -1465,6 +1468,17 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 				auto bedForTarFnp = njh::files::make_path(outputDir, tar.first, "genomeLocations", genome + ".bed");
 				if(bfs::exists(bedForTarFnp)){
 					auto locs = getBeds(bedForTarFnp);
+					if (!extractPars.doNotRenameBeds) {
+						uint32_t count = 0;
+						for (auto & loc : locs) {
+							if (0 == count) {
+								loc->name_ = tar.first;
+							} else {
+								loc->name_ = njh::pasteAsStr(tar.first, ".", count);
+							}
+							++count;
+						}
+					}
 					addOtherVec(allRegions, locs);
 				}
 			}
@@ -1594,6 +1608,17 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 				auto bedForTarFnp = njh::files::make_path(outputDir, tar.first, "genomeLocations", genome + "_inner.bed");
 				if(bfs::exists(bedForTarFnp)){
 					auto locs = getBeds(bedForTarFnp);
+					if (!extractPars.doNotRenameBeds) {
+						uint32_t count = 0;
+						for (auto & loc : locs) {
+							if (0 == count) {
+								loc->name_ = tar.first;
+							} else {
+								loc->name_ = njh::pasteAsStr(tar.first, ".", count);
+							}
+							++count;
+						}
+					}
 					addOtherVec(allRegions, locs);
 				}
 			}

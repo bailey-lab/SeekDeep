@@ -38,8 +38,10 @@ namespace njhseq {
 
 int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommands) {
 	// parameters
+	bool flatMasterDir = false;
 	SeekDeepSetUp setUp(inputCommands);
 	processClustersPars pars;
+	setUp.setOption(flatMasterDir, "--flatMasterDir", "Flat master directory, input files are all in one directory and sample, replicate will be taken from the files themselves");
 	setUp.setUpMultipleSampleCluster(pars);
 	// start a run log
 	setUp.startARunLog(setUp.pars_.directoryName_);
@@ -64,34 +66,75 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 	}
 
 	//read in the files in the corresponding sample directories
-	auto analysisFiles = njh::files::listAllFiles(pars.masterDir, true,
-			{ std::regex { "^" + setUp.pars_.ioOptions_.firstName_.string() + "$" } }, 2);
-
 	std::set<std::string> samplesDirsSet;
-	std::unordered_map<std::string, std::vector<collapse::SampleCollapseCollection::RepFile>> repFiles;
-	for (const auto & af : analysisFiles) {
-		auto fileToks = njh::tokenizeString(bfs::relative(af.first, pars.masterDir).string(), "/");
-		if (3 != fileToks.size()) {
-			std::stringstream ss;
-			ss << "File path should be three levels deep, not " << fileToks.size()
-					<< " for " << bfs::relative(af.first, pars.masterDir).string() << std::endl;
-			throw std::runtime_error { ss.str() };
-		}
-		if(njh::in(fileToks[0], pars.excludeSamples)){
-			continue;
-		}
-		if(pars.includeSamples.empty() || njh::in(fileToks[0], pars.includeSamples)) {
-			samplesDirsSet.insert(fileToks[0]);
-			repFiles[fileToks[0]].emplace_back(fileToks[1], af.first);
-		}
-	}
-
-	VecStr samplesDirs(samplesDirsSet.begin(), samplesDirsSet.end());
 	VecStr specificFiles;
+	std::unordered_map<std::string, std::vector<collapse::SampleCollapseCollection::RepFile>> repFiles;
 
-	for (const auto& fileIter : analysisFiles) {
-		specificFiles.push_back(fileIter.first.string());
+	if (!flatMasterDir){
+		auto analysisFiles = njh::files::listAllFiles(pars.masterDir, true,
+	{ std::regex { "^" + setUp.pars_.ioOptions_.firstName_.string() + "$" } }, 2);
+		for (const auto & af : analysisFiles) {
+			auto fileToks = njh::tokenizeString(bfs::relative(af.first, pars.masterDir).string(), "/");
+			if (3 != fileToks.size()) {
+				std::stringstream ss;
+				ss << "File path should be three levels deep, not " << fileToks.size()
+						<< " for " << bfs::relative(af.first, pars.masterDir).string() << std::endl;
+				throw std::runtime_error { ss.str() };
+			}
+			if(njh::in(fileToks[0], pars.excludeSamples)){
+				continue;
+			}
+			if(pars.includeSamples.empty() || njh::in(fileToks[0], pars.includeSamples)) {
+				samplesDirsSet.insert(fileToks[0]);
+				repFiles[fileToks[0]].emplace_back(fileToks[1], af.first);
+			}
+		}
+		for (const auto& fileIter : analysisFiles) {
+			specificFiles.push_back(fileIter.first.string());
+		}
+	} else {
+		auto analysisFiles = njh::files::listAllFiles(pars.masterDir, false,
+				{ std::regex {".*" + setUp.pars_.ioOptions_.firstName_.string() + "$" } });
+		VecStr warnings;
+		for (const auto & af : analysisFiles) {
+			auto currentFile = SeqIOOptions(af.first, SeqIOOptions::getInFormatFromFnp(af.first), true);
+
+			if (countSeqs(currentFile, false) > 0) {
+				seqInfo seq;
+				SeqInput reader(currentFile);
+				reader.openIn();
+
+				specificFiles.push_back(af.first.string());
+				reader.readNextRead(seq);
+				// std::cout << __FILE__ << " " << __LINE__ << std::endl;
+				// std::cout << "af.first: " << af.first << std::endl;
+				// std::cout << "SeqIOOptions::getInFormat(SeqIOOptions::getInFormatFromFnp(af.first)): " << SeqIOOptions::getInFormat(SeqIOOptions::getInFormatFromFnp(af.first)) << std::endl;
+				// seq.outPutSeq(std::cout);
+				MetaDataInName meta(seq.name_);
+				std::string sample;
+				if (meta.containsMeta("sample")) {
+					sample = meta.getMeta("sample");
+				} else {
+					warnings.emplace_back(njh::pasteAsStr("Sample name could not be determined for file", af.first, " from name: ", seq.name_));
+				}
+				std::string rep = sample;
+				if (meta.containsMeta("replicate")) {
+					rep = meta.getMeta("replicate");
+				}
+				samplesDirsSet.emplace(sample);
+				repFiles[sample].emplace_back(rep, af.first);
+			}
+			if (!warnings.empty()) {
+				std::stringstream ss;
+				ss << __PRETTY_FUNCTION__ << ", error " << njh::conToStr(warnings, "\n") << "\n";
+				throw std::runtime_error{ss.str()};
+			}
+		}
 	}
+	VecStr samplesDirs(samplesDirsSet.begin(), samplesDirsSet.end());
+
+
+
 	if(setUp.pars_.verbose_){
 		std::cout << "Reading from" << std::endl;
 		for (const auto& sfIter : specificFiles) {
@@ -764,78 +807,81 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 
 	sampColl.createCoreJsonFile();
 
-	//collect extraction dirs
-	std::set<bfs::path> extractionDirs;
-	for(const auto & file : analysisFiles){
-		auto fileToks = njh::tokenizeString(bfs::relative(file.first, pars.masterDir).string(), "/");
-		if(njh::in(fileToks[0], pars.excludeSamples)){
-			continue;
-		}
-		if(pars.includeSamples.empty() || njh::in(fileToks[0], pars.includeSamples)) {
-			auto metaDataJsonFnp = njh::files::make_path(file.first.parent_path(), "metaData.json");
-			if(bfs::exists(metaDataJsonFnp)){
-				auto metaJson = njh::json::parseFile(metaDataJsonFnp.string());
-				if(metaJson.isMember("extractionDir")){
-					extractionDirs.emplace(metaJson["extractionDir"].asString());
+	if (!flatMasterDir) {
+		auto analysisFiles = njh::files::listAllFiles(pars.masterDir, true,
+{ std::regex { "^" + setUp.pars_.ioOptions_.firstName_.string() + "$" } }, 2);
+		//collect extraction dirs
+		std::set<bfs::path> extractionDirs;
+		for(const auto & file : analysisFiles){
+			auto fileToks = njh::tokenizeString(bfs::relative(file.first, pars.masterDir).string(), "/");
+			if(njh::in(fileToks[0], pars.excludeSamples)){
+				continue;
+			}
+			if(pars.includeSamples.empty() || njh::in(fileToks[0], pars.includeSamples)) {
+				auto metaDataJsonFnp = njh::files::make_path(file.first.parent_path(), "metaData.json");
+				if(bfs::exists(metaDataJsonFnp)){
+					auto metaJson = njh::json::parseFile(metaDataJsonFnp.string());
+					if(metaJson.isMember("extractionDir")){
+						extractionDirs.emplace(metaJson["extractionDir"].asString());
+					}
 				}
 			}
 		}
-	}
-	if(setUp.pars_.verbose_){
-		std::cout << "Extraction Dirs" << std::endl;
-		std::cout << njh::conToStr(extractionDirs, "\n") << std::endl;
-	}
-	table profileTab;
-	table statsTab;
-	for(const auto & extractDir : extractionDirs){
-		auto profileFnp = njh::files::make_path(extractDir, "extractionProfile.tab.txt");
-		auto statsFnp = njh::files::make_path(extractDir, "extractionStats.tab.txt");
-		if(bfs::exists(profileFnp)){
-			table currentProfileTab(profileFnp.string(), "\t", true);
-			auto oldColumnNames = currentProfileTab.columnNames_;
-			currentProfileTab.addColumn(VecStr{extractDir.filename().string()}, "extractionDir");
-			currentProfileTab = currentProfileTab.getColumns(concatVecs(VecStr{"extractionDir"}, oldColumnNames));
-			if(profileTab.empty()){
-				profileTab = currentProfileTab;
-			}else{
-				profileTab.rbind(currentProfileTab, false);
+		if(setUp.pars_.verbose_){
+			std::cout << "Extraction Dirs" << std::endl;
+			std::cout << njh::conToStr(extractionDirs, "\n") << std::endl;
+		}
+		table profileTab;
+		table statsTab;
+		for(const auto & extractDir : extractionDirs){
+			auto profileFnp = njh::files::make_path(extractDir, "extractionProfile.tab.txt");
+			auto statsFnp = njh::files::make_path(extractDir, "extractionStats.tab.txt");
+			if(bfs::exists(profileFnp)){
+				table currentProfileTab(profileFnp.string(), "\t", true);
+				auto oldColumnNames = currentProfileTab.columnNames_;
+				currentProfileTab.addColumn(VecStr{extractDir.filename().string()}, "extractionDir");
+				currentProfileTab = currentProfileTab.getColumns(concatVecs(VecStr{"extractionDir"}, oldColumnNames));
+				if(profileTab.empty()){
+					profileTab = currentProfileTab;
+				}else{
+					profileTab.rbind(currentProfileTab, false);
+				}
+			}
+			if(bfs::exists(statsFnp)){
+				table curentStatsTab(statsFnp.string(), "\t", true);
+				auto oldColumnNames = curentStatsTab.columnNames_;
+				curentStatsTab.addColumn(VecStr{extractDir.filename().string()}, "extractionDir");
+				curentStatsTab = curentStatsTab.getColumns(concatVecs(VecStr{"extractionDir"}, oldColumnNames));
+				if(statsTab.empty()){
+					statsTab = curentStatsTab;
+				}else{
+					statsTab.rbind(curentStatsTab, false);
+				}
 			}
 		}
-		if(bfs::exists(statsFnp)){
-			table curentStatsTab(statsFnp.string(), "\t", true);
-			auto oldColumnNames = curentStatsTab.columnNames_;
-			curentStatsTab.addColumn(VecStr{extractDir.filename().string()}, "extractionDir");
-			curentStatsTab = curentStatsTab.getColumns(concatVecs(VecStr{"extractionDir"}, oldColumnNames));
-			if(statsTab.empty()){
-				statsTab = curentStatsTab;
-			}else{
-				statsTab.rbind(curentStatsTab, false);
-			}
+
+		auto extractionOutputDir = njh::files::make_path(setUp.pars_.directoryName_,
+				"extractionInfo");
+		njh::files::makeDirP(njh::files::MkdirPar(extractionOutputDir.string()));
+		if (!profileTab.empty()) {
+			profileTab.sortTable("extractionDir", false);
+			auto profileTabOpts =
+					TableIOOpts::genTabFileOut(
+							njh::files::make_path(extractionOutputDir,
+									"extractionProfile.tab.txt").string(), true);
+			profileTabOpts.out_.overWriteFile_ = true;
+			profileTab.outPutContents(profileTabOpts);
+		}
+		if (!statsTab.empty()) {
+			auto statsTabOpts =
+					TableIOOpts::genTabFileOut(
+							njh::files::make_path(extractionOutputDir,
+									"extractionStats.tab.txt").string(), true);
+			statsTabOpts.out_.overWriteFile_ = true;
+			statsTab.sortTable("extractionDir", false);
+			statsTab.outPutContents(statsTabOpts);
 		}
 	}
-
-	auto extractionOutputDir = njh::files::make_path(setUp.pars_.directoryName_,
-			"extractionInfo");
-	njh::files::makeDirP(njh::files::MkdirPar(extractionOutputDir.string()));
-	if (!profileTab.empty()) {
-		profileTab.sortTable("extractionDir", false);
-		auto profileTabOpts =
-				TableIOOpts::genTabFileOut(
-						njh::files::make_path(extractionOutputDir,
-								"extractionProfile.tab.txt").string(), true);
-		profileTabOpts.out_.overWriteFile_ = true;
-		profileTab.outPutContents(profileTabOpts);
-	}
-	if (!statsTab.empty()) {
-		auto statsTabOpts =
-				TableIOOpts::genTabFileOut(
-						njh::files::make_path(extractionOutputDir,
-								"extractionStats.tab.txt").string(), true);
-		statsTabOpts.out_.overWriteFile_ = true;
-		statsTab.sortTable("extractionDir", false);
-		statsTab.outPutContents(statsTabOpts);
-	}
-
 
 
 
