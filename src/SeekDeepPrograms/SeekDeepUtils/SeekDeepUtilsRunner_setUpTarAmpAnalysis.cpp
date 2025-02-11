@@ -1070,7 +1070,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 					currentQlusterCmdTemplate = njh::replaceString(
 							currentQlusterCmdTemplate, "{MIDREP}", sampName);
 					currentQlusterCmdTemplate = njh::replaceString(
-									currentQlusterCmdTemplate, "{SAMPLE}", njh::mapAt(repToSamplesKey, sampName));
+									currentQlusterCmdTemplate, "{SAMPLE}", njh::mapAt(repToSamplesKey, rep.first));
 					currentQlusterCmdTemplate = njh::replaceString(
 							currentQlusterCmdTemplate, "{TARGET}", tar);
 					if(1 == njh::mapAt(analysisSetup.idsMids_->targets_,tar).overlapStatuses_.size()
