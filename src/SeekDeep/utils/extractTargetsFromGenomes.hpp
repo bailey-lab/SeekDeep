@@ -17,7 +17,7 @@ namespace njhseq {
 
 struct extractBetweenSeqsPars{
 	MultiGenomeMapper::inputParameters pars;
-	std::string gffExtraAttributesStr = "description";
+	std::string gffExtraAttributesStr = "description,Name";
 	bfs::path primersFile = "";
 	std::string forwardPrimer;
 	std::string reversePrimer;
