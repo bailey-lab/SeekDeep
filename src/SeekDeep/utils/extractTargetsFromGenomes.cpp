@@ -1665,8 +1665,10 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 							MetaDataInName geneMeta(geneTok);
 							if(njh::in(geneMeta.getMeta("ID"), genes)){
 								TwoBit::TwoBitFile tReader(gMapper->genomes_.at(genome)->fnpTwoBit_);
-								auto infos = njh::mapAt(genes, geneMeta.getMeta("ID"))->generateGeneSeqInfo(tReader, false);
-								auto detailedName = njh::mapAt(genes, geneMeta.getMeta("ID"))->getGeneDetailedName();
+								const auto & gene = njh::mapAt(genes, geneMeta.getMeta("ID"));
+								auto infos = gene->generateGeneSeqInfo(tReader, false);
+								auto detailedName = gene->getGeneDetailedName();
+								geneMeta.addMeta("detailedDescription", detailedName.begin()->second);
 								for(const auto & info : infos){
 									auto posInfos = info.second->getInfosByGDNAPos();
 
@@ -1701,22 +1703,29 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 									}
 									geneMeta.addMeta(info.first + "-AAStart", aaStartPos);
 									geneMeta.addMeta(info.first + "-AAStop", aaStopPos);
-									std::string description;
-									bool allNAs = true;
-									for(const auto & field : pars.extraAttributes_){
-										if(!description.empty()){
-											description += "::";
-										}
-										if("NA" != geneMeta.getMeta(field)){
-											allNAs = false;
-										}
-										description += geneMeta.getMeta(field);
+									std::string description = detailedName[info.first];
+									// bool allNAs = true;
+									// for(const auto & field : pars.extraAttributes_){
+									// 	if(!description.empty()){
+									// 		description += "::";
+									// 	}
+									// 	if("NA" != geneMeta.getMeta(field)){
+									// 		allNAs = false;
+									// 	}
+									// 	description += geneMeta.getMeta(field);
+									// }
+									std::string geneName = geneMeta.getMeta("ID");
+									if (gene->gene_->hasAttr("Name") && "NA" != gene->gene_->getAttr("Name") && !gene->gene_->getAttr("Name").empty()) {
+										geneName = gene->gene_->getAttr("Name");
 									}
-									if(allNAs){
-										description = detailedName[info.first];
-										geneMeta.addMeta("detailedDescription", detailedName[info.first]);
-									}
-									proteinInsertInfoByNameCurrent[reg->name_].emplace_back(geneMeta.getMeta("ID"), aaStartPos, aaStopPos, description);
+									// if(allNAs){
+									// 	description = detailedName[info.first];
+									// 	geneMeta.addMeta("detailedDescription", detailedName[info.first]);
+									// }
+									proteinInsertInfoByNameCurrent[reg->genUIDFromCoords()].emplace_back(
+										// geneMeta.getMeta("ID"),
+										info.first,
+										geneName, aaStartPos, aaStopPos, description);
 								}
 							}
 							if(!replacement.empty()){
@@ -1757,13 +1766,15 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 			if(bfs::exists(infoFnp)){
 				table infoTab(infoFnp, "\t", true);
 				if(!genome.second->gffFnp_.empty()){
-					table updatedInfoTab(toVecStr(infoTab.columnNames_, "insertGeneID", "insertGeneAAStart", "insertGeneAAStop", "insertGeneDescription"));
+					table updatedInfoTab(toVecStr(infoTab.columnNames_, "insertGeneID", "insertGeneName", "insertGeneAAStart", "insertGeneAAStop", "insertGeneDescription"));
 					for(auto & row : infoTab){
-						if(proteinInsertInfoByName[row[infoTab.getColPos("name")]].empty()){
-							updatedInfoTab.addRow(toVecStr(row, "", "", "", ""));
+						//coord name
+						std::string coordName = njh::pasteAsStr(row[infoTab.getColPos("#chrom")], "-", row[infoTab.getColPos("insertStart")], "-", row[infoTab.getColPos("insertStop")]);
+						if(proteinInsertInfoByName[coordName].empty()){
+							updatedInfoTab.addRow(toVecStr(row, "", "", "", "", ""));
 						}else{
-							for(const auto & info : proteinInsertInfoByName[row[infoTab.getColPos("name")]]){
-								updatedInfoTab.addRow(toVecStr(row, info.id_, (std::numeric_limits<uint32_t>::max() == info.aaStart_ ? "NA" : njh::pasteAsStr(info.aaStart_)), (std::numeric_limits<uint32_t>::max() == info.aaStop_ ? "NA" : njh::pasteAsStr(info.aaStop_)) , info.description_));
+							for(const auto & info : proteinInsertInfoByName[coordName]){
+								updatedInfoTab.addRow(toVecStr(row, info.id_, info.Name_, (std::numeric_limits<uint32_t>::max() == info.aaStart_ ? "NA" : njh::pasteAsStr(info.aaStart_)), (std::numeric_limits<uint32_t>::max() == info.aaStop_ ? "NA" : njh::pasteAsStr(info.aaStop_)) , info.description_));
 							}
 						}
 					}
