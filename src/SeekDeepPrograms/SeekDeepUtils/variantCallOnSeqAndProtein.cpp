@@ -965,7 +965,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	//combine summary tables
 	{
 		fullWatch.startNewLap("gather summary tables");
-		//translated diversity
+		//summary tables
 		std::vector<bfs::path> summaryFnps;
 		for (const auto& tar: targetNamesVec) {
 			auto summaryFnp = njh::pasteAsStr(setUp.pars_.directoryName_, "/", tar, "/variantCalling/summaryTable.tab.txt.gz");
@@ -984,6 +984,59 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 				}
 			}
 			for (const auto& file: summaryFnps) {
+				if (file != firstFileFnp) {
+					TableReader currentTable(TableIOOpts(InOptions(file), "\t", true));
+					VecStr currentRow;
+					if (!std::equal(firstTable.header_.columnNames_.begin(), firstTable.header_.columnNames_.end(),
+													currentTable.header_.columnNames_.begin(), currentTable.header_.columnNames_.end())) {
+						std::stringstream ss;
+						ss << __PRETTY_FUNCTION__ << ", error " << "header for " << file << " doesn't match other columns" << "\n";
+						ss << "expected header: " << njh::conToStr(firstTable.header_.columnNames_) << "\n";
+						ss << "found    header: " << njh::conToStr(currentTable.header_.columnNames_) << '\n';
+						throw std::runtime_error{ss.str()};
+													}
+					while (currentTable.getNextRow(currentRow)) {
+						out << njh::conToStr(currentRow, "\t") << '\n';
+					}
+				}
+			}
+		}
+	}
+	//combine unique seqs summaries
+	{
+		fullWatch.startNewLap("gather unique seqs");
+		//unique seqs fnps
+		std::vector<bfs::path> uniqueSeqsFnps;
+		std::vector<bfs::path> uniqueSeqs_labIsolateNamesFnps;
+		// std::vector<bfs::path> uniqueSeqs_metaFnps; don't need to add the meta data cause this will be within the allSummary table
+		for (const auto& tar: targetNamesVec) {
+			auto uniqueSeqsFnp = njh::pasteAsStr(setUp.pars_.directoryName_, "/", tar, "/variantCalling/uniqueSeqs.fasta.gz");
+			auto uniqueSeqs_labIsolateNamesFnp = njh::pasteAsStr(setUp.pars_.directoryName_, "/", tar, "/variantCalling/uniqueSeqs_labIsolateNames.tab.txt.gz");
+			// auto uniqueSeqs_metaFnp = njh::pasteAsStr(setUp.pars_.directoryName_, "/", tar, "/variantCalling/uniqueSeqs_meta.tab.txt.gz");
+			if (bfs::exists(uniqueSeqsFnp) && 0 != njh::files::bfs::file_size(uniqueSeqsFnp)) {
+				uniqueSeqsFnps.emplace_back(uniqueSeqsFnp);
+			}
+			if (bfs::exists(uniqueSeqs_labIsolateNamesFnp) && 0 != njh::files::bfs::file_size(uniqueSeqs_labIsolateNamesFnp)) {
+				uniqueSeqs_labIsolateNamesFnps.emplace_back(uniqueSeqs_labIsolateNamesFnp);
+			}
+			// if (bfs::exists(uniqueSeqs_metaFnp) && 0 != njh::files::bfs::file_size(uniqueSeqs_metaFnp)) {
+			// 	uniqueSeqs_metaFnps.emplace_back(uniqueSeqs_metaFnp);
+			// }
+		}
+		if (!uniqueSeqsFnps.empty()) {
+			concatenateFiles(uniqueSeqsFnps, OutOptions(njh::files::make_path(reportsSummaryDir, "all_uniqueSeqs.fasta.gz")));
+		}
+		if (!uniqueSeqs_labIsolateNamesFnps.empty()) {
+			njh::files::bfs::path firstFileFnp = uniqueSeqs_labIsolateNamesFnps.front();
+			TableReader firstTable(TableIOOpts(InOptions(firstFileFnp), "\t", true));
+			OutputStream out(njh::files::make_path(reportsSummaryDir, "all_uniqueSeqs_labIsolateNames.tab.txt.gz"));
+			out << njh::conToStr(firstTable.header_.columnNames_, "\t") << '\n'; {
+				VecStr firstTableRow;
+				while (firstTable.getNextRow(firstTableRow)) {
+					out << njh::conToStr(firstTableRow, "\t") << '\n';
+				}
+			}
+			for (const auto& file: uniqueSeqs_labIsolateNamesFnps) {
 				if (file != firstFileFnp) {
 					TableReader currentTable(TableIOOpts(InOptions(file), "\t", true));
 					VecStr currentRow;
