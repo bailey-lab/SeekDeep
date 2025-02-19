@@ -220,6 +220,9 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 
 	setUp.setOption(pars.doNotGuessRecFlags, "--doNotGuessRecFlags", "Don't guess at additional SeekDeep extractor/extratorPairedEnd flags by investigating input sequence files", false, "Extra Commands");
 	setUp.setOption(pars.numberOfFilesToInvestigate, "--numberOfFilesToInvestigate", "Number of files to investigate when adding additional recommended flags", false, "Extra Commands");
+	if(pars.techIsNanoporeOrPacbio()) {
+		pars.testNumberOfReadsToInvestigate = 1000;
+	}
 	setUp.setOption(pars.testNumberOfReadsToInvestigate, "--testNumberOfReadsToInvestigate", "Number of reads per file to investigate when adding additional recommended flags", false, "Extra Commands");
 
 
