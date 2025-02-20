@@ -46,6 +46,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	setUp.processVerbose();
 	setUp.processDebug();
 	pars.debug = setUp.pars_.debug_;
+
 	setUp.setOption(pars.technology, "--technology",
 			"Sequencing Technology (should be " + njh::conToStrEndSpecial(acceptableTechs, ", ", " or ") + ")",
 			false, "Technology");
@@ -187,9 +188,9 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
                   "A directory of fasta files where each file is named with the input target names to rename population names", false, "ProcessClusters");
 
 
-	if (pars.techIs454() || pars.techIsIonTorrent()) {
-		pars.inputFilePat = ".*.fastq";
-	}
+	// if (pars.techIs454() || pars.techIsIonTorrent()) {
+	// 	pars.inputFilePat = ".*.fastq";
+	// }
 
 	setUp.setOption(pars.inputFilePat, "--inputFilePat",
 			"The input file pattern in the input directory to work on", false, "Input");
@@ -292,7 +293,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 				<< "\n";
 	}
 
-	if ("" != pars.groupMeta) {
+	if (!pars.groupMeta.empty()) {
 		if (!analysisSetup.groupMetaData_->missingSamples_.empty()) {
 			foundErrors = true;
 			errorOutput
@@ -317,7 +318,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 		}
 	}
 
-	if ("" != pars.refSeqsDir || !pars.previousPopSeqsDir.empty()) {
+	if (!pars.refSeqsDir.empty() || !pars.previousPopSeqsDir.empty()) {
 		if (!analysisSetup.forRefSeqs_.missing_.empty()) {
 			foundErrors = true;
 			errorOutput
@@ -340,7 +341,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 		}
 	}
 
-	if ("" != pars.lenCutOffsFnp) {
+	if (!pars.lenCutOffsFnp.empty()) {
 		if (!analysisSetup.forLenCutOffs_.missing_.empty()) {
 			foundErrors = true;
 			errorOutput
@@ -391,7 +392,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 
 	ReadPairsOrganizer rpOrganizer(expectedSamples);
 	rpOrganizer.doNotGuessSampleNames_ = pars.noGuessSampNames;
-
+	rpOrganizer.illuminaPat_ = pars.illuminaInputFilePat;
 	if (analysisSetup.pars_.techIsIllumina()) {
 		rpOrganizer.processFiles(files);
 		readsByPairs = rpOrganizer.processReadPairs();
@@ -537,16 +538,16 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 		}
 
 		njh::concurrent::LockableQueue<SeqIOOptions> optsQueue(filesToInvestigate);
-		bool verbose = setUp.pars_.verbose_;
-		std::function<void()> investigateFile = [&optsQueue,&investPars,&masterInvesMut,&masterInvestigator,&verbose](){
+		investPars.verbose_ = setUp.pars_.verbose_;
+		std::function<void()> investigateFile = [&optsQueue,&investPars,&masterInvesMut,&masterInvestigator](){
 			SeqIOOptions seqOpts;
 			TarAmpSeqInvestigator investigator(investPars);
 
 			while(optsQueue.getVal(seqOpts)){
-				if(verbose){
-					std::cout << "Investigating " << seqOpts.firstName_ << " " << ("" ==seqOpts.secondName_ ? std::string("") : seqOpts.secondName_.string()) << std::endl;
+				if(investPars.verbose_){
+					std::cout << "Investigating " << seqOpts.firstName_ << " " << (seqOpts.secondName_.empty() ? std::string("") : seqOpts.secondName_.string()) << std::endl;
 				}
-				investigator.investigateFile(seqOpts, verbose);
+				investigator.investigateFile(seqOpts);
 			}
 			{
 				std::lock_guard<std::mutex> lock(masterInvesMut);
@@ -788,7 +789,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 								currentQlusterCmdTemplate = qlusterCmdSepMatesTemplate;
 							}
 
-							if ("" != analysisSetup.pars_.extraQlusterCmds) {
+							if (!analysisSetup.pars_.extraQlusterCmds.empty()) {
 								currentQlusterCmdTemplate += " "
 										+ analysisSetup.pars_.extraQlusterCmds;
 							}

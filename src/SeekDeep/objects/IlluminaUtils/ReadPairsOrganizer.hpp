@@ -46,7 +46,7 @@ public:
 	std::map<std::string, VecStr> readPairsUnrecognized_;
 
 	void processFiles(const std::map<bfs::path, bool> & files);
-	std::map<std::string, std::pair<VecStr, VecStr>> processReadPairs();
+	std::map<std::string, std::pair<VecStr, VecStr>> processReadPairs() const;
 };
 
 

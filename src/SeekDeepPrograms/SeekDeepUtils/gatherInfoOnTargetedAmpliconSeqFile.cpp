@@ -18,22 +18,27 @@ namespace njhseq {
 
 int SeekDeepUtilsRunner::gatherInfoOnTargetedAmpliconSeqFile(
 		const njh::progutils::CmdArgs & inputCommands) {
-
+	TarAmpAnalysisSetup::TarAmpPars tar_amp_pars;
 	TarAmpSeqInvestigator::TarAmpSeqInvestigatorPars investPars;
 	seqSetUp setUp(inputCommands);
 	setUp.processVerbose();
 	setUp.processDebug();
+	tar_amp_pars.numberOfFilesToInvestigate = 20;
+	investPars.testNumber = 1000;
 	setUp.setOption(investPars.testNumber, "--testNumber", "Just use this number of reads of the top of the file");
+	setUp.setOption(tar_amp_pars.numberOfFilesToInvestigate, "--numberOfFilesToInvestigate", "Number of files to investigate when adding additional recommended flags", false, "Extra Commands");
+
 	setUp.setOption(investPars.dontCollapsePossibleMIDs, "--dontCollapsePossibleMIDs",
 			"Don't Collapse Possible MIDs", false);
 	setUp.setOption(investPars.unrecogBaseSampling, "--unrecogBaseSampling",
 			"Number of bases to sample from file for unrecognized sequences", false);
 
-	setUp.setOption(investPars.precdingBaseFreqCutOff, "--precdingBaseFreqCutOff", "Preceding Base Freq Cut Off", false);
+	setUp.setOption(investPars.precdingBaseFreqCutOff, "--precdingBaseFreqCutOff", "Preceding Base Freq Cut Off", false);
+	setUp.setOption(tar_amp_pars.numThreads, "--numThreads", "number of Threads to utilize", false);
 
 	investPars.pars.corePars_.pDetPars.primerWithin_ = 30;
 	setUp.setOption(investPars.pars.corePars_.pDetPars.primerWithin_, "--primerWithin", "Primer Within bases search", false, "Primer");
-
+	setUp.setOption(investPars.fracUndeterminedToTriggerRecount_, "--fracUndeterminedToTriggerRecount", "fraction of undetermined primers to trigger recount", false, "Primer");
 
 	bool primerToUpperCase = false;
 	setUp.setOption(primerToUpperCase, "--primerUpper",
@@ -62,28 +67,151 @@ int SeekDeepUtilsRunner::gatherInfoOnTargetedAmpliconSeqFile(
 	setUp.pars_.gapInfo_.gapLeftRefExtend_ = 0;
 	setUp.pars_.gapLeft_ = "0,0";
 	setUp.processGap();
+	investPars.verbose_ = setUp.pars_.verbose_;
 	investPars.gapInfo_ = setUp.pars_.gapInfo_;
 	setUp.setOption(investPars.idFnp, "--id", "SeekDeep primers file", true);
-	setUp.processReadInNames(VecStr{"--fastq1", "--fastq", "--fasta", "--fastq1gz", "--fastqgz", "--fastagz"});
+	setUp.setOption(tar_amp_pars.inputDir, "--reads_dir", "a directory of sequence files to investigate instead of a single input read, files to investigate will depend on the technology set", false);
+	VecStr acceptableTechs{"454", "IonTorrent", "Illumina", "Illumina-SingleEnd", "Nanopore", "Pacbio"};
+
+	setUp.setOption(tar_amp_pars.technology, "--technology",
+			"Sequencing Technology (should be " + njh::conToStrEndSpecial(acceptableTechs, ", ", " or ") + ")",
+			!tar_amp_pars.inputDir.empty(), "Technology");
+	njh::for_each(acceptableTechs, [](std::string & tech){
+		stringToLower(tech);
+	});
+	stringToLower(tar_amp_pars.technology);
+	if (!tar_amp_pars.inputDir.empty() && !njh::in(tar_amp_pars.technology, acceptableTechs)) {
+		setUp.failed_ = true;
+		std::stringstream ss;
+		ss
+				<< "Error in setting technology, should be "
+				<< njh::conToStrEndSpecial(acceptableTechs, ", ", " or ")
+				<< " not "
+				<< tar_amp_pars.technology << "\n";
+		setUp.addWarning(ss.str());
+	}
+	setUp.processReadInNames(VecStr{"--fastq1", "--fastq", "--fasta", "--fastq1gz", "--fastqgz", "--fastagz"}, tar_amp_pars.inputDir.empty());
+
 	setUp.processDirectoryOutputName(true);
 	setUp.finishSetUp(std::cout);
 
 	setUp.startARunLog(setUp.pars_.directoryName_);
 
+	std::function investigate = [](const SeqIOOptions& seqOpts, const TarAmpSeqInvestigator::TarAmpSeqInvestigatorPars& investPars) {
 
+		std::shared_ptr<TarAmpSeqInvestigator> investigator = std::make_shared<TarAmpSeqInvestigator>(investPars);
+		auto prepCounts = investigator->prepareForInvestiagteFile(seqOpts);
+		investigator->investigateFile(seqOpts, prepCounts);
+		investigator->processCounts();
+		if (investPars.verbose_) {
+			std::cout << "investigator->getFractionOfUnrecognizedPrimers(): " << investigator->getFractionOfUnrecognizedPrimers() << std::endl;
+		}
+		if (investigator->getFractionOfUnrecognizedPrimers() >= investPars.fracUndeterminedToTriggerRecount_) {
+			investigator->pars_.pars.corePars_.pDetPars.primerWithin_ = static_cast<uint32_t>(std::round(prepCounts.readMedian));
+			if (investigator->ids_.containsMids()) {
+				investigator->pars_.pars.corePars_.primIdsPars.mPars_.searchStop_ = static_cast<uint32_t>(std::round(prepCounts.readMedian));
+				investigator->ids_.initMidDeterminator(investigator->pars_.midPars);
+			}
+			if (investPars.verbose_) {
+				std::cout << "Fraction of reads with undetermined primers " << investigator->getFractionOfUnrecognizedPrimers() <<
+						" is more than fracUndeterminedToTriggerRecount " << investPars.fracUndeterminedToTriggerRecount_ << " so will set primer within to " <<
+						investigator->pars_.pars.corePars_.pDetPars.primerWithin_ << " and recount" << std::endl;
+			}
 
-	TarAmpSeqInvestigator investigator(investPars);
-	investigator.investigateFile(setUp.pars_.ioOptions_, setUp.pars_.verbose_);
-	investigator.processCounts();
-	investigator.writeOutTables(setUp.pars_.directoryName_, true);
+			investigator->resetCounts();
+			investigator->investigateFile(seqOpts, prepCounts);
+			investigator->processCounts();
+			if (investPars.verbose_) {
+				std::cout << "Fraction of reads with undetermined primers after recount is " << investigator->getFractionOfUnrecognizedPrimers() << std::endl;
+			}
+		}
+		return investigator;
+	};
+	auto masterInvestigator = std::make_shared<TarAmpSeqInvestigator>(investPars);
+	std::mutex masterInvesMut;
+	if (tar_amp_pars.inputDir.empty()) {
+		masterInvestigator = investigate(setUp.pars_.ioOptions_, investPars);
+	} else {
+		std::map<std::string, std::pair<VecStr, VecStr>> readsByPairs ;
+		std::map<std::string, bfs::path> filesByPossibleName;
+		auto guessedSamples = GuessPossibleSamps(tar_amp_pars);
+		auto expectedSamples = guessedSamples.getColumn("sample");
+		std::regex inputFilePat( tar_amp_pars.inputFilePat);
+		auto files = njh::files::listAllFilesThrowOnDupSymlink(tar_amp_pars.inputDir.string(), false, {inputFilePat});
+		ReadPairsOrganizer rpOrganizer{expectedSamples};
+		rpOrganizer.illuminaPat_ = tar_amp_pars.illuminaInputFilePat;
+		if (tar_amp_pars.techIsIllumina()) {
+			rpOrganizer.processFiles(files);
+			readsByPairs = rpOrganizer.processReadPairs();
+		} else {
+			std::regex filePatReg{tar_amp_pars.inputFilePat};
+			for (const auto & file : files) {
+				auto fNameNoExt = njh::files::removeExtension(file.first.filename());
+				if (njh::in(fNameNoExt, expectedSamples)) {
+					filesByPossibleName[fNameNoExt] = file.first;
+				}
+			}
+		}
+		//investigate input seq files to recommend
+		std::vector<SeqIOOptions> filesToInvestigate;
+		njh::randomGenerator rgen;
 
+		if (tar_amp_pars.techIsIllumina()) {
+			double fractionToBeat = tar_amp_pars.numberOfFilesToInvestigate/static_cast<double>(readsByPairs.size());
+			for (const auto& pair: readsByPairs) {
+				if (rgen.unifRand() <= fractionToBeat) {
+					if (njh::endsWith(pair.second.first.front(), ".gz")) {
+						filesToInvestigate.emplace_back(
+							SeqIOOptions::genPairedInGz(bfs::path(pair.second.first.front()), bfs::path(pair.second.second.front())));
+					} else {
+						filesToInvestigate.emplace_back(
+							SeqIOOptions::genPairedIn(bfs::path(pair.second.first.front()), bfs::path(pair.second.second.front())));
+					}
+					if (filesToInvestigate.size() > tar_amp_pars.numberOfFilesToInvestigate) {
+						break;
+					}
+				}
+			}
+		} else {
+			double fractionToBeat = tar_amp_pars.numberOfFilesToInvestigate/static_cast<double>(filesByPossibleName.size());
+			for (const auto& file: filesByPossibleName) {
+				if (rgen.unifRand() <= fractionToBeat) {
+					filesToInvestigate.emplace_back(file.second, SeqIOOptions::getInFormatFromFnp(file.second), false);
+					if (filesToInvestigate.size() > tar_amp_pars.numberOfFilesToInvestigate) {
+						break;
+					}
+				}
+			}
+		}
+		njh::concurrent::LockableQueue<SeqIOOptions> optsQueue(filesToInvestigate);
+		bool verbose = setUp.pars_.verbose_;
+		std::function<void()> investigateFile = [&optsQueue,&investPars,&masterInvesMut,&masterInvestigator,&investigate](){
+			SeqIOOptions seqOpts;
+			TarAmpSeqInvestigator current_masterInvestigator(investPars);
+			while(optsQueue.getVal(seqOpts)){
+				if(investPars.verbose_){
+					std::cout << "Investigating " << seqOpts.firstName_ << " " << (seqOpts.secondName_.empty() ? std::string("") : seqOpts.secondName_.string()) << std::endl;
+				}
+				auto investigator = investigate(seqOpts, investPars);
+				current_masterInvestigator.addOtherCounts(*investigator);
+			}
+			{
+				std::lock_guard<std::mutex> lock(masterInvesMut);
+				masterInvestigator->addOtherCounts(current_masterInvestigator);
+			}
+		};
+		njh::concurrent::runVoidFunctionThreaded(investigateFile, tar_amp_pars.numThreads);
+		masterInvestigator->processCounts();
+	}
+
+	masterInvestigator->writeOutTables(setUp.pars_.directoryName_, true);
 
 	std::stringstream ss;
-	auto possibleRevComp = investigator.reverseComplementLikely();
-	auto possiblePrecedingRandomeBases = investigator.hasPossibleRandomPrecedingBases(investigator.ids_.getMaxMIDSize());
-	ss << "Has Possible Reverse Complement directed reads: " << njh::boolToStr(possibleRevComp) << std::endl;
+	auto possibleRevComp = masterInvestigator->reverseComplementLikely();
+	auto possiblePrecedingRandomeBases = masterInvestigator->hasPossibleRandomPrecedingBases(masterInvestigator->ids_.getMaxMIDSize());
+	ss << "Has Possible Reverse Complement directed reads: " << njh::boolToStr(possibleRevComp) << std::endl;
 	ss << "Has Possible Random Preceding bases: " << njh::boolToStr(possiblePrecedingRandomeBases) << std::endl;
-	auto recFlags = investigator.recommendSeekDeepExtractorFlags();
+	auto recFlags = masterInvestigator->recommendSeekDeepExtractorFlags();
 	if(!recFlags.empty()){
 		ss << "Recommended SeekDeep extractor additional flags: " << std::endl;
 		ss << njh::conToStr(recFlags, " ")<< std::endl;
@@ -91,8 +219,11 @@ int SeekDeepUtilsRunner::gatherInfoOnTargetedAmpliconSeqFile(
 		ss << "No additional recommended SeekDeep extractor flags" << std::endl;
 	}
 
-	OutputStream seekdeepFlagRecs(njh::files::make_path(setUp.pars_.directoryName_, "message.txt"));
-	seekdeepFlagRecs << ss.str();
+	OutputStream outSeekDeepExtractorFlags(njh::files::make_path(setUp.pars_.directoryName_, "outSeekDeepExtractorFlags.txt"));
+	outSeekDeepExtractorFlags << njh::conToStr(recFlags, "\n") << std::endl;
+	//
+	OutputStream outSeekDeepMessage(njh::files::make_path(setUp.pars_.directoryName_, "message.txt"));
+	outSeekDeepMessage << ss.str();
 	if(setUp.pars_.verbose_){
 		std::cout << ss.str();
 	}

@@ -33,12 +33,13 @@ public:
 		uint32_t testNumber = std::numeric_limits<uint32_t>::max();
 
 		gapScoringParameters gapInfo_;
-
+		double fracUndeterminedToTriggerRecount_ = 0.50;
+		bool verbose_ = false;
 		TarAmpSeqInvestigatorPars();
-
 	};
 
-	TarAmpSeqInvestigator(const TarAmpSeqInvestigatorPars & pars);
+	explicit TarAmpSeqInvestigator(const TarAmpSeqInvestigatorPars & pars);
+	TarAmpSeqInvestigator(const TarAmpSeqInvestigator & other);
 
 	TarAmpSeqInvestigatorPars pars_;
 	PrimersAndMids ids_;
@@ -67,38 +68,41 @@ public:
 	table possibleMidCountsMostCommonTab_{VecStr{"PrimerPair", "ForwardMID", "ReverseMID", "InForDirCount", "InRevDirCount", "TotalCount"}};
 	//unrecognized counts
 	table unrecoginzedCountsTab_{VecStr{"forward", "reverse", "count", "fraction"}};
-//	table onePrimerUnrecoginzedCountsTab_{VecStr{"recognizedPrimer", "", "count", "fraction"}};
 
 	void investigateSeq(const seqInfo & forwardSeq, const seqInfo & revCompSeq, aligner & alignObj);
 	void processCounts();
+	void resetCounts();
 	void writeOutTables(const bfs::path & directory, bool overWrite);
 
+	[[nodiscard]] uint32_t getNumberOfUnrecognizedPrimers() const;
+	[[nodiscard]] double getFractionOfUnrecognizedPrimers() const;
 
 
 	struct prepareForInvestiagteFileRes{
 		uint64_t maxReadSize = 0;
 		uint32_t readCount = 0;
+		double readMedian = 0.0;
 	};
 
-	prepareForInvestiagteFileRes prepareForInvestiagteFile(const SeqIOOptions & opts, bool verbose);
-	void investigateFile(const SeqIOOptions & opts, const prepareForInvestiagteFileRes & counts, bool verbose);
-	void investigateFile(const SeqIOOptions & opts, bool verbose);
+	[[nodiscard]] prepareForInvestiagteFileRes prepareForInvestiagteFile(const SeqIOOptions & opts) const;
+	void investigateFile(const SeqIOOptions & opts, const prepareForInvestiagteFileRes & counts);
+	void investigateFile(const SeqIOOptions & opts);
 
-	bool reverseComplementLikely(uint32_t minReadAmount = 250,
+	[[nodiscard]] bool reverseComplementLikely(uint32_t minReadAmount = 250,
 			double cutOff = 0.2) const;
-	bool hasPossibleRandomPrecedingBases(uint32_t midSize,
+	[[nodiscard]] bool hasPossibleRandomPrecedingBases(uint32_t midSize,
 			uint32_t minReadAmount = 250, double cutOff = 0.1) const;
 
-	bool hasPossibleRandomPrecedingBasesForwardPrimer(uint32_t midSize,
+	[[nodiscard]] bool hasPossibleRandomPrecedingBasesForwardPrimer(uint32_t midSize,
 			uint32_t minReadAmount = 250, double cutOff = 0.1) const;
 
-	bool hasPossibleRandomPrecedingBasesReversePrimer(uint32_t midSize,
+	[[nodiscard]] bool hasPossibleRandomPrecedingBasesReversePrimer(uint32_t midSize,
 			uint32_t minReadAmount = 250, double cutOff = 0.1) const;
 
-	uint32_t maxPrecedingBases() const;
-	uint32_t maxPrecedingReversePrimerBases() const;
-	uint32_t maxPrecedingForwardPrimerBases() const;
-	VecStr recommendSeekDeepExtractorFlags() const;
+	[[nodiscard]] uint32_t maxPrecedingBases(uint32_t minReadCount = 2) const;
+	[[nodiscard]] uint32_t maxPrecedingReversePrimerBases(uint32_t minReadCount = 2) const;
+	[[nodiscard]] uint32_t maxPrecedingForwardPrimerBases(uint32_t minReadCount = 2) const;
+	[[nodiscard]] VecStr recommendSeekDeepExtractorFlags(uint32_t minReadCount = 2) const;
 
 };
 

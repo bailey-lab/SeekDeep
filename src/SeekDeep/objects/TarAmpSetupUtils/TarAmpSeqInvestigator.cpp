@@ -30,13 +30,31 @@ TarAmpSeqInvestigator::TarAmpSeqInvestigatorPars::TarAmpSeqInvestigatorPars(){
 
 
 
+TarAmpSeqInvestigator::TarAmpSeqInvestigator(const TarAmpSeqInvestigator & other):TarAmpSeqInvestigator(other.pars_) {
+	//copy the contents
+	primerPairCountsTot_ = other.primerPairCountsTot_;
+	primerPairCountsFor_ = other.primerPairCountsFor_;
+	primerPairCountsComp_ = other.primerPairCountsComp_;
+	precedingBasesCounts_ = other.precedingBasesCounts_;
+	precedingBasesCountsComp_ = other.precedingBasesCountsComp_;
+	unrecognizedCounts_ = other.unrecognizedCounts_;
+	totalReadCount_ = other.totalReadCount_;
+
+	primerCountsTab_ = other.primerCountsTab_;
+	precedingBasesCountsTab_ = other.precedingBasesCountsTab_;
+	possibleMidCounts_ = other.possibleMidCounts_;
+	possibleMidCountsMostCommonTab_ = other.possibleMidCountsMostCommonTab_;
+	unrecoginzedCountsTab_ = other.unrecoginzedCountsTab_;
+	primerPairCountsTot_ = other.primerPairCountsTot_;
+}
+
 
 
 TarAmpSeqInvestigator::TarAmpSeqInvestigator(const TarAmpSeqInvestigatorPars & pars) :
 		pars_(pars), ids_(pars.idFnp) {
 	ids_.initPrimerDeterminator();
 	if(ids_.containsMids()){
-		ids_.initMidDeterminator(pars.midPars);
+		ids_.initMidDeterminator(pars_.midPars);
 	}
 }
 
@@ -44,17 +62,18 @@ TarAmpSeqInvestigator::TarAmpSeqInvestigator(const TarAmpSeqInvestigatorPars & p
 
 void TarAmpSeqInvestigator::investigateSeq(const seqInfo & forwardSeq, const seqInfo & revCompSeq, aligner & alignObj){
 	++totalReadCount_;
-	std::string forwardPrimerName = "";
-	std::string forwardPrimerPrecedingBases = "";
+	std::string forwardPrimerName;
+	std::string forwardPrimerPrecedingBases;
 
-	std::string reversePrimerName = "";
-	std::string reversePrimerPrcedingBases = "";
+	std::string reversePrimerName;
+	std::string reversePrimerPrcedingBases;
 
 	bool complement = false;
+	// std::cout << pars_.pars.corePars_.pDetPars.primerWithin_ << std::endl;
 	auto forPos = ids_.pDeterminator_->determineBestForwardPrimerPosFront(forwardSeq, pars_.pars.corePars_.pDetPars, alignObj);
-	if("" == forPos.primerName_){
+	if(forPos.primerName_.empty()){
 		auto forMate = ids_.pDeterminator_->determineBestForwardPrimerPosFront(revCompSeq, pars_.pars.corePars_.pDetPars, alignObj);
-		if("" != forMate.primerName_){
+		if(!forMate.primerName_.empty()){
 			forwardPrimerName = forMate.primerName_;
 			if(0 != forMate.start_ ){
 				forwardPrimerPrecedingBases = revCompSeq.seq_.substr(0, forMate.start_);
@@ -72,9 +91,9 @@ void TarAmpSeqInvestigator::investigateSeq(const seqInfo & forwardSeq, const seq
 
 	if("unrecognized" == forwardPrimerName){
 		auto revPos = ids_.pDeterminator_->determineBestReversePrimerPosFront(revCompSeq, pars_.pars.corePars_.pDetPars, alignObj);
-		if("" == revPos.primerName_){
+		if(revPos.primerName_.empty()){
 			auto revPosOther = ids_.pDeterminator_->determineBestReversePrimerPosFront(forwardSeq, pars_.pars.corePars_.pDetPars, alignObj);
-			if("" != revPosOther.primerName_){
+			if(!revPosOther.primerName_.empty()){
 				//matched
 				complement = true;
 				reversePrimerName = revPosOther.primerName_;
@@ -95,7 +114,7 @@ void TarAmpSeqInvestigator::investigateSeq(const seqInfo & forwardSeq, const seq
 	}else{
 		if(complement){
 			auto revPos = ids_.pDeterminator_->determineBestReversePrimerPosFront(forwardSeq, pars_.pars.corePars_.pDetPars, alignObj);
-			if("" != revPos.primerName_){
+			if(!revPos.primerName_.empty()){
 				//matched
 				reversePrimerName = revPos.primerName_;
 				if(0 != revPos.start_ ){
@@ -106,7 +125,7 @@ void TarAmpSeqInvestigator::investigateSeq(const seqInfo & forwardSeq, const seq
 			}
 		}else{
 			auto revPos = ids_.pDeterminator_->determineBestReversePrimerPosFront(revCompSeq, pars_.pars.corePars_.pDetPars, alignObj);
-			if("" != revPos.primerName_){
+			if(!revPos.primerName_.empty()){
 				//matched
 				reversePrimerName = revPos.primerName_;
 				if(0 != revPos.start_ ){
@@ -178,6 +197,41 @@ void TarAmpSeqInvestigator::addOtherCounts(const TarAmpSeqInvestigator & other){
 	}
 }
 
+uint32_t TarAmpSeqInvestigator::getNumberOfUnrecognizedPrimers() const {
+	uint32_t total = 0;
+	for(const auto & forPrim : primerPairCountsTot_){
+		for(const auto & revPrim : forPrim.second){
+			if ("unrecognized" == revPrim.first || "unrecognized" == forPrim.first) {
+				total += revPrim.second;
+			}
+		}
+	}
+	return total;
+}
+
+double TarAmpSeqInvestigator::getFractionOfUnrecognizedPrimers() const {
+	return getNumberOfUnrecognizedPrimers()/static_cast<double>(totalReadCount_);
+}
+
+
+
+void TarAmpSeqInvestigator::resetCounts() {
+	totalReadCount_ = 0;
+
+	primerPairCountsTot_.clear();
+	primerPairCountsFor_.clear();
+	primerPairCountsComp_.clear();
+
+	precedingBasesCounts_.clear();
+	precedingBasesCountsComp_.clear();
+	unrecognizedCounts_.clear();
+
+	primerCountsTab_.content_.clear();
+	precedingBasesCountsTab_.content_.clear();
+	possibleMidCounts_.content_.clear();
+	possibleMidCountsMostCommonTab_.content_.clear();
+	unrecoginzedCountsTab_.content_.clear();
+}
 void TarAmpSeqInvestigator::processCounts(){
 
 
@@ -278,7 +332,7 @@ void TarAmpSeqInvestigator::processCounts(){
 			std::vector<std::pair<std::string, std::string>> midsPairs;
 			for (const auto & forwMid : totalCounts) {
 				for (const auto & revMid : forwMid.second) {
-					midsPairs.emplace_back(std::make_pair(forwMid.first, revMid.first));
+					midsPairs.emplace_back(forwMid.first, revMid.first);
 				}
 			}
 			njh::sort(midsPairs,[&totalCounts](const std::pair<std::string, std::string> & p1,
@@ -337,9 +391,6 @@ void TarAmpSeqInvestigator::processCounts(){
 	}
 	possibleMidCounts_.sortTable("PrimerPair", "ForwardMID", "ReverseMID", false);
 
-
-
-
 	for(const auto & row : possibleMidCounts_){
 		if(mostCommonForwardPreBases[row[possibleMidCounts_.getColPos("PrimerPair")]] == row[possibleMidCounts_.getColPos("ForwardMID")].size() &&
 			 mostCommonReversePreBases[row[possibleMidCounts_.getColPos("PrimerPair")]] == row[possibleMidCounts_.getColPos("ReverseMID")].size()){
@@ -355,8 +406,6 @@ void TarAmpSeqInvestigator::processCounts(){
 		}
 	}
 	unrecoginzedCountsTab_.sortTable("count", false);
-
-
 }
 
 void TarAmpSeqInvestigator::writeOutTables(const bfs::path & directory, bool overWrite){
@@ -415,9 +464,9 @@ void TarAmpSeqInvestigator::writeOutTables(const bfs::path & directory, bool ove
 }
 
 
-TarAmpSeqInvestigator::prepareForInvestiagteFileRes TarAmpSeqInvestigator::prepareForInvestiagteFile(const SeqIOOptions & opts, bool verbose){
+TarAmpSeqInvestigator::prepareForInvestiagteFileRes TarAmpSeqInvestigator::prepareForInvestiagteFile(const SeqIOOptions & opts) const{
 	prepareForInvestiagteFileRes ret;
-
+	std::vector<size_t> read_lengths;
 	if (opts.isPairedIn()) {
 		PairedRead seq;
 		SeqInput reader(opts);
@@ -426,7 +475,8 @@ TarAmpSeqInvestigator::prepareForInvestiagteFileRes TarAmpSeqInvestigator::prepa
 			++ret.readCount;
 			readVec::getMaxLength(seq.seqBase_, ret.maxReadSize);
 			readVec::getMaxLength(seq.mateSeqBase_, ret.maxReadSize);
-			if(verbose && ret.readCount % 10000 == 0){
+			read_lengths.emplace_back(seq.seqBase_.seq_.size());
+			if(pars_.verbose_ && ret.readCount % 10000 == 0){
 				std::cout << "\r" << ret.readCount;
 				std::cout.flush();
 			}
@@ -434,7 +484,7 @@ TarAmpSeqInvestigator::prepareForInvestiagteFileRes TarAmpSeqInvestigator::prepa
 				break;
 			}
 		}
-		if(verbose){
+		if(pars_.verbose_){
 			std::cout << std::endl;
 		}
 	} else {
@@ -444,7 +494,8 @@ TarAmpSeqInvestigator::prepareForInvestiagteFileRes TarAmpSeqInvestigator::prepa
 		while(reader.readNextRead(seq)){
 			++ret.readCount;
 			readVec::getMaxLength(seq, ret.maxReadSize);
-			if(verbose && ret.readCount % 10000 == 0){
+			read_lengths.emplace_back(seq.seq_.size());
+			if(pars_.verbose_ && ret.readCount % 10000 == 0){
 				std::cout << "\r" << ret.readCount;
 				std::cout.flush();
 			}
@@ -452,59 +503,78 @@ TarAmpSeqInvestigator::prepareForInvestiagteFileRes TarAmpSeqInvestigator::prepa
 				break;
 			}
 		}
-		if(verbose){
+		if(pars_.verbose_){
 			std::cout << std::endl;
 		}
 	}
+	ret.readMedian = vectorMedianRef(read_lengths);
 	return ret;
 }
 
 
-void TarAmpSeqInvestigator::investigateFile(const SeqIOOptions & opts, const TarAmpSeqInvestigator::prepareForInvestiagteFileRes & counts, bool verbose){
+void TarAmpSeqInvestigator::investigateFile(const SeqIOOptions & opts, const prepareForInvestiagteFileRes & counts){
 	// create aligner for primer identification
 	auto scoreMatrix = substituteMatrix::createDegenScoreMatrixNoNInRef(2, -2);
 	//to avoid allocating an extremely large aligner matrix;
 	aligner alignObj(counts.maxReadSize, pars_.gapInfo_, scoreMatrix);
+	njh::randomGenerator rgen;
+	std::function<bool()> processRead;
+	if (pars_.testNumber >= counts.readCount) {
+		processRead = [] {
+			return true;
+		};
+	} else {
+		double randomToBeat = 0;
+		randomToBeat = static_cast<double>(pars_.testNumber)/counts.readCount;
+		processRead = [&rgen,randomToBeat]() {
+			return rgen.unifRand() <= randomToBeat;
+		};
+	}
 
 	if (opts.isPairedIn()) {
 		PairedRead seq;
 		SeqInput reader(opts);
 		reader.openIn();
-		njh::ProgressBar pBar(counts.readCount);
+		njh::ProgressBar pBar(std::min(counts.readCount, pars_.testNumber));
 		uint32_t newReadCount = 0;
 		while(reader.readNextRead(seq)){
 			++newReadCount;
-			if(verbose){
-				pBar.outputProgAdd(std::cout, 1, true);
-			}
-			investigateSeq(seq.seqBase_, seq.mateSeqBase_, alignObj);
-			if(newReadCount >=pars_.testNumber){
-				break;
+			if (processRead()) {
+				if(pars_.verbose_){
+					pBar.outputProgAdd(std::cout, 1, true);
+				}
+				investigateSeq(seq.seqBase_, seq.mateSeqBase_, alignObj);
+				if(newReadCount >= pars_.testNumber){
+					break;
+				}
 			}
 		}
 	} else {
 		seqInfo seq;
 		SeqInput reader(opts);
 		reader.openIn();
-		njh::ProgressBar pBar(counts.readCount);
+		njh::ProgressBar pBar(std::min(counts.readCount, pars_.testNumber));
 		uint32_t newReadCount = 0;
 		while(reader.readNextRead(seq)){
-			auto revCompSeq = seq;
-			revCompSeq.reverseComplementRead(false, true);
-			++newReadCount;
-			if(verbose){
-				pBar.outputProgAdd(std::cout, 1, true);
-			}
-			investigateSeq(seq, revCompSeq, alignObj);
-			if(newReadCount >=pars_.testNumber){
-				break;
+
+			if (processRead()) {
+				++newReadCount;
+				auto revCompSeq = seq;
+				revCompSeq.reverseComplementRead(false, true);
+				if(pars_.verbose_){
+					pBar.outputProgAdd(std::cout, 1, true);
+				}
+				investigateSeq(seq, revCompSeq, alignObj);
+				if(newReadCount >=pars_.testNumber){
+					break;
+				}
 			}
 		}
 	}
 }
-void TarAmpSeqInvestigator::investigateFile(const SeqIOOptions & opts, bool verbose){
-	auto counts = prepareForInvestiagteFile(opts, verbose);
-	investigateFile(opts, counts, verbose);
+void TarAmpSeqInvestigator::investigateFile(const SeqIOOptions & opts){
+	auto counts = prepareForInvestiagteFile(opts);
+	investigateFile(opts, counts);
 }
 
 
@@ -636,10 +706,13 @@ bool TarAmpSeqInvestigator::hasPossibleRandomPrecedingBasesReversePrimer(uint32_
 	return false;
 }
 
-uint32_t TarAmpSeqInvestigator::maxPrecedingBases() const{
+uint32_t TarAmpSeqInvestigator::maxPrecedingBases(uint32_t minReadCount) const{
 	uint32_t ret = 0;
-	for(const auto & row : precedingBasesCountsTab_){
-		auto NumOfBases = njh::StrToNumConverter::stoToNum<uint32_t>(row[precedingBasesCountsTab_.getColPos("NumOfBases")]);
+	auto filt_table = precedingBasesCountsTab_.extractByComp("Count", [&minReadCount](const std::string & countStr) {
+		return njh::StrToNumConverter::stoToNum<uint32_t>(countStr) >= minReadCount;
+	});
+	for(const auto & row : filt_table){
+		auto NumOfBases = njh::StrToNumConverter::stoToNum<uint32_t>(row[filt_table.getColPos("NumOfBases")]);
 		// std::cout << "NumOfBases: " << NumOfBases << std::endl;
 		if(NumOfBases > ret){
 			ret = NumOfBases;
@@ -648,12 +721,15 @@ uint32_t TarAmpSeqInvestigator::maxPrecedingBases() const{
 	return ret;
 }
 
-uint32_t TarAmpSeqInvestigator::maxPrecedingReversePrimerBases() const{
+uint32_t TarAmpSeqInvestigator::maxPrecedingReversePrimerBases(uint32_t minReadCount) const{
 	uint32_t ret = 0;
-	for(const auto & row : precedingBasesCountsTab_){
-		auto BasesPrecedingPrimerCase  = row[precedingBasesCountsTab_.getColPos("BasesPrecedingPrimerCase")];
+	auto filt_table = precedingBasesCountsTab_.extractByComp("Count", [&minReadCount](const std::string& countStr) {
+		return njh::StrToNumConverter::stoToNum<uint32_t>(countStr) >= minReadCount;
+	});
+	for(const auto & row : filt_table){
+		auto BasesPrecedingPrimerCase  = row[filt_table.getColPos("BasesPrecedingPrimerCase")];
 		if(njh::beginsWith(BasesPrecedingPrimerCase, "ReversePrimer")){
-			auto NumOfBases = njh::StrToNumConverter::stoToNum<uint32_t>(row[precedingBasesCountsTab_.getColPos("NumOfBases")]);
+			auto NumOfBases = njh::StrToNumConverter::stoToNum<uint32_t>(row[filt_table.getColPos("NumOfBases")]);
 			if(NumOfBases > ret){
 				ret = NumOfBases;
 			}
@@ -662,12 +738,15 @@ uint32_t TarAmpSeqInvestigator::maxPrecedingReversePrimerBases() const{
 	return ret;
 }
 
-uint32_t TarAmpSeqInvestigator::maxPrecedingForwardPrimerBases() const{
+uint32_t TarAmpSeqInvestigator::maxPrecedingForwardPrimerBases(uint32_t minReadCount) const{
 	uint32_t ret = 0;
-	for(const auto & row : precedingBasesCountsTab_){
-		auto BasesPrecedingPrimerCase  = row[precedingBasesCountsTab_.getColPos("BasesPrecedingPrimerCase")];
+	auto filt_table = precedingBasesCountsTab_.extractByComp("Count", [&minReadCount](const std::string& countStr) {
+		return njh::StrToNumConverter::stoToNum<uint32_t>(countStr) >= minReadCount;
+	});
+	for(const auto & row : filt_table){
+		auto BasesPrecedingPrimerCase  = row[filt_table.getColPos("BasesPrecedingPrimerCase")];
 		if(njh::beginsWith(BasesPrecedingPrimerCase, "ForwardPrimer")){
-			auto NumOfBases = njh::StrToNumConverter::stoToNum<uint32_t>(row[precedingBasesCountsTab_.getColPos("NumOfBases")]);
+			auto NumOfBases = njh::StrToNumConverter::stoToNum<uint32_t>(row[filt_table.getColPos("NumOfBases")]);
 			if(NumOfBases > ret){
 				ret = NumOfBases;
 			}
@@ -679,11 +758,11 @@ uint32_t TarAmpSeqInvestigator::maxPrecedingForwardPrimerBases() const{
 
 
 
-VecStr TarAmpSeqInvestigator::recommendSeekDeepExtractorFlags() const {
+VecStr TarAmpSeqInvestigator::recommendSeekDeepExtractorFlags(uint32_t minReadCount) const {
 
 	auto possibleRevComp = reverseComplementLikely();
-	auto possiblePrecedingRandomeBases = hasPossibleRandomPrecedingBases(ids_.getMaxMIDSize());
-	auto maxPre = maxPrecedingBases();
+	auto possiblePrecedingRandomBases = hasPossibleRandomPrecedingBases(ids_.getMaxMIDSize());
+	auto maxPre = maxPrecedingBases(minReadCount);
 	VecStr recFlags{};
 	if(ids_.containsMids()){
 		// bool containsDualBarcode = false;
@@ -702,14 +781,13 @@ VecStr TarAmpSeqInvestigator::recommendSeekDeepExtractorFlags() const {
 		if(possibleRevComp){
 			recFlags.emplace_back("--checkRevComplementForMids");
 		}
-		if(possiblePrecedingRandomeBases){
+		if(possiblePrecedingRandomBases){
 			auto pre = maxPre - ids_.getMaxMIDSize();
 			recFlags.emplace_back(njh::pasteAsStr("--midWithinStart ", pre));
 		}
 		if(containsSingleBarcode){
-			auto possiblePrecedingRandomeBasesRp = hasPossibleRandomPrecedingBasesReversePrimer(ids_.getMaxMIDSize());
-			if(possiblePrecedingRandomeBasesRp){
-				auto maxPreRp = maxPrecedingReversePrimerBases();
+			if(hasPossibleRandomPrecedingBasesReversePrimer(ids_.getMaxMIDSize()) ){
+				auto maxPreRp = maxPrecedingReversePrimerBases(minReadCount);
 				recFlags.emplace_back(njh::pasteAsStr("--primerWithinStart ", maxPreRp));
 			}
 		}
@@ -717,7 +795,7 @@ VecStr TarAmpSeqInvestigator::recommendSeekDeepExtractorFlags() const {
 		if(possibleRevComp){
 			recFlags.emplace_back("--checkRevComplementForPrimers");
 		}
-		if(possiblePrecedingRandomeBases){
+		if(possiblePrecedingRandomBases){
 			recFlags.emplace_back(njh::pasteAsStr("--primerWithinStart ", maxPre));
 		}
 	}

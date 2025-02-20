@@ -112,7 +112,7 @@ void ReadPairsOrganizer::processFiles(const std::map<bfs::path, bool> & files) {
 	}
 }
 
-std::map<std::string, std::pair<VecStr, VecStr>> ReadPairsOrganizer::processReadPairs() {
+std::map<std::string, std::pair<VecStr, VecStr>> ReadPairsOrganizer::processReadPairs() const {
 	std::map<std::string, std::pair<VecStr, VecStr>> readsByPairs;
 	for (const auto & reads : readPairs_) {
 		// std::cout << __FILE__ << " " << __LINE__ << std::endl;
@@ -120,8 +120,8 @@ std::map<std::string, std::pair<VecStr, VecStr>> ReadPairsOrganizer::processRead
 		// std::cout << "reads.second.size(): " << reads.second.size() << std::endl;
 		for (const auto & read : reads.second) {
 			auto filename = bfs::path(read).filename().string();
-			auto lastUnderPos = filename.rfind("_");
-			auto periodPos = filename.find(".", lastUnderPos);
+			auto lastUnderPos = filename.rfind('_');
+			auto periodPos = filename.find('.', lastUnderPos);
 
 
 			// std::cout << "filename:    " << filename << std::endl;
@@ -147,7 +147,7 @@ std::map<std::string, std::pair<VecStr, VecStr>> ReadPairsOrganizer::processRead
 					&& "2" != pairNum){
 				//find next _ to try to determine read pairs designation
 				periodPos = lastUnderPos;
-				lastUnderPos = filename.rfind("_", lastUnderPos - 1);
+				lastUnderPos = filename.rfind('_', lastUnderPos - 1);
 				if(std::string::npos == lastUnderPos){
 					std::stringstream ss;
 					ss << __PRETTY_FUNCTION__ << ": Error, in processing file name "
@@ -182,34 +182,34 @@ std::map<std::string, std::pair<VecStr, VecStr>> ReadPairsOrganizer::processRead
 			ss << "R2 file number: " << reads.second.second.size() << ", files: " << njh::conToStr(reads.second.second, ", ") << "\n";
 			throw std::runtime_error{ss.str()};
 		}
-		std::vector<size_t> needToErrase;
+		std::vector<size_t> need_to_erase;
 		//sort
 		njh::sort(reads.second.first);
 		njh::sort(reads.second.second);
 		for(const auto pos : iter::range(reads.second.first.size())){
 
-			auto lastUnderPos1 = reads.second.first[pos].rfind("_");
+			auto lastUnderPos1 = reads.second.first[pos].rfind('_');
 			{
-				auto periodPos = reads.second.first[pos].find(".", lastUnderPos1);
+				auto periodPos = reads.second.first[pos].find('.', lastUnderPos1);
 				std::string pairNum = reads.second.first[pos].substr(lastUnderPos1 + 1,
 						periodPos - lastUnderPos1 - 1);
 				while ("R1" != pairNum && "1" != pairNum) {
 					//find next _ to try to determine read pairs designation
 					periodPos = lastUnderPos1;
-					lastUnderPos1 = reads.second.first[pos].rfind("_", lastUnderPos1 - 1);
+					lastUnderPos1 = reads.second.first[pos].rfind('_', lastUnderPos1 - 1);
 					pairNum = reads.second.first[pos].substr(lastUnderPos1 + 1,
 							periodPos - lastUnderPos1 - 1);
 				}
 			}
-			auto lastUnderPos2 = reads.second.second[pos].rfind("_");
+			auto lastUnderPos2 = reads.second.second[pos].rfind('_');
 			{
-				auto periodPos = reads.second.second[pos].find(".", lastUnderPos2);
+				auto periodPos = reads.second.second[pos].find('.', lastUnderPos2);
 				std::string pairNum = reads.second.second[pos].substr(lastUnderPos2 + 1,
 						periodPos - lastUnderPos2 - 1);
 				while ("R2" != pairNum && "2" != pairNum) {
 					//find next _ to try to determine read pairs designation
 					periodPos = lastUnderPos2;
-					lastUnderPos2 = reads.second.second[pos].rfind("_",
+					lastUnderPos2 = reads.second.second[pos].rfind('_',
 							lastUnderPos2 - 1);
 					pairNum = reads.second.second[pos].substr(lastUnderPos2 + 1,
 							periodPos - lastUnderPos2 - 1);
@@ -229,13 +229,13 @@ std::map<std::string, std::pair<VecStr, VecStr>> ReadPairsOrganizer::processRead
 			//check to see if they are empty
 			if(0 == bfs::file_size(reads.second.first[pos]) ||
 					0 == bfs::file_size(reads.second.second[pos])){
-				needToErrase.emplace_back(pos);
+				need_to_erase.emplace_back(pos);
 			}
 		}
-		if(!needToErrase.empty()){
+		if(!need_to_erase.empty()){
 			//sort the position so the last positions come first so positions don't get invalidated after erasing (back -> front errasing)
-			std::sort(needToErrase.rbegin(), needToErrase.rend());
-			for(const auto pos : needToErrase){
+			std::sort(need_to_erase.rbegin(), need_to_erase.rend());
+			for(const auto pos : need_to_erase){
 				reads.second.first.erase(reads.second.first.begin() + pos);
 				reads.second.second.erase(reads.second.second.begin() + pos);
 			}
