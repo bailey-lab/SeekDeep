@@ -24,7 +24,7 @@ int SeekDeepUtilsRunner::gatherInfoOnTargetedAmpliconSeqFile(
 	setUp.processVerbose();
 	setUp.processDebug();
 	tar_amp_pars.numberOfFilesToInvestigate = 20;
-	investPars.testNumber = 1000;
+	investPars.testNumber = 5000;
 	setUp.setOption(investPars.testNumber, "--testNumber", "Just use this number of reads of the top of the file");
 	setUp.setOption(tar_amp_pars.numberOfFilesToInvestigate, "--numberOfFilesToInvestigate", "Number of files to investigate when adding additional recommended flags", false, "Extra Commands");
 
@@ -32,7 +32,8 @@ int SeekDeepUtilsRunner::gatherInfoOnTargetedAmpliconSeqFile(
 			"Don't Collapse Possible MIDs", false);
 	setUp.setOption(investPars.unrecogBaseSampling, "--unrecogBaseSampling",
 			"Number of bases to sample from file for unrecognized sequences", false);
-
+	setUp.setOption(tar_amp_pars.extraExtractorCmds, "--extraExtractorCmds",
+			"Extra extractor cmds to add to the defaults", false, "Extra Commands");
 	setUp.setOption(investPars.precdingBaseFreqCutOff, "--precdingBaseFreqCutOff", "Preceding Base Freq Cut Off", false);
 	setUp.setOption(tar_amp_pars.numThreads, "--numThreads", "number of Threads to utilize", false);
 
@@ -184,8 +185,7 @@ int SeekDeepUtilsRunner::gatherInfoOnTargetedAmpliconSeqFile(
 			}
 		}
 		njh::concurrent::LockableQueue<SeqIOOptions> optsQueue(filesToInvestigate);
-		bool verbose = setUp.pars_.verbose_;
-		std::function<void()> investigateFile = [&optsQueue,&investPars,&masterInvesMut,&masterInvestigator,&investigate](){
+		std::function investigateFile = [&optsQueue,&investPars,&masterInvesMut,&masterInvestigator,&investigate](){
 			SeqIOOptions seqOpts;
 			TarAmpSeqInvestigator current_masterInvestigator(investPars);
 			while(optsQueue.getVal(seqOpts)){
@@ -212,15 +212,48 @@ int SeekDeepUtilsRunner::gatherInfoOnTargetedAmpliconSeqFile(
 	ss << "Has Possible Reverse Complement directed reads: " << njh::boolToStr(possibleRevComp) << std::endl;
 	ss << "Has Possible Random Preceding bases: " << njh::boolToStr(possiblePrecedingRandomeBases) << std::endl;
 	auto recFlags = masterInvestigator->recommendSeekDeepExtractorFlags();
+	VecStr flagsToAdd;
+	auto currentExtraExtractorCmds = njh::strToLowerRet(tar_amp_pars.extraExtractorCmds);
+
+	for(const auto & recFlag : recFlags){
+		auto rflag = njh::strToLowerRet(recFlag);
+		trimAtFirstWhitespace(rflag);
+		njh::lstrip(rflag, '-');
+		if(std::string::npos == currentExtraExtractorCmds.find(rflag)){
+			// std::cout << "recFlag: " << recFlag << std::endl;
+			// std::cout << "recFlag: " << recFlag << std::endl;
+
+			if(!(tar_amp_pars.techIsNanoporeOrPacbio() && "checkrevcomplementforprimers" == rflag) &&
+			!(tar_amp_pars.techIsNanoporeOrPacbio() && "checkrevcomplementformids" == rflag) &&
+			!(tar_amp_pars.techIsNanoporeOrPacbio() && njh::beginsWith(rflag, "midwithinstart") )) {
+				// std::cout << "rflag: " << rflag << std::endl;
+				flagsToAdd.emplace_back(recFlag);
+			}
+		} else {
+			if(setUp.pars_.verbose_){
+				std::cout << "Already have " << recFlag << " no need to add" << std::endl;
+			}
+		}
+	}
+	if(!flagsToAdd.empty()){
+		auto addingStr = njh::conToStr(flagsToAdd, " ");
+		if(setUp.pars_.verbose_){
+			std::cout << "Adding " << addingStr << std::endl;
+		}
+		tar_amp_pars.extraExtractorCmds.append(" ");
+		tar_amp_pars.extraExtractorCmds.append(addingStr);
+	}
 	if(!recFlags.empty()){
 		ss << "Recommended SeekDeep extractor additional flags: " << std::endl;
 		ss << njh::conToStr(recFlags, " ")<< std::endl;
 	} else {
 		ss << "No additional recommended SeekDeep extractor flags" << std::endl;
 	}
-
 	OutputStream outSeekDeepExtractorFlags(njh::files::make_path(setUp.pars_.directoryName_, "outSeekDeepExtractorFlags.txt"));
-	outSeekDeepExtractorFlags << njh::conToStr(recFlags, "\n") << std::endl;
+	outSeekDeepExtractorFlags << tar_amp_pars.extraExtractorCmds << std::endl;
+
+	OutputStream raw_outSeekDeepExtractorFlags(njh::files::make_path(setUp.pars_.directoryName_, "raw_outSeekDeepExtractorFlags.txt"));
+	raw_outSeekDeepExtractorFlags << njh::conToStr(recFlags, "\n") << std::endl;
 	//
 	OutputStream outSeekDeepMessage(njh::files::make_path(setUp.pars_.directoryName_, "message.txt"));
 	outSeekDeepMessage << ss.str();
