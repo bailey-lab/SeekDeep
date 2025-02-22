@@ -85,15 +85,15 @@ public:
 	};
 
 	explicit PrimersAndMids(const bfs::path & idFileFnp);
-	explicit PrimersAndMids(const std::unordered_map<std::string, Target> & targets);
+	explicit PrimersAndMids(const std::map<std::string, Target> & targets);
 
 
 	void checkIfMIdsOrPrimersReadInThrow(const std::string & funcName) const;
 
 	const bfs::path idFile_;
 
-	std::unordered_map<std::string, Target> targets_;
-	std::unordered_map<std::string, MidDeterminator::MID> mids_;
+	std::map<std::string, Target> targets_;
+	std::map<std::string, MidDeterminator::MID> mids_;
 
   std::unordered_map<std::string, std::unordered_set<uint64_t>> uniqueKmersPerTarget_;
 

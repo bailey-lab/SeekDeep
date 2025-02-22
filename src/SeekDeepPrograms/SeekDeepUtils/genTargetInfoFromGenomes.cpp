@@ -51,8 +51,6 @@ int SeekDeepUtilsRunner::genTargetInfoFromGenomes(const njh::progutils::CmdArgs 
 	}
 	ids.initPrimerDeterminator();
 
-
-
 	extractBetweenSeqs(ids, pars);
 
 	setUp.startARunLog(pars.outputDirPars.dirName_.string());
@@ -70,9 +68,6 @@ int SeekDeepUtilsRunner::genTargetInfoFromGenomes(const njh::progutils::CmdArgs 
 	OutOptions overlapStatusOpts(njh::files::make_path(forSeekDeepDir, "overlapStatuses.txt"));
 	OutputStream overlapStatusOut(overlapStatusOpts);
 	overlapStatusOut << "target\tstatus" << "\n";
-
-
-
 	for(const auto & tar : ids.getTargets()){
 		auto primersRemovedFnp = njh::files::make_path(pars.outputDirPars.dirName_, tar, tar + "_primersRemoved.fasta");
 		auto extractedSeqsFnp = njh::files::make_path(pars.outputDirPars.dirName_, tar, tar + ".fasta");
@@ -104,7 +99,7 @@ int SeekDeepUtilsRunner::genTargetInfoFromGenomes(const njh::progutils::CmdArgs 
 				uint32_t finalMaxSize = maxlen + pars.barcodeSize;
 				uint32_t finalMinSize = minlen + pars.barcodeSize;
 
-				uint32_t maxInsertSize = 2* pars.pairedEndLength - minOverlap;
+				uint32_t maxInsertSize = 2 * pars.pairedEndLength - minOverlap;
 
 				std::string status;
 				std::set<std::string> statuses;

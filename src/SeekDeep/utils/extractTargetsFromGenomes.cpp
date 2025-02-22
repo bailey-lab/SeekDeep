@@ -178,6 +178,7 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 		uint32_t forwardHits_{0};
 		uint32_t reverseHits_{0};
 		uint32_t extractCounts_{0};
+	  uint32_t bestExtractionCounts_{0};
 	};
 
 	std::unordered_map<std::string, GenExtracRes> genomeExtractionsResults;
@@ -391,114 +392,222 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
                 genomeExtracts[genome.first] = getPossibleGenomeExtracts(uniForRes, uniRevRes, extractPars.sizeLimit);
               }
             }
-            std::vector<seqInfo> refSeqs;
-            std::vector<seqInfo> refTrimmedSeqs;
+            std::vector<seqInfo> best_refSeqs;
+            std::vector<seqInfo> best_refTrimmedSeqs;
 
-            std::vector<seqInfo> allSeqs;
-            std::vector<seqInfo> allSeqsTrimmedSeqs;
+            std::vector<seqInfo> best_allSeqs;
+            std::vector<seqInfo> best_allSeqsTrimmedSeqs;
+
+            std::vector<seqInfo> all_refSeqs;
+            std::vector<seqInfo> all_refTrimmedSeqs;
+
+            std::vector<seqInfo> all_allSeqs;
+            std::vector<seqInfo> all_allSeqsTrimmedSeqs;
 
             for(auto & genome : genomeExtracts){
               if(genome.second.empty()){
                 continue;
               }
               genomeExtractionsResults[genome.first].extractCounts_ = genome.second.size();
-              OutputStream bedOut{OutOptions(njh::files::make_path(bedDirectory, genome.first + ".bed"))};
-              OutputStream bedInnerOut{OutOptions(njh::files::make_path(bedDirectory, genome.first + "_inner.bed"))};
-              uint32_t extractionCount = 0;
-              OutputStream regionInfoOut{OutOptions(njh::files::make_path(bedDirectory, genome.first + "_regionInfo.tab.txt"))};
-              regionInfoOut << "#chrom\tfullStart\tfullStop\tname\tlength\tstrand\tgenome\ttarget\tfPrimerStart\tfPrimerStop\terrorsInFPrimer\tinsertStart\tinsertStop\trPrimerStart\trPrimerStop\terrorsInRPrimer" << std::endl;
-              for(auto & extract : genome.second){
-                extract.setRegion();
+              uint32_t all_extractionCount = 0;
+              uint32_t best_extractionCount = 0;
 
-                auto name = genome.first;
-                if(0 != extractionCount){
-                  name.append("." + estd::to_string(extractionCount));
+              OutputStream all_bedOut{OutOptions(njh::files::make_path(bedDirectory, genome.first + "_all.bed"))};
+              OutputStream all_bedInnerOut{OutOptions(njh::files::make_path(bedDirectory, genome.first + "_inner_all.bed"))};
+              OutputStream all_regionInfoOut{OutOptions(njh::files::make_path(bedDirectory, genome.first + "_regionInfo_all.tab.txt"))};
+              OutputStream best_bedOut{OutOptions(njh::files::make_path(bedDirectory, genome.first + ".bed"))};
+              OutputStream best_bedInnerOut{OutOptions(njh::files::make_path(bedDirectory, genome.first + "_inner.bed"))};
+              OutputStream best_regionInfoOut{OutOptions(njh::files::make_path(bedDirectory, genome.first + "_regionInfo.tab.txt"))};
+              all_regionInfoOut << "#chrom\tfullStart\tfullStop\tname\tlength\tstrand\tgenome\ttarget\tfPrimerStart\tfPrimerStop\terrorsInFPrimer\tinsertStart\tinsertStop\trPrimerStart\trPrimerStop\terrorsInRPrimer" << std::endl;
+              best_regionInfoOut << "#chrom\tfullStart\tfullStop\tname\tlength\tstrand\tgenome\ttarget\tfPrimerStart\tfPrimerStop\terrorsInFPrimer\tinsertStart\tinsertStop\trPrimerStart\trPrimerStop\terrorsInRPrimer" << std::endl;
+              std::unordered_set<std::string> bestHits;
+              uint32_t bestHitPrimerErrorCount = std::numeric_limits<uint32_t>::max();
+              uint32_t minPerPrimerHit = std::numeric_limits<uint32_t>::max();
+
+              for(const auto & extract : genome.second){
+                uint32_t current_minPerPrimerHit = std::min(extract.extComp_.distances_.getNumOfEvents(true), extract.ligComp_.distances_.getNumOfEvents(true));
+                uint32_t current_primerErrorCount = extract.extComp_.distances_.getNumOfEvents(true) + extract.ligComp_.distances_.getNumOfEvents(true);
+
+                if (current_primerErrorCount < bestHitPrimerErrorCount ||
+                  (current_primerErrorCount==bestHitPrimerErrorCount && current_minPerPrimerHit < minPerPrimerHit)) {
+                  bestHits.clear();
+                  bestHits.emplace(extract.gRegion_->createUidFromCoordsStrand());
+                  bestHitPrimerErrorCount = current_primerErrorCount;
+                  minPerPrimerHit = current_minPerPrimerHit;
+                } else if (current_primerErrorCount == bestHitPrimerErrorCount && current_minPerPrimerHit == minPerPrimerHit) {
+                  bestHits.emplace(extract.gRegion_->createUidFromCoordsStrand());
                 }
-                MetaDataInName meta;
-                meta.addMeta("genome", genome.first);
-                meta.addMeta("target", target);
-                meta.addMeta("extractionCount", extractionCount);
+              }
+              for(auto & extract : genome.second){
+                bool inBest = njh::in(extract.gRegion_->createUidFromCoordsStrand(), bestHits);
+                auto best_name = genome.first;
+                auto all_name = genome.first;
+                if(0 != best_extractionCount){
+                  best_name.append("." + estd::to_string(best_extractionCount));
+                }
+                if(0 != all_extractionCount){
+                  all_name.append("." + estd::to_string(all_extractionCount));
+                }
+                MetaDataInName all_meta;
+                all_meta.addMeta("genome", genome.first);
+                all_meta.addMeta("target", primerInfo.primerPairName_);
+                all_meta.addMeta("extractionCount", all_extractionCount);
+                MetaDataInName best_meta;
+                best_meta.addMeta("genome", genome.first);
+                best_meta.addMeta("target", primerInfo.primerPairName_);
+                best_meta.addMeta("extractionCount", best_extractionCount);
 
-                name += " " + meta.createMetaName();
-                regionInfoOut << extract.gRegion_->chrom_
+                best_name += " " + best_meta.createMetaName();
+                all_name += " " + all_meta.createMetaName();
+                all_regionInfoOut << extract.gRegion_->chrom_
                               << "\t" << extract.gRegion_->start_
                               << "\t" << extract.gRegion_->end_
-                              << "\t" << name
+                              << "\t" << all_name
                               << "\t" << extract.gRegion_->getLen()
                               << "\t" << (extract.gRegion_->reverseSrand_ ? '-' : '+')
                               << "\t" << genome.first
                               << "\t" << target
-                              << "\t" << extract.extRegion_.start_
-                              << "\t" << extract.extRegion_.end_
-                              << "\t" << extract.extComp_.distances_.getNumOfEvents(true)
-                              << "\t" << extract.gRegionInner_->start_
-                              << "\t" << extract.gRegionInner_->end_
-                              << "\t" << extract.ligRegion_.start_
-                              << "\t" << extract.ligRegion_.end_
-                              << "\t" << extract.ligComp_.distances_.getNumOfEvents(true)
+                << "\t" << extract.extRegion_.start_
+                << "\t" << extract.extRegion_.end_
+                << "\t" << extract.extComp_.distances_.getNumOfEvents(true)
+                << "\t" << extract.gRegionInner_->start_
+                << "\t" << extract.gRegionInner_->end_
+                << "\t" << extract.ligRegion_.start_
+                << "\t" << extract.ligRegion_.end_
+                << "\t" << extract.ligComp_.distances_.getNumOfEvents(true)
                               << std::endl;
+                if (inBest) {
+                  best_regionInfoOut << extract.gRegion_->chrom_
+                    << "\t" << extract.gRegion_->start_
+                    << "\t" << extract.gRegion_->end_
+                    << "\t" << best_name
+                    << "\t" << extract.gRegion_->getLen()
+                    << "\t" << (extract.gRegion_->reverseSrand_ ? '-' : '+')
+                    << "\t" << genome.first
+                    << "\t" << target
+                  << "\t" << extract.extRegion_.start_
+                  << "\t" << extract.extRegion_.end_
+                  << "\t" << extract.extComp_.distances_.getNumOfEvents(true)
+                  << "\t" << extract.gRegionInner_->start_
+                  << "\t" << extract.gRegionInner_->end_
+                  << "\t" << extract.ligRegion_.start_
+                  << "\t" << extract.ligRegion_.end_
+                  << "\t" << extract.ligComp_.distances_.getNumOfEvents(true)
+                    << std::endl;
+                }
                 {
                   auto bedRegion = extract.gRegion_->genBedRecordCore();
-                  bedRegion.name_ = name;
-                  bedOut << bedRegion.toDelimStr() << std::endl;
+                  bedRegion.name_ = all_name;
+                  all_bedOut << bedRegion.toDelimStr() << std::endl;
+                  if (inBest) {
+                    bedRegion.name_ = best_name;
+                    best_bedOut << bedRegion.toDelimStr() << std::endl;
+                  }
                 }
                 {
                   auto bedRegion = extract.gRegionInner_->genBedRecordCore();
-                  bedRegion.name_ = name;
-                  bedInnerOut << bedRegion.toDelimStr() << std::endl;
+                  bedRegion.name_ = all_name;
+                  all_bedInnerOut << bedRegion.toDelimStr() << std::endl;
+                  if (inBest) {
+                    bedRegion.name_ = best_name;
+                    best_bedInnerOut << bedRegion.toDelimStr() << std::endl;
+                  }
                 }
 
                 TwoBit::TwoBitFile tReader(gMapper->genomes_.at(genome.first)->fnpTwoBit_);
-                auto eSeq = extract.gRegion_->extractSeq(tReader);
+
                 if(extractPars.shortNames){
-                  trimAtFirstWhitespace(name);
+                  trimAtFirstWhitespace(all_name);
+                  trimAtFirstWhitespace(best_name);
                 }
-                eSeq.name_ = name;
-                bool refFound = false;
-                allSeqs.emplace_back(eSeq);
-                for(auto & rSeq : refSeqs){
-                  if(rSeq.seq_ == eSeq.seq_){
-                    refFound = true;
-                    rSeq.name_.append("-" + eSeq.name_);
+                {
+                  auto eSeq = extract.gRegion_->extractSeq(tReader);
+                  eSeq.name_ = all_name;
+                  bool refFound = false;
+                  if(extractPars.writeOutAllSeqsFile){
+                    all_allSeqs.emplace_back(eSeq);
+                  }
+                  for(auto & rSeq : all_refSeqs){
+                    if(rSeq.seq_ == eSeq.seq_){
+                      refFound = true;
+                      rSeq.name_.append("-" + eSeq.name_);
+                    }
+                  }
+                  if(!refFound){
+                    all_refSeqs.emplace_back(eSeq);
+                  }
+                  bool trimmed_refFound = false;
+                  auto innerSeq = extract.gRegionInner_->extractSeq(tReader);
+                  innerSeq.name_ = all_name;
+                  if(extractPars.writeOutAllSeqsFile){
+                    all_allSeqsTrimmedSeqs.emplace_back(innerSeq);
+                  }
+                  for(auto & rSeq : all_refTrimmedSeqs){
+                    if(rSeq.seq_ == innerSeq.seq_){
+                      trimmed_refFound = true;
+                      rSeq.name_.append("-" + innerSeq.name_);
+                    }
+                  }
+                  if(!trimmed_refFound){
+                    all_refTrimmedSeqs.emplace_back(innerSeq);
                   }
                 }
-                if(!refFound){
-                  refSeqs.emplace_back(eSeq);
+                if (inBest){
+                  auto eSeq = extract.gRegion_->extractSeq(tReader);
+                  eSeq.name_ = best_name;
+                  bool refFound = false;
+                  if(extractPars.writeOutAllSeqsFile){
+                    best_allSeqs.emplace_back(eSeq);
+                  }
+                  for(auto & rSeq : best_refSeqs){
+                    if(rSeq.seq_ == eSeq.seq_){
+                      refFound = true;
+                      rSeq.name_.append("-" + eSeq.name_);
+                    }
+                  }
+                  if(!refFound){
+                    best_refSeqs.emplace_back(eSeq);
+                  }
+                  bool trimmed_refFound = false;
+                  auto innerSeq = extract.gRegionInner_->extractSeq(tReader);
+                  innerSeq.name_ = best_name;
+                  if(extractPars.writeOutAllSeqsFile){
+                    best_allSeqsTrimmedSeqs.emplace_back(innerSeq);
+                  }
+                  for(auto & rSeq : best_refTrimmedSeqs){
+                    if(rSeq.seq_ == innerSeq.seq_){
+                      trimmed_refFound = true;
+                      rSeq.name_.append("-" + innerSeq.name_);
+                    }
+                  }
+                  if(!trimmed_refFound){
+                    best_refTrimmedSeqs.emplace_back(innerSeq);
+                  }
                 }
 
-                bool trimmed_refFound = false;
-                auto innerSeq = extract.gRegionInner_->extractSeq(tReader);
-                innerSeq.name_ = name;
-                allSeqsTrimmedSeqs.emplace_back(innerSeq);
-                for(auto & rSeq : refTrimmedSeqs){
-                  if(rSeq.seq_ == innerSeq.seq_){
-                    trimmed_refFound = true;
-                    rSeq.name_.append("-" + innerSeq.name_);
-                  }
+                ++all_extractionCount;
+                if (inBest) {
+                  ++best_extractionCount;
                 }
-                if(!trimmed_refFound){
-                  refTrimmedSeqs.emplace_back(innerSeq);
-                }
-                ++extractionCount;
               }
+              genomeExtractionsResults[genome.first].bestExtractionCounts_ = best_extractionCount;
             }
-
-            if(!allSeqs.empty()){
-              auto fullSeqOpts = SeqIOOptions::genFastaOut(njh::files::make_path(primerDirectory, "separated_" + primerInfo.primerPairName_ +".fasta"));
-              SeqOutput::write(allSeqs, fullSeqOpts);
+            if(!all_allSeqs.empty()){
+              auto fullSeqOpts = SeqIOOptions::genFastaOut(njh::files::make_path(primerDirectory, "separated_" + target + "_all.fasta"));
+              SeqOutput::write(all_allSeqs, fullSeqOpts);
               //write out seq info
               std::unordered_map<std::string, std::string> allSeqsSeqToNameKeys;
               std::unordered_map<std::string, uint32_t> allSeqsCounts;
               std::unordered_map<std::string, std::set<std::string>> allSeqsNames;
 
-              for(const auto & allSeq : allSeqs){
+              for(const auto & allSeq : all_allSeqs){
                 ++allSeqsCounts[allSeq.seq_];
                 allSeqsNames[allSeq.seq_].emplace(allSeq.name_);
               }
-              for(const auto & refSeq : refSeqs){
+              for(const auto & refSeq : all_refSeqs){
                 allSeqsSeqToNameKeys[refSeq.seq_] = refSeq.name_;
               }
-              OutputStream collapsedSeqCountsOut(njh::files::make_path(primerDirectory, primerInfo.primerPairName_ + "_collapsed_counts.tab.txt"));
+              OutputStream collapsedSeqCountsOut(njh::files::make_path(primerDirectory, target + "_collapsed_counts_all.tab.txt"));
               VecStr allRefSeqNames = njh::getVecOfMapKeys(allSeqsSeqToNameKeys);
               //sort by counts
               njh::sort(allRefSeqNames,[&allSeqsCounts](const std::string & n1, const std::string & n2){
@@ -518,25 +627,66 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
                 }
               }
             }
-
-
-            if(!allSeqsTrimmedSeqs.empty()){
-              auto innerSeqOpts = SeqIOOptions::genFastaOut(njh::files::make_path(primerDirectory, "separated_" + primerInfo.primerPairName_ +"_primersRemoved.fasta"));
-              SeqOutput::write(allSeqsTrimmedSeqs, innerSeqOpts);
+            if(!all_allSeqsTrimmedSeqs.empty()){
+              auto innerSeqOpts = SeqIOOptions::genFastaOut(njh::files::make_path(primerDirectory, "separated_" + target +"_primersRemoved_all.fasta"));
+              SeqOutput::write(all_allSeqsTrimmedSeqs, innerSeqOpts);
 
               //write out seq info
               std::unordered_map<std::string, std::string> allSeqsSeqToNameKeys;
               std::unordered_map<std::string, uint32_t> allSeqsCounts;
               std::unordered_map<std::string, std::set<std::string>> allSeqsNames;
 
-              for(const auto & allSeq : allSeqsTrimmedSeqs){
+              for(const auto & allSeq : all_allSeqsTrimmedSeqs){
                 ++allSeqsCounts[allSeq.seq_];
                 allSeqsNames[allSeq.seq_].emplace(allSeq.name_);
               }
-              for(const auto & refSeq : refTrimmedSeqs){
+              for(const auto & refSeq : all_refTrimmedSeqs){
                 allSeqsSeqToNameKeys[refSeq.seq_] = refSeq.name_;
               }
-              OutputStream collapsedSeqCountsOut(njh::files::make_path(primerDirectory, primerInfo.primerPairName_ + "_primersRemoved_collapsed_counts.tab.txt"));
+              OutputStream collapsedSeqCountsOut(njh::files::make_path(primerDirectory, target + "_primersRemoved_collapsed_counts_all.tab.txt"));
+              VecStr allRefSeqNames = njh::getVecOfMapKeys(allSeqsSeqToNameKeys);
+              //sort by counts
+              njh::sort(allRefSeqNames,[&allSeqsCounts](const std::string & n1, const std::string & n2){
+                if(allSeqsCounts[n1] == allSeqsCounts[n2]){
+                  return n1 < n2;
+                } else {
+                  return allSeqsCounts[n1] > allSeqsCounts[n2];
+                }
+              });
+              collapsedSeqCountsOut << "collapsedName\tcount\textractedName" << std::endl;
+              for(const auto & name : allRefSeqNames){
+                for(const auto & eName : allSeqsNames[name]){
+                  collapsedSeqCountsOut
+                      << allSeqsSeqToNameKeys[name]
+                      << "\t" << allSeqsCounts[name]
+                      << "\t" << eName << std::endl;
+                }
+              }
+            }
+            if(!all_refSeqs.empty()){
+              auto fullSeqOpts = SeqIOOptions::genFastaOut(njh::files::make_path(primerDirectory, target +"_all.fasta"));
+              SeqOutput::write(all_refSeqs, fullSeqOpts);
+            }
+            if(!all_refTrimmedSeqs.empty()){
+              auto innerSeqOpts = SeqIOOptions::genFastaOut(njh::files::make_path(primerDirectory, target +"_primersRemoved_all.fasta"));
+              SeqOutput::write(all_refTrimmedSeqs, innerSeqOpts);
+            }
+            if(!best_allSeqs.empty()){
+              auto fullSeqOpts = SeqIOOptions::genFastaOut(njh::files::make_path(primerDirectory, "separated_" + target +".fasta"));
+              SeqOutput::write(best_allSeqs, fullSeqOpts);
+              //write out seq info
+              std::unordered_map<std::string, std::string> allSeqsSeqToNameKeys;
+              std::unordered_map<std::string, uint32_t> allSeqsCounts;
+              std::unordered_map<std::string, std::set<std::string>> allSeqsNames;
+
+              for(const auto & allSeq : best_allSeqs){
+                ++allSeqsCounts[allSeq.seq_];
+                allSeqsNames[allSeq.seq_].emplace(allSeq.name_);
+              }
+              for(const auto & refSeq : best_refSeqs){
+                allSeqsSeqToNameKeys[refSeq.seq_] = refSeq.name_;
+              }
+              OutputStream collapsedSeqCountsOut(njh::files::make_path(primerDirectory, target + "_collapsed_counts.tab.txt"));
               VecStr allRefSeqNames = njh::getVecOfMapKeys(allSeqsSeqToNameKeys);
               //sort by counts
               njh::sort(allRefSeqNames,[&allSeqsCounts](const std::string & n1, const std::string & n2){
@@ -556,26 +706,61 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
                 }
               }
             }
+            if(!best_allSeqsTrimmedSeqs.empty()){
+              auto innerSeqOpts = SeqIOOptions::genFastaOut(njh::files::make_path(primerDirectory, "separated_" + target +"_primersRemoved.fasta"));
+              SeqOutput::write(best_allSeqsTrimmedSeqs, innerSeqOpts);
 
+              //write out seq info
+              std::unordered_map<std::string, std::string> allSeqsSeqToNameKeys;
+              std::unordered_map<std::string, uint32_t> allSeqsCounts;
+              std::unordered_map<std::string, std::set<std::string>> allSeqsNames;
 
-            if(!refSeqs.empty()){
-              auto fullSeqOpts = SeqIOOptions::genFastaOut(njh::files::make_path(primerDirectory, primerInfo.primerPairName_ +".fasta"));
-              SeqOutput::write(refSeqs, fullSeqOpts);
+              for(const auto & allSeq : best_allSeqsTrimmedSeqs){
+                ++allSeqsCounts[allSeq.seq_];
+                allSeqsNames[allSeq.seq_].emplace(allSeq.name_);
+              }
+              for(const auto & refSeq : best_refTrimmedSeqs){
+                allSeqsSeqToNameKeys[refSeq.seq_] = refSeq.name_;
+              }
+              OutputStream collapsedSeqCountsOut(njh::files::make_path(primerDirectory, target + "_primersRemoved_collapsed_counts.tab.txt"));
+              VecStr allRefSeqNames = njh::getVecOfMapKeys(allSeqsSeqToNameKeys);
+              //sort by counts
+              njh::sort(allRefSeqNames,[&allSeqsCounts](const std::string & n1, const std::string & n2){
+                if(allSeqsCounts[n1] == allSeqsCounts[n2]){
+                  return n1 < n2;
+                } else {
+                  return allSeqsCounts[n1] > allSeqsCounts[n2];
+                }
+              });
+              collapsedSeqCountsOut << "collapsedName\tcount\textractedName" << std::endl;
+              for(const auto & name : allRefSeqNames){
+                for(const auto & eName : allSeqsNames[name]){
+                  collapsedSeqCountsOut
+                      << allSeqsSeqToNameKeys[name]
+                      << "\t" << allSeqsCounts[name]
+                      << "\t" << eName << std::endl;
+                }
+              }
             }
-            if(!refTrimmedSeqs.empty()){
-              auto innerSeqOpts = SeqIOOptions::genFastaOut(njh::files::make_path(primerDirectory, primerInfo.primerPairName_ +"_primersRemoved.fasta"));
-              SeqOutput::write(refTrimmedSeqs, innerSeqOpts);
+            if(!best_refSeqs.empty()){
+              auto fullSeqOpts = SeqIOOptions::genFastaOut(njh::files::make_path(primerDirectory, target +".fasta"));
+              SeqOutput::write(best_refSeqs, fullSeqOpts);
+            }
+            if(!best_refTrimmedSeqs.empty()){
+              auto innerSeqOpts = SeqIOOptions::genFastaOut(njh::files::make_path(primerDirectory, target +"_primersRemoved.fasta"));
+              SeqOutput::write(best_refTrimmedSeqs, innerSeqOpts);
             }
 
-            table performanceTab(VecStr{"genome", "forwardPrimerHits", "reversePrimerHits", "extractionCounts", "target"});
+            table performanceTab(VecStr{"genome", "forwardPrimerHits", "reversePrimerHits", "extractionCounts", "allExtractionCounts", "target"});
             auto genomeKeys = getVectorOfMapKeys(genomeExtractionsResults);
             njh::sort(genomeKeys);
             for(const auto & genomeKey : genomeKeys){
               performanceTab.addRow(genomeKey,
                                     genomeExtractionsResults[genomeKey].forwardHits_,
                                     genomeExtractionsResults[genomeKey].reverseHits_,
+                                    genomeExtractionsResults[genomeKey].bestExtractionCounts_,
                                     genomeExtractionsResults[genomeKey].extractCounts_,
-                                    primerInfo.primerPairName_);
+                                    target);
             }
             auto perTabOpts = TableIOOpts::genTabFileOut(njh::files::make_path(primerDirectory, "extractionCounts"),true);
             performanceTab.outPutContents(perTabOpts);
@@ -967,40 +1152,81 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
             primerLocationsOut << bedOut.toDelimStrWithExtra() << std::endl;
           }
         }
-        std::vector<seqInfo> refSeqs;
-        std::vector<seqInfo> refTrimmedSeqs;
+        std::vector<seqInfo> best_refSeqs;
+        std::vector<seqInfo> best_refTrimmedSeqs;
 
-        std::vector<seqInfo> allSeqs;
-        std::vector<seqInfo> allSeqsTrimmedSeqs;
+        std::vector<seqInfo> best_allSeqs;
+        std::vector<seqInfo> best_allSeqsTrimmedSeqs;
+
+        std::vector<seqInfo> all_refSeqs;
+        std::vector<seqInfo> all_refTrimmedSeqs;
+
+        std::vector<seqInfo> all_allSeqs;
+        std::vector<seqInfo> all_allSeqsTrimmedSeqs;
 
         for(auto & genome : target.second){
           if(genome.second.regions_.empty()){
             continue;
           }
           genomeExtractionsResults[genome.first].extractCounts_ = genome.second.regions_.size();
-          OutputStream bedOut{OutOptions(njh::files::make_path(bedDirectory, genome.first + ".bed"))};
-          OutputStream bedInnerOut{OutOptions(njh::files::make_path(bedDirectory, genome.first + "_inner.bed"))};
-          uint32_t extractionCount = 0;
-          OutputStream regionInfoOut{OutOptions(njh::files::make_path(bedDirectory, genome.first + "_regionInfo.tab.txt"))};
-          regionInfoOut << "#chrom\tfullStart\tfullStop\tname\tlength\tstrand\tgenome\ttarget\tfPrimerStart\tfPrimerStop\terrorsInFPrimer\tinsertStart\tinsertStop\trPrimerStart\trPrimerStop\terrorsInRPrimer" << std::endl;
-          for(auto & extract : genome.second.regions_){
-            auto name = genome.first;
-            if(0 != extractionCount){
-              name.append("." + estd::to_string(extractionCount));
+          uint32_t all_extractionCount = 0;
+          uint32_t best_extractionCount = 0;
+
+          OutputStream all_bedOut{OutOptions(njh::files::make_path(bedDirectory, genome.first + "_all.bed"))};
+          OutputStream all_bedInnerOut{OutOptions(njh::files::make_path(bedDirectory, genome.first + "_inner_all.bed"))};
+          OutputStream all_regionInfoOut{OutOptions(njh::files::make_path(bedDirectory, genome.first + "_regionInfo_all.tab.txt"))};
+          OutputStream best_bedOut{OutOptions(njh::files::make_path(bedDirectory, genome.first + ".bed"))};
+          OutputStream best_bedInnerOut{OutOptions(njh::files::make_path(bedDirectory, genome.first + "_inner.bed"))};
+          OutputStream best_regionInfoOut{OutOptions(njh::files::make_path(bedDirectory, genome.first + "_regionInfo.tab.txt"))};
+          all_regionInfoOut << "#chrom\tfullStart\tfullStop\tname\tlength\tstrand\tgenome\ttarget\tfPrimerStart\tfPrimerStop\terrorsInFPrimer\tinsertStart\tinsertStop\trPrimerStart\trPrimerStop\terrorsInRPrimer" << std::endl;
+          best_regionInfoOut << "#chrom\tfullStart\tfullStop\tname\tlength\tstrand\tgenome\ttarget\tfPrimerStart\tfPrimerStop\terrorsInFPrimer\tinsertStart\tinsertStop\trPrimerStart\trPrimerStop\terrorsInRPrimer" << std::endl;
+          std::unordered_set<std::string> bestHits;
+          uint32_t bestHitPrimerErrorCount = std::numeric_limits<uint32_t>::max();
+          uint32_t minPerPrimerHit = std::numeric_limits<uint32_t>::max();
+
+          for(auto & extract : genome.second.regions_) {
+            auto fPrimerMeta = MetaDataInName(extract.fPrimerReg_.uid_.substr(extract.fPrimerReg_.uid_.rfind('[')));
+            auto rPrimerMeta = MetaDataInName(extract.rPrimerReg_.uid_.substr(extract.rPrimerReg_.uid_.rfind('[')));
+            uint32_t current_primerErrorCount = fPrimerMeta.getMeta<uint32_t>("errors") + rPrimerMeta.getMeta<uint32_t>("errors");
+            uint32_t current_minPerPrimerHit = std::min(fPrimerMeta.getMeta<uint32_t>("errors"), rPrimerMeta.getMeta<uint32_t>("errors"));
+            if (current_primerErrorCount < bestHitPrimerErrorCount ||
+              (current_primerErrorCount==bestHitPrimerErrorCount && current_minPerPrimerHit < minPerPrimerHit)) {
+              bestHits.clear();
+              bestHits.emplace(extract.gRegion_->createUidFromCoordsStrand());
+              bestHitPrimerErrorCount = current_primerErrorCount;
+              minPerPrimerHit = current_minPerPrimerHit;
+            } else if (current_primerErrorCount == bestHitPrimerErrorCount && current_minPerPrimerHit == minPerPrimerHit) {
+              bestHits.emplace(extract.gRegion_->createUidFromCoordsStrand());
             }
-            MetaDataInName meta;
-            meta.addMeta("genome", genome.first);
-            meta.addMeta("target", target.first);
-            meta.addMeta("extractionCount", extractionCount);
+          }
+          for(auto & extract : genome.second.regions_){
+            bool inBest = njh::in(extract.gRegion_->createUidFromCoordsStrand(), bestHits);
+            auto best_name = genome.first;
+            auto all_name = genome.first;
+            if(0 != best_extractionCount){
+              best_name.append("." + estd::to_string(best_extractionCount));
+            }
+            if(0 != all_extractionCount){
+              all_name.append("." + estd::to_string(all_extractionCount));
+            }
+            MetaDataInName all_meta;
+            all_meta.addMeta("genome", genome.first);
+            all_meta.addMeta("target", target.first);
+            all_meta.addMeta("extractionCount", all_extractionCount);
+            MetaDataInName best_meta;
+            best_meta.addMeta("genome", genome.first);
+            best_meta.addMeta("target", target.first);
+            best_meta.addMeta("extractionCount", best_extractionCount);
 
-            name += " " + meta.createMetaName();
-            auto fPrimerMeta = MetaDataInName(extract.fPrimerReg_.uid_.substr(extract.fPrimerReg_.uid_.rfind("[")));
-            auto rPrimerMeta = MetaDataInName(extract.rPrimerReg_.uid_.substr(extract.rPrimerReg_.uid_.rfind("[")));
+            best_name += " " + best_meta.createMetaName();
+            all_name += " " + all_meta.createMetaName();
+            auto fPrimerMeta = MetaDataInName(extract.fPrimerReg_.uid_.substr(extract.fPrimerReg_.uid_.rfind('[')));
+            auto rPrimerMeta = MetaDataInName(extract.rPrimerReg_.uid_.substr(extract.rPrimerReg_.uid_.rfind('[')));
 
-            regionInfoOut << extract.gRegion_->chrom_
+            all_regionInfoOut << extract.gRegion_->chrom_
                           << "\t" << extract.gRegion_->start_
                           << "\t" << extract.gRegion_->end_
-                          << "\t" << name
+                          << "\t" << all_name
                           << "\t" << extract.gRegion_->getLen()
                           << "\t" << (extract.gRegion_->reverseSrand_ ? '-' : '+')
                           << "\t" << genome.first
@@ -1014,81 +1240,289 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
                           << "\t" << extract.rPrimerReg_.end_
                           << "\t" << rPrimerMeta.getMeta("errors")
                           << std::endl;
+            if (inBest) {
+              best_regionInfoOut << extract.gRegion_->chrom_
+                << "\t" << extract.gRegion_->start_
+                << "\t" << extract.gRegion_->end_
+                << "\t" << best_name
+                << "\t" << extract.gRegion_->getLen()
+                << "\t" << (extract.gRegion_->reverseSrand_ ? '-' : '+')
+                << "\t" << genome.first
+                << "\t" << target.first
+                << "\t" << extract.fPrimerReg_.start_
+                << "\t" << extract.fPrimerReg_.end_
+                << "\t" << fPrimerMeta.getMeta("errors")
+                << "\t" << extract.gRegionInner_->start_
+                << "\t" << extract.gRegionInner_->end_
+                << "\t" << extract.rPrimerReg_.start_
+                << "\t" << extract.rPrimerReg_.end_
+                << "\t" << rPrimerMeta.getMeta("errors")
+                << std::endl;
+            }
             {
               auto bedRegion = extract.gRegion_->genBedRecordCore();
-              bedRegion.name_ = name;
-              bedOut << bedRegion.toDelimStr() << std::endl;
+              bedRegion.name_ = all_name;
+              all_bedOut << bedRegion.toDelimStr() << std::endl;
+              if (inBest) {
+                bedRegion.name_ = best_name;
+                best_bedOut << bedRegion.toDelimStr() << std::endl;
+              }
             }
             {
               auto bedRegion = extract.gRegionInner_->genBedRecordCore();
-              bedRegion.name_ = name;
-              bedInnerOut << bedRegion.toDelimStr() << std::endl;
+              bedRegion.name_ = all_name;
+              all_bedInnerOut << bedRegion.toDelimStr() << std::endl;
+              if (inBest) {
+                bedRegion.name_ = best_name;
+                best_bedInnerOut << bedRegion.toDelimStr() << std::endl;
+              }
             }
 
             TwoBit::TwoBitFile tReader(gMapper->genomes_.at(genome.first)->fnpTwoBit_);
-            auto eSeq = extract.gRegion_->extractSeq(tReader);
+
             if(extractPars.shortNames){
-              trimAtFirstWhitespace(name);
+              trimAtFirstWhitespace(all_name);
+              trimAtFirstWhitespace(best_name);
             }
-            eSeq.name_ = name;
-            bool refFound = false;
-            if(extractPars.writeOutAllSeqsFile){
-              allSeqs.emplace_back(eSeq);
-            }
-            for(auto & rSeq : refSeqs){
-              if(rSeq.seq_ == eSeq.seq_){
-                refFound = true;
-                rSeq.name_.append("-" + eSeq.name_);
+            {
+              auto eSeq = extract.gRegion_->extractSeq(tReader);
+              eSeq.name_ = all_name;
+              bool refFound = false;
+              if(extractPars.writeOutAllSeqsFile){
+                all_allSeqs.emplace_back(eSeq);
+              }
+              for(auto & rSeq : all_refSeqs){
+                if(rSeq.seq_ == eSeq.seq_){
+                  refFound = true;
+                  rSeq.name_.append("-" + eSeq.name_);
+                }
+              }
+              if(!refFound){
+                all_refSeqs.emplace_back(eSeq);
+              }
+              bool trimmed_refFound = false;
+              auto innerSeq = extract.gRegionInner_->extractSeq(tReader);
+              innerSeq.name_ = all_name;
+              if(extractPars.writeOutAllSeqsFile){
+                all_allSeqsTrimmedSeqs.emplace_back(innerSeq);
+              }
+              for(auto & rSeq : all_refTrimmedSeqs){
+                if(rSeq.seq_ == innerSeq.seq_){
+                  trimmed_refFound = true;
+                  rSeq.name_.append("-" + innerSeq.name_);
+                }
+              }
+              if(!trimmed_refFound){
+                all_refTrimmedSeqs.emplace_back(innerSeq);
               }
             }
-            if(!refFound){
-              refSeqs.emplace_back(eSeq);
+            if (inBest){
+              auto eSeq = extract.gRegion_->extractSeq(tReader);
+              eSeq.name_ = best_name;
+              bool refFound = false;
+              if(extractPars.writeOutAllSeqsFile){
+                best_allSeqs.emplace_back(eSeq);
+              }
+              for(auto & rSeq : best_refSeqs){
+                if(rSeq.seq_ == eSeq.seq_){
+                  refFound = true;
+                  rSeq.name_.append("-" + eSeq.name_);
+                }
+              }
+              if(!refFound){
+                best_refSeqs.emplace_back(eSeq);
+              }
+              bool trimmed_refFound = false;
+              auto innerSeq = extract.gRegionInner_->extractSeq(tReader);
+              innerSeq.name_ = best_name;
+              if(extractPars.writeOutAllSeqsFile){
+                best_allSeqsTrimmedSeqs.emplace_back(innerSeq);
+              }
+              for(auto & rSeq : best_refTrimmedSeqs){
+                if(rSeq.seq_ == innerSeq.seq_){
+                  trimmed_refFound = true;
+                  rSeq.name_.append("-" + innerSeq.name_);
+                }
+              }
+              if(!trimmed_refFound){
+                best_refTrimmedSeqs.emplace_back(innerSeq);
+              }
             }
 
-            bool trimmed_refFound = false;
-            auto innerSeq = extract.gRegionInner_->extractSeq(tReader);
-            innerSeq.name_ = name;
-            if(extractPars.writeOutAllSeqsFile){
-              allSeqsTrimmedSeqs.emplace_back(innerSeq);
+            ++all_extractionCount;
+            if (inBest) {
+              ++best_extractionCount;
             }
-            for(auto & rSeq : refTrimmedSeqs){
-              if(rSeq.seq_ == innerSeq.seq_){
-                trimmed_refFound = true;
-                rSeq.name_.append("-" + innerSeq.name_);
-              }
+          }
+          genomeExtractionsResults[genome.first].bestExtractionCounts_ = best_extractionCount;
+        }
+        if(!all_allSeqs.empty()){
+          auto fullSeqOpts = SeqIOOptions::genFastaOut(njh::files::make_path(primerDirectory, "separated_" + target.first + "_all.fasta"));
+          SeqOutput::write(all_allSeqs, fullSeqOpts);
+          //write out seq info
+          std::unordered_map<std::string, std::string> allSeqsSeqToNameKeys;
+          std::unordered_map<std::string, uint32_t> allSeqsCounts;
+          std::unordered_map<std::string, std::set<std::string>> allSeqsNames;
+
+          for(const auto & allSeq : all_allSeqs){
+            ++allSeqsCounts[allSeq.seq_];
+            allSeqsNames[allSeq.seq_].emplace(allSeq.name_);
+          }
+          for(const auto & refSeq : all_refSeqs){
+            allSeqsSeqToNameKeys[refSeq.seq_] = refSeq.name_;
+          }
+          OutputStream collapsedSeqCountsOut(njh::files::make_path(primerDirectory, target.first + "_collapsed_counts_all.tab.txt"));
+          VecStr allRefSeqNames = njh::getVecOfMapKeys(allSeqsSeqToNameKeys);
+          //sort by counts
+          njh::sort(allRefSeqNames,[&allSeqsCounts](const std::string & n1, const std::string & n2){
+            if(allSeqsCounts[n1] == allSeqsCounts[n2]){
+              return n1 < n2;
+            }else{
+              return allSeqsCounts[n1] > allSeqsCounts[n2];
             }
-            if(!trimmed_refFound){
-              refTrimmedSeqs.emplace_back(innerSeq);
+          });
+          collapsedSeqCountsOut << "collapsedName\tcount\textractedName" << std::endl;
+          for(const auto & name : allRefSeqNames){
+            for(const auto & eName : allSeqsNames[name]){
+              collapsedSeqCountsOut
+                  << allSeqsSeqToNameKeys[name]
+                  << "\t" << allSeqsCounts[name]
+                  << "\t" << eName << std::endl;
             }
-            ++extractionCount;
           }
         }
+        if(!all_allSeqsTrimmedSeqs.empty()){
+          auto innerSeqOpts = SeqIOOptions::genFastaOut(njh::files::make_path(primerDirectory, "separated_" + target.first +"_primersRemoved_all.fasta"));
+          SeqOutput::write(all_allSeqsTrimmedSeqs, innerSeqOpts);
 
-        if(!allSeqs.empty()){
-          auto fullSeqOpts = SeqIOOptions::genFastaOut(njh::files::make_path(primerDirectory, "all_" + target.first +".fasta"));
-          SeqOutput::write(allSeqs, fullSeqOpts);
-        }
-        if(!allSeqsTrimmedSeqs.empty()){
-          auto innerSeqOpts = SeqIOOptions::genFastaOut(njh::files::make_path(primerDirectory, "all_" + target.first +"_primersRemoved.fasta"));
-          SeqOutput::write(allSeqsTrimmedSeqs, innerSeqOpts);
-        }
+          //write out seq info
+          std::unordered_map<std::string, std::string> allSeqsSeqToNameKeys;
+          std::unordered_map<std::string, uint32_t> allSeqsCounts;
+          std::unordered_map<std::string, std::set<std::string>> allSeqsNames;
 
-        if(!refSeqs.empty()){
+          for(const auto & allSeq : all_allSeqsTrimmedSeqs){
+            ++allSeqsCounts[allSeq.seq_];
+            allSeqsNames[allSeq.seq_].emplace(allSeq.name_);
+          }
+          for(const auto & refSeq : all_refTrimmedSeqs){
+            allSeqsSeqToNameKeys[refSeq.seq_] = refSeq.name_;
+          }
+          OutputStream collapsedSeqCountsOut(njh::files::make_path(primerDirectory, target.first + "_primersRemoved_collapsed_counts_all.tab.txt"));
+          VecStr allRefSeqNames = njh::getVecOfMapKeys(allSeqsSeqToNameKeys);
+          //sort by counts
+          njh::sort(allRefSeqNames,[&allSeqsCounts](const std::string & n1, const std::string & n2){
+            if(allSeqsCounts[n1] == allSeqsCounts[n2]){
+              return n1 < n2;
+            } else {
+              return allSeqsCounts[n1] > allSeqsCounts[n2];
+            }
+          });
+          collapsedSeqCountsOut << "collapsedName\tcount\textractedName" << std::endl;
+          for(const auto & name : allRefSeqNames){
+            for(const auto & eName : allSeqsNames[name]){
+              collapsedSeqCountsOut
+                  << allSeqsSeqToNameKeys[name]
+                  << "\t" << allSeqsCounts[name]
+                  << "\t" << eName << std::endl;
+            }
+          }
+        }
+        if(!all_refSeqs.empty()){
+          auto fullSeqOpts = SeqIOOptions::genFastaOut(njh::files::make_path(primerDirectory, target.first +"_all.fasta"));
+          SeqOutput::write(all_refSeqs, fullSeqOpts);
+        }
+        if(!all_refTrimmedSeqs.empty()){
+          auto innerSeqOpts = SeqIOOptions::genFastaOut(njh::files::make_path(primerDirectory, target.first +"_primersRemoved_all.fasta"));
+          SeqOutput::write(all_refTrimmedSeqs, innerSeqOpts);
+        }
+        if(!best_allSeqs.empty()){
+          auto fullSeqOpts = SeqIOOptions::genFastaOut(njh::files::make_path(primerDirectory, "separated_" + target.first +".fasta"));
+          SeqOutput::write(best_allSeqs, fullSeqOpts);
+          //write out seq info
+          std::unordered_map<std::string, std::string> allSeqsSeqToNameKeys;
+          std::unordered_map<std::string, uint32_t> allSeqsCounts;
+          std::unordered_map<std::string, std::set<std::string>> allSeqsNames;
+
+          for(const auto & allSeq : best_allSeqs){
+            ++allSeqsCounts[allSeq.seq_];
+            allSeqsNames[allSeq.seq_].emplace(allSeq.name_);
+          }
+          for(const auto & refSeq : best_refSeqs){
+            allSeqsSeqToNameKeys[refSeq.seq_] = refSeq.name_;
+          }
+          OutputStream collapsedSeqCountsOut(njh::files::make_path(primerDirectory, target.first + "_collapsed_counts.tab.txt"));
+          VecStr allRefSeqNames = njh::getVecOfMapKeys(allSeqsSeqToNameKeys);
+          //sort by counts
+          njh::sort(allRefSeqNames,[&allSeqsCounts](const std::string & n1, const std::string & n2){
+            if(allSeqsCounts[n1] == allSeqsCounts[n2]){
+              return n1 < n2;
+            }else{
+              return allSeqsCounts[n1] > allSeqsCounts[n2];
+            }
+          });
+          collapsedSeqCountsOut << "collapsedName\tcount\textractedName" << std::endl;
+          for(const auto & name : allRefSeqNames){
+            for(const auto & eName : allSeqsNames[name]){
+              collapsedSeqCountsOut
+                  << allSeqsSeqToNameKeys[name]
+                  << "\t" << allSeqsCounts[name]
+                  << "\t" << eName << std::endl;
+            }
+          }
+        }
+        if(!best_allSeqsTrimmedSeqs.empty()){
+          auto innerSeqOpts = SeqIOOptions::genFastaOut(njh::files::make_path(primerDirectory, "separated_" + target.first +"_primersRemoved.fasta"));
+          SeqOutput::write(best_allSeqsTrimmedSeqs, innerSeqOpts);
+
+          //write out seq info
+          std::unordered_map<std::string, std::string> allSeqsSeqToNameKeys;
+          std::unordered_map<std::string, uint32_t> allSeqsCounts;
+          std::unordered_map<std::string, std::set<std::string>> allSeqsNames;
+
+          for(const auto & allSeq : best_allSeqsTrimmedSeqs){
+            ++allSeqsCounts[allSeq.seq_];
+            allSeqsNames[allSeq.seq_].emplace(allSeq.name_);
+          }
+          for(const auto & refSeq : best_refTrimmedSeqs){
+            allSeqsSeqToNameKeys[refSeq.seq_] = refSeq.name_;
+          }
+          OutputStream collapsedSeqCountsOut(njh::files::make_path(primerDirectory, target.first + "_primersRemoved_collapsed_counts.tab.txt"));
+          VecStr allRefSeqNames = njh::getVecOfMapKeys(allSeqsSeqToNameKeys);
+          //sort by counts
+          njh::sort(allRefSeqNames,[&allSeqsCounts](const std::string & n1, const std::string & n2){
+            if(allSeqsCounts[n1] == allSeqsCounts[n2]){
+              return n1 < n2;
+            } else {
+              return allSeqsCounts[n1] > allSeqsCounts[n2];
+            }
+          });
+          collapsedSeqCountsOut << "collapsedName\tcount\textractedName" << std::endl;
+          for(const auto & name : allRefSeqNames){
+            for(const auto & eName : allSeqsNames[name]){
+              collapsedSeqCountsOut
+                  << allSeqsSeqToNameKeys[name]
+                  << "\t" << allSeqsCounts[name]
+                  << "\t" << eName << std::endl;
+            }
+          }
+        }
+        if(!best_refSeqs.empty()){
           auto fullSeqOpts = SeqIOOptions::genFastaOut(njh::files::make_path(primerDirectory, target.first +".fasta"));
-          SeqOutput::write(refSeqs, fullSeqOpts);
+          SeqOutput::write(best_refSeqs, fullSeqOpts);
         }
-        if(!refTrimmedSeqs.empty()){
+        if(!best_refTrimmedSeqs.empty()){
           auto innerSeqOpts = SeqIOOptions::genFastaOut(njh::files::make_path(primerDirectory, target.first +"_primersRemoved.fasta"));
-          SeqOutput::write(refTrimmedSeqs, innerSeqOpts);
+          SeqOutput::write(best_refTrimmedSeqs, innerSeqOpts);
         }
 
-        table performanceTab(VecStr{"genome", "forwardPrimerHits", "reversePrimerHits", "extractionCounts", "target"});
+        table performanceTab(VecStr{"genome", "forwardPrimerHits", "reversePrimerHits", "extractionCounts", "allExtractionCounts", "target"});
         auto genomeKeys = getVectorOfMapKeys(genomeExtractionsResults);
         njh::sort(genomeKeys);
         for(const auto & genomeKey : genomeKeys){
           performanceTab.addRow(genomeKey,
                                 genomeExtractionsResults[genomeKey].forwardHits_,
                                 genomeExtractionsResults[genomeKey].reverseHits_,
+                                genomeExtractionsResults[genomeKey].bestExtractionCounts_,
                                 genomeExtractionsResults[genomeKey].extractCounts_,
                                 target.first);
         }
@@ -1198,10 +1632,6 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
                   bedOut.name_ = njh::pasteAsStr(target, "-reversePrimer[errors=", revRes->comp_.distances_.getNumOfEvents(true), ";]");
                   primerLocationsOut << bedOut.toDelimStrWithExtra() << std::endl;
                 }
-//                std::cout << __FILE__ << " : " << __LINE__ << " : " << __PRETTY_FUNCTION__ << std::endl;
-//                std::cout << "forResults.size(): " << forResults.size() << std::endl;
-//                std::cout << "revResults.size(): " << revResults.size() << std::endl;
-
                 genomeExtractionsResults[genome.first].forwardHits_ = forResults.size();
                 genomeExtractionsResults[genome.first].reverseHits_ = revResults.size();
                 if(!forResults.empty() && !revResults.empty()){
@@ -1210,114 +1640,222 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
                   genomeExtracts[genome.first] = getPossibleGenomeExtracts(uniForRes, uniRevRes, extractPars.sizeLimit);
                 }
               }
-              std::vector<seqInfo> refSeqs;
-              std::vector<seqInfo> refTrimmedSeqs;
+              std::vector<seqInfo> best_refSeqs;
+              std::vector<seqInfo> best_refTrimmedSeqs;
 
-              std::vector<seqInfo> allSeqs;
-              std::vector<seqInfo> allSeqsTrimmedSeqs;
+              std::vector<seqInfo> best_allSeqs;
+              std::vector<seqInfo> best_allSeqsTrimmedSeqs;
+
+              std::vector<seqInfo> all_refSeqs;
+              std::vector<seqInfo> all_refTrimmedSeqs;
+
+              std::vector<seqInfo> all_allSeqs;
+              std::vector<seqInfo> all_allSeqsTrimmedSeqs;
 
               for(auto & genome : genomeExtracts){
                 if(genome.second.empty()){
                   continue;
                 }
                 genomeExtractionsResults[genome.first].extractCounts_ = genome.second.size();
-                OutputStream bedOut{OutOptions(njh::files::make_path(bedDirectory, genome.first + ".bed"))};
-                OutputStream bedInnerOut{OutOptions(njh::files::make_path(bedDirectory, genome.first + "_inner.bed"))};
-                uint32_t extractionCount = 0;
-                OutputStream regionInfoOut{OutOptions(njh::files::make_path(bedDirectory, genome.first + "_regionInfo.tab.txt"))};
-                regionInfoOut << "#chrom\tfullStart\tfullStop\tname\tlength\tstrand\tgenome\ttarget\tfPrimerStart\tfPrimerStop\terrorsInFPrimer\tinsertStart\tinsertStop\trPrimerStart\trPrimerStop\terrorsInRPrimer" << std::endl;
-                for(auto & extract : genome.second){
-                  extract.setRegion();
+                uint32_t all_extractionCount = 0;
+                uint32_t best_extractionCount = 0;
 
-                  auto name = genome.first;
-                  if(0 != extractionCount){
-                    name.append("." + estd::to_string(extractionCount));
+                OutputStream all_bedOut{OutOptions(njh::files::make_path(bedDirectory, genome.first + "_all.bed"))};
+                OutputStream all_bedInnerOut{OutOptions(njh::files::make_path(bedDirectory, genome.first + "_inner_all.bed"))};
+                OutputStream all_regionInfoOut{OutOptions(njh::files::make_path(bedDirectory, genome.first + "_regionInfo_all.tab.txt"))};
+                OutputStream best_bedOut{OutOptions(njh::files::make_path(bedDirectory, genome.first + ".bed"))};
+                OutputStream best_bedInnerOut{OutOptions(njh::files::make_path(bedDirectory, genome.first + "_inner.bed"))};
+                OutputStream best_regionInfoOut{OutOptions(njh::files::make_path(bedDirectory, genome.first + "_regionInfo.tab.txt"))};
+                all_regionInfoOut << "#chrom\tfullStart\tfullStop\tname\tlength\tstrand\tgenome\ttarget\tfPrimerStart\tfPrimerStop\terrorsInFPrimer\tinsertStart\tinsertStop\trPrimerStart\trPrimerStop\terrorsInRPrimer" << std::endl;
+                best_regionInfoOut << "#chrom\tfullStart\tfullStop\tname\tlength\tstrand\tgenome\ttarget\tfPrimerStart\tfPrimerStop\terrorsInFPrimer\tinsertStart\tinsertStop\trPrimerStart\trPrimerStop\terrorsInRPrimer" << std::endl;
+                std::unordered_set<std::string> bestHits;
+                uint32_t bestHitPrimerErrorCount = std::numeric_limits<uint32_t>::max();
+                uint32_t minPerPrimerHit = std::numeric_limits<uint32_t>::max();
+
+                for(const auto & extract : genome.second){
+                  uint32_t current_minPerPrimerHit = std::min(extract.extComp_.distances_.getNumOfEvents(true), extract.ligComp_.distances_.getNumOfEvents(true));
+                  uint32_t current_primerErrorCount = extract.extComp_.distances_.getNumOfEvents(true) + extract.ligComp_.distances_.getNumOfEvents(true);
+
+                  if (current_primerErrorCount < bestHitPrimerErrorCount ||
+                    (current_primerErrorCount==bestHitPrimerErrorCount && current_minPerPrimerHit < minPerPrimerHit)) {
+                    bestHits.clear();
+                    bestHits.emplace(extract.gRegion_->createUidFromCoordsStrand());
+                    bestHitPrimerErrorCount = current_primerErrorCount;
+                    minPerPrimerHit = current_minPerPrimerHit;
+                  } else if (current_primerErrorCount == bestHitPrimerErrorCount && current_minPerPrimerHit == minPerPrimerHit) {
+                    bestHits.emplace(extract.gRegion_->createUidFromCoordsStrand());
                   }
-                  MetaDataInName meta;
-                  meta.addMeta("genome", genome.first);
-                  meta.addMeta("target", target);
-                  meta.addMeta("extractionCount", extractionCount);
+                }
+                for(auto & extract : genome.second){
+                  bool inBest = njh::in(extract.gRegion_->createUidFromCoordsStrand(), bestHits);
+                  auto best_name = genome.first;
+                  auto all_name = genome.first;
+                  if(0 != best_extractionCount){
+                    best_name.append("." + estd::to_string(best_extractionCount));
+                  }
+                  if(0 != all_extractionCount){
+                    all_name.append("." + estd::to_string(all_extractionCount));
+                  }
+                  MetaDataInName all_meta;
+                  all_meta.addMeta("genome", genome.first);
+                  all_meta.addMeta("target", primerInfo.primerPairName_);
+                  all_meta.addMeta("extractionCount", all_extractionCount);
+                  MetaDataInName best_meta;
+                  best_meta.addMeta("genome", genome.first);
+                  best_meta.addMeta("target", primerInfo.primerPairName_);
+                  best_meta.addMeta("extractionCount", best_extractionCount);
 
-                  name += " " + meta.createMetaName();
-                  regionInfoOut << extract.gRegion_->chrom_
+                  best_name += " " + best_meta.createMetaName();
+                  all_name += " " + all_meta.createMetaName();
+                  all_regionInfoOut << extract.gRegion_->chrom_
                                 << "\t" << extract.gRegion_->start_
                                 << "\t" << extract.gRegion_->end_
-                                << "\t" << name
+                                << "\t" << all_name
                                 << "\t" << extract.gRegion_->getLen()
                                 << "\t" << (extract.gRegion_->reverseSrand_ ? '-' : '+')
                                 << "\t" << genome.first
                                 << "\t" << target
-                                << "\t" << extract.extRegion_.start_
-                                << "\t" << extract.extRegion_.end_
-                                << "\t" << extract.extComp_.distances_.getNumOfEvents(true)
-                                << "\t" << extract.gRegionInner_->start_
-                                << "\t" << extract.gRegionInner_->end_
-                                << "\t" << extract.ligRegion_.start_
-                                << "\t" << extract.ligRegion_.end_
-                                << "\t" << extract.ligComp_.distances_.getNumOfEvents(true)
+                  << "\t" << extract.extRegion_.start_
+                  << "\t" << extract.extRegion_.end_
+                  << "\t" << extract.extComp_.distances_.getNumOfEvents(true)
+                  << "\t" << extract.gRegionInner_->start_
+                  << "\t" << extract.gRegionInner_->end_
+                  << "\t" << extract.ligRegion_.start_
+                  << "\t" << extract.ligRegion_.end_
+                  << "\t" << extract.ligComp_.distances_.getNumOfEvents(true)
                                 << std::endl;
+                  if (inBest) {
+                    best_regionInfoOut << extract.gRegion_->chrom_
+                      << "\t" << extract.gRegion_->start_
+                      << "\t" << extract.gRegion_->end_
+                      << "\t" << best_name
+                      << "\t" << extract.gRegion_->getLen()
+                      << "\t" << (extract.gRegion_->reverseSrand_ ? '-' : '+')
+                      << "\t" << genome.first
+                      << "\t" << target
+                    << "\t" << extract.extRegion_.start_
+                    << "\t" << extract.extRegion_.end_
+                    << "\t" << extract.extComp_.distances_.getNumOfEvents(true)
+                    << "\t" << extract.gRegionInner_->start_
+                    << "\t" << extract.gRegionInner_->end_
+                    << "\t" << extract.ligRegion_.start_
+                    << "\t" << extract.ligRegion_.end_
+                    << "\t" << extract.ligComp_.distances_.getNumOfEvents(true)
+                      << std::endl;
+                  }
                   {
                     auto bedRegion = extract.gRegion_->genBedRecordCore();
-                    bedRegion.name_ = name;
-                    bedOut << bedRegion.toDelimStr() << std::endl;
+                    bedRegion.name_ = all_name;
+                    all_bedOut << bedRegion.toDelimStr() << std::endl;
+                    if (inBest) {
+                      bedRegion.name_ = best_name;
+                      best_bedOut << bedRegion.toDelimStr() << std::endl;
+                    }
                   }
                   {
                     auto bedRegion = extract.gRegionInner_->genBedRecordCore();
-                    bedRegion.name_ = name;
-                    bedInnerOut << bedRegion.toDelimStr() << std::endl;
+                    bedRegion.name_ = all_name;
+                    all_bedInnerOut << bedRegion.toDelimStr() << std::endl;
+                    if (inBest) {
+                      bedRegion.name_ = best_name;
+                      best_bedInnerOut << bedRegion.toDelimStr() << std::endl;
+                    }
                   }
 
                   TwoBit::TwoBitFile tReader(gMapper->genomes_.at(genome.first)->fnpTwoBit_);
-                  auto eSeq = extract.gRegion_->extractSeq(tReader);
+
                   if(extractPars.shortNames){
-                    trimAtFirstWhitespace(name);
+                    trimAtFirstWhitespace(all_name);
+                    trimAtFirstWhitespace(best_name);
                   }
-                  eSeq.name_ = name;
-                  bool refFound = false;
-                  allSeqs.emplace_back(eSeq);
-                  for(auto & rSeq : refSeqs){
-                    if(rSeq.seq_ == eSeq.seq_){
-                      refFound = true;
-                      rSeq.name_.append("-" + eSeq.name_);
+                  {
+                    auto eSeq = extract.gRegion_->extractSeq(tReader);
+                    eSeq.name_ = all_name;
+                    bool refFound = false;
+                    if(extractPars.writeOutAllSeqsFile){
+                      all_allSeqs.emplace_back(eSeq);
+                    }
+                    for(auto & rSeq : all_refSeqs){
+                      if(rSeq.seq_ == eSeq.seq_){
+                        refFound = true;
+                        rSeq.name_.append("-" + eSeq.name_);
+                      }
+                    }
+                    if(!refFound){
+                      all_refSeqs.emplace_back(eSeq);
+                    }
+                    bool trimmed_refFound = false;
+                    auto innerSeq = extract.gRegionInner_->extractSeq(tReader);
+                    innerSeq.name_ = all_name;
+                    if(extractPars.writeOutAllSeqsFile){
+                      all_allSeqsTrimmedSeqs.emplace_back(innerSeq);
+                    }
+                    for(auto & rSeq : all_refTrimmedSeqs){
+                      if(rSeq.seq_ == innerSeq.seq_){
+                        trimmed_refFound = true;
+                        rSeq.name_.append("-" + innerSeq.name_);
+                      }
+                    }
+                    if(!trimmed_refFound){
+                      all_refTrimmedSeqs.emplace_back(innerSeq);
                     }
                   }
-                  if(!refFound){
-                    refSeqs.emplace_back(eSeq);
+                  if (inBest){
+                    auto eSeq = extract.gRegion_->extractSeq(tReader);
+                    eSeq.name_ = best_name;
+                    bool refFound = false;
+                    if(extractPars.writeOutAllSeqsFile){
+                      best_allSeqs.emplace_back(eSeq);
+                    }
+                    for(auto & rSeq : best_refSeqs){
+                      if(rSeq.seq_ == eSeq.seq_){
+                        refFound = true;
+                        rSeq.name_.append("-" + eSeq.name_);
+                      }
+                    }
+                    if(!refFound){
+                      best_refSeqs.emplace_back(eSeq);
+                    }
+                    bool trimmed_refFound = false;
+                    auto innerSeq = extract.gRegionInner_->extractSeq(tReader);
+                    innerSeq.name_ = best_name;
+                    if(extractPars.writeOutAllSeqsFile){
+                      best_allSeqsTrimmedSeqs.emplace_back(innerSeq);
+                    }
+                    for(auto & rSeq : best_refTrimmedSeqs){
+                      if(rSeq.seq_ == innerSeq.seq_){
+                        trimmed_refFound = true;
+                        rSeq.name_.append("-" + innerSeq.name_);
+                      }
+                    }
+                    if(!trimmed_refFound){
+                      best_refTrimmedSeqs.emplace_back(innerSeq);
+                    }
                   }
 
-                  bool trimmed_refFound = false;
-                  auto innerSeq = extract.gRegionInner_->extractSeq(tReader);
-                  innerSeq.name_ = name;
-                  allSeqsTrimmedSeqs.emplace_back(innerSeq);
-                  for(auto & rSeq : refTrimmedSeqs){
-                    if(rSeq.seq_ == innerSeq.seq_){
-                      trimmed_refFound = true;
-                      rSeq.name_.append("-" + innerSeq.name_);
-                    }
+                  ++all_extractionCount;
+                  if (inBest) {
+                    ++best_extractionCount;
                   }
-                  if(!trimmed_refFound){
-                    refTrimmedSeqs.emplace_back(innerSeq);
-                  }
-                  ++extractionCount;
                 }
+                genomeExtractionsResults[genome.first].bestExtractionCounts_ = best_extractionCount;
               }
-
-              if(!allSeqs.empty()){
-                auto fullSeqOpts = SeqIOOptions::genFastaOut(njh::files::make_path(primerDirectory, "separated_" + primerInfo.primerPairName_ +".fasta"));
-                SeqOutput::write(allSeqs, fullSeqOpts);
+              if(!all_allSeqs.empty()){
+                auto fullSeqOpts = SeqIOOptions::genFastaOut(njh::files::make_path(primerDirectory, "separated_" + target + "_all.fasta"));
+                SeqOutput::write(all_allSeqs, fullSeqOpts);
                 //write out seq info
                 std::unordered_map<std::string, std::string> allSeqsSeqToNameKeys;
                 std::unordered_map<std::string, uint32_t> allSeqsCounts;
                 std::unordered_map<std::string, std::set<std::string>> allSeqsNames;
 
-                for(const auto & allSeq : allSeqs){
+                for(const auto & allSeq : all_allSeqs){
                   ++allSeqsCounts[allSeq.seq_];
                   allSeqsNames[allSeq.seq_].emplace(allSeq.name_);
                 }
-                for(const auto & refSeq : refSeqs){
+                for(const auto & refSeq : all_refSeqs){
                   allSeqsSeqToNameKeys[refSeq.seq_] = refSeq.name_;
                 }
-                OutputStream collapsedSeqCountsOut(njh::files::make_path(primerDirectory, primerInfo.primerPairName_ + "_collapsed_counts.tab.txt"));
+                OutputStream collapsedSeqCountsOut(njh::files::make_path(primerDirectory, target + "_collapsed_counts_all.tab.txt"));
                 VecStr allRefSeqNames = njh::getVecOfMapKeys(allSeqsSeqToNameKeys);
                 //sort by counts
                 njh::sort(allRefSeqNames,[&allSeqsCounts](const std::string & n1, const std::string & n2){
@@ -1337,25 +1875,66 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
                   }
                 }
               }
-
-
-              if(!allSeqsTrimmedSeqs.empty()){
-                auto innerSeqOpts = SeqIOOptions::genFastaOut(njh::files::make_path(primerDirectory, "separated_" + primerInfo.primerPairName_ +"_primersRemoved.fasta"));
-                SeqOutput::write(allSeqsTrimmedSeqs, innerSeqOpts);
+              if(!all_allSeqsTrimmedSeqs.empty()){
+                auto innerSeqOpts = SeqIOOptions::genFastaOut(njh::files::make_path(primerDirectory, "separated_" + target +"_primersRemoved_all.fasta"));
+                SeqOutput::write(all_allSeqsTrimmedSeqs, innerSeqOpts);
 
                 //write out seq info
                 std::unordered_map<std::string, std::string> allSeqsSeqToNameKeys;
                 std::unordered_map<std::string, uint32_t> allSeqsCounts;
                 std::unordered_map<std::string, std::set<std::string>> allSeqsNames;
 
-                for(const auto & allSeq : allSeqsTrimmedSeqs){
+                for(const auto & allSeq : all_allSeqsTrimmedSeqs){
                   ++allSeqsCounts[allSeq.seq_];
                   allSeqsNames[allSeq.seq_].emplace(allSeq.name_);
                 }
-                for(const auto & refSeq : refTrimmedSeqs){
+                for(const auto & refSeq : all_refTrimmedSeqs){
                   allSeqsSeqToNameKeys[refSeq.seq_] = refSeq.name_;
                 }
-                OutputStream collapsedSeqCountsOut(njh::files::make_path(primerDirectory, primerInfo.primerPairName_ + "_primersRemoved_collapsed_counts.tab.txt"));
+                OutputStream collapsedSeqCountsOut(njh::files::make_path(primerDirectory, target + "_primersRemoved_collapsed_counts_all.tab.txt"));
+                VecStr allRefSeqNames = njh::getVecOfMapKeys(allSeqsSeqToNameKeys);
+                //sort by counts
+                njh::sort(allRefSeqNames,[&allSeqsCounts](const std::string & n1, const std::string & n2){
+                  if(allSeqsCounts[n1] == allSeqsCounts[n2]){
+                    return n1 < n2;
+                  } else {
+                    return allSeqsCounts[n1] > allSeqsCounts[n2];
+                  }
+                });
+                collapsedSeqCountsOut << "collapsedName\tcount\textractedName" << std::endl;
+                for(const auto & name : allRefSeqNames){
+                  for(const auto & eName : allSeqsNames[name]){
+                    collapsedSeqCountsOut
+                        << allSeqsSeqToNameKeys[name]
+                        << "\t" << allSeqsCounts[name]
+                        << "\t" << eName << std::endl;
+                  }
+                }
+              }
+              if(!all_refSeqs.empty()){
+                auto fullSeqOpts = SeqIOOptions::genFastaOut(njh::files::make_path(primerDirectory, target +"_all.fasta"));
+                SeqOutput::write(all_refSeqs, fullSeqOpts);
+              }
+              if(!all_refTrimmedSeqs.empty()){
+                auto innerSeqOpts = SeqIOOptions::genFastaOut(njh::files::make_path(primerDirectory, target +"_primersRemoved_all.fasta"));
+                SeqOutput::write(all_refTrimmedSeqs, innerSeqOpts);
+              }
+              if(!best_allSeqs.empty()){
+                auto fullSeqOpts = SeqIOOptions::genFastaOut(njh::files::make_path(primerDirectory, "separated_" + target +".fasta"));
+                SeqOutput::write(best_allSeqs, fullSeqOpts);
+                //write out seq info
+                std::unordered_map<std::string, std::string> allSeqsSeqToNameKeys;
+                std::unordered_map<std::string, uint32_t> allSeqsCounts;
+                std::unordered_map<std::string, std::set<std::string>> allSeqsNames;
+
+                for(const auto & allSeq : best_allSeqs){
+                  ++allSeqsCounts[allSeq.seq_];
+                  allSeqsNames[allSeq.seq_].emplace(allSeq.name_);
+                }
+                for(const auto & refSeq : best_refSeqs){
+                  allSeqsSeqToNameKeys[refSeq.seq_] = refSeq.name_;
+                }
+                OutputStream collapsedSeqCountsOut(njh::files::make_path(primerDirectory, target + "_collapsed_counts.tab.txt"));
                 VecStr allRefSeqNames = njh::getVecOfMapKeys(allSeqsSeqToNameKeys);
                 //sort by counts
                 njh::sort(allRefSeqNames,[&allSeqsCounts](const std::string & n1, const std::string & n2){
@@ -1375,26 +1954,61 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
                   }
                 }
               }
+              if(!best_allSeqsTrimmedSeqs.empty()){
+                auto innerSeqOpts = SeqIOOptions::genFastaOut(njh::files::make_path(primerDirectory, "separated_" + target +"_primersRemoved.fasta"));
+                SeqOutput::write(best_allSeqsTrimmedSeqs, innerSeqOpts);
 
+                //write out seq info
+                std::unordered_map<std::string, std::string> allSeqsSeqToNameKeys;
+                std::unordered_map<std::string, uint32_t> allSeqsCounts;
+                std::unordered_map<std::string, std::set<std::string>> allSeqsNames;
 
-              if(!refSeqs.empty()){
-                auto fullSeqOpts = SeqIOOptions::genFastaOut(njh::files::make_path(primerDirectory, primerInfo.primerPairName_ +".fasta"));
-                SeqOutput::write(refSeqs, fullSeqOpts);
+                for(const auto & allSeq : best_allSeqsTrimmedSeqs){
+                  ++allSeqsCounts[allSeq.seq_];
+                  allSeqsNames[allSeq.seq_].emplace(allSeq.name_);
+                }
+                for(const auto & refSeq : best_refTrimmedSeqs){
+                  allSeqsSeqToNameKeys[refSeq.seq_] = refSeq.name_;
+                }
+                OutputStream collapsedSeqCountsOut(njh::files::make_path(primerDirectory, target + "_primersRemoved_collapsed_counts.tab.txt"));
+                VecStr allRefSeqNames = njh::getVecOfMapKeys(allSeqsSeqToNameKeys);
+                //sort by counts
+                njh::sort(allRefSeqNames,[&allSeqsCounts](const std::string & n1, const std::string & n2){
+                  if(allSeqsCounts[n1] == allSeqsCounts[n2]){
+                    return n1 < n2;
+                  } else {
+                    return allSeqsCounts[n1] > allSeqsCounts[n2];
+                  }
+                });
+                collapsedSeqCountsOut << "collapsedName\tcount\textractedName" << std::endl;
+                for(const auto & name : allRefSeqNames){
+                  for(const auto & eName : allSeqsNames[name]){
+                    collapsedSeqCountsOut
+                        << allSeqsSeqToNameKeys[name]
+                        << "\t" << allSeqsCounts[name]
+                        << "\t" << eName << std::endl;
+                  }
+                }
               }
-              if(!refTrimmedSeqs.empty()){
-                auto innerSeqOpts = SeqIOOptions::genFastaOut(njh::files::make_path(primerDirectory, primerInfo.primerPairName_ +"_primersRemoved.fasta"));
-                SeqOutput::write(refTrimmedSeqs, innerSeqOpts);
+              if(!best_refSeqs.empty()){
+                auto fullSeqOpts = SeqIOOptions::genFastaOut(njh::files::make_path(primerDirectory, target +".fasta"));
+                SeqOutput::write(best_refSeqs, fullSeqOpts);
+              }
+              if(!best_refTrimmedSeqs.empty()){
+                auto innerSeqOpts = SeqIOOptions::genFastaOut(njh::files::make_path(primerDirectory, target +"_primersRemoved.fasta"));
+                SeqOutput::write(best_refTrimmedSeqs, innerSeqOpts);
               }
 
-              table performanceTab(VecStr{"genome", "forwardPrimerHits", "reversePrimerHits", "extractionCounts", "target"});
+              table performanceTab(VecStr{"genome", "forwardPrimerHits", "reversePrimerHits", "extractionCounts", "allExtractionCounts", "target"});
               auto genomeKeys = getVectorOfMapKeys(genomeExtractionsResults);
               njh::sort(genomeKeys);
               for(const auto & genomeKey : genomeKeys){
                 performanceTab.addRow(genomeKey,
                                       genomeExtractionsResults[genomeKey].forwardHits_,
                                       genomeExtractionsResults[genomeKey].reverseHits_,
+                                      genomeExtractionsResults[genomeKey].bestExtractionCounts_,
                                       genomeExtractionsResults[genomeKey].extractCounts_,
-                                      primerInfo.primerPairName_);
+                                      target);
               }
               auto perTabOpts = TableIOOpts::genTabFileOut(njh::files::make_path(primerDirectory, "extractionCounts"),true);
               performanceTab.outPutContents(perTabOpts);
@@ -1435,7 +2049,8 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 
 	auto locationsCombined = njh::files::make_path(outputDir, "locationsByGenome");
 	njh::files::makeDir(njh::files::MkdirPar{locationsCombined});
-
+  auto locationsAllHitsCombined = njh::files::make_path(locationsCombined, "allHits");
+  njh::files::makeDir(njh::files::MkdirPar{locationsAllHitsCombined});
 
 
 	//primer location files
@@ -1458,10 +2073,10 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 	njh::concurrent::LockableQueue<std::string> genomeQueue(getVectorOfMapKeys(gMapper->genomes_));
 
 
-	std::function<void()> getOuterRegionInfos = [&genomeQueue,&gMapper,&extractPars,&locationsCombined,&outputDir,&ids](){
+	std::function<void()> getOuterRegionInfos = [&genomeQueue,&gMapper,&extractPars,&locationsCombined,
+	  &locationsAllHitsCombined,&outputDir,&ids](){
 		std::string genome;
 		while(genomeQueue.getVal(genome)){
-
 			auto genomeBedOpts = njh::files::make_path(locationsCombined, genome + ".bed");
 			std::vector<std::shared_ptr<Bed6RecordCore>> allRegions;
 			for(const auto & tar : ids.targets_){
@@ -1482,7 +2097,42 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 					addOtherVec(allRegions, locs);
 				}
 			}
-
+		  {
+			  std::vector<std::shared_ptr<Bed6RecordCore>> allHitsRegions;
+			  for(const auto & tar : ids.targets_){
+			    auto bedForTarFnp = njh::files::make_path(outputDir, tar.first, "genomeLocations", genome + "_all.bed");
+			    if(bfs::exists(bedForTarFnp)){
+			      auto locs = getBeds(bedForTarFnp);
+			      if (!extractPars.doNotRenameBeds) {
+			        uint32_t count = 0;
+			        for (auto & loc : locs) {
+			          if (0 == count) {
+			            loc->name_ = tar.first;
+			          } else {
+			            loc->name_ = njh::pasteAsStr(tar.first, ".", count);
+			          }
+			          ++count;
+			        }
+			      }
+			      addOtherVec(allHitsRegions, locs);
+			    }
+			  }
+			  auto genomeAllHitsBedOpts = njh::files::make_path(locationsAllHitsCombined, genome + ".bed");
+			  OutputStream genomeBedOut(genomeAllHitsBedOpts);
+			  njh::sort(allHitsRegions, [](
+                const std::shared_ptr<Bed3RecordCore> &bed1,
+                const std::shared_ptr<Bed3RecordCore> &bed2
+              ) {
+                    if (bed1->chrom_ == bed2->chrom_) {
+                      return bed1->chromStart_ < bed2->chromStart_;
+                    } else {
+                      return bed1->chrom_ < bed2->chrom_;
+                    }
+                  });
+			  for (const auto &loc: allHitsRegions) {
+			    genomeBedOut << loc->toDelimStrWithExtra() << std::endl;
+			  }
+		  }
 			if(!allRegions.empty()){
 				if(!gMapper->genomes_.at(genome)->gffFnp_.empty()){
 
@@ -1597,13 +2247,14 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 	njh::concurrent::LockableQueue<std::string> genomeQueueForInsert(getVectorOfMapKeys(gMapper->genomes_));
 	std::function<void()> getInsertInfo = [&proteinInsertInfoByName,&genomeQueueForInsert,
 																				 &gMapper,&extractPars,&locationsCombined,&outputDir,
+																				 &locationsAllHitsCombined,
 																				 &proteinInsertInfoByNameMut,&ids](){
 		std::string genome;
 		std::unordered_map<std::string, std::vector<MultiGenomeMapper::IntersectedProteinInfo>> proteinInsertInfoByNameCurrent;
 
 		while(genomeQueueForInsert.getVal(genome)){
 			auto genomeBedOpts = njh::files::make_path(locationsCombined, genome + "_inner.bed");
-			std::vector<std::shared_ptr<Bed6RecordCore>> allRegions;
+		  std::vector<std::shared_ptr<Bed6RecordCore>> allRegions;
 			for(const auto & tar : ids.targets_){
 				auto bedForTarFnp = njh::files::make_path(outputDir, tar.first, "genomeLocations", genome + "_inner.bed");
 				if(bfs::exists(bedForTarFnp)){
@@ -1622,7 +2273,42 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 					addOtherVec(allRegions, locs);
 				}
 			}
-
+		  {
+			  std::vector<std::shared_ptr<Bed6RecordCore>> allHitsRegions;
+			  for(const auto & tar : ids.targets_){
+			    auto bedForTarFnp = njh::files::make_path(outputDir, tar.first, "genomeLocations", genome + "_inner_all.bed");
+			    if(bfs::exists(bedForTarFnp)){
+			      auto locs = getBeds(bedForTarFnp);
+			      if (!extractPars.doNotRenameBeds) {
+			        uint32_t count = 0;
+			        for (auto & loc : locs) {
+			          if (0 == count) {
+			            loc->name_ = tar.first;
+			          } else {
+			            loc->name_ = njh::pasteAsStr(tar.first, ".", count);
+			          }
+			          ++count;
+			        }
+			      }
+			      addOtherVec(allHitsRegions, locs);
+			    }
+			  }
+			  auto genomeAllHitsBedOpts = njh::files::make_path(locationsAllHitsCombined, genome + "_inner.bed");
+			  OutputStream genomeBedOut(genomeAllHitsBedOpts);
+			  njh::sort(allHitsRegions, [](
+                const std::shared_ptr<Bed3RecordCore> &bed1,
+                const std::shared_ptr<Bed3RecordCore> &bed2
+              ) {
+                    if (bed1->chrom_ == bed2->chrom_) {
+                      return bed1->chromStart_ < bed2->chromStart_;
+                    } else {
+                      return bed1->chrom_ < bed2->chrom_;
+                    }
+                  });
+			  for (const auto &loc: allHitsRegions) {
+			    genomeBedOut << loc->toDelimStrWithExtra() << std::endl;
+			  }
+		  }
 			if(!allRegions.empty()){
 				if(!gMapper->genomes_.at(genome)->gffFnp_.empty()){
 
@@ -1757,6 +2443,24 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 
 	//info files
 	for(const auto & genome : gMapper->genomes_){
+	  {
+	    auto targetGenomeInfoFnp = njh::files::make_path(locationsAllHitsCombined, genome.first + "_infos.tab.txt");
+	    table outAllInfoTab;
+	    auto tarKeys = getVectorOfMapKeys(ids.targets_);
+	    njh::sort(tarKeys);
+	    for(const auto &  tar: tarKeys) {
+	      auto infoFnp = njh::files::make_path(outputDir, tar, "genomeLocations", genome.first + "_regionInfo_all.tab.txt");
+	      if(bfs::exists(infoFnp)) {
+	        table infoTab(infoFnp, "\t", true);
+	        if (0 == outAllInfoTab.nRow()) {
+	          outAllInfoTab = infoTab;
+	        } else {
+	          outAllInfoTab.rbind(infoTab, true);
+	        }
+	      }
+	    }
+	    outAllInfoTab.outPutContents(TableIOOpts::genTabFileOut(targetGenomeInfoFnp));
+	  }
 		auto targetGenomeInfoFnp = njh::files::make_path(locationsCombined, genome.first + "_infos.tab.txt");
 		table outAllInfoTab;
 		auto tarKeys = getVectorOfMapKeys(ids.targets_);

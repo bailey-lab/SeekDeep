@@ -74,7 +74,7 @@ void PrimersAndMids::Target::addMultileRef(const std::vector<seqInfo> & refs) {
 
 
 PrimersAndMids::PrimersAndMids(
-		const std::unordered_map<std::string, Target> & targets) :
+		const std::map<std::string, Target> & targets) :
 		targets_(targets) {
 
 }
