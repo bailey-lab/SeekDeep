@@ -2477,9 +2477,28 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 						if(proteinInsertInfoByName[coordName].empty()){
 							updatedInfoTab.addRow(toVecStr(row, "", "", "", "", ""));
 						}else{
-							for(const auto & info : proteinInsertInfoByName[coordName]){
-								updatedInfoTab.addRow(toVecStr(row, info.id_, info.Name_, (std::numeric_limits<uint32_t>::max() == info.aaStart_ ? "NA" : njh::pasteAsStr(info.aaStart_)), (std::numeric_limits<uint32_t>::max() == info.aaStop_ ? "NA" : njh::pasteAsStr(info.aaStop_)) , info.description_));
-							}
+						  VecStr insertGeneID;
+						  VecStr insertGeneName;
+						  VecStr insertGeneAAStart;
+						  VecStr insertGeneAAStop;
+						  VecStr insertGeneDescription;
+						  for(const auto & info : proteinInsertInfoByName[coordName]) {
+                insertGeneID.emplace_back(info.id_);
+                insertGeneName.emplace_back(info.Name_);
+						    insertGeneAAStart.emplace_back(std::numeric_limits<uint32_t>::max() == info.aaStart_ ? "NA" : njh::pasteAsStr(info.aaStart_));
+						    insertGeneAAStop.emplace_back(std::numeric_limits<uint32_t>::max() == info.aaStop_ ? "NA" : njh::pasteAsStr(info.aaStop_));
+						    insertGeneDescription.emplace_back(info.description_);
+						  }
+              updatedInfoTab.addRow(toVecStr(row,
+                                             njh::conToStr(insertGeneID, ";"),
+                                             njh::conToStr(insertGeneName, ";"),
+                                             njh::conToStr(insertGeneAAStart, ";"),
+                                             njh::conToStr(insertGeneAAStop, ";"),
+                                             njh::conToStr(insertGeneDescription, ";")));
+
+							// for(const auto & info : proteinInsertInfoByName[coordName]){
+							// 	updatedInfoTab.addRow(toVecStr(row, info.id_, info.Name_, (std::numeric_limits<uint32_t>::max() == info.aaStart_ ? "NA" : njh::pasteAsStr(info.aaStart_)), (std::numeric_limits<uint32_t>::max() == info.aaStop_ ? "NA" : njh::pasteAsStr(info.aaStop_)) , info.description_));
+							// }
 						}
 					}
 					infoTab = updatedInfoTab;
@@ -2496,7 +2515,6 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 		OutputStream allInfoOut(targetGenomeInfoFnp);
 		outAllInfoTab.outPutContents(allInfoOut, "\t");
 	}
-
 }
 
 

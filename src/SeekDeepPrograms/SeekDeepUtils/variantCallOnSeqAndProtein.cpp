@@ -617,7 +617,6 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 			complexGenomicVcfs.emplace_back(gvcf.first);
 		}
 	}
-
 	//combine vcfs with handling of overlapping variant calls
 	//processing protein vcfs;
 	std::vector<GenomicRegion> knownAAVariantRegions;
@@ -928,7 +927,6 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 			}
 		}
 	}
-
 	//process genomic
 	if(!genomicVcfs.empty()) {
 		fullWatch.startNewLap("combine genomic vcfs");
@@ -949,7 +947,6 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 			firstGVcf.writeOutFixedAndSampleMeta(gvcfOutFile, knownSnpVariantRegions);
 		}
 	}
-
 	//process complex genomic
 	if(!complexGenomicVcfs.empty()) {
 		fullWatch.startNewLap("combine genomic vcfs");
@@ -961,7 +958,6 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 			firstGVcf.writeOutFixedAndSampleMeta(gvcfOutFile);
 		}
 	}
-
 	//combine summary tables
 	{
 		fullWatch.startNewLap("gather summary tables");
@@ -1064,13 +1060,13 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 			std::unordered_map<std::string, uint32_t> maxCounts;
 			for(const auto & row : genomicLocCounts) {
 				auto n = njh::StrToNumConverter::stoToNum<uint32_t>(row[genomicLocCounts.getColPos("n")]);
-				if(n > maxCounts[row[genomicLocCounts.getColPos("target")]]) {
+				if(n > maxCounts[row[genomicLocCounts.getColPos("target")]] && "NA" != row[genomicLocCounts.getColPos("chrom")]) {
 					maxCounts[row[genomicLocCounts.getColPos("target")]] = n;
 				}
 			}
 			for(const auto & row : genomicLocCounts) {
 				auto n = njh::StrToNumConverter::stoToNum<uint32_t>(row[genomicLocCounts.getColPos("n")]);
-				if(n == maxCounts[row[genomicLocCounts.getColPos("target")]]) {
+				if(n == maxCounts[row[genomicLocCounts.getColPos("target")]] && "NA" != row[genomicLocCounts.getColPos("chrom")]) {
 					isMax.emplace_back("true");
 					//if more than two maxes, then the first max will be added but not the others
 					if (njh::notIn(row[genomicLocCounts.getColPos("target")], genomicLocs)) {
@@ -1083,7 +1079,6 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 			genomicLocCounts.addColumn(isMax, "isMaxCount");
 			genomicLocCounts.naturlSortTable("target", false);
 			genomicLocCounts.outPutContents(TableIOOpts::genTabFileOut(njh::files::make_path(reportsInfoDir, "genomicLocPerTargetsCounts.tab.txt.gz")));
-
 		}
 		{
 			auto proteinLocCounts = allSummaryTable.countGroupColumns(VecStr{"transcript", "transcript_1based_start", "transcript_1based_end", "target",  "transcript_length"});
@@ -1110,7 +1105,6 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 			proteinLocCounts.outPutContents(TableIOOpts::genTabFileOut(njh::files::make_path(reportsInfoDir, "proteinLocPerTargetsCounts.tab.txt.gz")));
 		}
 	}
-
 	if(!genomicLocs.empty() && !locs.genomicLocs.empty()) {
 		fullWatch.startNewLap("add what known locs are intersecting with the targets");
 		std::unordered_map<std::string, VecStr> coveredBy;
@@ -1145,7 +1139,6 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 			}
 		}
 	}
-
 	//run log
 	{
 		fullWatch.startNewLap("end");
@@ -1153,7 +1146,6 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 		OutputStream logOut(njh::files::make_path(reportsDir, "log.txt"));
 		logOut << runLog << std::endl;
 	}
-
 	return 0;
 
 }
