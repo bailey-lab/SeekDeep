@@ -413,7 +413,7 @@ class Packages():
         name = "bamtools"
         buildCmd = "mkdir -p build && cd build && ZLIBADDFLAGS CC={CC} CXX={CXX} cmake -DCMAKE_INSTALL_PREFIX:PATH={local_dir} .. && make -j {num_cores} install"
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "v2.5.0")
-        defaultZlibVersion = "1.3";
+        defaultZlibVersion = "1.3.1";
         zlibPack = self.__zlib()
         if self.args.noInternet:
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
