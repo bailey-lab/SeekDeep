@@ -1055,6 +1055,11 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	{
 		table allSummaryTable(TableIOOpts::genTabFileIn(njh::files::make_path(reportsSummaryDir, "allSummaryTables.tab.txt.gz")));
 		{
+			//summary of per haplotype
+			auto summary_per_haplotype = allSummaryTable.getColumns(VecStr{"target","seq","transcript","translatedSeq","transcript_fullAATyped","transcript_knownAATyped"}).getUniqueRows();
+			summary_per_haplotype.outPutContents(TableIOOpts::genTabFileOut(njh::files::make_path(reportsSummaryDir, "allSummaryPerMicrohaplotype.tab.txt.gz")));
+		}
+		{
 			auto genomicLocCounts = allSummaryTable.countGroupColumns(VecStr{ "chrom", "0based_start", "0based_end","target", "length", "strand"});
 			VecStr isMax;
 			std::unordered_map<std::string, uint32_t> maxCounts;

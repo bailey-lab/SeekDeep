@@ -881,7 +881,7 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
         };
 
 
-        static std::vector<GenomeExtractResultByPrimerPair> getPossibleGenomeExtracts(const std::vector<GenomicRegion> &fPrimerPositions,
+        static std::vector<GenomeExtractResultByPrimerPair> getPossibleGenomeExtracts(const std::vector<GenomicRegion> & fPrimerPositions,
                                                                                       const std::vector<GenomicRegion> & rPrimerPositions,
                                                                                       const size_t insertSizeCutOff = std::numeric_limits<size_t>::max()){
           std::vector<GenomeExtractResultByPrimerPair> ret;
