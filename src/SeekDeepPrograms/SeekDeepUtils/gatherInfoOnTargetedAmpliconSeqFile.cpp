@@ -99,7 +99,6 @@ int SeekDeepUtilsRunner::gatherInfoOnTargetedAmpliconSeqFile(
 	setUp.startARunLog(setUp.pars_.directoryName_);
 
 	std::function investigate = [](const SeqIOOptions& seqOpts, const TarAmpSeqInvestigator::TarAmpSeqInvestigatorPars& investPars) {
-
 		std::shared_ptr<TarAmpSeqInvestigator> investigator = std::make_shared<TarAmpSeqInvestigator>(investPars);
 		auto prepCounts = investigator->prepareForInvestiagteFile(seqOpts);
 		investigator->investigateFile(seqOpts, prepCounts);
@@ -177,7 +176,7 @@ int SeekDeepUtilsRunner::gatherInfoOnTargetedAmpliconSeqFile(
 			double fractionToBeat = tar_amp_pars.numberOfFilesToInvestigate/static_cast<double>(filesByPossibleName.size());
 			for (const auto& file: filesByPossibleName) {
 				if (rgen.unifRand() <= fractionToBeat) {
-					filesToInvestigate.emplace_back(file.second, SeqIOOptions::getInFormatFromFnp(file.second), false);
+					filesToInvestigate.emplace_back(file.second, SeqIOOptions::getInFormatFromFnpExcludePaired(file.second), false);
 					if (filesToInvestigate.size() > tar_amp_pars.numberOfFilesToInvestigate) {
 						break;
 					}

@@ -29,8 +29,8 @@ class Utils:
     @staticmethod
     def which(program):
         #from http://stackoverflow.com/questions/377017/test-if-executable-exists-in-python
-        def is_exe(fpath):
-            return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
+        def is_exe(fnp):
+            return os.path.isfile(fnp) and os.access(fnp, os.X_OK)
     
         fpath, fname = os.path.split(program)
         if fpath:
@@ -46,9 +46,9 @@ class Utils:
     
     @staticmethod
     def hasProgram(program):
-        whichOutput = Utils.which(program);
-        return None != whichOutput;
-    
+        whichOutput = Utils.which(program)
+        return None != whichOutput
+
     @staticmethod
     def run_in_dir(cmd, d):
         #print CT.boldBlack("here")
@@ -99,14 +99,14 @@ class Utils:
 
     @staticmethod
     def mkdir(d):
-        '''mkdir if it doesn't already exist '''
+        """mkdir if it doesn't already exist """
         if not os.path.exists(d):
             print(CT.boldText("mkdir"), CT.boldGreen(d))
             os.makedirs(d)
 
     @staticmethod
     def get_file(url, d):
-        '''get file from url and put it into directory d, return new name  '''
+        """get file from url and put it into directory d, return new name """
         fn = url.split('/')[-1]
         out_fnp = os.path.join(d, fn)
         urllib.request.urlretrieve(url, out_fnp)
@@ -114,8 +114,8 @@ class Utils:
 
     @staticmethod
     def get_file_if_size_diff(url, d):
-        '''only download the file if it's needed, not completely fail proof since it is 
-        just a size check but fairly likely not to be the same for a difference '''
+        """only download the file if it's needed, not completely fail proof since it is
+        just a size check but fairly likely not to be the same for a difference """
         fn = url.split('/')[-1]
         out_fnp = os.path.join(d, fn)
         net_file_size = int(urllib.request.urlopen(url).info()['Content-Length'])
@@ -132,14 +132,14 @@ class Utils:
 
     @staticmethod
     def rm_rf(d):
-        '''remove directory forcibly'''
+        """remove directory forcibly"""
         if os.path.exists(d):
             print(CT.boldText("rm -rf"), CT.boldRed(d))
             shutil.rmtree(d)
 
     @staticmethod
     def untar(fnp, d):
-        ''' un pack compressed file, guessing format based on extention '''
+        """ un pack compressed file, guessing format based on extension"""
         if fnp.endswith(".tar.gz"):
             tar = tarfile.open(fnp, "r:gz")
         elif fnp.endswith(".tgz"):
@@ -167,7 +167,7 @@ class Utils:
 
     @staticmethod
     def clear_dir(d):
-        ''' forcibly delete directory and then re-make it''' 
+        """ forcibly delete directory and then re-make it"""
         Utils.rm_rf(d)
         Utils.mkdir(d)
 
@@ -181,8 +181,8 @@ class Utils:
         libDir = os.path.join(localInstallDir, "lib")
         lib64Dir = os.path.join(localInstallDir, "lib64")
         if os.path.exists(lib64Dir) and not os.path.exists(libDir):
-          os.symlink(lib64Dir, libDir);
-                
+          os.symlink(lib64Dir, libDir)
+
     @staticmethod
     def fixDyLibOnMac(libDir):
         """

@@ -8,7 +8,7 @@ from color_text import ColorText as CT
 
 def genPyHello(outFileName):
     with open(outFileName, "w") as f:
-        f.write("""#!/usr/bin/env python2
+        f.write("""#!/usr/bin/env python3
 import shutil, os, argparse, sys, stat
 
 def parse_args_hello():
@@ -19,9 +19,9 @@ def parse_args_hello():
 def hello():
     args = parse_args_hello()
     if(args.name):
-        print "Hello " + args.name + "!"
+        print ("Hello " + args.name + "!")
     else:
-        print "Hello World!"
+        print ("Hello World!")
     
 if __name__ == "__main__":
     hello()
