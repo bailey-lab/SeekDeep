@@ -2409,7 +2409,7 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 									// 	geneMeta.addMeta("detailedDescription", detailedName[info.first]);
 									// }
 									proteinInsertInfoByNameCurrent[reg->genUIDFromCoords()].emplace_back(
-										// geneMeta.getMeta("ID"),
+										geneMeta.getMeta("ID"),
 										info.first,
 										geneName, aaStartPos, aaStopPos, description);
 								}
@@ -2470,24 +2470,26 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 			if(bfs::exists(infoFnp)){
 				table infoTab(infoFnp, "\t", true);
 				if(!genome.second->gffFnp_.empty()){
-					table updatedInfoTab(toVecStr(infoTab.columnNames_, "insertGeneID", "insertGeneName", "insertGeneAAStart", "insertGeneAAStop", "insertGeneDescription"));
+					table updatedInfoTab(toVecStr(infoTab.columnNames_, "insertGeneID", "insertTranscriptID", "insertGeneName", "insertGeneAAStart", "insertGeneAAStop", "insertGeneDescription"));
 					for(auto & row : infoTab){
 						//coord name
 						std::string coordName = njh::pasteAsStr(row[infoTab.getColPos("#chrom")], "-", row[infoTab.getColPos("insertStart")], "-", row[infoTab.getColPos("insertStop")]);
 						if(proteinInsertInfoByName[coordName].empty()){
 							updatedInfoTab.addRow(toVecStr(row, "", "", "", "", ""));
 						}else{
-						  VecStr insertGeneID;
-						  VecStr insertGeneName;
+						  std::set<std::string> insertGeneID;
+						  std::set<std::string> insertGeneName;
+						  std::set<std::string> insertGeneDescription;
+						  VecStr insertTranscriptID;
 						  VecStr insertGeneAAStart;
 						  VecStr insertGeneAAStop;
-						  VecStr insertGeneDescription;
 						  for(const auto & info : proteinInsertInfoByName[coordName]) {
-                insertGeneID.emplace_back(info.id_);
-                insertGeneName.emplace_back(info.Name_);
+                insertGeneID.emplace(info.gene_id_);
+						    insertGeneName.emplace(info.Name_);
+						    insertGeneDescription.emplace(info.description_);
+						    insertTranscriptID.emplace_back(info.id_);
 						    insertGeneAAStart.emplace_back(std::numeric_limits<uint32_t>::max() == info.aaStart_ ? "NA" : njh::pasteAsStr(info.aaStart_));
 						    insertGeneAAStop.emplace_back(std::numeric_limits<uint32_t>::max() == info.aaStop_ ? "NA" : njh::pasteAsStr(info.aaStop_));
-						    insertGeneDescription.emplace_back(info.description_);
 						  }
               updatedInfoTab.addRow(toVecStr(row,
                                              njh::conToStr(insertGeneID, ";"),
