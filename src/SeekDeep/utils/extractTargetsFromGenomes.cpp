@@ -2470,7 +2470,7 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 			if(bfs::exists(infoFnp)){
 				table infoTab(infoFnp, "\t", true);
 				if(!genome.second->gffFnp_.empty()){
-					table updatedInfoTab(toVecStr(infoTab.columnNames_, "insertGeneID", "insertTranscriptID", "insertGeneName", "insertGeneAAStart", "insertGeneAAStop", "insertGeneDescription"));
+					table updatedInfoTab(toVecStr(infoTab.columnNames_, "insertGeneID", "insertGeneName", "insertTranscriptID", "insertGeneAAStart", "insertGeneAAStop", "insertGeneDescription"));
 					for(auto & row : infoTab){
 						//coord name
 						std::string coordName = njh::pasteAsStr(row[infoTab.getColPos("#chrom")], "-", row[infoTab.getColPos("insertStart")], "-", row[infoTab.getColPos("insertStop")]);
@@ -2494,6 +2494,7 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
               updatedInfoTab.addRow(toVecStr(row,
                                              njh::conToStr(insertGeneID, ";"),
                                              njh::conToStr(insertGeneName, ";"),
+                                             njh::conToStr(insertTranscriptID, ";"),
                                              njh::conToStr(insertGeneAAStart, ";"),
                                              njh::conToStr(insertGeneAAStop, ";"),
                                              njh::conToStr(insertGeneDescription, ";")));
