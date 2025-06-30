@@ -2475,7 +2475,7 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 						//coord name
 						std::string coordName = njh::pasteAsStr(row[infoTab.getColPos("#chrom")], "-", row[infoTab.getColPos("insertStart")], "-", row[infoTab.getColPos("insertStop")]);
 						if(proteinInsertInfoByName[coordName].empty()){
-							updatedInfoTab.addRow(toVecStr(row, "", "", "", "", ""));
+							updatedInfoTab.addRow(toVecStr(row, "", "", "", "", "", ""));
 						}else{
 						  std::set<std::string> insertGeneID;
 						  std::set<std::string> insertGeneName;
