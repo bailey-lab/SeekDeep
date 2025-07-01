@@ -2492,12 +2492,12 @@ void extractBetweenSeqs(const PrimersAndMids & ids,
 						    insertGeneAAStop.emplace_back(std::numeric_limits<uint32_t>::max() == info.aaStop_ ? "NA" : njh::pasteAsStr(info.aaStop_));
 						  }
               updatedInfoTab.addRow(toVecStr(row,
-                                             njh::conToStr(insertGeneID, ";"),
-                                             njh::conToStr(insertGeneName, ";"),
-                                             njh::conToStr(insertTranscriptID, ";"),
-                                             njh::conToStr(insertGeneAAStart, ";"),
-                                             njh::conToStr(insertGeneAAStop, ";"),
-                                             njh::conToStr(insertGeneDescription, ";")));
+                                             njh::conToStr(insertGeneID, "::"),
+                                             njh::conToStr(insertGeneName, "::"),
+                                             njh::conToStr(insertTranscriptID, "::"),
+                                             njh::conToStr(insertGeneAAStart, "::"),
+                                             njh::conToStr(insertGeneAAStop, "::"),
+                                             njh::conToStr(insertGeneDescription, "::")));
 
 							// for(const auto & info : proteinInsertInfoByName[coordName]){
 							// 	updatedInfoTab.addRow(toVecStr(row, info.id_, info.Name_, (std::numeric_limits<uint32_t>::max() == info.aaStart_ ? "NA" : njh::pasteAsStr(info.aaStart_)), (std::numeric_limits<uint32_t>::max() == info.aaStop_ ? "NA" : njh::pasteAsStr(info.aaStop_)) , info.description_));
