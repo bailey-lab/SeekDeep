@@ -700,6 +700,7 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
   setUp.setOption(pars.breakoutPars.hardCutOff, "--snpBreakoutMinGroupSize", "A hard cut off for when breaking out clusters, clusters that larger(non-inclusive) than this are broken out");
   pars.breakoutPars.snpFreqCutOff = 0.025;
   pars.breakoutPars.hardSnpFreqCutOff = 0.025;
+  setUp.setOption(pars.breakoutPars.clusterFreqCutOff, "--snpBreakoutClusterFreqCutOff", "For snp Breakout within Cluster Freq Cut Off");
   setUp.setOption(pars.breakoutPars.snpFreqCutOff, "--snpFreqCutOff", "Cut off for when breaking out snp frequencies");
   setUp.setOption(pars.breakoutPars.hardSnpFreqCutOff, "--hardSnpFreqCutOff", "Hard SNP Freq Cut Off");
   setUp.setOption(pars.breakoutPars.minSnps, "--snpBreakoutMinSnps", "SNP Breakout Min Snps");

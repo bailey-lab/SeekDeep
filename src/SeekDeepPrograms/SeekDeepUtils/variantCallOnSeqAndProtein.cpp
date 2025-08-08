@@ -34,11 +34,13 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 
 	bfs::path bedLocs;
 	bool genomicLocsChangePeriodToDash = false;
-
+	bool requireFullKnownCoverage = true;
+	bool doNotRequireFullKnownCoverage = false;
 	seqSetUp setUp(inputCommands);
 	setUp.processVerbose();
 	setUp.processDebug();
-
+	setUp.setOption(doNotRequireFullKnownCoverage, "--doNotRequireFullKnownCoverage", "do Not Require Full Known Coverage e.g. will report covered by target if there is partial coverage");
+	requireFullKnownCoverage = !doNotRequireFullKnownCoverage;
 	setUp.setOption(aaSummaryRefInfoNextToAlt, "--aaSummaryRefInfoNextToAlt", "In AA Summary table place the Reference Info Next To Alternate info, rather than stacked");
 
 	setUp.setOption(collapseVarCallPars.variantCallerRunPars.ploidy, "--ploidy", "Ploidy to force for the sample for the vcf files");
@@ -1125,7 +1127,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 		for (const auto& loc: allLocs) {
 			VecStr intersected;
 			for (const auto& knownLoc: locs.genomicLocs) {
-				if (knownLoc.overlaps(*loc, 1)) {
+				if ((requireFullKnownCoverage && knownLoc.overlaps(*loc, knownLoc.length())) || (!requireFullKnownCoverage && knownLoc.overlaps(*loc, 1))) {
 					intersected.emplace_back(knownLoc.name_);
 					coveredBy[knownLoc.name_].emplace_back(loc->name_);
 				}
