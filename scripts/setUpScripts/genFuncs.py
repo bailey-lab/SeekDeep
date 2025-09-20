@@ -16,7 +16,7 @@ class genHelper:
                            "MONGOC", "MONGOCXX", "SHAREDMUTEX",
                            "MAGIC", "HTS", "RESTBED", "LIBPCA", "BOOST_FILESYSTEM","BOOST_MATH",
                            "PATHWEAVER", "ELUCIDATOR", "ELUCIDATORLAB", "MIPWRANGLER", "EIGEN",
-                            "ZLIB", "ZLIB-NG", "UNQLITE"]
+                            "ZLIB", "ZLIB-NG", "UNQLITE", "NLOHMANN_JSON"]
         neededLibraries = {}
         for lib in neededLibs:
             if ":" in lib:

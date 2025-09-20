@@ -318,7 +318,8 @@ class Packages():
             self.packages_["openblas"] = self.__openblas()
         if "unqlite" in libsNeeded:
             self.packages_["unqlite"] = self.__unqlite()
-
+        if "nlohmann_json" in libsNeeded:
+            self.packages_["nlohmann_json"] = self.__nlohmann_json()
 
         #njh setup
         if "njhseq" in libsNeeded:
@@ -406,7 +407,27 @@ class Packages():
                 pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
         return pack
 
-
+    def __nlohmann_json(self):
+        name = "nlohmann_json"
+        url = 'https://github.com/nlohmann/json'
+        buildCmd = ""
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly", "v3.12.0")
+        if self.args.noInternet:
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                pack = pickle.load(inputPkl)
+                pack.defaultBuildCmd_ = buildCmd
+        elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                    pack = pickle.load(inputPkl)
+                    pack.defaultBuildCmd_ = buildCmd
+        else:
+            refs = pack.getGitRefs(url)
+            for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
+                pack.addHeaderOnlyVersion(url, ref)
+            Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
+                pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
+        return pack
 
     def __bamtools(self):
         url = 'https://github.com/nickjhathaway/bamtools.git'
@@ -1939,6 +1960,8 @@ class Setup:
                        "boost": self.boost,
                        "boost_filesystem": self.boost_filesystem,
                        "boost_math": self.boost_math,
+                       "nlohmann_json": self.nlohmann_json,
+
 
                        "cppitertools": self.cppitertools,
                        "catch": self.catch,
@@ -2608,6 +2631,9 @@ class Setup:
 
     def pstreams(self, version):
         self.__defaultBuild("pstreams", version)
+
+    def nlohmann_json(self, version):
+        self.__defaultBuild("nlohmann_json", version)
 
     def cppitertools(self, version):
         self.__defaultBuild("cppitertools", version)
