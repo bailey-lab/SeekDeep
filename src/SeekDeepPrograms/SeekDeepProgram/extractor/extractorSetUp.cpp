@@ -93,6 +93,9 @@ void SeekDeepSetUp::setUpExtractorPairedEnd(ExtractorPairedEndPars & pars) {
 	setOption(noTrimLowQualWindows, "--noTrimLowQualWindows", "Don't Trim Low Qual Windows");
 	pars.pairProcessorParams_.trimLowQaulWindows_ = !noTrimLowQualWindows;
 
+	setOption(pars_.generalMatch_, "--match_scoring", "Match score for alignment", false, "Alignment");
+	setOption(pars_.generalMismatch_, "--mismatch_scoring",
+			"Mismatch score for alignment", false, "Alignment");
 
 	std::string overlapStatus{"auto"};
 	std::set<std::string> allowableOverlapStatuses{"AUTO", "R1BEGINSINR2", "R1ENDSINR2", "NOOVERLAP", "ALL"};

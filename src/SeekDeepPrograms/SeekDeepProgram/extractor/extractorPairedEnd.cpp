@@ -358,7 +358,8 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 
 	PairedReadProcessor::ProcessedResultsCounts mismatchedPrimerPairProcessCounts;
 
-	auto pairedProcessingScoring = substituteMatrix::createScoreMatrix(2, -2, true, true, true);
+	auto pairedProcessingScoring = substituteMatrix::createScoreMatrix(setUp.pars_.generalMatch_, setUp.pars_.generalMismatch_, true, true, true);
+
 	aligner processingPairsAligner(maxReadSize, alnGapPars, pairedProcessingScoring, false);
 	processingPairsAligner.qScorePars_.qualThresWindow_ = 0;
 	std::unordered_map<std::string, std::vector<uint32_t>> lengthsPerStitchedTarget;
