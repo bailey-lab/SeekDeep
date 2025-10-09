@@ -572,9 +572,13 @@ int SeekDeepUtilsRunner::benchmarkMultiTarAmpControlMixtures(
 			expSeqsKey[target][expSeqs[target][expSeqPos]->name_] = expSeqs[target][expSeqPos]->name_;
 			finalExpSeqsPositions[target][expSeqs[target][expSeqPos]->name_] = expSeqPos;
 		}
-
-		benchers[target]->checkForStrainsThrow(expNames, __PRETTY_FUNCTION__);
-
+		try {
+			benchers[target]->checkForStrainsThrow(expNames, __PRETTY_FUNCTION__);
+		} catch (std::exception & e) {
+			std::stringstream ss;
+			ss << __PRETTY_FUNCTION__ << ", error for: " << target << "\n" << e.what() << "\n";
+			throw std::runtime_error{ss.str()};
+		}
 	}
 	bfs::copy(njh::files::normalize(conBenchPars.samplesToMixFnp_), njh::files::make_path(setUp.pars_.directoryName_, "samplesToMix.tsv"));
 	if (njh::in(targetNameColName, sampleToMixTab.columnNames_) &&
@@ -1460,9 +1464,7 @@ int SeekDeepUtilsRunner::benchmarkTarAmpControlMixtures(
 		expSeqsKey[expSeqs[expSeqPos]->name_] = expSeqs[expSeqPos]->name_;
 		finalExpSeqsPositions[expSeqs[expSeqPos]->name_] = expSeqPos;
 	}
-
 	bencher.checkForStrainsThrow(expNames, __PRETTY_FUNCTION__);
-
 
 	OutputStream falseHaplotypesToExpClassified(
 					njh::files::make_path(setUp.pars_.directoryName_, "falseHaplotypesComparedToExpected.tsv"));
