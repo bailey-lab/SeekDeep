@@ -27,7 +27,7 @@ struct KmerClusteringRatePars {
   double cutOff = 0.05;
   uint32_t repCutOff = 1;
   double freqCutOff = 0.005;
-  std::string sizeCutOffStr = "1%,3";
+  std::string sizeCutOffStr = "5%,3";
   // std::string sizeCutOffStr = "0.05%,3";
 
   double idCutOff = .90;
@@ -559,7 +559,7 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
   bool checkIndelsWhenMapping = false;
   bool checkIndelsAgainstSNPsWhenMapping = false;
   bool doNotCheckIndelsAgainstSNPsWhenMapping = false;
-  uint32_t maxReadAmountForDownsample = 10000;
+  uint32_t maxReadAmountForDownsample = 50000;
   uint64_t randomSeed = std::numeric_limits<uint64_t>::max();
   seqSetUp setUp(inputCommands);
   setUp.processDebug();
@@ -821,10 +821,13 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
   if(setUp.pars_.verbose_){
     std::cout << njh::bashCT::bold << "Done Reading" << std::endl;;
   }
-  uint32_t clustersizeCutOff = processRunCutoff(pars.sizeCutOffStr, totalReadCnt);
+  //uint32_t clustersizeCutOff = processRunCutoff(pars.sizeCutOffStr, totalReadCnt);
+  //instead of total readc ount, make it the sub sampling amount otherwise could be very high
+  uint32_t clustersizeCutOff = processRunCutoff(pars.sizeCutOffStr, std::min(pars.subSamplingAmount_, totalReadCnt));
   if(setUp.pars_.verbose_){
     std::cout << njh::bashCT::bold << "Read in " << totalReadCnt << " sequences and grouped into " << inputReadsGrouped.size() << " sub groups of size: " << pars.subSamplingAmount_ << std::endl;;
-    std::cout << "Cluster Cut off " << clustersizeCutOff << njh::bashCT::reset
+
+    std::cout << "Cluster Cut off based on " << pars.sizeCutOffStr << " and " << std::min(pars.subSamplingAmount_, totalReadCnt) << " is " << clustersizeCutOff << njh::bashCT::reset
               << std::endl;
   }
   //add some meta data about file and analysis paths so latter trace back from finalClustering population can happen
