@@ -559,7 +559,7 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
   bool checkIndelsWhenMapping = false;
   bool checkIndelsAgainstSNPsWhenMapping = false;
   bool doNotCheckIndelsAgainstSNPsWhenMapping = false;
-  uint32_t maxReadAmountForDownsample = 50000;
+  uint32_t maxReadAmountForDownsample = 10000;//50000
   uint64_t randomSeed = std::numeric_limits<uint64_t>::max();
   seqSetUp setUp(inputCommands);
   setUp.processDebug();
