@@ -704,6 +704,8 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
   setUp.setOption(pars.breakoutPars.snpFreqCutOff, "--snpFreqCutOff", "Cut off for when breaking out snp frequencies");
   setUp.setOption(pars.breakoutPars.hardSnpFreqCutOff, "--hardSnpFreqCutOff", "Hard SNP Freq Cut Off");
   setUp.setOption(pars.breakoutPars.minSnps, "--snpBreakoutMinSnps", "SNP Breakout Min Snps");
+  setUp.setOption(pars.breakoutPars.rev_comp_composition_cut_off, "--snp_breakout_rev_comp_composition_cut_off", "snp breakout rev comp composition cut off");
+
   setUp. setOption(pars.collapsingTandems, "--collapseTandems", "Collapsing clusters if they only differ by gaps in tandem repeats");
   setUp.setOption(pars.collapseTandemPars.freqCutoff, "--collapseTandemsFreqMultiplier", "When collapse tandem repeat gaps, larger cluster's frequency must be this many times the frequency of the smaller cluster");
   pars.collapseTandemPars.allowableMismatches.lqMismatches_ = 1;
@@ -3193,29 +3195,33 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
       }
       //log snp information
       /**@todo add indel information, less informative since pacbio have a lot*/
-      std::unordered_map<uint32_t, std::unordered_map<char, VecStr>> mismatches;
-      for (const auto subReadPos : iter::range(
-          consensusReads[readPos].reads_.size())) {
-        const auto & subRead = consensusReads[readPos].reads_[subReadPos];
+      std::unordered_map<uint32_t, std::unordered_map<char, VecStr> > mismatches;
+      for (const auto subReadPos: iter::range(
+             consensusReads[readPos].reads_.size())) {
+        const auto &subRead = consensusReads[readPos].reads_[subReadPos];
         alignerObj.alignCache(consensusReads[readPos], subRead, false);
         //count gaps and mismatches and get identity
         alignerObj.profilePrimerAlignment(consensusReads[readPos], subRead);
-        for (const auto & m : alignerObj.comp_.distances_.mismatches_) {
-          if(m.second.highQuality(setUp.pars_.qScorePars_)){
+        for (const auto &m: alignerObj.comp_.distances_.mismatches_) {
+          if (m.second.highQuality(setUp.pars_.qScorePars_)) {
             mismatches[m.second.refBasePos][m.second.seqBase].emplace_back(
-                subRead->seqBase_.name_);
+              subRead->seqBase_.name_);
           }
         }
-          }
+      }
       table misTab { VecStr { "refPos", "refBase", "seqBase", "freq", "fraction",
-                              "seqs" } };
+        "comp_fraction", "seqs" } };
       for (const auto & m : mismatches) {
         for (const auto & seqM : m.second) {
-
+          uint32_t comp = std::count_if(seqM.second.begin(), seqM.second.end(),
+            [](const std::string & name) {
+              return njh::endsWith(name, "_Comp");
+            });
           misTab.content_.emplace_back(
               toVecStr(m.first, consensusReads[readPos].seqBase_.seq_[m.first],
                        seqM.first, seqM.second.size(),
                        seqM.second.size() / consensusReads[readPos].seqBase_.cnt_,
+                       static_cast<double>(comp)/seqM.second.size(),
                        vectorToString(seqM.second, ",")));
         }
       }
