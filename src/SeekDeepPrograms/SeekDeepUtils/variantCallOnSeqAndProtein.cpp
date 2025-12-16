@@ -531,7 +531,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 		for(const auto & target : targetNamesVec) {
 			auto geneBedFiles = njh::files::listAllFiles(njh::files::make_path(setUp.pars_.directoryName_, "/", target, "/variantCalling/variantCalls/geneInfos"),false,
 				std::vector<std::regex>{std::regex{".*.bed"}},
-				std::vector<std::regex>{std::regex{".*_exonIntronPositions.bed"}});
+				std::vector<std::regex>{std::regex{".*_exonIntronPositions.bed"}, std::regex{".*_withUTR.bed"}});
 			for(const auto  & f : geneBedFiles) {
 				auto beds = getBeds(f.first);
 				std::string geneInfo;
@@ -546,7 +546,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 		table::splitColWithMetaPars splitPars;
 		splitPars.column_ = "geneInfo";
 		splitPars.removeEmptyColumn_ = true;
-		auto splitTab = table::splitColWithMeta(overlappingGeneInfo, splitPars);
+		auto splitTab = table::splitColWithMeta(overlappingGeneInfo.getUniqueRows(), splitPars);
 		OutputStream geneInfoTabout(njh::files::make_path(reportsInfoDir, "targetsIntersectingWithGenesInfo.tsv"));
 		splitTab.outPutContents(geneInfoTabout, "\t");
 	}
@@ -783,8 +783,11 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 					<< "\t" << "AA_withinSampleCoverage"
 					<< "\t" << "AlleleCount"
 					<< "\t" << "AlleleFrequency"
+					<< "\t" << "AlleleTotal"
 					<< "\t" << "SampleCount"
-					<< "\t" << "SamplePrevalence";
+					<< "\t" << "SamplePrevalence"
+					<< "\t" << "SampleTotal"
+			;
 			aminoAcidChangesTable << std::endl;
 			for(const auto & rec : firstPVcf.records_) {
 				std::string targeted = "No";
@@ -796,36 +799,44 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 						break;
 					}
 				}
+				auto TYPE = tokenizeString(rec.info_.getMeta("TYPE"), ",");
+				auto ACs = tokenizeString(rec.info_.getMeta("AC_REAL"), ",");
+				auto AFs = tokenizeString(rec.info_.getMeta("AF_REAL"), ",");
+				auto SCs = tokenizeString(rec.info_.getMeta("SC"), ",");
+				auto PREVs = tokenizeString(rec.info_.getMeta("PREV"), ",");
+				const auto & ref = rec.ref_;
+				//getting ref numbers
+				// // allele
+				auto AN = njh::StrToNumConverter::stoToNum<uint32_t>(rec.info_.getMeta("AN_REAL"));
+				auto ref_AC = AN - vectorSum(vecStrToVecNum<uint32_t>(ACs));
+				auto ref_AF = 1 - vectorSum(vecStrToVecNum<double>(AFs));
+				// // sample
+				auto NS = njh::StrToNumConverter::stoToNum<uint32_t>(rec.info_.getMeta("NS"));
+				uint32_t ref_SC = 0;
 				for(const auto & sample : rec.sampleFormatInfos_) {
+					auto DP = sample.second.getMeta("DP");
+					if("." != DP) {
+						auto sample_ADs = tokenizeString(sample.second.getMeta("AD"), ",");
+						if (njh::StrToNumConverter::stoToNum<uint32_t>(sample_ADs[0]) > 0) {
+							++ref_SC;
+						}
+					}
+				}
 
-					auto TYPE = tokenizeString(rec.info_.getMeta("TYPE"), ",");
+				double ref_PREV = ref_SC/static_cast<double>(NS);
 
+				std::string refTriCodeName;
+				for(const auto c : ref) {
+					auto currentTriCode = aminoAcidInfo::infos::allInfo.at(c).triCode_;
+					currentTriCode[0] = static_cast<char>(toupper(currentTriCode[0]));
+					refTriCodeName+= currentTriCode;
+				}
+				std::string geneName = rec.info_.getMeta("GeneName");
+
+				for(const auto & sample : rec.sampleFormatInfos_) {
 					auto DP = sample.second.getMeta("DP");
 					auto sample_ADs = tokenizeString(sample.second.getMeta("AD"), ",");
 					auto sample_AFs = tokenizeString(sample.second.getMeta("AF"), ",");
-					auto ACs = tokenizeString(rec.info_.getMeta("AC_REAL"), ",");
-					auto AFs = tokenizeString(rec.info_.getMeta("AF_REAL"), ",");
-					auto SCs = tokenizeString(rec.info_.getMeta("SC"), ",");
-					auto PREVs = tokenizeString(rec.info_.getMeta("PREV"), ",");
-					const auto & ref = rec.ref_;
-					//getting ref numbers
-					// // allele
-					auto AN = njh::StrToNumConverter::stoToNum<uint32_t>(rec.info_.getMeta("AN_REAL"));
-					auto ref_AC = AN - vectorSum(vecStrToVecNum<uint32_t>(ACs));
-					auto ref_AF = 1 - vectorSum(vecStrToVecNum<double>(AFs));
-					// // sample
-					auto NS = njh::StrToNumConverter::stoToNum<uint32_t>(rec.info_.getMeta("NS"));
-					auto ref_SC = NS - vectorSum(vecStrToVecNum<uint32_t>(SCs));
-					auto ref_PREV = 1 - vectorSum(vecStrToVecNum<double>(PREVs));
-
-					std::string refTriCodeName;
-					for(const auto c : ref) {
-						auto currentTriCode = aminoAcidInfo::infos::allInfo.at(c).triCode_;
-						currentTriCode[0] = static_cast<char>(toupper(currentTriCode[0]));
-						refTriCodeName+= currentTriCode;
-					}
-					std::string geneName = rec.info_.getMeta("GeneName");
-
 					for(const auto & altEnum : iter::enumerate(rec.alts_)) {
 						const auto & alt = altEnum.element;
 						std::string altTriCodeName;
@@ -848,9 +859,6 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 						} else if (TYPE[altEnum.index] == "ins") {
 							ExonicFunc = "conservative_inframe_insertion";
 						}
-
-
-
 						aminoAcidChangesTable << rec.info_.getMeta("GeneID")
 							<< "\t" << rec.chrom_
 							<< "\t" << geneName
@@ -884,10 +892,13 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 									<< "\t" << sample_AFs[altEnum.index + 1]
 									<< "\t" << DP;
 						}
-						aminoAcidChangesTable << "\t" << ACs[altEnum.index]
+						aminoAcidChangesTable
+							<< "\t" << ACs[altEnum.index]
 							<< "\t" << AFs[altEnum.index]
+							<< "\t" << AN
 							<< "\t" << SCs[altEnum.index]
-							<< "\t" << PREVs[altEnum.index];
+							<< "\t" << PREVs[altEnum.index]
+							<< "\t" << NS;
 						aminoAcidChangesTable << std::endl;
 					}
 					{
@@ -921,8 +932,10 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 						aminoAcidChangesTable
 								<< "\t" << ref_AC
 								<< "\t" << ref_AF
+								<< "\t" << AN
 								<< "\t" << ref_SC
-								<< "\t" << ref_PREV;
+								<< "\t" << ref_PREV
+								<< "\t" << NS;
 						aminoAcidChangesTable << std::endl;
 					}
 				}
