@@ -351,11 +351,13 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
         extractorCase = ExtractionStator::extractCase::INVERSECHIMERA;
         seq.on_ = false;
       }
-
-      //min len
-      ids.targets_.at(winnerSet).lenCuts_->minLenChecker_.checkRead(seq);
-      if(!seq.on_){
-        extractorCase = ExtractionStator::extractCase::MINLENBAD;
+      //only check min len if INVERSECHIMERA wasn't true
+      if(seq.on_) {
+        //min len
+        ids.targets_.at(winnerSet).lenCuts_->minLenChecker_.checkRead(seq);
+        if(!seq.on_){
+          extractorCase = ExtractionStator::extractCase::MINLENBAD;
+        }
       }
 
       std::string MIDunknownName = ids.containsMids() ? "-MIDunknown" : "";
