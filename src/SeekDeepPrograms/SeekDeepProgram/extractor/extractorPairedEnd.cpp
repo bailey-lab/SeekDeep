@@ -326,7 +326,7 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 			setUp.pars_.qScorePars_, countEndGaps, false);
 
 	alignObj.processAlnInfoInput(setUp.pars_.alnInfoDirName_);
-	ExtractionStator stats(count, readsNotMatchedToBarcode, 0, smallFragmentCount);
+	ExtractionStator stats({count, readsNotMatchedToBarcode, 0, smallFragmentCount, 0});
 	std::map<std::string, uint32_t> allPrimerCounts;
 	std::map<std::string, uint32_t> matchingPrimerCounts;
 	std::vector<std::string> expectedSamples;

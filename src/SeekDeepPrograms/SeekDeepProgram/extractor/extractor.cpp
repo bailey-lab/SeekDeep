@@ -352,8 +352,8 @@ int SeekDeepRunner::extractor(const njh::progutils::CmdArgs & inputCommands) {
 	if (pars.filterOffSmallReadCounts) {
 		smallDir = njh::files::makeDir(setUp.pars_.directoryName_, njh::files::MkdirPar("smallReadCounts", false));
 	}
-	ExtractionStator stats(count, readsNotMatchedToBarcode,
-			readsNotMatchedToBarcodePossContam, smallFragmentCount);
+  ExtractionStator stats({count, readsNotMatchedToBarcode,
+      readsNotMatchedToBarcodePossContam, smallFragmentCount, 0});
 	std::map<std::string, uint32_t> goodCounts;
 
 	for (const auto & barcodeFile : barcodeFiles) {

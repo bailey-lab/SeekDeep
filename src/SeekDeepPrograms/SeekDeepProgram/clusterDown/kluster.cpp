@@ -23,6 +23,8 @@ namespace njhseq {
 
 
 struct KmerClusteringRatePars {
+  uint32_t trimBack = 0;
+  uint32_t trimFront = 0;
 	bool development = false;
   double cutOff = 0.05;
   uint32_t repCutOff = 1;
@@ -640,6 +642,8 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
   if(pars.useHDBScan){
     pars.dbPars_.eps_ = std::numeric_limits<double>::max();
   }
+  setUp.setOption(pars.trimFront, "--trimFront", "Trim front of the input sequences by this much after lower case base handling(aka primer trimming)", false, "Pre-process");
+  setUp.setOption(pars.trimBack, "--trimBack", "Trim back of the input sequence by this much after lower case base handling(aka primer trimming)", false, "Pre-process");
 
   pars.hdbScanPars_.verbose = setUp.pars_.verbose_;
   pars.hdbScanPars_.debug = setUp.pars_.debug_;
@@ -802,6 +806,12 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
       readVec::getMaxLength(seq, maxReadLength);
       auto kSeq = std::make_shared<seqWithKmerInfo>(seq);
       readVec::handelLowerCaseBases(kSeq, setUp.pars_.ioOptions_.lowerCaseBases_);
+      if(pars.trimBack > 0){
+        readVecTrimmer::trimOffEndBases(kSeq, pars.trimBack);
+      }
+      if(pars.trimFront > 0){
+        readVecTrimmer::trimOffForwardBases(kSeq, pars.trimFront);
+      }
       allInputReads.emplace_back(kSeq);
     }
     if(sortByErrorRateBeforeSubGrouping){

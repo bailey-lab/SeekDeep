@@ -194,8 +194,8 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 
 
 	//pre-process
-	setOption(pars.trimFront, "--trimFront", "Trim front of the input sequences by this much", false, "Pre-process");
-	setOption(pars.trimBack, "--trimBack", "Trim back of the input sequence by this much", false, "Pre-process");
+  setOption(pars.trimFront, "--trimFront", "Trim front of the input sequences by this much after lower case base handling(aka primer trimming)", false, "Pre-process");
+  setOption(pars.trimBack, "--trimBack", "Trim back of the input sequence by this much after lower case base handling(aka primer trimming)", false, "Pre-process");
 
 	setOption(pars.trimToLocal, "--trimToLocal", "When trimming to a set sequence use local alignment", false, "Pre-process");
 	setOption(pars.trimToWithin, "--trimToWithin", "When trimming to a set sequence, search within this many bases from the back", false, "Pre-process");

@@ -190,6 +190,7 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
 
 
   seqOut.addReader("undetermined", SeqIOOptions::genFastqOutGz(njh::files::make_path(setUp.pars_.directoryName_, "undetermined")));
+  seqOut.addReader("multihit", SeqIOOptions::genFastqOutGz(njh::files::make_path(setUp.pars_.directoryName_, "multihit")));
 
   //set up aligner
   // creating aligner
@@ -299,7 +300,11 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
       double bestFrac = 0;
       bool winnerRevComp = false;
 
+      uint32_t target_hit_count = 0;// doesn't take into account inverse hits, 1 target with large hits in forward and reverse
       for(const auto & setName  : njh::getVecOfMapKeys(ids.uniqueKmersPerTarget_)){
+        if (foundPerSet[setName] >= hardKmersPerTarget || foundPerSetRevComp[setName] >= hardKmersPerTarget) {
+          ++target_hit_count;
+        }
         if(static_cast<double>(foundPerSet[setName])/static_cast<double>(hashedInputKmers.size()) > bestFrac){
           bestFrac = static_cast<double>(foundPerSet[setName])/static_cast<double>(hashedInputKmers.size());
           winnerSet = setName;
@@ -310,12 +315,17 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
           winnerRevComp = true;
         }
       }
+      bool multi_hit = target_hit_count > 1;
+      if (multi_hit) {
+        winnerSet = "multihit";
+      }
       if(winnerRevComp){
         ++readsPerSetRevCompCurrent[winnerSet];
         seq.reverseComplementRead(true, true);
-      }else{
+      } else {
         ++readsPerSetCurrent[winnerSet];
       }
+
       if(rename){
         auto threadId = estd::to_string(std::this_thread::get_id());
         seq.name_ = njh::pasteAsStr(sampleName, ".",winnerSet, ".", readsPerSetCurrent[winnerSet] + readsPerSetRevCompCurrent[winnerSet], ".", threadId);
@@ -323,12 +333,25 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
           seq.name_.append("_Comp");
         }
       }
+
       seqOut.openWrite(winnerSet, seq);
       if("undetermined" == winnerSet){
         ++masterCountsCurrent.readsUnrecBarcode_;
         continue;
       }
+      if("multihit" == winnerSet){
+        ++masterCountsCurrent.multihit_;
+        continue;
+      }
+
       auto extractorCase = ExtractionStator::extractCase::GOOD;
+
+      //check for inverse hit (has hit of the same target in both the forward and reverse directions)
+      if (foundPerSet[winnerSet] >= hardKmersPerTarget && foundPerSetRevComp[winnerSet]  >= hardKmersPerTarget) {
+        extractorCase = ExtractionStator::extractCase::INVERSECHIMERA;
+        seq.on_ = false;
+      }
+
       //min len
       ids.targets_.at(winnerSet).lenCuts_->minLenChecker_.checkRead(seq);
       if(!seq.on_){
@@ -467,6 +490,7 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
 
   outCounts << "sample\ttotalReadsProcessed\ttarget\tcount\tfrac\tforwardCount\tfracForward";
   outCounts << "\tminLenFailed\tminLenFailedFrac";
+  outCounts << "\tinverseChimeraFailed\tinverseChimeraFailedFrac";
   outCounts << "\tmaxLenFailed\tmaxLenFailedFrac";
   outCounts << "\tqualityFailed\tqualityFailedFrac";
   outCounts << "\tforwardPrimerFailed\tforwardPrimerFailedFrac";
@@ -481,6 +505,7 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
   uint64_t totalExtractedAllTargets = 0;
   uint64_t totalExtractedAllTargetsForward = 0;
   uint64_t totalExtractedUndetermined = readsPerSet["undetermined"] + readsPerSetRevComp["undetermined"];
+  uint64_t totalExtractedMultihit = readsPerSet["multihit"] + readsPerSetRevComp["multihit"];
 
 
   for(const auto & setName : ids.getTargets()){
@@ -489,12 +514,13 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
 		totalExtractedAllTargetsForward += readsPerSet[setName];
 
     uint64_t totalBad = masterCounts.counts_[setName][false].minLenBad_ + masterCounts.counts_[setName][true].minLenBad_ +
-        masterCounts.counts_[setName][false].maxLenBad_ + masterCounts.counts_[setName][true].maxLenBad_+
-        masterCounts.counts_[setName][false].qualityFailed_ + masterCounts.counts_[setName][true].qualityFailed_ +
-        masterCounts.counts_[setName][false].badForward_ + masterCounts.counts_[setName][true].badForward_ +
-        masterCounts.counts_[setName][false].badReverse_ + masterCounts.counts_[setName][true].badReverse_ +
-        masterCounts.counts_[setName][false].failedBothPrimers_ + masterCounts.counts_[setName][true].failedBothPrimers_+
-        masterCounts.counts_[setName][false].badmid_ + masterCounts.counts_[setName][true].badmid_;
+          masterCounts.counts_[setName][false].maxLenBad_ + masterCounts.counts_[setName][true].maxLenBad_+
+          masterCounts.counts_[setName][false].inverse_chimera_ + masterCounts.counts_[setName][true].inverse_chimera_+
+          masterCounts.counts_[setName][false].qualityFailed_ + masterCounts.counts_[setName][true].qualityFailed_ +
+          masterCounts.counts_[setName][false].badForward_ + masterCounts.counts_[setName][true].badForward_ +
+          masterCounts.counts_[setName][false].badReverse_ + masterCounts.counts_[setName][true].badReverse_ +
+          masterCounts.counts_[setName][false].failedBothPrimers_ + masterCounts.counts_[setName][true].failedBothPrimers_+
+          masterCounts.counts_[setName][false].badmid_ + masterCounts.counts_[setName][true].badmid_;
 
     outCounts << sampleName
               << "\t" << totalReadsProcessed
@@ -506,6 +532,9 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
     //minlen
     outCounts<< "\t" << masterCounts.counts_[setName][false].minLenBad_ + masterCounts.counts_[setName][true].minLenBad_
     << "\t" << (totalBad == 0 ? 0 : static_cast<double>(masterCounts.counts_[setName][false].minLenBad_ + masterCounts.counts_[setName][true].minLenBad_)/static_cast<double>(totalBad));
+    //inverse chimera
+    outCounts<< "\t" << masterCounts.counts_[setName][false].inverse_chimera_ + masterCounts.counts_[setName][true].inverse_chimera_
+    << "\t" << (totalBad == 0 ? 0 : static_cast<double>(masterCounts.counts_[setName][false].inverse_chimera_ + masterCounts.counts_[setName][true].inverse_chimera_)/static_cast<double>(totalBad));
     //maxlen
     outCounts << "\t" << masterCounts.counts_[setName][false].maxLenBad_ + masterCounts.counts_[setName][true].maxLenBad_
     << "\t" << (totalBad == 0 ? 0 : static_cast<double>(masterCounts.counts_[setName][false].maxLenBad_ + masterCounts.counts_[setName][true].maxLenBad_)/static_cast<double>(totalBad));
@@ -524,7 +553,6 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
     //failed MID
     outCounts << "\t" << masterCounts.counts_[setName][false].badmid_ + masterCounts.counts_[setName][true].badmid_
               << "\t" << (totalBad == 0 ? 0 : static_cast<double>(masterCounts.counts_[setName][false].badmid_ + masterCounts.counts_[setName][true].badmid_)/static_cast<double>(totalBad));
-
     //bad
     outCounts << "\t" << totalBad
               << "\t" << (totalExtracted == 0 ? 0 : static_cast<double>(totalBad) / static_cast<double>(totalExtracted));
@@ -561,16 +589,20 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
         << "\t" << 0
         << "\t" << 0
         << "\t" << 0
+        << "\t" << 0
+        << "\t" << 0
               << std::endl;
   }
 
-  outStats << "sampleName\ttotalReadsProcessed\tfailedMinLen_" << corePars.smallFragmentCutoff << "\tfailedMinLenFrac\tundetermined\tundeterminedFrac\textracted\textractedFrac\textractedForward\textractedForwardFrac\tpassed\tpassedFrac" << std::endl;
+  outStats << "sampleName\ttotalReadsProcessed\tfailedMinLen_" << corePars.smallFragmentCutoff << "\tfailedMinLenFrac\tundetermined\tundeterminedFrac\tmultihit\tmultihitFrac\textracted\textractedFrac\textractedForward\textractedForwardFrac\tpassed\tpassedFrac" << std::endl;
   outStats << sampleName
 					 << "\t" << totalReadsProcessed + masterCounts.smallFrags_
 					 << "\t" << masterCounts.smallFrags_
 					 << "\t" << static_cast<double>(masterCounts.smallFrags_) / static_cast<double>(totalReadsProcessed + masterCounts.smallFrags_)
 					 << "\t" << totalExtractedUndetermined
-					 << "\t" << static_cast<double>(totalExtractedUndetermined) / static_cast<double>(totalExtractedUndetermined + totalExtractedAllTargets)
+					 << "\t" << static_cast<double>(totalExtractedUndetermined) / static_cast<double>(totalExtractedMultihit + totalExtractedUndetermined + totalExtractedAllTargets)
+           << "\t" << totalExtractedMultihit
+           << "\t" << static_cast<double>(totalExtractedMultihit) / static_cast<double>(totalExtractedMultihit + totalExtractedUndetermined + totalExtractedAllTargets)
 					 << "\t" << totalExtractedAllTargets
 					 << "\t" << static_cast<double>(totalExtractedAllTargets) / static_cast<double>(totalReadsProcessed + masterCounts.smallFrags_)
 					 << "\t" << totalExtractedAllTargetsForward
