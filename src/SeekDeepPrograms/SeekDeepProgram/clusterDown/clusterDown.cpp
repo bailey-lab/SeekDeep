@@ -37,7 +37,11 @@ namespace njhseq {
 int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 	SeekDeepSetUp setUp(inputCommands);
 	// parameters
+	std::string sample, target, replicate;
 	clusterDownPars pars;
+	bool sampleSet = setUp.setOption(sample, "--sample", "sample name to give to output");
+	bool targetSet = setUp.setOption(target, "--target", "target name to give to output");
+	bool replicateSet = setUp.setOption(replicate, "--replicate", "replicate name to give to output");
 
 	setUp.setUpClusterDown(pars);
 	// make the runLog, this is what is seen on the terminal screen at run time
@@ -645,6 +649,23 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 		}
 	}
 	setUp.rLog_.logCurrentTime("Writing outputs");
+
+	//add sample, target, replicate, and readCount meta to name
+	for (auto & seq : clusters) {
+		MetaDataInName meta;
+		meta.addMeta("readCount", seq.seqBase_.cnt_);
+		if (sampleSet) {
+			meta.addMeta("sample", sample);
+		}
+		if (targetSet) {
+			meta.addMeta("target", target);
+		}
+		if (replicateSet) {
+			meta.addMeta("replicate", replicate);
+		}
+		meta.resetMetaInName(seq.seqBase_.name_, seq.seqBase_.name_.rfind("_t"));
+	}
+
 	if(pars.development){
 		if (setUp.pars_.refIoOptions_.firstName_.empty()) {
 			profiler::getFractionInfoCluster(clusters, setUp.pars_.directoryName_,

@@ -192,6 +192,8 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 	setOption(pars.BackUpIlluminaSampleRegPatStr_, "--BackUpIlluminaSampleRegPatStr", "Back Up Illumina Sample Reg Pat Str");
 	setOption(pars.BackUpIlluminaSampleNumberPos_, "--BackUpIlluminaSampleNumberPos", "Back Up Illumina Sample Number Pos");
 
+	//adding sample and target name
+
 
 	//pre-process
   setOption(pars.trimFront, "--trimFront", "Trim front of the input sequences by this much after lower case base handling(aka primer trimming)", false, "Pre-process");

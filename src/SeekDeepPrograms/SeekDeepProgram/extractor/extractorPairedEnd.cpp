@@ -252,7 +252,7 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 	if(ids.containsMids()){
 		OutOptions barcodeCountOpts(njh::files::make_path(setUp.pars_.directoryName_, "midCounts.tab.txt"));
 		OutputStream barcodeCountOut(barcodeCountOpts);
-		barcodeCountOut << "inputName\tMID\tforwardCount\tforwardCountPerc\treverseCount\treverseCountPerc\ttotal\tfraction" << std::endl;
+		barcodeCountOut << "inputName\tsampleName\tMID\tforwardCount\tforwardCountPerc\treverseCount\treverseCountPerc\ttotal\tfraction" << std::endl;
 		std::set<std::string> barKeysSet{"all"};
 		if(ids.containsMids()){
 			auto inputMNames = ids.getMids();
@@ -266,6 +266,7 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 			if(total > 0){
 				barcodeCountOut
 						<< seqName
+						<< "\t"	<< pars.corePars_.sampleName
 						<< "\t" << countkey
 						<< "\t" << counts[countkey].first
 						<< "\t" << 100 * (counts[countkey].first/total)
@@ -275,6 +276,7 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 						<< "\t" << total/count << std::endl;
 			} else {
 				barcodeCountOut << seqName
+				<< "\t"	<< pars.corePars_.sampleName
 						<< "\t" << countkey
 						<< "\t" << "0"
 						<< "\t" << "0"
@@ -294,7 +296,7 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 
 	std::ofstream renameKeyFile;
 	if (pars.corePars_.rename) {
-		openTextFile(renameKeyFile, setUp.pars_.directoryName_ + "renameKey.tab.txt", ".tab.txt", false, false);
+		openTextFile(renameKeyFile, setUp.pars_.directoryName_ + "renameKey.tab.txt.gz", ".tab.txt.gz", false, false);
 		renameKeyFile << "originalName\tnewName\n";
 	}
 
@@ -555,7 +557,7 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 	{
 		OutOptions allFailedPrimerCountsOpts(njh::files::make_path(setUp.pars_.directoryName_, "allFailedPrimerCounts.tab.txt"));
 		OutputStream allFailedPrimerCountsOut(allFailedPrimerCountsOpts);
-		allFailedPrimerCountsOut << "inputName\tMIDName\tforwardPrimer\treversePrimer\toverlapStatus\tcount\tMIDtotal\tavgLength" << "\n";
+		allFailedPrimerCountsOut << "inputName\tsampleName\tMIDName\tforwardPrimer\treversePrimer\toverlapStatus\tcount\tMIDtotal\tavgLength" << "\n";
 		for(const auto & samp : failedPrimer){
 			for(const auto & forw : samp.second){
 				for(const auto & rev : forw.second){
@@ -566,6 +568,7 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 						}
 						allFailedPrimerCountsOut
 						<< seqName
+						<< "\t"	<< pars.corePars_.sampleName
 								<< "\t" << samp.first
 								<< "\t" << forw.first
 								<< "\t" << rev.first
@@ -734,13 +737,14 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 
 
 	OutputStream outPairProcessOut(njh::files::make_path(setUp.pars_.directoryName_, "processPairsCounts.tab.txt"));
-	outPairProcessOut << "inputName\tName\ttarget\ttotal\tnotCombined\tperfectOverlapCombined\tr1BeginsInR2Combined\tr1BeginsInR2CombinedAboveCutOff\tr1EndsInR2Combined\tr1AllInR2Combined\tr2AllInR1Combined" << std::endl;;
+	outPairProcessOut << "inputName\tsampleName\tName\ttarget\ttotal\tnotCombined\tperfectOverlapCombined\tr1BeginsInR2Combined\tr1BeginsInR2CombinedAboveCutOff\tr1EndsInR2Combined\tr1AllInR2Combined\tr2AllInR1Combined" << std::endl;;
 	auto processedPairsKeys = njh::getVecOfMapKeys(resultsPerMidTarPair);
 	njh::sort(processedPairsKeys);
 
 	for(const auto & processedResultsKey : processedPairsKeys){
 		const auto & processedResults = resultsPerMidTarPair[processedResultsKey];
 		outPairProcessOut << seqName
+		<< "\t"	<< pars.corePars_.sampleName
 				<< "\t" << processedResultsKey
 				<< "\t" << processedResults.first
 				<< "\t" << processedResults.second.total
@@ -971,6 +975,7 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 	std::unordered_map<std::string, uint32_t> goodFinal;
 
 	std::set<std::string> allNames;
+	std::unordered_map<std::string, std::string> name_to_target_key;
 
 	for(const auto & extractedMid : primersInMids){
 		for(const auto & extractedPrimer : extractedMid.second){
@@ -980,6 +985,7 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 			}else if(!ids.containsMids() && "all" == extractedMid.first){
 				name = extractedPrimer;
 			}
+			name_to_target_key[name] = extractedPrimer;
 			if(njh::in(PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP, njh::mapAt(ids.targets_, extractedPrimer).overlapStatuses_)){
 				if(setUp.pars_.verbose_&& setUp.pars_.debug_){
 					std::cout << extractedPrimer << " " << "NOOVERLAP" << std::endl;
@@ -1014,6 +1020,16 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 					}else{
 						++used;
 						++goodFinal[name];
+						if (pars.corePars_.rename) {
+							std::string oldName = njh::replaceString(filteringSeq.seqBase_.name_, "_Comp", "");
+							filteringSeq.seqBase_.name_ = name + "."
+									+ leftPadNumStr(goodFinal[name], matchingPrimerCounts[name]);
+							if (njh::containsSubString(oldName, "_Comp")) {
+								filteringSeq.seqBase_.name_.append("_Comp");
+							}
+							filteringSeq.mateSeqBase_.name_ = filteringSeq.seqBase_.name_;
+							renameKeyFile << oldName << "\t" << filteringSeq.seqBase_.name_ << "\n";
+						}
 						finalWriter.openWrite(filteringSeq);
 					}
 					if(bad){
@@ -1060,6 +1076,15 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 					}else{
 						++used;
 						++goodFinal[name];
+						if (pars.corePars_.rename) {
+							std::string oldName = njh::replaceString(filteringSeq.name_, "_Comp", "");
+							filteringSeq.name_ = name + "."
+									+ leftPadNumStr(goodFinal[name], matchingPrimerCounts[name]);
+							if (njh::containsSubString(oldName, "_Comp")) {
+								filteringSeq.name_.append("_Comp");
+							}
+							renameKeyFile << oldName << "\t" << filteringSeq.name_ << "\n";
+						}
 						finalWriter.openWrite(filteringSeq);
 					}
 					if(bad){
@@ -1076,8 +1101,9 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 
 	OutOptions extractionStatsOpts(njh::files::make_path(setUp.pars_.directoryName_, "extractionStats.tab.txt"));
 	OutputStream extractionStatsOut(extractionStatsOpts);
-	extractionStatsOut << "inputName\tTotal\tfailedBarcode\tfailedPrimers\tmismatchedPrimers\tmismatchedPrimersDimers\tfailedOverlapPairProcessing\tfailedStatusPairProcessing\tpossibleContamination\tfilteredOff\tused" << std::endl;
+	extractionStatsOut << "inputName\tsampleName\tTotal\tfailedBarcode\tfailedPrimers\tmismatchedPrimers\tmismatchedPrimersDimers\tfailedOverlapPairProcessing\tfailedStatusPairProcessing\tpossibleContamination\tfilteredOff\tused" << std::endl;
 	extractionStatsOut << seqName
+	<< "\t"	<< pars.corePars_.sampleName
 			<< "\t" << count
 			<< "\t" << getPercentageString(readsNotMatchedToBarcode, count)
 			<< "\t" << getPercentageString(unrecognizedPrimers, count)
@@ -1091,13 +1117,15 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 
 	OutOptions extractionProfileOpts(njh::files::make_path(setUp.pars_.directoryName_, "extractionProfile.tab.txt"));
 	OutputStream extractionProfileOut(extractionProfileOpts);
-	extractionProfileOut << "inputName\tname\ttotalMatching\tgood\tbad\tfailedMinLen\tfailedMaxLen\tfailedQuality\tfailedNs\tfailedPossibleContamination\tfailedOverlapPairProcessing\tfailedStatusPairProcessing";
+	extractionProfileOut << "inputName\tsampleName\tname\ttarget\ttotalMatching\tgood\tbad\tfailedMinLen\tfailedMaxLen\tfailedQuality\tfailedNs\tfailedPossibleContamination\tfailedOverlapPairProcessing\tfailedStatusPairProcessing";
 
 	extractionProfileOut << std::endl;
 	for(const auto & name : allNames){
 		uint32_t totalBad = badQual[name] + badNs[name] + badMinLen[name] + badMaxLen[name] + possibleContaminationCounts[name];
 		extractionProfileOut << seqName
+		<< "\t"	<< pars.corePars_.sampleName
 				<< "\t" << name
+				<< "\t" << name_to_target_key[name]
 				<< "\t" << matchingPrimerCounts[name]
 				<< "\t" <<  getPercentageString(goodFinal[name], matchingPrimerCounts[name])
 				<< "\t" <<  getPercentageString(totalBad, matchingPrimerCounts[name])
@@ -1111,18 +1139,19 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 				<< std::endl;
 	}
 
-	auto writeOutUnrecCounts = [&seqName](const SeqIOOptions & opts, const bfs::path & outFilename){
+	auto writeOutUnrecCounts = [&seqName,&pars](const SeqIOOptions & opts, const bfs::path & outFilename){
 		if(opts.inExists()){
 			auto outTable = getSeqPortionCounts(opts, 0, 20);
 			OutputStream countsOuts(outFilename);
 			uint32_t count = 0;
 			if(opts.isPairedIn()){
-				countsOuts << "inputName\tr1Seq\tr2Seq\tcount\tfractionOfUnrecognizedReads" << std::endl;
+				countsOuts << "inputName\tsampleName\tr1Seq\tr2Seq\tcount\tfractionOfUnrecognizedReads" << std::endl;
 			}else{
-				countsOuts << "inputName\tseq\tcount\tfractionOfUnrecognizedReads" << std::endl;
+				countsOuts << "inputName\tsampleName\tseq\tcount\tfractionOfUnrecognizedReads" << std::endl;
 			}
 			while(count < 10 && count < outTable.content_.size()){
 				countsOuts << seqName
+				<< "\t"	<< pars.corePars_.sampleName
 						<< "\t" << njh::conToStr(outTable.content_[count], "\t") << std::endl;
 				++count;
 			}
