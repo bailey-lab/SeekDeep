@@ -347,7 +347,6 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 				}
 				//std::cout << __PRETTY_FUNCTION__ << " " << __FILE__ << " " << __LINE__ << std::endl;
 
-				collapseVarCallParsForTar.calcPopMeasuresPars.seqCountCutOffPloidyCalc_ = 2000;
 				collapseAndCallVariants(collapseVarCallParsForTar, inputSeqs);
 				currentLog["totalTime"] = watch.totalTime();
 				//std::cout << __PRETTY_FUNCTION__ << " " << __FILE__ << " " << __LINE__ << std::endl;
@@ -442,6 +441,19 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 		//translated diversity
 		collectAndWriteMasterFile(njh::pasteAsStr("/variantCalling/variantCalls/translatedDivMeasures.tab.txt"),
 	njh::files::make_path(reportsPopGeneticsDir, "allTranslatedDivMeasures.tsv.gz"));
+	}
+
+	{//seqs_prev_freq.tsv.gz
+		fullWatch.startNewLap("gather sequence freqs and prevs");
+		//sequence diversity
+		collectAndWriteMasterFile(njh::pasteAsStr("/variantCalling/seqs_prev_freq.tsv.gz"),
+			njh::files::make_path(reportsPopGeneticsDir, "all_seqs_prev_freq.tsv.gz"));
+	}
+	{//translated_prev_freq.tsv.gz
+		fullWatch.startNewLap("gather translated sequence freqs and prevs");
+		//translated diversity
+		collectAndWriteMasterFile(njh::pasteAsStr("/variantCalling/variantCalls/translated_prev_freq.tsv.gz"),
+	njh::files::make_path(reportsPopGeneticsDir, "all_translated_prev_freq.tsv.gz"));
 	}
 
 	if(!collapseVarCallPars.metaFieldsToCalcPopDiffs.empty()){
