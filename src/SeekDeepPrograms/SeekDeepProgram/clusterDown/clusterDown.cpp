@@ -37,15 +37,22 @@ namespace njhseq {
 int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 	SeekDeepSetUp setUp(inputCommands);
 	// parameters
+  bool no_run_log = false;
 	std::string sample, target, replicate;
 	clusterDownPars pars;
 	bool sampleSet = setUp.setOption(sample, "--sample", "sample name to give to output");
 	bool targetSet = setUp.setOption(target, "--target", "target name to give to output");
 	bool replicateSet = setUp.setOption(replicate, "--replicate", "replicate name to give to output");
+  setUp.setOption(no_run_log, "--no_run_log", "don't make a run log");
 
-	setUp.setUpClusterDown(pars);
-	// make the runLog, this is what is seen on the terminal screen at run time
-	setUp.startARunLog(setUp.pars_.directoryName_);
+  setUp.setUpClusterDown(pars);
+
+  // bool own_output_directory = "./" != setUp.pars_.directoryName_;
+
+  if (!no_run_log) {
+    // make the runLog, this is what is seen on the terminal screen at run time
+	  setUp.startARunLog(setUp.pars_.directoryName_);
+  }
 	if(pars.development){
 		// parameter file
 		setUp.writeParametersFile(setUp.pars_.directoryName_ + "parametersUsed.txt", false,
@@ -67,7 +74,9 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 		std::cout << "Nucleotide Composition Binning cut offs" << std::endl;
 		printVector(setUp.pars_.colOpts_.nucCompBinOpts_.diffCutOffVec_, ", ", std::cout);
 	}
-	setUp.rLog_.setCurrentLapName("initialSetUp");
+  if (!no_run_log) {
+    setUp.rLog_.setCurrentLapName("initialSetUp");
+  }
 	//write out clustering parameters
 
 	if(pars.development){
@@ -90,7 +99,9 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 	std::unordered_map<std::string, uint32_t> sampleNumberCounts;
 	std::vector<std::shared_ptr<IlluminaNameFormatDecoder>> decodedNames;
 	if(!pars.dontFilterToMostCommonIlluminaSampleNumber_){
-		setUp.rLog_.logCurrentTime("Filtering for illumina input name");
+	  if (!no_run_log) {
+	    setUp.rLog_.logCurrentTime("Filtering for illumina input name");
+	  }
 		// uint32_t totalInputCount = 0;
 		{
 			SeqInput counterIo(inputOpts);
@@ -132,7 +143,9 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 	if(!pars.useAllInput){
 		//for limiting large number of input sequences
 		uint32_t totalInputCount = 0;
-		setUp.rLog_.logCurrentTime("Counting input");
+	  if (!no_run_log) {
+	    setUp.rLog_.logCurrentTime("Counting input");
+	  }
 		{
 			SeqInput counterIo(inputOpts);
 			counterIo.openIn();
@@ -152,7 +165,9 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 			std::cout << "totalInputCount: " << totalInputCount << std::endl;
 		}
 		if(totalInputCount > pars.useCutOff){
-			setUp.rLog_.logCurrentTime("Down sampling");
+		  if (!no_run_log) {
+		    setUp.rLog_.logCurrentTime("Down sampling");
+		  }
 			downsampled = true;
 			std::vector<uint32_t> randomSel;
 			{
@@ -162,8 +177,11 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 				std::shuffle( std::begin(allIndexes), std::end(allIndexes), rGen.mtGen_) ;
 				randomSel = std::vector<uint32_t>{ std::begin(allIndexes), std::begin(allIndexes)+pars.useCutOff} ;
 			}
-			SeqIOOptions outOpts(njh::files::make_path(setUp.pars_.directoryName_, "downsampledFile"), SeqIOOptions::getOutFormat(inputOpts.inFormat_));
-			SeqOutput writer(outOpts);
+		  ;
+			// SeqIOOptions outOpts(njh::files::make_path(setUp.pars_.directoryName_, "downsampledFile"), SeqIOOptions::getOutFormat(inputOpts.inFormat_));
+		  SeqIOOptions outOpts(njh::files::prependFileBasename(setUp.pars_.ioOptions_.out_.outFilename_, "downsampled_input"), SeqIOOptions::getOutFormat(inputOpts.inFormat_));
+		  outOpts.out_.transferOverwriteOpts(setUp.pars_.ioOptions_.out_);
+		  SeqOutput writer(outOpts);
 			writer.openOut();
 
 			SeqInput reader(inputOpts);
@@ -192,16 +210,21 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 	bfs::path tempOutFnp;
 	if(setUp.pars_.ioOptions_.inFormat_ == SeqIOOptions::inFormats::FASTAGZ ||
 		 setUp.pars_.ioOptions_.inFormat_ == SeqIOOptions::inFormats::FASTQGZ){
-		setUp.rLog_.logCurrentTime("rewriting zipped input for file indexing");
-
+	  if (!no_run_log) {
+	    setUp.rLog_.logCurrentTime("rewriting zipped input for file indexing");
+	  }
 		if (setUp.pars_.ioOptions_.inFormat_ == SeqIOOptions::inFormats::FASTAGZ) {
 			inputOpts.inFormat_ = SeqIOOptions::inFormats::FASTA;
-			tempOutFnp =njh::files::make_path(setUp.pars_.directoryName_, "tempinput.fasta");
+			// tempOutFnp = njh::files::make_path(setUp.pars_.directoryName_, "tempinput.fasta");
+		  tempOutFnp = njh::files::prependFileBasename(setUp.pars_.ioOptions_.out_.outFilename_.string() + ".fasta", "temp_input");
 		} else if (setUp.pars_.ioOptions_.inFormat_ == SeqIOOptions::inFormats::FASTQGZ) {
 			inputOpts.inFormat_ = SeqIOOptions::inFormats::FASTQ;
-			tempOutFnp =njh::files::make_path(setUp.pars_.directoryName_, "tempinput.fastq");
+		  tempOutFnp = njh::files::prependFileBasename(setUp.pars_.ioOptions_.out_.outFilename_.string() + ".fastq", "temp_input");
+			// tempOutFnp = njh::files::make_path(setUp.pars_.directoryName_, "tempinput.fastq");
 		}
-		OutputStream tempOut(tempOutFnp);
+	  OutOptions tempOutOpts(tempOutFnp);
+	  tempOutOpts.transferOverwriteOpts(setUp.pars_.ioOptions_.out_);
+		OutputStream tempOut(tempOutOpts);
 		InputStream in(inputOpts.firstName_);
 		std::string line;
 		while(njh::files::crossPlatGetline(in, line)){
@@ -210,8 +233,9 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 		inputOpts.firstName_ = tempOutFnp;
 	}
 
-
-	setUp.rLog_.logCurrentTime("collapsing input to unique sequences");
+  if (!no_run_log) {
+    setUp.rLog_.logCurrentTime("collapsing input to unique sequences");
+  }
 
 	SeqInput reader(inputOpts);
 	reader.openIn();
@@ -229,8 +253,8 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 	}
 
 	{
-		SeqIOOptions smallSeqOpts(setUp.pars_.directoryName_ + "smallReads",
-						setUp.pars_.ioOptions_.outFormat_,setUp.pars_.ioOptions_.out_);
+    SeqIOOptions smallSeqOpts(setUp.pars_.directoryName_ + "smallReads",
+                              setUp.pars_.ioOptions_.outFormat_, setUp.pars_.ioOptions_.out_);
 		SeqOutput smallWriter(smallSeqOpts);
 		seqInfo seq;
 		uint64_t fPos = reader.tellgPri();
@@ -276,8 +300,10 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 				readVecTrimmer::trimOffForwardBases(seq, pars.trimFront);
 			}
 			if(len(seq) <= pars.smallReadSize){
-				smallWriter.openWrite(seq);
-			}else{
+			  if (pars.development) {
+			    smallWriter.openWrite(seq);
+			  }
+			} else {
 			  bool found = false;
 			  for(const auto clusPos : iter::range(clusters.size())){
 			  	if(seq.seq_ == clusters[clusPos].seqBase_.seq_){
@@ -296,7 +322,9 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 			fPos = reader.tellgPri();
 		}
 		reader.reOpenIn();
-		setUp.rLog_.logCurrentTime("calculating the quality values");
+	  if (!no_run_log) {
+	    setUp.rLog_.logCurrentTime("calculating the quality values");
+	  }
 
 		//now calculate the qualities if fastq
 		for(const auto & fPositions : filepositions){
@@ -367,14 +395,17 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 			clusterNameToFilePosKey[clusters[fPositions.first].seqBase_.name_] = fPositions.first;
 		}
 	}
-	setUp.rLog_.logCurrentTime("Clearing data");
+  if (!no_run_log) {
+    setUp.rLog_.logCurrentTime("Clearing data");
+  }
 	decodedNames.clear();
 	if(!pars.countIlluminaSampleNumbers_ && !pars.writeOutInitalSeqs){
 		filepositions.clear();
 		clusterNameToFilePosKey.clear();
 	}
-	setUp.rLog_.logCurrentTime("Post processing after collapse");
-
+  if (!no_run_log) {
+    setUp.rLog_.logCurrentTime("Post processing after collapse");
+  }
 	if (compCount > 0) {
 		containsCompReads = true;
 	}
@@ -387,14 +418,17 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 				<< ("" == setUp.pars_.ioOptions_.secondName_ ? "": setUp.pars_.ioOptions_.secondName_.string()) << std::endl;
 		std::cout << "Read in " << counter << " reads" << std::endl;
 	}
-	setUp.rLog_ << "Reading clusters from " << setUp.pars_.ioOptions_.firstName_ << " "
-			<< setUp.pars_.ioOptions_.secondName_ << "\n";
-	setUp.rLog_ << "Read in " << counter << " reads" << "\n";
-
+  if (!no_run_log) {
+    setUp.rLog_ << "Reading clusters from " << setUp.pars_.ioOptions_.firstName_ << " "
+        << setUp.pars_.ioOptions_.secondName_ << "\n";
+    setUp.rLog_ << "Read in " << counter << " reads" << "\n";
+  }
 	if (setUp.pars_.verbose_) {
 		std::cout << "Unique clusters numbers: " << clusters.size() << std::endl;
 	}
-	setUp.rLog_ << "Unique clusters numbers: " << clusters.size() << "\n";
+  if (!no_run_log) {
+    setUp.rLog_ << "Unique clusters numbers: " << clusters.size() << "\n";
+  }
 	std::sort(clusters.begin(), clusters.end());
 
 	std::vector<readObject> refSequences;
@@ -411,20 +445,24 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 	}
 
 	// read in the parameters from the parameters file
-	setUp.rLog_ << "Parameters used" << "\n";
-	pars.iteratorMap.writePars(setUp.rLog_.runLogFile_);
+  if (!no_run_log) {
+    setUp.rLog_ << "Parameters used" << "\n";
+    pars.iteratorMap.writePars(setUp.rLog_.runLogFile_);
 
 
 
-	//readVecSorter::sortReadVector(clusters, sortBy);
-	setUp.rLog_.logCurrentTime("Indexing kmers");
+    //readVecSorter::sortReadVector(clusters, sortBy);
+    setUp.rLog_.logCurrentTime("Indexing kmers");
+  }
 	KmerMaps kMaps = indexKmers(clusters,
 			setUp.pars_.colOpts_.kmerOpts_.kLength_,
 			setUp.pars_.colOpts_.kmerOpts_.runCutOff_,
 			setUp.pars_.colOpts_.kmerOpts_.kmersByPosition_,
 			setUp.pars_.expandKmerPos_,
 			setUp.pars_.expandKmerSize_);
-	setUp.rLog_.logCurrentTime("Creating aligner");
+  if (!no_run_log) {
+    setUp.rLog_.logCurrentTime("Creating aligner");
+  }
 	// create aligner class object
 	aligner alignerObj(maxSize,
 			setUp.pars_.gapInfo_,
@@ -454,7 +492,9 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 		}
 		std::cout << alignerObj.parts_.gapScores_.toJson() << std::endl;
 	}
-	setUp.rLog_.logCurrentTime("Reading in previous alignments");
+  if (!no_run_log) {
+    setUp.rLog_.logCurrentTime("Reading in previous alignments");
+  }
 	alignerObj.processAlnInfoInput(setUp.pars_.alnInfoDirName_, setUp.pars_.verbose_);
 	if(setUp.pars_.verbose_){
 		uint32_t alignmentsReadIn = 0;
@@ -468,7 +508,9 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 		std::cout << "Local Alignments Holders: " << alignerObj.alnHolder_.localHolder_.size() << std::endl;
 		std::cout << "Read in: " << alignmentsReadIn << "alignments" << std::endl;
 	}
-	setUp.rLog_.logCurrentTime("Removing singlets");
+  if (!no_run_log) {
+    setUp.rLog_.logCurrentTime("Removing singlets");
+  }
 	collapser collapserObj = collapser(setUp.pars_.colOpts_);
 
 	uint32_t singletonNum = 0;
@@ -491,7 +533,9 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 			std::cout << "Removed " << singletons.size() << " singlets" << std::endl;
 		}
 	}
-	setUp.rLog_.logCurrentTime("Running initial clustering");
+  if (!no_run_log) {
+    setUp.rLog_.logCurrentTime("Running initial clustering");
+  }
 	//run clustering
 	pars.snapShotsOpts_.snapShotsDirName_ = "firstSnaps";
 	collapserObj.runFullClustering(clusters, pars.intialParameters,
@@ -499,7 +543,9 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 			setUp.pars_.ioOptions_, setUp.pars_.refIoOptions_, pars.snapShotsOpts_);
 	//run again with singlets if needed
 	if (!pars.startWithSingles && !pars.leaveOutSinglets) {
-		setUp.rLog_.logCurrentTime("Running singlet clustering");
+	  if (!no_run_log) {
+	    setUp.rLog_.logCurrentTime("Running singlet clustering");
+	  }
 		addOtherVec(clusters, singletons);
 		pars.snapShotsOpts_.snapShotsDirName_ = "secondSnaps";
 		collapserObj.runFullClustering(clusters, pars.iteratorMap,
@@ -509,7 +555,9 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 
 	//run again with re-calculating kmer frequencies
 	if(!pars.dontRecalLowFreqMismatchAndReRun){
-		setUp.rLog_.logCurrentTime("Running poster clustering with re-calc k-mer frequencies");
+	  if (!no_run_log) {
+	    setUp.rLog_.logCurrentTime("Running poster clustering with re-calc k-mer frequencies");
+	  }
 
 		KmerMaps recalcKmaps = indexKmers(clusters,
 				setUp.pars_.colOpts_.kmerOpts_.kLength_,
@@ -589,7 +637,9 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 
 
 	if (setUp.pars_.chiOpts_.checkChimeras_) {
-		setUp.rLog_.logCurrentTime("Checking chimeras");
+	  if (!no_run_log) {
+	    setUp.rLog_.logCurrentTime("Checking chimeras");
+	  }
 
 		setUp.pars_.chiOpts_.chiOverlap_.largeBaseIndel_ = .99;
 
@@ -626,7 +676,9 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 	}
 
 	if (pars.collapsingTandems) {
-		setUp.rLog_.logCurrentTime("Collapsing tandems");
+	  if (!no_run_log) {
+	    setUp.rLog_.logCurrentTime("Collapsing tandems");
+	  }
 		if (pars.development) {
 			SeqOutput::write(clusters,
 			                 SeqIOOptions(
@@ -648,7 +700,9 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 					<< std::endl;
 		}
 	}
-	setUp.rLog_.logCurrentTime("Writing outputs");
+  if (!no_run_log) {
+    setUp.rLog_.logCurrentTime("Writing outputs");
+  }
 
 	//add sample, target, replicate, and readCount meta to name
 	for (auto & seq : clusters) {
@@ -735,12 +789,12 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 		}
 	}
 
-	SeqOutput::write(clusters,
-			SeqIOOptions(
-					setUp.pars_.directoryName_ + setUp.pars_.ioOptions_.out_.outFilename_.string(),
-					setUp.pars_.ioOptions_.outFormat_,setUp.pars_.ioOptions_.out_));
+  SeqOutput::write(clusters, setUp.pars_.ioOptions_);
+
 	if(pars.writeOutFinalInternalSnps){
-		setUp.rLog_.logCurrentTime("Calling internal snps");
+	  if (!no_run_log) {
+	    setUp.rLog_.logCurrentTime("Calling internal snps");
+	  }
 		std::string snpDir = njh::files::makeDir(setUp.pars_.directoryName_,
 				njh::files::MkdirPar("internalSnpInfo", false)).string();
 		for (const auto readPos : iter::range(clusters.size())) {
@@ -864,7 +918,9 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 	}
 
 	if (pars.createMinTree) {
-		setUp.rLog_.logCurrentTime("Creating minimum spanning trees");
+	  if (!no_run_log) {
+	    setUp.rLog_.logCurrentTime("Creating minimum spanning trees");
+	  }
 		std::string minTreeDirname = njh::files::makeDir(setUp.pars_.directoryName_,
 				njh::files::MkdirPar("minTree", false)).string();
 		auto clusSplit = readVecSplitter::splitVectorOnReadFraction(clusters,
@@ -1054,7 +1110,9 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 	}
 
 	if (setUp.pars_.writingOutAlnInfo_) {
-		setUp.rLog_.logCurrentTime("Writing previous alignments");
+	  if (!no_run_log) {
+	    setUp.rLog_.logCurrentTime("Writing previous alignments");
+	  }
 		alignerObj.alnHolder_.write(setUp.pars_.outAlnInfoDirName_, setUp.pars_.verbose_);
 	}
 	if(bfs::exists(tempOutFnp)){
@@ -1063,9 +1121,11 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 	if(bfs::exists(downsampledFnp) && !pars.keepDownSampledFile){
 		bfs::remove(downsampledFnp);
 	}
-	//log number of alignments done
-	setUp.rLog_ << "Number of Alignments Done: "
-			<< alignerObj.numberOfAlingmentsDone_ << "\n";
+  if (!no_run_log) {
+    //log number of alignments done
+    setUp.rLog_ << "Number of Alignments Done: "
+        << alignerObj.numberOfAlingmentsDone_ << "\n";
+  }
 	if (setUp.pars_.verbose_) {
 		std::cout << "Number of Alignments Done: "
 				<< alignerObj.numberOfAlingmentsDone_ << std::endl;

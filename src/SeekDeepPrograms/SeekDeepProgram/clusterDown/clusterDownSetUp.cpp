@@ -409,9 +409,13 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 	pars_.colOpts_.verboseOpts_.verbose_ = pars_.verbose_;
 	pars_.colOpts_.verboseOpts_.debug_ = pars_.debug_;
 	processRefFilename();
-	bool mustMakeDirectory = true;
+
+  processWritingOptions();
+  bool mustMakeDirectory = pars.development || pars_.ioOptions_.out_.outFilename_ == "output";
 	processDirectoryOutputName(mustMakeDirectory);
-	processWritingOptions();
+
+  pars_.ioOptions_.out_.outFilename_ = njh::files::make_path(pars_.directoryName_, pars_.ioOptions_.out_.outFilename_);
+
 	pars_.gap_ = "5,1";
 	pars_.gapRight_ = "0,0";
 	pars_.gapLeft_ = "5,1";
