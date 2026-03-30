@@ -1018,9 +1018,9 @@ class Packages():
         name = "restbed"
         url = "https://github.com/Corvusoft/restbed.git"
         if not Utils.isMac():
-            buildCmd = """git submodule init && git submodule update && sed -i 's/CMAKE_CXX_FLAGS}} -stdlib=libc++/CMAKE_CXX_FLAGS}}/g' cmake/build_configuration.cmake && mkdir build && cd build && CC={CC} CXX={CXX} cmake -DBUILD_TESTS=NO -DBUILD_EXAMPLES=NO -DBUILD_SSL=NO -DBUILD_SHARED=YES -DCMAKE_INSTALL_PREFIX={local_dir} .. && make install -j {num_cores}"""
+            buildCmd = """git submodule init && git submodule update && sed -i 's/CMAKE_CXX_FLAGS}} -stdlib=libc++/CMAKE_CXX_FLAGS}}/g' cmake/build_configuration.cmake && mkdir build && cd build && CC={CC} CXX={CXX} cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DBUILD_TESTS=NO -DBUILD_EXAMPLES=NO -DBUILD_SSL=NO -DBUILD_SHARED=YES -DCMAKE_INSTALL_PREFIX={local_dir} .. && make install -j {num_cores}"""
         else:
-            buildCmd = """git submodule init && git submodule update &&                                                                                                    mkdir build && cd build && CC={CC} CXX={CXX} cmake -DBUILD_TESTS=NO -DBUILD_EXAMPLES=NO -DBUILD_SSL=NO -DBUILD_SHARED=YES -DCMAKE_INSTALL_PREFIX={local_dir} .. && make install -j {num_cores}"""
+            buildCmd = """git submodule init && git submodule update &&                                                                                                    mkdir build && cd build && CC={CC} CXX={CXX} cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DBUILD_TESTS=NO -DBUILD_EXAMPLES=NO -DBUILD_SSL=NO -DBUILD_SHARED=YES -DCMAKE_INSTALL_PREFIX={local_dir} .. && make install -j {num_cores}"""
 
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "4.0")
         if self.args.noInternet:
@@ -1038,7 +1038,7 @@ class Packages():
                 pack.versions_[ref].libPath_ = pack.versions_[ref].libPath_ + "rary"
                 allFloats = re.findall(r"[+-]? *(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?", ref)
                 if len(allFloats) >= 1 and float(allFloats[0]) >= 4.5:
-                    pack.versions_[ref].cmd_ = """git submodule init && git submodule update &&                                                                                                    mkdir build && cd build && CC={CC} CXX={CXX} cmake -DBUILD_TESTS=NO -DBUILD_EXAMPLES=NO -DBUILD_SSL=NO -DBUILD_SHARED=YES -DCMAKE_INSTALL_PREFIX={local_dir} .. && make install -j {num_cores}"""
+                    pack.versions_[ref].cmd_ = """git submodule init && git submodule update &&                                                                                                    mkdir build && cd build && CC={CC} CXX={CXX} cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DBUILD_TESTS=NO -DBUILD_EXAMPLES=NO -DBUILD_SSL=NO -DBUILD_SHARED=YES -DCMAKE_INSTALL_PREFIX={local_dir} .. && make install -j {num_cores}"""
             Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
                 pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
