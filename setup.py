@@ -463,7 +463,7 @@ class Packages():
     def __jsoncpp(self):
         url = "https://github.com/open-source-parsers/jsoncpp.git"
         name = "jsoncpp"
-        buildCmd = "mkdir -p build && cd build && CC={CC} CXX={CXX} cmake -DCMAKE_CXX_FLAGS=-fPIC -DCMAKE_EXE_LINKER_FLAGS=-fPIC -DCMAKE_INSTALL_PREFIX:PATH={local_dir} ..  && make -j {num_cores} install"
+        buildCmd = "mkdir -p build && cd build && CC={CC} CXX={CXX} cmake -DCMAKE_CXX_STANDARD=17 -DCMAKE_CXX_FLAGS=\"-std=c++17\" -DCMAKE_CXX_FLAGS=-fPIC -DCMAKE_EXE_LINKER_FLAGS=-fPIC -DCMAKE_INSTALL_PREFIX:PATH={local_dir} ..  && make -j {num_cores} install"
         pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "1.8.3")
         if self.args.noInternet:
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
