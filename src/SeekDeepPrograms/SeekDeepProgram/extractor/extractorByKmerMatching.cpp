@@ -602,7 +602,7 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
               << std::endl;
   }
 
-  outStats << "sampleName\ttotalReadsProcessed\tfailedMinLen_" << corePars.smallFragmentCutoff << "\tfailedMinLenFrac\tundetermined\tundeterminedFrac\tmultihit\tmultihitFrac\textracted\textractedFrac\textractedForward\textractedForwardFrac\tpassed\tpassedFrac" << std::endl;
+  outStats << "sampleName\ttotalReadsProcessed\tfailedMinLen_" << corePars.smallFragmentCutoff << "\tfailedMaxLen_" << corePars.largeFragmentCutOff << "\tfailedMinLenFrac\tundetermined\tundeterminedFrac\tmultihit\tmultihitFrac\textracted\textractedFrac\textractedForward\textractedForwardFrac\tpassed\tpassedFrac" << std::endl;
   uint32_t grand_total_reads = totalReadsProcessed + masterCounts.smallFrags_ + masterCounts.largeFrags_;
   outStats << sampleName
 					 << "\t" << grand_total_reads
