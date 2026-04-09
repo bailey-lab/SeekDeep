@@ -472,6 +472,9 @@ TarAmpSeqInvestigator::prepareForInvestiagteFileRes TarAmpSeqInvestigator::prepa
 		SeqInput reader(opts);
 		reader.openIn();
 		while(reader.readNextRead(seq)){
+		  if (len(seq) > pars_.max_len_to_investigate) {
+		    continue;
+		  }
 			++ret.readCount;
 			readVec::getMaxLength(seq.seqBase_, ret.maxReadSize);
 			readVec::getMaxLength(seq.mateSeqBase_, ret.maxReadSize);
@@ -492,6 +495,9 @@ TarAmpSeqInvestigator::prepareForInvestiagteFileRes TarAmpSeqInvestigator::prepa
 		SeqInput reader(opts);
 		reader.openIn();
 		while(reader.readNextRead(seq)){
+		  if (len(seq) > pars_.max_len_to_investigate) {
+		    continue;
+		  }
 			++ret.readCount;
 			readVec::getMaxLength(seq, ret.maxReadSize);
 			read_lengths.emplace_back(seq.seq_.size());
@@ -538,6 +544,9 @@ void TarAmpSeqInvestigator::investigateFile(const SeqIOOptions & opts, const pre
 		njh::ProgressBar pBar(std::min(counts.readCount, pars_.testNumber));
 		uint32_t newReadCount = 0;
 		while(reader.readNextRead(seq)){
+		  if (len(seq) > pars_.max_len_to_investigate) {
+		    continue;
+		  }
 			++newReadCount;
 			if (processRead()) {
 				if(pars_.verbose_){
@@ -556,7 +565,9 @@ void TarAmpSeqInvestigator::investigateFile(const SeqIOOptions & opts, const pre
 		njh::ProgressBar pBar(std::min(counts.readCount, pars_.testNumber));
 		uint32_t newReadCount = 0;
 		while(reader.readNextRead(seq)){
-
+		  if (len(seq) > pars_.max_len_to_investigate) {
+		    continue;
+		  }
 			if (processRead()) {
 				++newReadCount;
 				auto revCompSeq = seq;

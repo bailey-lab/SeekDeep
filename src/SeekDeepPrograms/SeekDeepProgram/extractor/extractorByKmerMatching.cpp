@@ -14,7 +14,7 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
   bfs::path refSeqDir;
   CoreExtractorPars corePars;
   corePars.smallFragmentCutoff = 100;
-
+  corePars.largeFragmentCutOff = 10000;
   uint32_t numThreads = 1;
 
   std::string sampleName = "sample";
@@ -44,6 +44,7 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
 
   // filtering
   setUp.setOption(corePars.smallFragmentCutoff, "--minLenCutOff", "Hard cut off min length", false, "filtering");
+  setUp.setOption(corePars.largeFragmentCutOff, "--maxLenCutOff", "Hard cut off max length", false, "filtering");
 
   uint32_t hardKmersPerTarget = 5;
   double kmerFracPerTarget = 0.10;
@@ -230,7 +231,8 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
                                       &qualChecker,
                                       &masterCounts,
                                       &hardKmersPerTarget,
-                                      &kmerFracPerTarget]() {
+                                      &kmerFracPerTarget
+                                      ]() {
     auto maxMidSize = ids.getMaxMIDSize() + 2;
     SimpleKmerHash hasher;
     seqInfo seq;
@@ -245,6 +247,10 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
       ++masterCountsCurrent.totalReadCount_;
       if(len(seq) < corePars.smallFragmentCutoff){
         ++masterCountsCurrent.smallFrags_;
+        continue;
+      }
+      if (len(seq) > corePars.largeFragmentCutOff) {
+        ++masterCountsCurrent.largeFrags_;
         continue;
       }
       std::unordered_map<uint64_t, uint64_t> hashedInputKmers;
@@ -597,20 +603,23 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
   }
 
   outStats << "sampleName\ttotalReadsProcessed\tfailedMinLen_" << corePars.smallFragmentCutoff << "\tfailedMinLenFrac\tundetermined\tundeterminedFrac\tmultihit\tmultihitFrac\textracted\textractedFrac\textractedForward\textractedForwardFrac\tpassed\tpassedFrac" << std::endl;
+  uint32_t grand_total_reads = totalReadsProcessed + masterCounts.smallFrags_ + masterCounts.largeFrags_;
   outStats << sampleName
-					 << "\t" << totalReadsProcessed + masterCounts.smallFrags_
+					 << "\t" << grand_total_reads
 					 << "\t" << masterCounts.smallFrags_
-					 << "\t" << static_cast<double>(masterCounts.smallFrags_) / static_cast<double>(totalReadsProcessed + masterCounts.smallFrags_)
+					 << "\t" << static_cast<double>(masterCounts.smallFrags_) / static_cast<double>(grand_total_reads)
+           << "\t" << masterCounts.largeFrags_
+           << "\t" << static_cast<double>(masterCounts.largeFrags_) / static_cast<double>(grand_total_reads)
 					 << "\t" << totalExtractedUndetermined
 					 << "\t" << static_cast<double>(totalExtractedUndetermined) / static_cast<double>(totalExtractedMultihit + totalExtractedUndetermined + totalExtractedAllTargets)
            << "\t" << totalExtractedMultihit
            << "\t" << static_cast<double>(totalExtractedMultihit) / static_cast<double>(totalExtractedMultihit + totalExtractedUndetermined + totalExtractedAllTargets)
 					 << "\t" << totalExtractedAllTargets
-					 << "\t" << static_cast<double>(totalExtractedAllTargets) / static_cast<double>(totalReadsProcessed + masterCounts.smallFrags_)
+					 << "\t" << static_cast<double>(totalExtractedAllTargets) / static_cast<double>(grand_total_reads)
 					 << "\t" << totalExtractedAllTargetsForward
 					 << "\t" << static_cast<double>(totalExtractedAllTargetsForward) / static_cast<double>(totalExtractedAllTargets)
            << "\t" << totalReadsPassedAllFilters
-           << "\t" << static_cast<double>(totalReadsPassedAllFilters) / static_cast<double>(totalReadsProcessed + masterCounts.smallFrags_)
+           << "\t" << static_cast<double>(totalReadsPassedAllFilters) / static_cast<double>(grand_total_reads)
            << std::endl;
 
   return 0;

@@ -49,6 +49,7 @@ struct CoreExtractorPars{
 
 
   uint32_t smallFragmentCutoff = 50;
+  uint32_t largeFragmentCutOff = 10000;
   bool rename = false;
   QualFilteringPars qPars_;
   uint32_t numberOfNs = 1;

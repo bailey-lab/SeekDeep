@@ -632,7 +632,9 @@ int SeekDeepRunner::extractor(const njh::progutils::CmdArgs & inputCommands) {
 	extractionStatsFile
 			<< "TotalReads\tReadsNotMatchedBarcodes\tReadsNotMatchedBarcodesPosContamination\tSmallFragments(len<"
 			<< pars.corePars_.smallFragmentCutoff
-			<< ")\tfailedFrontPrimer\tfailedQualityFiltering\tused";
+  << ")\tSmallFragments(len<"
+  << pars.corePars_.largeFragmentCutOff
+  << ")\tfailedFrontPrimer\tfailedQualityFiltering\tused";
 	extractionStatsFile << "\tcontamination";
 	extractionStatsFile << std::endl;
 	stats.outTotalStats(extractionStatsFile, "\t");

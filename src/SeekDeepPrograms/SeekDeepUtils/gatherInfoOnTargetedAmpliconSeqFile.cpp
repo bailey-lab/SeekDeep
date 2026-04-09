@@ -25,7 +25,9 @@ int SeekDeepUtilsRunner::gatherInfoOnTargetedAmpliconSeqFile(
 	setUp.processDebug();
 	tar_amp_pars.numberOfFilesToInvestigate = 20;
 	investPars.testNumber = 5000;
-	setUp.setOption(investPars.testNumber, "--testNumber", "Just use this number of reads of the top of the file");
+  setUp.setOption(investPars.max_len_to_investigate, "--max_len_to_investigate", "don't investigate sequences above this length");
+
+  setUp.setOption(investPars.testNumber, "--testNumber", "Just use this number of reads of the top of the file");
 	setUp.setOption(tar_amp_pars.numberOfFilesToInvestigate, "--numberOfFilesToInvestigate", "Number of files to investigate when adding additional recommended flags", false, "Extra Commands");
 
 	setUp.setOption(investPars.dontCollapsePossibleMIDs, "--dontCollapsePossibleMIDs",

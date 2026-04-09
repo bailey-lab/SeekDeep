@@ -31,7 +31,7 @@ public:
 		ExtractorPairedEndPars pars;
 		MidDeterminator::MidDeterminePars midPars;
 		uint32_t testNumber = std::numeric_limits<uint32_t>::max();
-
+    uint32_t max_len_to_investigate = 10000;
 		gapScoringParameters gapInfo_;
 		double fracUndeterminedToTriggerRecount_ = 0.50;
 		bool verbose_ = false;
