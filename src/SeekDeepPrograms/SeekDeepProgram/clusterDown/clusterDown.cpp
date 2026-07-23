@@ -179,7 +179,7 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 			}
 		  ;
 			// SeqIOOptions outOpts(njh::files::make_path(setUp.pars_.directoryName_, "downsampledFile"), SeqIOOptions::getOutFormat(inputOpts.inFormat_));
-		  SeqIOOptions outOpts(njh::files::prependFileBasename(setUp.pars_.ioOptions_.out_.outFilename_, "downsampled_input"), SeqIOOptions::getOutFormat(inputOpts.inFormat_));
+		  SeqIOOptions outOpts(njh::files::prependFileBasename(setUp.pars_.ioOptions_.out_.outFilename_, "downsampled_input_"), SeqIOOptions::getOutFormat(inputOpts.inFormat_));
 		  outOpts.out_.transferOverwriteOpts(setUp.pars_.ioOptions_.out_);
 		  SeqOutput writer(outOpts);
 			writer.openOut();
@@ -202,7 +202,7 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 				}
 				++seqCount;
 			}
-			downsampledFnp = outOpts.out_.outFilename_.string() + outOpts.getOutExtension();
+			downsampledFnp = njh::appendAsNeededRet(outOpts.out_.outFilename_.string(), outOpts.getOutExtension());
 			inputOpts.firstName_ = downsampledFnp;
 		}
 	}
