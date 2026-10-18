@@ -4,6 +4,7 @@
 #include "SeekDeepPrograms/SeekDeepProgram/SeekDeepRunner.hpp"
 
 #include <njhseq/objects/kmer/SimpleKmerHash.hpp>
+#include <njhseq/objects/kmer/KmerSetInvertedIndex.hpp>
 
 namespace njhseq {
 
@@ -53,6 +54,10 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
 
   //running
   setUp.setOption(numThreads, "--numThreads", "number of threads");
+  bool noInvertedKmerIndex = false;
+  setUp.setOption(noInvertedKmerIndex, "--noInvertedKmerIndex",
+      "Probe every target's k-mer set for every read k-mer instead of using one k-mer -> target(s) index. The index gives identical counts, counting a k-mer shared between targets toward each of them exactly as the probe does; this exists to fall back if that is ever in doubt");
+  const bool useInvertedKmerIndex = !noInvertedKmerIndex;
 
 
   //primers
@@ -131,6 +136,22 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
     ids.addRefSeqs(refSeqDir);
   }
   uint32_t extractionKmer = ids.addUniqKmerCounts(uniqueKmersPerTargetFnp, ignoreMissingKmerSets);
+  //the per-target table is loaded as given, with no cross-target uniqueness check, so whether the
+  //targets are exclusive is reported rather than assumed. A k-mer shared between targets counts
+  //toward every target holding it, so the counts are the same as probing each target in turn.
+  std::shared_ptr<const njhseq::KmerSetInvertedIndex> invIndex;
+  if(useInvertedKmerIndex){
+    invIndex = njhseq::KmerSetInvertedIndex::get(ids.uniqueKmersPerTarget_);
+    if(nullptr != invIndex && !invIndex->usable(ids.uniqueKmersPerTarget_)){
+      invIndex = nullptr;
+    }
+  }
+  if(nullptr != invIndex){
+    std::cout << "kmerSetExclusivity\tsets\t" << invIndex->nSets_
+        << "\ttotalKmers\t" << invIndex->totalKmers_
+        << "\tsharedKmers\t" << invIndex->nSharedKmers_
+        << "\texclusive\t" << njh::boolToStr(0 == invIndex->nSharedKmers_) << std::endl;
+  }
 
 
   // set up input
@@ -231,7 +252,8 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
                                       &qualChecker,
                                       &masterCounts,
                                       &hardKmersPerTarget,
-                                      &kmerFracPerTarget
+                                      &kmerFracPerTarget,
+                                      &invIndex
                                       ]() {
     auto maxMidSize = ids.getMaxMIDSize() + 2;
     SimpleKmerHash hasher;
@@ -274,17 +296,26 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
         foundPerSet[setName] = 0;
         foundPerSetRevComp[setName] = 0;
       }
-      for(const auto & hashedKmer : hashedInputKmers){
-        for(const auto & uniqueKmers : ids.uniqueKmersPerTarget_){
-          if(njh::in(hashedKmer.first, uniqueKmers.second)){
-            ++foundPerSet[uniqueKmers.first];
+      if(nullptr != invIndex){
+        for(const auto & hashedKmer : hashedInputKmers){
+          invIndex->tallyAll(hashedKmer.first, foundPerSet);
+        }
+        for(const auto & hashedKmer : hashedInputKmersRevComp){
+          invIndex->tallyAll(hashedKmer.first, foundPerSetRevComp);
+        }
+      } else {
+        for(const auto & hashedKmer : hashedInputKmers){
+          for(const auto & uniqueKmers : ids.uniqueKmersPerTarget_){
+            if(njh::in(hashedKmer.first, uniqueKmers.second)){
+              ++foundPerSet[uniqueKmers.first];
+            }
           }
         }
-      }
-      for(const auto & hashedKmer : hashedInputKmersRevComp){
-        for(const auto & uniqueKmers : ids.uniqueKmersPerTarget_){
-          if(njh::in(hashedKmer.first, uniqueKmers.second)){
-            ++foundPerSetRevComp[uniqueKmers.first];
+        for(const auto & hashedKmer : hashedInputKmersRevComp){
+          for(const auto & uniqueKmers : ids.uniqueKmersPerTarget_){
+            if(njh::in(hashedKmer.first, uniqueKmers.second)){
+              ++foundPerSetRevComp[uniqueKmers.first];
+            }
           }
         }
       }
