@@ -200,6 +200,7 @@ struct processClustersPars {
 	bool development = false;
 
 	bool keepSampleInfoInMemory_ = false;
+	bool writeSampleStatesImmediately_ = false; //! write each sample's files when it's dumped rather than keeping them in memory until the end
 	bfs::path masterDir = ".";
   //bool noPopulation = false;
   std::string previousPopFilename;
@@ -256,6 +257,9 @@ struct processClustersPars {
   std::string customCutOffs;
   std::string groupingsFile;
   bool noWriteGroupInfoFiles = false;
+  bool writeGroupInfoFiles = false; //! write the per group tables under groups/, otherwise only groups/groupMetaData.json is written
+  bool writeSampleDirs = false; //! write the per sample directories under samplesOutput/ and the final/ links to them
+  bool writeSampleInputClusters = false; //! write sampleInputClusters, the per replicate sub clusters of every sample's clusters
 
   bool onPerId = false;
   bool plotRepAgreement = false;

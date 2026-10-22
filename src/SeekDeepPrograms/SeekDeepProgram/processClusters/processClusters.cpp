@@ -180,6 +180,8 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 			pars.preFiltCutOffs);
 
 	sampColl.keepSampleInfoInMemory_ = pars.keepSampleInfoInMemory_;
+	//keep each sample's files in memory between steps, they're written out once at the end
+	sampColl.storeSampleStatesInMemory_ = !pars.writeSampleStatesImmediately_;
 	sampColl.development_ = pars.development;
 
 	if(!pars.groupingsFile.empty()){
@@ -767,7 +769,15 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 	}
 	sampColl.printSampleCollapseInfo(
 			njh::files::make_path(sampColl.masterOutputDir_,
-					"selectedClustersInfo.tab.txt.gz"));
+					"selectedClustersInfo.tab.txt.gz"), true);
+	sampColl.printSampleClustersInfo(
+			njh::files::make_path(sampColl.masterOutputDir_,
+					"sampleClustersInfo.tab.txt.gz"));
+	if (pars.writeSampleInputClusters) {
+		sampColl.printSampleInputClusters(
+				njh::files::make_path(sampColl.masterOutputDir_,
+						"sampleInputClusters" + setUp.pars_.ioOptions_.getOutExtension()));
+	}
 	if(setUp.pars_.debug_) {
 		std::cout << __FILE__ << " " << __LINE__ << std::endl;
 	}
@@ -776,7 +786,13 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 					njh::files::make_path(sampColl.masterOutputDir_,
 							"allClustersInfo.tab.txt.gz"));
 	}
-	sampColl.symlinkInSampleFinals();
+	if (pars.writeSampleDirs) {
+		sampColl.writeSampleStatesToDisk();
+	}
+	//the sample dirs exist if they were asked for or each sample was written as it was dumped
+	if (pars.writeSampleDirs || (pars.writeSampleStatesImmediately_ && !pars.keepSampleInfoInMemory_)) {
+		sampColl.symlinkInSampleFinals();
+	}
 	sampColl.outputRepAgreementInfo();
 
 	table hapIdTab = sampColl.genHapIdTable();
@@ -795,7 +811,7 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 
 
 	if("" != pars.groupingsFile){
-		if(pars.noWriteGroupInfoFiles){
+		if(!pars.writeGroupInfoFiles || pars.noWriteGroupInfoFiles){
 			//still write the meta info for use with downstream analysis
 			auto groupsTopDir = njh::files::make_path(sampColl.masterOutputDir_, "groups");
 			njh::files::makeDir(njh::files::MkdirPar(groupsTopDir, true));

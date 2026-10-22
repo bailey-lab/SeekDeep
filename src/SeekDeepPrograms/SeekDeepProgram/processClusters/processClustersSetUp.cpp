@@ -58,6 +58,7 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 
 
 	setOption(pars.keepSampleInfoInMemory_, "--keepSamplesInfoInMemory", "Rather than writing samples results and reading again for further processing, keep all samples info in memory");
+	setOption(pars.writeSampleStatesImmediately_, "--writeSampleStatesImmediately", "Write each sample's results to disk as soon as it's processed and re-read them from disk, rather than keeping them in memory until the end");
 //	setOption(pars.transPars.lzPars_.genomeFnp, "--genomeFnp",
 //			"Genome file so final haplotypes can be mapped to a genome", false, "Additional Output");
 //	setOption(pars.transPars.gffFnp_, "--gffFnp",
@@ -93,7 +94,13 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 	setOption(pars.groupingsFile, "--groupingsFile",
 			"A file to sort samples into different groups", false, "Meta");
 	setOption(pars.noWriteGroupInfoFiles, "--noWriteGroupInfoFiles",
-			"Don't write out the info files for the sub groupings, just add the meta to output directories", false, "Meta");
+			"Don't write out the info files for the sub groupings, just add the meta to output directories (now the default, see --writeGroupInfoFiles)", false, "Meta");
+	setOption(pars.writeGroupInfoFiles, "--writeGroupInfoFiles",
+			"Write out the info files (pop, sample and hap id tables) for each sub grouping under groups/", false, "Meta");
+	setOption(pars.writeSampleDirs, "--writeSampleDirs",
+			"Write the per sample directories under samplesOutput/ and the final/ links to them, all their info is also in sampleClustersInfo.tab.txt.gz", false, "Output");
+	setOption(pars.writeSampleInputClusters, "--writeSampleInputClusters",
+			"Write sampleInputClusters, the per replicate input clusters that make up every sample's final and excluded clusters", false, "Output");
 	processDebug();
 	processVerbose();
 	pars_.colOpts_.verboseOpts_.verbose_ = pars_.verbose_;
