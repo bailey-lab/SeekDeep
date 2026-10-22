@@ -210,37 +210,38 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 				sampColl.setUpSample(samp, repFiles.at(samp), *currentAligner, collapserObj, setUp.pars_.chiOpts_);
 
 				sampColl.clusterSample(samp, *currentAligner, collapserObj, pars.iteratorMap);
-				sampColl.sampleCollapses_.at(samp)->markChimeras(pars.chiCutOff);
+				auto sampPtr = sampColl.getSampleCollapse(samp);
+				sampPtr->markChimeras(pars.chiCutOff);
 				//exclude clusters that don't have the necessary replicate number
 				//defaults to the number of input replicates if none supplied
 				if (0 != pars.runsRequired) {
-					sampColl.sampleCollapses_.at(samp)->excludeBySampNum(pars.runsRequired, true);
+					sampPtr->excludeBySampNum(pars.runsRequired, true);
 				} else {
-					sampColl.sampleCollapses_.at(samp)->excludeBySampNum(sampColl.sampleCollapses_.at(samp)->input_.info_.infos_.size(), true);
+					sampPtr->excludeBySampNum(sampPtr->input_.info_.infos_.size(), true);
 				}
 
 				if(pars.collapseLowFreqOneOffs){
 					bool skipChimeras = true;
-					sampColl.sampleCollapses_.at(samp)->excludeLowFreqOneOffs(true, pars.lowFreqMultiplier, *currentAligner,
+					sampPtr->excludeLowFreqOneOffs(true, pars.lowFreqMultiplier, *currentAligner,
 							skipChimeras, customCutOffsMap.at(samp));
 				}
 
-				sampColl.sampleCollapses_.at(samp)->excludeFractionAnyRep(customCutOffsMapPerRep.at(samp), true);
-				sampColl.sampleCollapses_.at(samp)->excludeFraction(customCutOffsMap.at(samp), true);
+				sampPtr->excludeFractionAnyRep(customCutOffsMapPerRep.at(samp), true);
+				sampPtr->excludeFraction(customCutOffsMap.at(samp), true);
 
 				if (!pars.keepChimeras) {
 					//now exclude all marked chimeras
-					sampColl.sampleCollapses_.at(samp)->excludeChimerasNoReMark(true);
+					sampPtr->excludeChimerasNoReMark(true);
 				}
 				std::string sortBy = "fraction";
-				sampColl.sampleCollapses_.at(samp)->renameClusters(sortBy);
+				sampPtr->renameClusters(sortBy);
 				if (!expectedSeqs.empty()) {
-					sampColl.sampleCollapses_.at(samp)->excluded_.checkAgainstExpected(expectedSeqs, *currentAligner, false);
-					sampColl.sampleCollapses_.at(samp)->collapsed_.checkAgainstExpected(expectedSeqs, *currentAligner, false);
+					sampPtr->excluded_.checkAgainstExpected(expectedSeqs, *currentAligner, false);
+					sampPtr->collapsed_.checkAgainstExpected(expectedSeqs, *currentAligner, false);
 					if(setUp.pars_.debug_){
 						std::cout << "sample: " << samp << std::endl;
 					}
-					for(const auto & clus : sampColl.sampleCollapses_.at(samp)->collapsed_.clusters_){
+					for(const auto & clus : sampPtr->collapsed_.clusters_){
 						if(setUp.pars_.debug_){
 							std::cout << clus.seqBase_.name_ << " : " << clus.expectsString << std::endl;
 						}
