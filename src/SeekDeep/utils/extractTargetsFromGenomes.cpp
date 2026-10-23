@@ -482,21 +482,88 @@ GenExtracResByGenome makeEmptyGenomeResults(const ExtractContext & ctx){
 // finding the primers with blast
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
-void blastPrimersToGenomes(const extractBetweenSeqsPars & extractPars,
-													 njh::concurrent::LockableQueue<bfs::path> & genomesQueue,
-													 const bfs::path & forwardFnp,
-													 const bfs::path & reverseFnp,
-													 const bfs::path & alignDir){
-	bfs::path genomeFnp = "";
-	while(genomesQueue.getVal(genomeFnp)){
-		for(const auto & primerFnp : {forwardFnp, reverseFnp}){
+/**@brief One primer sequence in the combined query file that all of the targets' primers are blasted with
+ */
+struct BlastQuery{
+	std::string target_;
+	bool forward_;
+	std::string name_; //the name of the primer in the target's primer file
+};
+
+/**@brief Blast the primers of all the targets against each genome with a single blast run per genome
+ *
+ * The genome's blast database is only made and read once per genome rather than once per primer file. The hits are then
+ * split back out into the per target hit files, with the original primer names, that the re-alignment reads in.
+ *
+ * @param primerFilesByTarget the primer files made for each target
+ * @param refAlignmentDirByTarget where the hits for each target should be written
+ */
+void blastAllPrimersToGenomes(const ExtractContext & ctx,
+															const std::map<std::string, PrimerFiles> & primerFilesByTarget,
+															const std::map<std::string, bfs::path> & refAlignmentDirByTarget){
+	//write out all the primers in one file, the names are replaced with a simple unique id
+	std::vector<BlastQuery> queries;
+	std::vector<seqInfo> querySeqs;
+	for(const auto & primerFiles : primerFilesByTarget){
+		for(const bool forward : {true, false}){
+			for(const auto & seq : (forward ? primerFiles.second.forSeqs_ : primerFiles.second.revSeqs_)){
+				queries.emplace_back(BlastQuery{primerFiles.first, forward, seq.name_});
+				querySeqs.emplace_back(seq);
+				querySeqs.back().name_ = "q" + estd::to_string(queries.size() - 1);
+			}
+		}
+	}
+	auto blastDir = njh::files::makeDir(ctx.outputDir_, njh::files::MkdirPar{"allPrimersBlast"});
+	auto queryOpts = SeqIOOptions::genFastaOut(njh::files::make_path(blastDir, "allPrimers"));
+	SeqOutput::write(querySeqs, queryOpts);
+	const bfs::path queryFnp = queryOpts.out_.outName();
+
+	//one blast per genome
+	auto genomeFnps = ctx.gMapper_.getGenomeFnps();
+	const uint32_t totalThreads = std::max<uint32_t>(1, ctx.extractPars_.pars.numThreads_);
+	const uint32_t genomeThreads = std::max<uint32_t>(1, std::min<uint32_t>(genomeFnps.size(), totalThreads));
+	const uint32_t blastThreads = std::max<uint32_t>(1, totalThreads/genomeThreads);
+	njh::concurrent::LockableQueue<bfs::path> genomesQueue(genomeFnps);
+	std::function<void()> blastGenomes = [&](){
+		bfs::path genomeFnp = "";
+		while(genomesQueue.getVal(genomeFnp)){
 			BioCmdsUtils bioRunner;
-			bioRunner.verbose_ = extractPars.verbose_;
+			bioRunner.verbose_ = ctx.extractPars_.verbose_;
 			auto blastDatabaseFnp = bfs::path(genomeFnp).replace_extension("").string() + "_blastdb";
 			bioRunner.RunMakeblastdb(genomeFnp);
-			bfs::path outputFnp = njh::files::make_path(alignDir, bfs::basename(genomeFnp) + "_" + bfs::basename(primerFnp) + "_blastHits.tsv");
-			std::string cmd = "blastn -query " + primerFnp.string()  + " -perc_identity 80 -qcov_hsp_perc 80 -task blastn-short -word_size 6 -db " + blastDatabaseFnp + " -outfmt 6 -max_target_seqs 100000000 > " + outputFnp.string();
-			bioRunner.runCmdCheck(cmd, primerFnp, outputFnp);
+			bfs::path outputFnp = njh::files::make_path(blastDir, bfs::basename(genomeFnp) + "_allPrimers_blastHits.tsv");
+			std::string cmd = "blastn -query " + queryFnp.string()  + " -perc_identity 80 -qcov_hsp_perc 80 -task blastn-short -word_size 6 -db " + blastDatabaseFnp + " -outfmt 6 -max_target_seqs 100000000 -num_threads " + estd::to_string(blastThreads) + " > " + outputFnp.string();
+			bioRunner.runCmdCheck(cmd, queryFnp, outputFnp);
+		}
+	};
+	njh::concurrent::runVoidFunctionThreaded(blastGenomes, genomeThreads);
+
+	//split the hits back out by target and primer direction
+	for(const auto & genomeFnp : genomeFnps){
+		//target, forward -> the lines of the hits, a line for every query so that targets without hits still get a (empty) file
+		std::map<std::pair<std::string, bool>, std::string> hitLinesByTargetByDirection;
+		for(const auto & query : queries){
+			hitLinesByTargetByDirection[{query.target_, query.forward_}];
+		}
+		std::ifstream hitsFile(njh::files::make_path(blastDir, bfs::basename(genomeFnp) + "_allPrimers_blastHits.tsv").string());
+		std::string line;
+		while(std::getline(hitsFile, line)){
+			auto tabPos = line.find('\t');
+			if(std::string::npos == tabPos){
+				continue;
+			}
+			const auto & query = queries.at(std::stoul(line.substr(1, tabPos - 1)));
+			auto & lines = hitLinesByTargetByDirection[{query.target_, query.forward_}];
+			lines.append(query.name_);
+			lines.append(line, tabPos, std::string::npos);
+			lines.push_back('\n');
+		}
+		for(const auto & hitLines : hitLinesByTargetByDirection){
+			const auto & primerFiles = primerFilesByTarget.at(hitLines.first.first);
+			const auto & primerFnp = hitLines.first.second ? primerFiles.forwardFnp_ : primerFiles.reverseFnp_;
+			OutputStream hitsOut(njh::files::make_path(refAlignmentDirByTarget.at(hitLines.first.first),
+																								 bfs::basename(genomeFnp) + "_" + bfs::basename(primerFnp) + "_blastHits.tsv"));
+			hitsOut << hitLines.second;
 		}
 	}
 }
@@ -535,18 +602,24 @@ void extractTargetsWithBlast(const ExtractContext & ctx,
 	const auto & extractPars = ctx.extractPars_;
 	comparison allowableErrors;
 	allowableErrors.hqMismatches_ = extractPars.errors;
-	auto blastAlign = [&extractPars](njh::concurrent::LockableQueue<bfs::path> & genomesQueue,
-																	 const bfs::path & forwardFnp,
-																	 const bfs::path & reverseFnp,
-																	 const bfs::path & alignDir){
-		blastPrimersToGenomes(extractPars, genomesQueue, forwardFnp, reverseFnp, alignDir);
-	};
+
+	//set up the directories and primer files for all the targets and then blast all of the primers at once
+	std::map<std::string, PrimerFiles> primerFilesByTarget;
+	std::map<std::string, bfs::path> refAlignmentDirByTarget;
+	for(const auto & tar : ctx.ids_.targets_){
+		const auto & primerInfo = ctx.ids_.pDeterminator_->primers_.at(tar.first);
+		auto primerFiles = writePrimerFiles(ctx.outputDir_, primerInfo);
+		refAlignmentDirByTarget[tar.first] = njh::files::makeDir(primerFiles.primerDirectory_, njh::files::MkdirPar{"refAlignments"});
+		primerFilesByTarget.emplace(tar.first, std::move(primerFiles));
+	}
+	blastAllPrimersToGenomes(ctx, primerFilesByTarget, refAlignmentDirByTarget);
 
 	std::function<void()> extractPathway = [&]() {
 		std::string target;
 		while(targetsQueue.getVal(target)) {
 			const auto & primerInfo = ctx.ids_.pDeterminator_->primers_.at(target);
-			auto primerFiles = writePrimerFiles(ctx.outputDir_, primerInfo);
+			const auto & primerFiles = primerFilesByTarget.at(target);
+			const auto & refAlignmentDir = refAlignmentDirByTarget.at(target);
 
 			uint64_t maxLen = 0;
 			readVec::getMaxLength(primerFiles.forSeqs_, maxLen);
@@ -554,9 +627,6 @@ void extractTargetsWithBlast(const ExtractContext & ctx,
 			aligner alignerObj(maxLen, gapScoringParameters(5,1,0,0,5,1,0,0,5,1), substituteMatrix(2, -2));
 			auto forwardPrimersByName = primerSeqsByName(primerFiles.forSeqs_);
 			auto reversePrimersByName = primerSeqsByName(primerFiles.revSeqs_);
-
-			auto refAlignmentDir = njh::files::makeDir(primerFiles.primerDirectory_, njh::files::MkdirPar{"refAlignments"});
-			alignPrimersToGenomes(ctx, primerFiles, refAlignmentDir, blastAlign);
 
 			auto genomeExtractionsResults = makeEmptyGenomeResults(ctx);
 			ReAlignedSeq::genRealignmentPars reAlnPars;
@@ -600,6 +670,9 @@ void extractTargetsWithBlast(const ExtractContext & ctx,
 		}
 	};
 	njh::concurrent::runVoidFunctionThreaded(extractPathway, ctx.numThreads_);
+	if(extractPars.removeRefAlignments){
+		njh::files::rmDirForce(ctx.outputDir_ / "allPrimersBlast");
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
