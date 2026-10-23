@@ -25,12 +25,12 @@ struct extractBetweenSeqsPars{
 	uint32_t errors = 0;
 	uint32_t sizeLimit = 1000;
 	uint32_t maxLenCutOffSizeExpand = 40;
-  uint32_t minLenCutOffSizeExpand = 40;
+	uint32_t minLenCutOffSizeExpand = 40;
 	uint32_t pairedEndLength = std::numeric_limits<uint32_t>::max();
 	uint32_t barcodeSize = 0;
 
-  bool useBlast = false;
-  uint32_t blastExpandSize = 10;
+	bool useBlast = false;
+	uint32_t blastExpandSize = 10;
 	bool doNotRenameBeds = false;
 	bool shortNames = false;
 	std::string selectedGenomesStr;
