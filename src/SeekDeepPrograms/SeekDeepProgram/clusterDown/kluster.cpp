@@ -104,6 +104,102 @@ std::vector<std::shared_ptr<seqWithKmerInfo>> createKmerReadVec(
 
 
 
+/**@brief k-mer counts of one read for k = 2..kStop, with k-mers of A/C/G/T only counted in a dense array indexed by 2-bit code (k <= maxDenseK) and all others kept as sorted (k-mer, count) pairs
+ *
+ */
+class KmerDistProfile {
+public:
+  static constexpr uint32_t maxDenseK = 6;
+
+  uint64_t seqLen_{0};
+  std::vector<std::vector<uint32_t>> dense_;
+  std::vector<std::vector<std::pair<std::string, uint32_t>>> other_;
+
+  KmerDistProfile(const std::string & seq, uint32_t kStop) : seqLen_(seq.size()), dense_(kStop + 1), other_(kStop + 1) {
+    for (uint32_t k = 2; k <= kStop; ++k) {
+      if (k > seq.size()) {
+        continue;
+      }
+      std::vector<std::string> otherKmers;
+      if (k <= maxDenseK) {
+        auto & counts = dense_[k];
+        counts.assign(static_cast<size_t>(1) << (2 * k), 0);
+        const uint64_t mask = (static_cast<uint64_t>(1) << (2 * k)) - 1;
+        uint64_t code = 0;
+        //number of consecutive A/C/G/T bases ending at the current position
+        uint32_t acgtRun = 0;
+        for (uint64_t pos = 0; pos < seq.size(); ++pos) {
+          const auto baseCode = encode(seq[pos]);
+          if (baseCode < 4) {
+            code = ((code << 2) | baseCode) & mask;
+            ++acgtRun;
+          } else {
+            acgtRun = 0;
+          }
+          if (pos + 1 >= k) {
+            if (acgtRun >= k) {
+              ++counts[code];
+            } else {
+              otherKmers.emplace_back(seq.substr(pos + 1 - k, k));
+            }
+          }
+        }
+      } else {
+        for (uint64_t pos = 0; pos + k <= seq.size(); ++pos) {
+          otherKmers.emplace_back(seq.substr(pos, k));
+        }
+      }
+      std::sort(otherKmers.begin(), otherKmers.end());
+      for (auto & kmer : otherKmers) {
+        if (other_[k].empty() || other_[k].back().first != kmer) {
+          other_[k].emplace_back(std::move(kmer), 1);
+        } else {
+          ++other_[k].back().second;
+        }
+      }
+    }
+  }
+
+  static uint32_t encode(char base) {
+    switch (base) {
+      case 'A': return 0;
+      case 'C': return 1;
+      case 'G': return 2;
+      case 'T': return 3;
+      default: return 4;
+    }
+  }
+
+  /**@brief same value as kmerInfo::compareKmers().second, shared k-mer count over the number of k-mers in the shorter read
+   *
+   */
+  double distance(const KmerDistProfile & other, uint32_t k) const {
+    uint32_t kShared = 0;
+    const auto & counts = dense_[k];
+    const auto & otherCounts = other.dense_[k];
+    if (!counts.empty() && !otherCounts.empty()) {
+      const auto size = counts.size();
+      for (size_t pos = 0; pos < size; ++pos) {
+        kShared += std::min(counts[pos], otherCounts[pos]);
+      }
+    }
+    auto it = other_[k].begin();
+    auto otherIt = other.other_[k].begin();
+    while (it != other_[k].end() && otherIt != other.other_[k].end()) {
+      if (it->first < otherIt->first) {
+        ++it;
+      } else if (otherIt->first < it->first) {
+        ++otherIt;
+      } else {
+        kShared += std::min(it->second, otherIt->second);
+        ++it;
+        ++otherIt;
+      }
+    }
+    return kShared / static_cast<double>(std::min(other.seqLen_, seqLen_) + 1 - k);
+  }
+};
+
 readDistGraph<double> genKmerAccerDistGraphWithDbSmartBuildDev(
     std::vector<std::shared_ptr<seqWithKmerInfo>> & reads,
     const KmerClusteringRatePars & pars,
@@ -118,147 +214,137 @@ readDistGraph<double> genKmerAccerDistGraphWithDbSmartBuildDev(
        ", KmerStop: " << pars.kmerStop;
     throw std::runtime_error{ss.str()};
   }
+  njh::stopWatch watch;
+  std::vector<KmerDistProfile> profiles;
+  profiles.reserve(reads.size());
+  for (const auto & read : reads) {
+    profiles.emplace_back(read->seqBase_.seq_, pars.kmerStop);
+  }
+  if (pars.verbose) {
+    std::cout << "\tIndexing Time: " << watch.totalTimeFormatted(0) << std::endl;
+  }
+  watch.reset();
 
-  std::function<
-      double(const std::shared_ptr<seqWithKmerInfo> &,
-             const std::shared_ptr<seqWithKmerInfo> &)> disFun =
-      [](const std::shared_ptr<seqWithKmerInfo> & read1,
-         const std::shared_ptr<seqWithKmerInfo> & read2) {
-        auto dist = read1->compareKmers(*read2);
-        return dist.second;
-      };
-  std::unordered_map<uint32_t, std::vector<std::vector<double>>>distanceMaps;
-  for (uint32_t k = 2; k < 4; ++k) {
-    if(pars.verbose){
-      std::cout << "K: " << k << std::endl;
-      std::cout << "\tIndexing Kmers" << std::endl;
-    }
-    njh::stopWatch watch;
-    allSetKmers(reads, k, false);
-
-    if(pars.verbose){
-      std::cout << "\tIndexing Time: " << watch.totalTimeFormatted(0) << std::endl;
-      std::cout << "\tCalculating Distances" << std::endl;
-    }
-    watch.reset();
-    distanceMaps[k] = getDistance(reads, pars.numThreads, disFun);
-    if(pars.verbose){
-      std::cout << "\tCalculating Distances Time: " << watch.totalTimeFormatted(0) << std::endl;
+  //for each pair the k-mer distance d_k is computed for k = 2..kmerStop and the differences d_k - d_(k+1) are averaged,
+  //pairs are dropped once the mean of the differences so far is above eps (checked after k = 3 and before each k > 5),
+  //an edge is added when the mean over all the differences is <= eps
+  //distances holds the value of the last check (max when dropped), only needed for HDBScan
+  std::vector<std::vector<double>> distances;
+  if (pars.useHDBScan) {
+    for (const auto pos : iter::range(reads.size())) {
+      distances.emplace_back(pos, std::numeric_limits<double>::max());
     }
   }
-  std::vector<std::vector<double>> distances = distanceMaps[2];
-  for (const auto rowPos : iter::range(distances.size())) {
-    for (const auto colPos : iter::range(distances[rowPos].size())) {
-      /*double res = std::abs(
-          distanceMaps[2][rowPos][colPos]
-              - distanceMaps[3][rowPos][colPos] );*/
-      double res = distanceMaps[2][rowPos][colPos] - distanceMaps[3][rowPos][colPos];
-      if(res <= pars.dbPars_.eps_){
-        distances[rowPos][colPos] = res;
-      }else{
-        distances[rowPos][colPos] = std::numeric_limits<double>::max();
+  std::vector<std::vector<std::pair<uint32_t, double>>> rowEdges(reads.size());
+  const uint32_t numDiffs = pars.kmerStop - 2;
+  auto computeRow = [&](uint32_t rowPos, std::vector<double> & kDists) {
+    const auto & rowProfile = profiles[rowPos];
+    for (uint32_t colPos = 0; colPos < rowPos; ++colPos) {
+      const auto & colProfile = profiles[colPos];
+      kDists[2] = rowProfile.distance(colProfile, 2);
+      kDists[3] = rowProfile.distance(colProfile, 3);
+      double diffSum = kDists[2] - kDists[3];
+      if (diffSum > pars.dbPars_.eps_) {
+        continue;
+      }
+      double lastCheck = diffSum;
+      bool passed = true;
+      for (uint32_t k = 4; k <= pars.kmerStop; ++k) {
+        if (k > 5) {
+          double res = diffSum / static_cast<double>(k - 3);
+          if (res > pars.dbPars_.eps_) {
+            passed = false;
+            break;
+          }
+          lastCheck = res;
+        }
+        kDists[k] = rowProfile.distance(colProfile, k);
+        diffSum += kDists[k - 1] - kDists[k];
+      }
+      if (!passed) {
+        continue;
+      }
+      if (pars.useHDBScan) {
+        distances[rowPos][colPos] = lastCheck;
+      }
+      double meanDecrease = diffSum / static_cast<double>(numDiffs);
+      if (meanDecrease <= pars.dbPars_.eps_) {
+        rowEdges[rowPos].emplace_back(colPos, meanDecrease);
       }
     }
+  };
+  //rows are handed out longest first so threads finish close together
+  std::atomic<uint32_t> rowsTaken{0};
+  const uint32_t numRows = reads.size();
+  auto worker = [&]() {
+    std::vector<double> kDists(pars.kmerStop + 1, 0);
+    uint32_t taken = 0;
+    while ((taken = rowsTaken.fetch_add(1)) < numRows) {
+      computeRow(numRows - 1 - taken, kDists);
+    }
+  };
+  const uint32_t numThreads = std::max<uint32_t>(1, std::min<uint32_t>(pars.numThreads, numRows));
+  std::vector<std::thread> threads;
+  for (uint32_t tNum = 1; tNum < numThreads; ++tNum) {
+    threads.emplace_back(worker);
   }
-  for(const auto k : iter::range<uint32_t>(4,pars.kmerStop + 1)){
-    if(pars.verbose){
-      std::cout << "K: " << k << std::endl;
-      std::cout << "\tIndexing Kmers" << std::endl;
-    }
-    njh::stopWatch watch;
-    allSetKmers(reads, k, false);
+  worker();
+  for (auto & t : threads) {
+    t.join();
+  }
+  if (pars.verbose) {
+    std::cout << "\tCalculating Distances Time: " << watch.totalTimeFormatted(0) << std::endl;
+  }
 
-    if(pars.verbose){
-      std::cout << "\tIndexing Time: " << watch.totalTimeFormatted(0) << std::endl;
-      std::cout << "\tCalculating Distances" << std::endl;
-    }
-    watch.reset();
-    if(k > 5){
-      for (const auto rowPos : iter::range(distances.size())) {
-        for (const auto colPos : iter::range(distances[rowPos].size())) {
-          std::vector<double> differences;
-          for (uint32_t currentKLen = 2; currentKLen < pars.kmerStop; ++currentKLen) {
-            /*differences.emplace_back(
-             std::abs(
-             distanceMaps[currentKLen][rowPos][colPos]
-             - distanceMaps[currentKLen + 1][rowPos][colPos]));*/
-            differences.emplace_back(
-                distanceMaps[currentKLen][rowPos][colPos]
-                - distanceMaps[currentKLen + 1][rowPos][colPos]);
-          }
-          if (std::numeric_limits<double>::max() != distances[rowPos][colPos]) {
-            double res = vectorMean(differences);
-            if(res <= pars.dbPars_.eps_){
-              distances[rowPos][colPos] = res;
-            }else{
-              distances[rowPos][colPos] = std::numeric_limits<double>::max();
-            }
+  //without HDBScan or large indel breaking, pruning keeps only edges that pass the length check and are a lowest distance edge
+  //of one of their nodes (the first one in edge order, or all equal ones with doTies), so only those are added
+  const bool addAllEdges = pars.useHDBScan || pars.breakLargeIndelCons;
+  auto passesLength = [&](uint32_t rowPos, uint32_t colPos) {
+    return 0 == pars.readLengthMinDiff ||
+           uAbsdiff(len(reads[rowPos]->seqBase_), len(reads[colPos]->seqBase_)) <= pars.readLengthMinDiff;
+  };
+  std::vector<double> lowestDist;
+  //row and index within that row of each node's first lowest distance edge
+  std::vector<std::pair<uint32_t, uint32_t>> firstLowest;
+  if (!addAllEdges) {
+    lowestDist.assign(reads.size(), std::numeric_limits<double>::max());
+    firstLowest.assign(reads.size(), {std::numeric_limits<uint32_t>::max(), std::numeric_limits<uint32_t>::max()});
+    for (uint32_t rowPos = 0; rowPos < rowEdges.size(); ++rowPos) {
+      for (uint32_t edgePos = 0; edgePos < rowEdges[rowPos].size(); ++edgePos) {
+        const auto & colEdge = rowEdges[rowPos][edgePos];
+        if (!passesLength(rowPos, colEdge.first)) {
+          continue;
+        }
+        for (const auto nodePos : {rowPos, colEdge.first}) {
+          if (colEdge.second < lowestDist[nodePos]) {
+            lowestDist[nodePos] = colEdge.second;
+            firstLowest[nodePos] = {rowPos, edgePos};
           }
         }
       }
     }
-    std::vector<std::vector<double>> currentKDists;
-    std::vector<std::pair<uint32_t, uint32_t>> indices;
-    for(const auto pos : iter::range(reads.size())){
-      currentKDists.emplace_back(pos);
-      for(const auto secondPos : iter::range(pos)){
-        if(std::numeric_limits<double>::max() != distances[pos][secondPos]){
-          indices.emplace_back(pos, secondPos);
-        }
-      }
-    }
-    if(pars.numThreads < 2 || pars.numThreads >= reads.size()){
-      paritialDis(reads, indices, currentKDists, disFun);
-    }else{
-      std::vector<std::thread> threads;
-      auto step = static_cast<uint32_t>(std::round(static_cast<double>(indices.size())/static_cast<double>(pars.numThreads)));
-      std::vector<std::vector<std::pair<uint32_t, uint32_t>>> indsSplit;
-      for(const auto tNum : iter::range(pars.numThreads - 1)){
-        std::vector<std::pair<uint32_t, uint32_t>> temp {indices.begin() + tNum * step,
-                                                         indices.begin() + (tNum + 1)*step};
-        indsSplit.emplace_back(temp);
-      }
-      std::vector<std::pair<uint32_t, uint32_t>> temp {indices.begin() + (pars.numThreads - 1) * step,
-                                                       indices.end()};
-      indsSplit.emplace_back(temp);
-      for(const auto tNum : iter::range(pars.numThreads)){
-        threads.emplace_back(paritialDis<std::shared_ptr<seqWithKmerInfo>,double>, std::cref(reads),
-                                      indsSplit[tNum], std::ref(currentKDists), disFun);
-      }
-      for(auto & t : threads){
-        t.join();
-      }
-    }
-    distanceMaps[k] = currentKDists;
-    if(pars.verbose){
-      std::cout << "\tCalculating Distances Time: " << watch.totalTimeFormatted(0) << std::endl;
-    }
   }
-
-
-
   readDistGraph<double> distanceGraph(reads);
-  for (const auto rowPos : iter::range(distances.size())) {
-    for (const auto colPos : iter::range(distances[rowPos].size())) {
-      std::vector<double> differences;
-      for (uint32_t k = 2; k < pars.kmerStop; ++k) {
-        /*differences.emplace_back(
-         std::abs(
-         distanceMaps[k][rowPos][colPos]
-         - distanceMaps[k + 1][rowPos][colPos]));*/
-        differences.emplace_back(
-            distanceMaps[k][rowPos][colPos]
-            - distanceMaps[k + 1][rowPos][colPos]);
-      }
-      if (std::numeric_limits<double>::max() != distances[rowPos][colPos]) {
-        double meanDecrease = vectorMean(differences);
-        if (meanDecrease <= pars.dbPars_.eps_) {
-          distanceGraph.addEdge(reads[rowPos]->seqBase_.name_,
-                                reads[colPos]->seqBase_.name_, meanDecrease);
+  for (uint32_t rowPos = 0; rowPos < rowEdges.size(); ++rowPos) {
+    for (uint32_t edgePos = 0; edgePos < rowEdges[rowPos].size(); ++edgePos) {
+      const auto & colEdge = rowEdges[rowPos][edgePos];
+      if (!addAllEdges) {
+        if (!passesLength(rowPos, colEdge.first)) {
+          continue;
+        }
+        const std::pair<uint32_t, uint32_t> edgeId{rowPos, edgePos};
+        bool lowest = pars.doTies
+                      ? (colEdge.second == lowestDist[rowPos] || colEdge.second == lowestDist[colEdge.first])
+                      : (edgeId == firstLowest[rowPos] || edgeId == firstLowest[colEdge.first]);
+        if (!lowest) {
+          continue;
         }
       }
+      distanceGraph.addEdge(reads[rowPos]->seqBase_.name_,
+                            reads[colEdge.first]->seqBase_.name_, colEdge.second);
     }
   }
+  rowEdges = {};
   //distanceGraph.turnOffEdgesAbove(pars.eps_);
   //turn off connections if they have large indels
   if(pars.readLengthMinDiff > 0){
@@ -561,7 +647,7 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
   bool checkIndelsWhenMapping = false;
   bool checkIndelsAgainstSNPsWhenMapping = false;
   bool doNotCheckIndelsAgainstSNPsWhenMapping = false;
-  uint32_t maxReadAmountForDownsample = 10000;//50000
+  uint32_t maxReadAmountForDownsample = 50000;
   uint64_t randomSeed = std::numeric_limits<uint64_t>::max();
   seqSetUp setUp(inputCommands);
   setUp.processDebug();
@@ -926,7 +1012,10 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
       std::cout << __FILE__ << " : " << __LINE__ << " : " << __PRETTY_FUNCTION__ << std::endl;
     }
     addOtherVec(outReads, currentOutReads);
-    disGraphs.emplace_back(distanceGraph);
+    //graphs are only needed for the visualization
+    if(pars.visualize){
+      disGraphs.emplace_back(distanceGraph);
+    }
     if(setUp.pars_.debug_){
       std::cout << __FILE__ << " : " << __LINE__ << " : " << __PRETTY_FUNCTION__ << std::endl;
     }
@@ -1092,12 +1181,6 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
 
 
   alignerObj.processAlnInfoOutput(setUp.pars_.outAlnInfoDirName_, setUp.pars_.verbose_);
-
-
-  if(pars.map){
-    setUp.rLog_.logCurrentTime("Calculating Input Kmer info for comparison");
-    allSetKmers(allInputReads, kLenComp, false);
-  }
 
 
   std::vector<refMapContainer<seqInfo>> readCounts;
