@@ -179,6 +179,8 @@ struct clusterDownPars {
 	bool useAllInput = false; // use all input reads even for large input
 	uint32_t useCutOff = 50000; // the cut off for input size, will down sample the file if more than this, helps to control memory usage
 	bool keepDownSampledFile = false; //keep the down sampled file;
+	uint64_t downSampleSeed = 0; //seed for picking reads when down sampling
+	bool downSampleSeedSet = false; //whether downSampleSeed was given, otherwise a random seed is used
 
 	bool writeOutInitalSeqs = false;
 

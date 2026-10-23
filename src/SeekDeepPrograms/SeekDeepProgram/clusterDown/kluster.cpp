@@ -569,6 +569,8 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
   pars.verbose = setUp.pars_.verbose_;
   setUp.setOption(maxReadAmountForDownsample, "--maxReadAmountForDownsample", "Randomly Downsample the input reads to this amount before clustering");
   setUp.setOption(randomSeed, "--randomSeedForDownSampling", "When Randomly Downsampling, use this random seed, this way the same downsample would happen each time");
+  bool writeDownsampledReads = false;
+  setUp.setOption(writeDownsampledReads, "--writeDownsampledReads", "When down sampling, write the down sampled reads to a file named downsampled in the output directory");
   bool sampleSet = setUp.setOption(sample, "--sample", "sample name to give to output");
   bool targetSet = setUp.setOption(target, "--target", "target name to give to output");
   bool replicateSet = setUp.setOption(replicate, "--replicate", "replicate name to give to output");
@@ -764,12 +766,12 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
       pars.readLengthMinDiff = 0.10 * readLenMedian;//set to 10% of the read length median of the input if not setting the read length difference
     }
   }
-  auto inOptsForReading = setUp.pars_.ioOptions_;
+  //down sampling picks exactly maxReadAmountForDownsample reads uniformly at random, marked by their position in the input
+  std::vector<bool> selectedForDownSample;
   if(inputReadAmount > maxReadAmountForDownsample) {
     if(setUp.pars_.verbose_){
       std::cout << "There are " << inputReadAmount << " input reads, will down sample to " << maxReadAmountForDownsample << std::endl;;
     }
-    SeqIOOptions downsampleOut(njh::files::make_path(setUp.pars_.directoryName_, "downsampled"), SeqIOOptions::getOutFormat(setUp.pars_.ioOptions_.inFormat_));
     njh::randomGenerator rgen;
     if(std::numeric_limits<uint64_t>::max() != randomSeed) {
       rgen.seedNum(randomSeed);
@@ -778,31 +780,35 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
       OutputStream randomSeedUsedForSamplingOut(njh::files::make_path(setUp.pars_.directoryName_, "randomSeedForSampling.txt"));
       randomSeedUsedForSamplingOut << rgen.currentSeed_ << std::endl;
     }
-    double downsampleFraction = static_cast<double>(maxReadAmountForDownsample)/static_cast<double>(inputReadAmount);
-    seqInfo seq;
-    SeqInput reader(setUp.pars_.ioOptions_);
-    reader.openIn();
-    SeqOutput writer(downsampleOut);
-    writer.openOut();
-    inOptsForReading.firstName_ = downsampleOut.getPriamryOutName();
-    uint64_t numberWritten = 0;
-    while (reader.readNextRead(seq)) {
-      if(rgen.unifRand() <= downsampleFraction) {
-       writer.write(seq);
-        ++numberWritten;
-        if(numberWritten>=maxReadAmountForDownsample) {
-          break;
-        }
-      }
+    std::vector<uint32_t> allIndexes(inputReadAmount);
+    njh::iota<uint32_t>(allIndexes, 0);
+    std::shuffle(std::begin(allIndexes), std::end(allIndexes), rgen.mtGen_);
+    selectedForDownSample.assign(inputReadAmount, false);
+    for(const auto pos : iter::range(maxReadAmountForDownsample)) {
+      selectedForDownSample[allIndexes[pos]] = true;
     }
   }
-
+  std::unique_ptr<SeqOutput> downSampledWriter;
+  if(!selectedForDownSample.empty() && writeDownsampledReads) {
+    SeqIOOptions downsampleOut(njh::files::make_path(setUp.pars_.directoryName_, "downsampled"), SeqIOOptions::getOutFormat(setUp.pars_.ioOptions_.inFormat_));
+    downSampledWriter = std::make_unique<SeqOutput>(downsampleOut);
+    downSampledWriter->openOut();
+  }
 
   {
     seqInfo seq;
-    SeqInput reader(inOptsForReading);
+    SeqInput reader(setUp.pars_.ioOptions_);
     reader.openIn();
+    uint32_t inputReadPos = 0;
     while (reader.readNextRead(seq)) {
+      auto currentInputReadPos = inputReadPos;
+      ++inputReadPos;
+      if(!selectedForDownSample.empty() && !selectedForDownSample[currentInputReadPos]) {
+        continue;
+      }
+      if(nullptr != downSampledWriter) {
+        downSampledWriter->write(seq);
+      }
       readVec::getMaxLength(seq, maxReadLength);
       auto kSeq = std::make_shared<seqWithKmerInfo>(seq);
       readVec::handelLowerCaseBases(kSeq, setUp.pars_.ioOptions_.lowerCaseBases_);

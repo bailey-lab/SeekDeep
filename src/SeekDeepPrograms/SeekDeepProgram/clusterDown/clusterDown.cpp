@@ -95,153 +95,106 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 	// read in the sequences
 	auto inputOpts = setUp.pars_.ioOptions_;
 
-	//
-	std::unordered_map<std::string, uint32_t> sampleNumberCounts;
-	std::vector<std::shared_ptr<IlluminaNameFormatDecoder>> decodedNames;
-	if(!pars.dontFilterToMostCommonIlluminaSampleNumber_){
+	//the input is read in order without seeking: once for read names and counts, once to collapse to unique sequences, and once more for --writeOutInitalSeqs
+	bool filterToMostCommonSampleNumber = !pars.dontFilterToMostCommonIlluminaSampleNumber_;
+	bool needSampleNumbers = filterToMostCommonSampleNumber || pars.countIlluminaSampleNumbers_;
+	auto decodeSampleNumber = [&pars](std::string name){
+		if(njh::endsWith(name, "_Comp")){
+			name = name.substr(0, name.rfind("_Comp"));
+		}
+		auto decoder = std::make_unique<IlluminaNameFormatDecoder>(name, pars.IlluminaSampleRegPatStr_, pars.IlluminaSampleNumberPos_);
+		if(0 == decoder->match_.size()){
+			decoder = std::make_unique<IlluminaNameFormatDecoder>(name, pars.BackUpIlluminaSampleRegPatStr_, pars.BackUpIlluminaSampleNumberPos_);
+		}
+		return decoder->getSampleNumber();
+	};
+	//first pass: each read's illumina sample number as an id, and the count of reads that will be used
+	std::vector<uint32_t> readSampleNumberIds;
+	VecStr sampleNumberIdToName;
+	uint32_t mostCommonSampleNumberId = 0;
+	uint32_t totalInputCount = 0;
+	if(needSampleNumbers || !pars.useAllInput){
 	  if (!no_run_log) {
-	    setUp.rLog_.logCurrentTime("Filtering for illumina input name");
+	    setUp.rLog_.logCurrentTime("Reading input names");
 	  }
-		// uint32_t totalInputCount = 0;
-		{
-			SeqInput counterIo(inputOpts);
-			counterIo.openIn();
-			seqInfo seq;
-			while(counterIo.readNextRead(seq)){
-				std::string name = seq.name_;
-				if(njh::endsWith(name, "_Comp")){
-					name = name.substr(0, name.rfind("_Comp"));
+		std::unordered_map<std::string, uint32_t> sampleNumberToId;
+		std::vector<uint32_t> sampleNumberIdCounts;
+		SeqInput counterIo(inputOpts);
+		counterIo.openIn();
+		seqInfo seq;
+		while(counterIo.readNextRead(seq)){
+			++totalInputCount;
+			if(needSampleNumbers){
+				auto sampleNumber = decodeSampleNumber(seq.name_);
+				auto search = sampleNumberToId.find(sampleNumber);
+				if(sampleNumberToId.end() == search){
+					search = sampleNumberToId.emplace(sampleNumber, sampleNumberIdToName.size()).first;
+					sampleNumberIdToName.emplace_back(sampleNumber);
+					sampleNumberIdCounts.emplace_back(0);
 				}
-				std::shared_ptr<IlluminaNameFormatDecoder> decoder=std::make_shared<IlluminaNameFormatDecoder>(name, pars.IlluminaSampleRegPatStr_, pars.IlluminaSampleNumberPos_);
-				if(0 == decoder->match_.size()){
-					decoder =std::make_shared<IlluminaNameFormatDecoder>(name, pars.BackUpIlluminaSampleRegPatStr_, pars.BackUpIlluminaSampleNumberPos_);
-				}
-				decodedNames.emplace_back(decoder);
-				++sampleNumberCounts[decoder->getSampleNumber()];
-				// ++totalInputCount;
-//				if(totalInputCount > pars.useCutOff && !pars.useAllInput){
-//					break;
-//				}
+				readSampleNumberIds.emplace_back(search->second);
+				++sampleNumberIdCounts[search->second];
 			}
 		}
-	}
-	VecStr sampleNames;
-	if(!pars.dontFilterToMostCommonIlluminaSampleNumber_){
-		sampleNames = getVectorOfMapKeys(sampleNumberCounts);
-		njh::sort(sampleNames,[&sampleNumberCounts](const std::string & k1, const std::string & k2){
-			if(sampleNumberCounts[k1] == sampleNumberCounts[k2]){
-				return k1 > k2;
-			}else{
-				return sampleNumberCounts[k1] > sampleNumberCounts[k2];
+		if(filterToMostCommonSampleNumber && !sampleNumberIdCounts.empty()){
+			//most reads, ties go to the larger sample number name
+			for(const auto id : iter::range<uint32_t>(sampleNumberIdCounts.size())){
+				if(sampleNumberIdCounts[id] > sampleNumberIdCounts[mostCommonSampleNumberId]
+						|| (sampleNumberIdCounts[id] == sampleNumberIdCounts[mostCommonSampleNumberId] && sampleNumberIdToName[id] > sampleNumberIdToName[mostCommonSampleNumberId])){
+					mostCommonSampleNumberId = id;
+				}
 			}
-		});
+			totalInputCount = sampleNumberIdCounts[mostCommonSampleNumberId];
+		}
 	}
-
+	if(setUp.pars_.verbose_){
+		std::cout << "totalInputCount: " << totalInputCount << std::endl;
+	}
+	//down sampling, marks which of the reads passing the sample number filter are used
 	bool downsampled = false;
-	//downsample input file to save on memory usage
-	bfs::path downsampledFnp;
-	if(!pars.useAllInput){
-		//for limiting large number of input sequences
-		uint32_t totalInputCount = 0;
+	std::vector<bool> selectedForDownSample;
+	if(!pars.useAllInput && totalInputCount > pars.useCutOff){
 	  if (!no_run_log) {
-	    setUp.rLog_.logCurrentTime("Counting input");
+	    setUp.rLog_.logCurrentTime("Down sampling");
 	  }
-		{
-			SeqInput counterIo(inputOpts);
-			counterIo.openIn();
-			seqInfo seq;
-			uint32_t seqIndex = 0;
-			while(counterIo.readNextRead(seq)){
-				++seqIndex;
-				if(!pars.dontFilterToMostCommonIlluminaSampleNumber_){
-					if(decodedNames[seqIndex - 1]->getSampleNumber() != sampleNames.front()){
-						continue;
-					}
-				}
-				++totalInputCount;
-			}
+		downsampled = true;
+		njh::randomGenerator rGen;
+		if(pars.downSampleSeedSet){
+			rGen.seedNum(pars.downSampleSeed);
 		}
-		if(setUp.pars_.verbose_){
-			std::cout << "totalInputCount: " << totalInputCount << std::endl;
-		}
-		if(totalInputCount > pars.useCutOff){
-		  if (!no_run_log) {
-		    setUp.rLog_.logCurrentTime("Down sampling");
-		  }
-			downsampled = true;
-			std::vector<uint32_t> randomSel;
-			{
-				njh::randomGenerator rGen;
-				std::vector<uint32_t> allIndexes(totalInputCount);
-				njh::iota<uint32_t>(allIndexes, 0);
-				std::shuffle( std::begin(allIndexes), std::end(allIndexes), rGen.mtGen_) ;
-				randomSel = std::vector<uint32_t>{ std::begin(allIndexes), std::begin(allIndexes)+pars.useCutOff} ;
-			}
-		  ;
-			// SeqIOOptions outOpts(njh::files::make_path(setUp.pars_.directoryName_, "downsampledFile"), SeqIOOptions::getOutFormat(inputOpts.inFormat_));
-		  SeqIOOptions outOpts(njh::files::prependFileBasename(setUp.pars_.ioOptions_.out_.outFilename_, "downsampled_input_"), SeqIOOptions::getOutFormat(inputOpts.inFormat_));
-		  outOpts.out_.transferOverwriteOpts(setUp.pars_.ioOptions_.out_);
-		  SeqOutput writer(outOpts);
-			writer.openOut();
-
-			SeqInput reader(inputOpts);
-			reader.openIn();
-			uint32_t seqCount = 0;
-			seqInfo seq;
-			uint32_t seqIndex = 0;
-
-			while(reader.readNextRead(seq)){
-				++seqIndex;
-				if(!pars.dontFilterToMostCommonIlluminaSampleNumber_){
-					if(decodedNames[seqIndex - 1]->getSampleNumber() != sampleNames.front()){
-						continue;
-					}
-				}
-				if(njh::in(seqCount, randomSel)){
-					writer.write(seq);
-				}
-				++seqCount;
-			}
-			downsampledFnp = njh::appendAsNeededRet(outOpts.out_.outFilename_.string(), outOpts.getOutExtension());
-			inputOpts.firstName_ = downsampledFnp;
+		std::vector<uint32_t> allIndexes(totalInputCount);
+		njh::iota<uint32_t>(allIndexes, 0);
+		std::shuffle( std::begin(allIndexes), std::end(allIndexes), rGen.mtGen_) ;
+		selectedForDownSample.assign(totalInputCount, false);
+		for(const auto pos : iter::range(pars.useCutOff)){
+			selectedForDownSample[allIndexes[pos]] = true;
 		}
 	}
-
-	bfs::path tempOutFnp;
-	if(setUp.pars_.ioOptions_.inFormat_ == SeqIOOptions::inFormats::FASTAGZ ||
-		 setUp.pars_.ioOptions_.inFormat_ == SeqIOOptions::inFormats::FASTQGZ){
-	  if (!no_run_log) {
-	    setUp.rLog_.logCurrentTime("rewriting zipped input for file indexing");
-	  }
-		if (setUp.pars_.ioOptions_.inFormat_ == SeqIOOptions::inFormats::FASTAGZ) {
-			inputOpts.inFormat_ = SeqIOOptions::inFormats::FASTA;
-			// tempOutFnp = njh::files::make_path(setUp.pars_.directoryName_, "tempinput.fasta");
-		  tempOutFnp = njh::files::prependFileBasename(setUp.pars_.ioOptions_.out_.outFilename_.string() + ".fasta", "temp_input");
-		} else if (setUp.pars_.ioOptions_.inFormat_ == SeqIOOptions::inFormats::FASTQGZ) {
-			inputOpts.inFormat_ = SeqIOOptions::inFormats::FASTQ;
-		  tempOutFnp = njh::files::prependFileBasename(setUp.pars_.ioOptions_.out_.outFilename_.string() + ".fastq", "temp_input");
-			// tempOutFnp = njh::files::make_path(setUp.pars_.directoryName_, "tempinput.fastq");
-		}
-	  OutOptions tempOutOpts(tempOutFnp);
-	  tempOutOpts.transferOverwriteOpts(setUp.pars_.ioOptions_.out_);
-		OutputStream tempOut(tempOutOpts);
-		InputStream in(inputOpts.firstName_);
-		std::string line;
-		while(njh::files::crossPlatGetline(in, line)){
-			tempOut << line << "\n";
-		}
-		inputOpts.firstName_ = tempOutFnp;
+	std::unique_ptr<SeqOutput> downSampledWriter;
+	if(downsampled && pars.keepDownSampledFile){
+		SeqIOOptions outOpts(njh::files::prependFileBasename(setUp.pars_.ioOptions_.out_.outFilename_, "downsampled_input_"), SeqIOOptions::getOutFormat(inputOpts.inFormat_));
+		outOpts.out_.transferOverwriteOpts(setUp.pars_.ioOptions_.out_);
+		downSampledWriter = std::make_unique<SeqOutput>(outOpts);
+		downSampledWriter->openOut();
 	}
 
   if (!no_run_log) {
     setUp.rLog_.logCurrentTime("collapsing input to unique sequences");
   }
+	//done to every read and again when re-reading reads to write out the initial reads
+	auto adjustReadQualities = [&setUp](seqInfo & seq){
+		if (setUp.pars_.colOpts_.iTOpts_.removeLowQualityBases_) {
+			seq.removeLowQualityBases(setUp.pars_.colOpts_.iTOpts_.lowQualityBaseTrim_);
+		}
+		if (setUp.pars_.colOpts_.iTOpts_.adjustHomopolyerRuns_) {
+			seq.adjustHomopolymerRunQualities();
+		}
+	};
 
-	SeqInput reader(inputOpts);
-	reader.openIn();
 	std::vector<cluster> clusters;
 	uint32_t counter = 0;
-	std::unordered_map<uint32_t, std::vector<uint64_t>> filepositions;
+	//cluster position to the positions in the input file of the reads collapsed into it
+	std::unordered_map<uint32_t, std::vector<uint32_t>> clusterInputReadPositions;
 	std::unordered_map<std::string, uint32_t> clusterNameToFilePosKey;
 
 	aligner alignerForTrimming ;
@@ -251,26 +204,36 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 					substituteMatrix::createDegenScoreMatrixCaseInsensitive(2, -2));
 
 	}
-
+	bool fastaInput = setUp.pars_.ioOptions_.inFormat_ == SeqIOOptions::inFormats::FASTA || setUp.pars_.ioOptions_.inFormat_ == SeqIOOptions::inFormats::FASTAGZ;
 	{
     SeqIOOptions smallSeqOpts(setUp.pars_.directoryName_ + "smallReads",
                               setUp.pars_.ioOptions_.outFormat_, setUp.pars_.ioOptions_.out_);
 		SeqOutput smallWriter(smallSeqOpts);
+		SeqInput reader(inputOpts);
+		reader.openIn();
 		seqInfo seq;
-		uint64_t fPos = reader.tellgPri();
 		std::unordered_map<std::string, uint32_t> allNameCounts;
-		uint32_t seqIndex = 0;
+		std::unordered_map<std::string, uint32_t> seqToClusterPos;
+		//the processed qualities of every read collapsed into each cluster, for calculating the cluster's quality below
+		std::vector<std::vector<std::vector<uint8_t>>> clusterReadQualities;
+		uint32_t inputReadPos = 0;
+		uint32_t filteredReadPos = 0;
 		while(reader.readNextRead(seq)){
-
+			auto currentInputReadPos = inputReadPos;
+			++inputReadPos;
+			if(filterToMostCommonSampleNumber && readSampleNumberIds[currentInputReadPos] != mostCommonSampleNumberId){
+				continue;
+			}
+			auto currentFilteredReadPos = filteredReadPos;
+			++filteredReadPos;
+			if(downsampled && !selectedForDownSample[currentFilteredReadPos]){
+				continue;
+			}
+			if(nullptr != downSampledWriter){
+				downSampledWriter->write(seq);
+			}
 			if(pars.trimmingToSeq){
 				readVecTrimmer::trimAtSequence(seq, pars.trimToSeq, alignerForTrimming, comparison{}, pars.trimToSeqPars);
-			}
-			++seqIndex;
-			if(!downsampled && !pars.dontFilterToMostCommonIlluminaSampleNumber_){
-				if(decodedNames[seqIndex - 1]->getSampleNumber() != sampleNames.front()){
-					fPos = reader.tellgPri();
-					continue;
-				}
 			}
 
 			if(njh::in(seq.name_, allNameCounts)){
@@ -280,12 +243,7 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 				allNameCounts[seq.name_] = 0;
 			}
 			++counter;
-			if (setUp.pars_.colOpts_.iTOpts_.removeLowQualityBases_) {
-				seq.removeLowQualityBases(setUp.pars_.colOpts_.iTOpts_.lowQualityBaseTrim_);
-			}
-			if (setUp.pars_.colOpts_.iTOpts_.adjustHomopolyerRuns_) {
-				seq.adjustHomopolymerRunQualities();
-			}
+			adjustReadQualities(seq);
 			if(std::string::npos != seq.name_.find("_Comp")){
 				++compCount;
 			}
@@ -304,81 +262,57 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 			    smallWriter.openWrite(seq);
 			  }
 			} else {
-			  bool found = false;
-			  for(const auto clusPos : iter::range(clusters.size())){
-			  	if(seq.seq_ == clusters[clusPos].seqBase_.seq_){
-			  		clusters[clusPos].seqBase_.cnt_ += seq.cnt_;
-			  		clusters[clusPos].firstReadCount_ += seq.cnt_;
-			  		found = true;
-			  		filepositions[clusPos].emplace_back(fPos);
-			  		break;
-			  	}
-			  }
-			  if(!found){
-		  		filepositions[clusters.size()].emplace_back(fPos);
-			  	clusters.emplace_back(seq);
-			  }
+				auto search = seqToClusterPos.find(seq.seq_);
+				if(seqToClusterPos.end() != search){
+					auto clusPos = search->second;
+					clusters[clusPos].seqBase_.cnt_ += seq.cnt_;
+					clusters[clusPos].firstReadCount_ += seq.cnt_;
+					clusterInputReadPositions[clusPos].emplace_back(currentInputReadPos);
+					if(!fastaInput){
+						clusterReadQualities[clusPos].emplace_back(seq.qual_);
+					}
+				}else{
+					seqToClusterPos.emplace(seq.seq_, clusters.size());
+					clusterInputReadPositions[clusters.size()].emplace_back(currentInputReadPos);
+					clusterReadQualities.emplace_back();
+					if(!fastaInput){
+						clusterReadQualities.back().emplace_back(seq.qual_);
+					}
+					clusters.emplace_back(seq);
+				}
 			}
-			fPos = reader.tellgPri();
 		}
-		reader.reOpenIn();
 	  if (!no_run_log) {
 	    setUp.rLog_.logCurrentTime("calculating the quality values");
 	  }
 
-		//now calculate the qualities if fastq
-		for(const auto & fPositions : filepositions){
-			if(setUp.pars_.ioOptions_.inFormat_ != SeqIOOptions::inFormats::FASTA && setUp.pars_.ioOptions_.inFormat_ != SeqIOOptions::inFormats::FASTAGZ){
-				//first iterator over the files positions for the seq and read in their qualities
-				std::vector<std::vector<uint32_t>> qualities(clusters[fPositions.first].seqBase_.qual_.size());
-				for(const auto seqPos : fPositions.second){
-					reader.seekgPri(seqPos);
-					reader.readNextRead(seq);
-					if(pars.trimmingToSeq){
-						readVecTrimmer::trimAtSequence(seq, pars.trimToSeq, alignerForTrimming, comparison{}, pars.trimToSeqPars);
-					}
-					if (setUp.pars_.colOpts_.iTOpts_.removeLowQualityBases_) {
-						seq.removeLowQualityBases(setUp.pars_.colOpts_.iTOpts_.lowQualityBaseTrim_);
-					}
-					if (setUp.pars_.colOpts_.iTOpts_.adjustHomopolyerRuns_) {
-						seq.adjustHomopolymerRunQualities();
-					}
-				  readVec::handelLowerCaseBases(seq, setUp.pars_.ioOptions_.lowerCaseBases_);
-				  if (setUp.pars_.ioOptions_.removeGaps_) {
-				    seq.removeGaps();
-				  }
-					if(pars.trimBack > 0){
-						readVecTrimmer::trimOffEndBases(seq, pars.trimBack);
-					}
-					if(pars.trimFront > 0){
-						readVecTrimmer::trimOffForwardBases(seq, pars.trimFront);
-					}
-
-					for(const auto i : iter::range(seq.qual_.size())){
-						qualities[i].emplace_back(seq.qual_[i]);
+		for(const auto clusPos : iter::range<uint32_t>(clusters.size())){
+			if(!fastaInput){
+				std::vector<std::vector<uint32_t>> qualities(clusters[clusPos].seqBase_.qual_.size());
+				for(const auto & readQuals : clusterReadQualities[clusPos]){
+					for(const auto i : iter::range(readQuals.size())){
+						qualities[i].emplace_back(readQuals[i]);
 					}
 				}
-
-				//calculate qualities
 		    if (pars.qualRep == "worst") {
-		    	clusters[fPositions.first].seqBase_.qual_.clear();
-				  for (const auto i : iter::range(clusters[fPositions.first].seqBase_.seq_.size())) {
-				  	clusters[fPositions.first].seqBase_.qual_.push_back(vectorMinimum(qualities[i]));
+		    	clusters[clusPos].seqBase_.qual_.clear();
+				  for (const auto i : iter::range(clusters[clusPos].seqBase_.seq_.size())) {
+				  	clusters[clusPos].seqBase_.qual_.push_back(vectorMinimum(qualities[i]));
 				  }
 		    } else if (pars.qualRep == "median") {
-		    	clusters[fPositions.first].seqBase_.qual_.clear();
-				  for (const auto i : iter::range(clusters[fPositions.first].seqBase_.seq_.size())) {
-				  	clusters[fPositions.first].seqBase_.qual_.push_back(vectorMedianRef(qualities[i]));
+		    	clusters[clusPos].seqBase_.qual_.clear();
+				  for (const auto i : iter::range(clusters[clusPos].seqBase_.seq_.size())) {
+				  	clusters[clusPos].seqBase_.qual_.push_back(vectorMedianRef(qualities[i]));
 				  }
 		    } else if (pars.qualRep == "average") {
-		    	clusters[fPositions.first].seqBase_.qual_.clear();
-				  for (const auto i : iter::range(clusters[fPositions.first].seqBase_.seq_.size())) {
-				  	clusters[fPositions.first].seqBase_.qual_.push_back(vectorMean(qualities[i]));
+		    	clusters[clusPos].seqBase_.qual_.clear();
+				  for (const auto i : iter::range(clusters[clusPos].seqBase_.seq_.size())) {
+				  	clusters[clusPos].seqBase_.qual_.push_back(vectorMean(qualities[i]));
 				  }
 		    } else if (pars.qualRep == "bestQual") {
-		    	clusters[fPositions.first].seqBase_.qual_.clear();
-				  for (const auto i : iter::range(clusters[fPositions.first].seqBase_.seq_.size())) {
-				  	clusters[fPositions.first].seqBase_.qual_.push_back(vectorMaximum(qualities[i]));
+		    	clusters[clusPos].seqBase_.qual_.clear();
+				  for (const auto i : iter::range(clusters[clusPos].seqBase_.seq_.size())) {
+				  	clusters[clusPos].seqBase_.qual_.push_back(vectorMaximum(qualities[i]));
 				  }
 		    } else {
 		    	std::stringstream ss;
@@ -388,19 +322,21 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 		      throw std::runtime_error{ss.str()};
 		    }
 			}
-			clusters[fPositions.first].averageErrorRate = clusters[fPositions.first].getAverageErrorRate();
-			clusters[fPositions.first].updateName();
-			clusters[fPositions.first].reads_.front()->averageErrorRate = clusters[fPositions.first].getAverageErrorRate();
-			clusters[fPositions.first].reads_.front()->seqBase_ = clusters[fPositions.first].seqBase_;
-			clusterNameToFilePosKey[clusters[fPositions.first].seqBase_.name_] = fPositions.first;
+			clusters[clusPos].averageErrorRate = clusters[clusPos].getAverageErrorRate();
+			clusters[clusPos].updateName();
+			clusters[clusPos].reads_.front()->averageErrorRate = clusters[clusPos].getAverageErrorRate();
+			clusters[clusPos].reads_.front()->seqBase_ = clusters[clusPos].seqBase_;
+			clusterNameToFilePosKey[clusters[clusPos].seqBase_.name_] = clusPos;
 		}
 	}
   if (!no_run_log) {
     setUp.rLog_.logCurrentTime("Clearing data");
   }
-	decodedNames.clear();
+	if(!pars.countIlluminaSampleNumbers_){
+		readSampleNumberIds = std::vector<uint32_t>{};
+	}
 	if(!pars.countIlluminaSampleNumbers_ && !pars.writeOutInitalSeqs){
-		filepositions.clear();
+		clusterInputReadPositions.clear();
 		clusterNameToFilePosKey.clear();
 	}
   if (!no_run_log) {
@@ -953,27 +889,14 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 
 	if(pars.countIlluminaSampleNumbers_){
 		OutputStream sampleCountsOut(njh::files::make_path(setUp.pars_.directoryName_, "illuminaSampleNumbersCounts.tab.txt"));
-		SeqInput reader(inputOpts);
-		reader.openIn();
-		seqInfo inSeq;
 		sampleCountsOut << "SeqName\tsampleNumber\tcount\tfrac" << std::endl;
 		for (const auto& clus : clusters) {
 			std::unordered_map<std::string, uint32_t> sampleNumberCounts;
 			double total = 0;
 			for (const auto & seq : clus.reads_) {
 
-				for (const auto seqPos : filepositions[clusterNameToFilePosKey[seq->seqBase_.name_]]) {
-					reader.seekgPri(seqPos);
-					reader.readNextRead(inSeq);
-					std::string name = inSeq.name_;
-					if(njh::endsWith(name, "_Comp")){
-						name = name.substr(0, name.rfind("_Comp"));
-					}
-					std::shared_ptr<IlluminaNameFormatDecoder> nameDecoded=std::make_shared<IlluminaNameFormatDecoder>(name, pars.IlluminaSampleRegPatStr_, pars.IlluminaSampleNumberPos_);
-					if(0 == nameDecoded->match_.size()){
-						nameDecoded =std::make_shared<IlluminaNameFormatDecoder>(name, pars.BackUpIlluminaSampleRegPatStr_, pars.BackUpIlluminaSampleNumberPos_);
-					}
-					++sampleNumberCounts[nameDecoded->getSampleNumber()];
+				for (const auto readPos : clusterInputReadPositions[clusterNameToFilePosKey[seq->seqBase_.name_]]) {
+					++sampleNumberCounts[sampleNumberIdToName[readSampleNumberIds[readPos]]];
 					++total;
 				}
 			}
@@ -1041,32 +964,44 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 				setUp.pars_.ioOptions_.outFormat_);
 		SeqOutput subClusterWriter(clustersIoOpts);
 		subClusterWriter.openOut();
-		SeqInput reader(inputOpts);
-		reader.openIn();
+		//one pass through the input for the reads that went into the clusters
+		std::unordered_map<uint32_t, seqInfo> inputReadsByPos;
+		{
+			for(const auto & clusReadPositions : clusterInputReadPositions){
+				for(const auto readPos : clusReadPositions.second){
+					inputReadsByPos.emplace(readPos, seqInfo{});
+				}
+			}
+			SeqInput reader(inputOpts);
+			reader.openIn();
+			seqInfo inSeq;
+			uint32_t inputReadPos = 0;
+			while(reader.readNextRead(inSeq)){
+				auto search = inputReadsByPos.find(inputReadPos);
+				if(inputReadsByPos.end() != search){
+					search->second = inSeq;
+				}
+				++inputReadPos;
+			}
+		}
 		seqInfo inSeq;
 		for (const auto& clus : clusters) {
 			MetaDataInName clusMeta;
 			clusMeta.addMeta("clusterName", clus.seqBase_.name_);
 			uint32_t currentCompAmount = 0;
 			for (const auto & seq : clus.reads_) {
-				for (const auto seqPos : filepositions[clusterNameToFilePosKey[seq->seqBase_.name_]]) {
-					reader.seekgPri(seqPos);
-					reader.readNextRead(inSeq);
-					if (setUp.pars_.colOpts_.iTOpts_.removeLowQualityBases_) {
-						inSeq.removeLowQualityBases(setUp.pars_.colOpts_.iTOpts_.lowQualityBaseTrim_);
-					}
-					if (setUp.pars_.colOpts_.iTOpts_.adjustHomopolyerRuns_) {
-						inSeq.adjustHomopolymerRunQualities();
-					}
+				for (const auto readPos : clusterInputReadPositions[clusterNameToFilePosKey[seq->seqBase_.name_]]) {
+					inSeq = inputReadsByPos.at(readPos);
+					adjustReadQualities(inSeq);
 					if(std::string::npos != inSeq.name_.find("_Comp")){
 						++compCount;
 					}
 				  readVec::handelLowerCaseBases(inSeq, setUp.pars_.ioOptions_.lowerCaseBases_);
 					if(pars.trimBack > 0){
-						readVecTrimmer::trimOffEndBases(seq, pars.trimBack);
+						readVecTrimmer::trimOffEndBases(inSeq, pars.trimBack);
 					}
 					if(pars.trimFront > 0){
-						readVecTrimmer::trimOffForwardBases(seq, pars.trimFront);
+						readVecTrimmer::trimOffForwardBases(inSeq, pars.trimFront);
 					}
 				  if (setUp.pars_.ioOptions_.removeGaps_) {
 				    inSeq.removeGaps();
@@ -1111,12 +1046,6 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 	    setUp.rLog_.logCurrentTime("Writing previous alignments");
 	  }
 		alignerObj.alnHolder_.write(setUp.pars_.outAlnInfoDirName_, setUp.pars_.verbose_);
-	}
-	if(bfs::exists(tempOutFnp)){
-		bfs::remove(tempOutFnp);
-	}
-	if(bfs::exists(downsampledFnp) && !pars.keepDownSampledFile){
-		bfs::remove(downsampledFnp);
 	}
   if (!no_run_log) {
     //log number of alignments done

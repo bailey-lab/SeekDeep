@@ -319,6 +319,7 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 	setOption(pars.useAllInput, "--useAllInput", "use all input reads even for large input", false, "Preprocessing");
 	setOption(pars.useCutOff, "--useCutOff", "the cut off for input size, will down sample the file if more than this, helps to control memory usage", false, "Preprocessing");
 	setOption(pars.keepDownSampledFile, "--keepDownloadSampledFile", "Keep down sampled file", false, "Preprocessing");
+	pars.downSampleSeedSet = setOption(pars.downSampleSeed, "--downSampleSeed", "Seed for picking which reads are kept when down sampling, so runs can be repeated", false, "Preprocessing");
 
 
 
