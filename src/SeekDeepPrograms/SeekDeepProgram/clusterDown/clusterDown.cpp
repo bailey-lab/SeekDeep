@@ -567,9 +567,6 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 				setUp.pars_.expandKmerSize_);
 		alignerObj.kMaps_ = recalcKmaps;
 		pars.snapShotsOpts_.snapShotsDirName_ = "thirdSnaps";
-		njh::for_each(clusters,[](cluster & clus){
-			clus.previousErrorChecks_.clear();
-		});
 		collapserObj.runFullClustering(clusters, pars.iteratorMap,
 				pars.binIteratorMap, alignerObj, setUp.pars_.directoryName_,
 				setUp.pars_.ioOptions_, setUp.pars_.refIoOptions_, pars.snapShotsOpts_);
