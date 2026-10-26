@@ -1124,26 +1124,119 @@ void combinePrimerLocations(const ExtractContext & ctx, const bfs::path & locati
 	}
 }
 
+/**@brief Make the regions covered by R1 and R2, named NAME-R1 and NAME-R2
+ *
+ * The same naming as SeekDeep setUpTarAmpAnalysis uses for targets that are analyzed as two separate targets. R1 starts at the
+ * forward primer so for regions on the reverse strand R1 is at the end of the genomic region.
+ *
+ * @param outerRegions the regions with the primers, the pair of the inner regions by name
+ * @param regions the regions to make the mate regions for, the outer or the inner regions
+ * @return the mate regions
+ */
+BedRecords genMateRegions(const BedRecords & outerRegions, const BedRecords & regions, uint32_t pairedEndLength){
+	std::unordered_map<std::string, std::shared_ptr<Bed6RecordCore>> outerByName;
+	for(const auto & outer : outerRegions){
+		outerByName[outer->name_] = outer;
+	}
+	BedRecords ret;
+	for(const auto & reg : regions){
+		if(!njh::in(reg->name_, outerByName)){
+			continue;
+		}
+		const auto & outer = *outerByName.at(reg->name_);
+		//the genomic window each mate covers, clipped to the region being made
+		const uint64_t fwdWindowStart = outer.chromStart_;
+		const uint64_t fwdWindowStop = outer.chromStart_ + pairedEndLength;
+		const uint64_t revWindowStart = outer.chromEnd_ - pairedEndLength;
+		const uint64_t revWindowStop = outer.chromEnd_;
+		const bool reverseStrand = '-' == outer.strand_;
+		const std::pair<std::string, std::pair<uint64_t, uint64_t>> mates[2] = {
+				{"-R1", reverseStrand ? std::make_pair(revWindowStart, revWindowStop) : std::make_pair(fwdWindowStart, fwdWindowStop)},
+				{"-R2", reverseStrand ? std::make_pair(fwdWindowStart, fwdWindowStop) : std::make_pair(revWindowStart, revWindowStop)}};
+		for(const auto & mate : mates){
+			auto start = std::max<uint64_t>(reg->chromStart_, mate.second.first);
+			auto end = std::min<uint64_t>(reg->chromEnd_, mate.second.second);
+			if(start >= end){
+				continue;
+			}
+			auto mateReg = std::make_shared<Bed6RecordCore>(*reg);
+			mateReg->chromStart_ = start;
+			mateReg->chromEnd_ = end;
+			mateReg->name_ = reg->name_ + mate.first;
+			ret.emplace_back(mateReg);
+		}
+	}
+	return ret;
+}
+
+/**@brief Whether the reads of the target can't overlap, the same call genTargetInfoFromGenomes makes for the NoOverLap overlap status
+ * that setUpTarAmpAnalysis uses to analyze R1 and R2 as separate targets (target-R1 and target-R2)
+ *
+ * Based on the longest of the target's best extractions across all of the genomes, which are the sequences in the target's fasta
+ */
+bool targetHasNoOverlap(const ExtractContext & ctx, const std::string & tar){
+	const auto & extractPars = ctx.extractPars_;
+	uint64_t maxLen = 0;
+	bool found = false;
+	for(const auto & genome : ctx.gMapper_.genomes_){
+		auto bedFnp = njh::files::make_path(ctx.outputDir_, tar, "genomeLocations", genome.first + ".bed");
+		if(!bfs::exists(bedFnp)){
+			continue;
+		}
+		for(const auto & loc : getBeds(bedFnp)){
+			found = true;
+			maxLen = std::max<uint64_t>(maxLen, loc->chromEnd_ - loc->chromStart_);
+		}
+	}
+	if(!found){
+		return false;
+	}
+	const uint64_t maxInsertSize = 2 * static_cast<uint64_t>(extractPars.pairedEndLength) - extractPars.minOverlap;
+	return maxLen + extractPars.barcodeSize > maxInsertSize;
+}
+
 /**@brief Read in the per target beds of a genome, the beds are named genomeLocations/GENOME + suffix
  *
  * Unless --doNotRenameBeds, the regions are renamed to the target name (target.1, target.2 etc. for the repeats)
+ *
+ * If --pairedEndLength was given, the regions of targets that setUpTarAmpAnalysis would analyze as separate R1 and R2 targets
+ * (see targetHasNoOverlap) also get a region for R1 and R2 (NAME-R1, NAME-R2)
  */
 BedRecords readTargetBeds(const ExtractContext & ctx, const std::string & genome, const std::string & suffix){
 	BedRecords ret;
+	const bool addMates = ctx.extractPars_.pairedEndLength != std::numeric_limits<uint32_t>::max();
+	//the beds of the inner regions are paired with the outer regions to find the mates
+	std::string outerSuffix = suffix;
+	if(addMates){
+		//the inner beds are named like the outer ones with _inner added before the _all or .bed
+		auto innerPos = suffix.find("_inner");
+		if(std::string::npos != innerPos){
+			outerSuffix.erase(innerPos, std::string("_inner").size());
+		}
+	}
+	auto readRenamed = [&ctx](const std::string & tar, const bfs::path & bedFnp){
+		auto locs = getBeds(bedFnp);
+		if (!ctx.extractPars_.doNotRenameBeds) {
+			uint32_t count = 0;
+			for (auto & loc : locs) {
+				if (0 == count) {
+					loc->name_ = tar;
+				} else {
+					loc->name_ = njh::pasteAsStr(tar, ".", count);
+				}
+				++count;
+			}
+		}
+		return locs;
+	};
 	for(const auto & tar : ctx.ids_.targets_){
 		auto bedForTarFnp = njh::files::make_path(ctx.outputDir_, tar.first, "genomeLocations", genome + suffix);
 		if(bfs::exists(bedForTarFnp)){
-			auto locs = getBeds(bedForTarFnp);
-			if (!ctx.extractPars_.doNotRenameBeds) {
-				uint32_t count = 0;
-				for (auto & loc : locs) {
-					if (0 == count) {
-						loc->name_ = tar.first;
-					} else {
-						loc->name_ = njh::pasteAsStr(tar.first, ".", count);
-					}
-					++count;
-				}
+			auto locs = readRenamed(tar.first, bedForTarFnp);
+			if(addMates && targetHasNoOverlap(ctx, tar.first)){
+				auto outerFnp = njh::files::make_path(ctx.outputDir_, tar.first, "genomeLocations", genome + outerSuffix);
+				auto outerLocs = outerSuffix == suffix ? locs : readRenamed(tar.first, outerFnp);
+				addOtherVec(locs, genMateRegions(outerLocs, locs, ctx.extractPars_.pairedEndLength));
 			}
 			addOtherVec(ret, locs);
 		}

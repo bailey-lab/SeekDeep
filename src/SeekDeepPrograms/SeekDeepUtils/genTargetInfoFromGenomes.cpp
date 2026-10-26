@@ -19,7 +19,6 @@ int SeekDeepUtilsRunner::genTargetInfoFromGenomes(const njh::progutils::CmdArgs 
   countPars.noRevComp_ = true;
   countPars.kmerLength_ = 19;
   countPars.entropyFilter_ = 1.20;
-	uint32_t minOverlap  = 10;
 	seqSetUp setUp(inputCommands);
 	setUp.processVerbose();
 	setUp.processDebug();
@@ -28,7 +27,7 @@ int SeekDeepUtilsRunner::genTargetInfoFromGenomes(const njh::progutils::CmdArgs 
 	pars.debug_ = setUp.pars_.debug_;
 	pars.setUpCoreOptions(setUp, true);
   countPars.numThreads_ = pars.pars.numThreads_;
-	setUp.setOption(minOverlap, "--minOverlap", "Minimum overlap for stitching");
+	setUp.setOption(pars.minOverlap, "--minOverlap", "Minimum overlap for stitching");
 
   setUp.setOption(countPars.kmerLength_, "--uniqKmerLength", "kmer Length");
   setUp.setOption(countPars.allowableCharacters_, "--allowableCharactersForUniqKmer",
@@ -99,7 +98,7 @@ int SeekDeepUtilsRunner::genTargetInfoFromGenomes(const njh::progutils::CmdArgs 
 				uint32_t finalMaxSize = maxlen + pars.barcodeSize;
 				uint32_t finalMinSize = minlen + pars.barcodeSize;
 
-				uint32_t maxInsertSize = 2 * pars.pairedEndLength - minOverlap;
+				uint32_t maxInsertSize = 2 * pars.pairedEndLength - pars.minOverlap;
 
 				std::string status;
 				std::set<std::string> statuses;

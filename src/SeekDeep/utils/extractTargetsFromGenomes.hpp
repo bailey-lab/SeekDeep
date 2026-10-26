@@ -28,6 +28,7 @@ struct extractBetweenSeqsPars{
 	uint32_t minLenCutOffSizeExpand = 40;
 	uint32_t pairedEndLength = std::numeric_limits<uint32_t>::max();
 	uint32_t barcodeSize = 0;
+	uint32_t minOverlap = 10;
 
 	bool useBlast = false;
 	uint32_t blastExpandSize = 10;
