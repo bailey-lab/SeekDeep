@@ -1166,13 +1166,15 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 						analysisSetup.pars_.techIsIllumina()) {
 			//by default will analyze R1 and R2 as two separate targets
 			for(const auto & mate : VecStr{"-R1", "-R2"}){
+				//per target extra args only go in this target's command
+				auto currentProcessClusterTemplate = processClusterTemplate;
 				if(njh::in(tar + mate, analysisSetup.pars_.extraProcessClusterCmdsPerTarget)){
-					processClusterTemplate += " " + analysisSetup.pars_.extraProcessClusterCmdsPerTarget[tar + mate];
+					currentProcessClusterTemplate += " " + analysisSetup.pars_.extraProcessClusterCmdsPerTarget[tar + mate];
 				}
 				std::stringstream processClustersCmdsStream;
 				processClustersCmdsStream
 						<< "cd \"" + njh::files::make_path(popDir, tar + mate ).string() + "\" && "
-								+ processClusterTemplate + " --experimentName " + tar+ mate;
+								+ currentProcessClusterTemplate + " --experimentName " + tar+ mate;
 				auto refSeqFnp = njh::files::make_path(pars.outDir, "info/refs/" + tar+ mate + ".fasta");
 				if(bfs::exists(refSeqFnp) && !pars.refSeqsDir.empty()){
 					processClustersCmdsStream << " --ref " << bfs::absolute(refSeqFnp);
@@ -1183,13 +1185,15 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 				processClusterCmds.emplace_back(processClustersCmdsStream.str());
 			}
 		}else{
+			//per target extra args only go in this target's command
+			auto currentProcessClusterTemplate = processClusterTemplate;
 			if(njh::in(tar, analysisSetup.pars_.extraProcessClusterCmdsPerTarget)){
-				processClusterTemplate += " " + analysisSetup.pars_.extraProcessClusterCmdsPerTarget[tar];
+				currentProcessClusterTemplate += " " + analysisSetup.pars_.extraProcessClusterCmdsPerTarget[tar];
 			}
 			std::stringstream processClustersCmdsStream;
 			processClustersCmdsStream
 					<< "cd \"" + njh::files::make_path(popDir, tar).string() + "\" && "
-							+ processClusterTemplate + " --experimentName " + tar;
+							+ currentProcessClusterTemplate + " --experimentName " + tar;
 			auto refSeqFnp = njh::files::make_path(pars.outDir, "info/refs/" + tar + ".fasta");
       if(bfs::exists(refSeqFnp) && !pars.refSeqsDir.empty()){
         processClustersCmdsStream << " --ref " << bfs::absolute(refSeqFnp);
