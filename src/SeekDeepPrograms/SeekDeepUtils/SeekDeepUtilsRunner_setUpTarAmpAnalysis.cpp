@@ -1329,19 +1329,31 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 fi)" << std::endl;
 
 	runAnalysisFile << "" << std::endl;
+	//stop at the first step with failed commands so later steps don't silently run on missing samples/replicates
+	runAnalysisFile << R"(checkStep() {
+  if [[ $1 -ne 0 ]]; then
+    echo "$2 failed (exit code $1), see its newest log in logs/ for the failed commands, fix them and rerun" 1>&2
+    exit $1
+  fi
+})" << std::endl;
+	runAnalysisFile << "" << std::endl;
 	runAnalysisFile << "" << setUp.commands_.masterProgram_
 			<< " runMultipleCommands --cmdFile extractorCmds.txt      --numThreads $numThreads --raw --logDir logs "
 			<< std::endl;
+	runAnalysisFile << "checkStep $? \"extraction\"" << std::endl;
 	runAnalysisFile << "./combineExtractionCountsCmd.sh"<< std::endl;
 	runAnalysisFile << "" << setUp.commands_.masterProgram_
 			<< " runMultipleCommands --cmdFile qlusterCmds.txt        --numThreads $numThreads --raw --logDir logs "
 			<< std::endl;
+	runAnalysisFile << "checkStep $? \"clustering\"" << std::endl;
 	runAnalysisFile << "" << setUp.commands_.masterProgram_
 			<< " runMultipleCommands --cmdFile processClusterCmds.txt --numThreads $numThreads --raw --logDir logs "
 			<< std::endl;
+	runAnalysisFile << "checkStep $? \"population clustering\"" << std::endl;
 	runAnalysisFile << "" << setUp.commands_.masterProgram_
 			<< " runMultipleCommands --cmdFile genConfigCmds.txt      --numThreads $numThreads --raw --logDir logs "
 			<< std::endl;
+	runAnalysisFile << "checkStep $? \"generating server configs\"" << std::endl;
   runAnalysisFile << "/bin/ls popClustering/*/analysis/selectedClustersInfo.tab.txt.gz | SeekDeep rBind --fill --files STDIN --delim tab --header --overWrite --out popClustering/allSelectedClustersInfo.tab.txt.gz" << std::endl;
 	runAnalysisFile << "" << std::endl;
 	//make file executable

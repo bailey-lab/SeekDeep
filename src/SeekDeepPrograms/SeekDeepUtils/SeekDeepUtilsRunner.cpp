@@ -293,6 +293,8 @@ int SeekDeepUtilsRunner::runMultipleCommands(
 			"The replacement tokens are by default checked to see if there are files and more replacement strings are read in where each line is a replacement, this turns off that behavior");
 	setUp.setOption(additionalFields, "--additionalFields", "Additional fields to be replaced in the CMD: line, need to be given in format Key1:values;Key2:values");
 	setUp.setOption(replaceFields, "--replaceFields", "Replace Fields");
+	bool allowFailures = false;
+	setUp.setOption(allowFailures, "--allowFailures", "Exit with 0 even if some of the commands fail, failed commands are still reported");
 
 	setUp.processWritingOptions();
 
@@ -515,6 +517,18 @@ int SeekDeepUtilsRunner::runMultipleCommands(
 	for (const auto & out : allRunOutputs) {
 		cmdsLog.append(out.toJson());
 	}
+	std::vector<njh::sys::RunOutput> failedRuns;
+	for (const auto & out : allRunOutputs) {
+		if (!out.success_) {
+			failedRuns.emplace_back(out);
+		}
+	}
+	allLog["failedCount"] = njh::json::toJson(failedRuns.size());
+	auto & failedCmdsLog = allLog["failedCmds"];
+	failedCmdsLog = Json::arrayValue;
+	for (const auto & out : failedRuns) {
+		failedCmdsLog.append(njh::json::toJson(out.cmd_));
+	}
 
 	if(!finalPostCmds.empty()){
 		uint32_t postCmdCount = 1;
@@ -540,6 +554,27 @@ int SeekDeepUtilsRunner::runMultipleCommands(
 		*outFile << allLog << std::endl;
 	}
 
+	if (!failedRuns.empty()) {
+		//the command, its exit code and the end of its stderr for each failure, the full outputs are in the log
+		std::cerr << njh::bashCT::boldRed(njh::pasteAsStr(failedRuns.size(), " of ", allRunOutputs.size(), " commands failed"));
+		if (!setUp.pars_.debug_ && !noLog) {
+			std::cerr << ", full output in " << OutOptions(logFile, ".json").outName().string();
+		}
+		std::cerr << std::endl;
+		auto shorten = [](const std::string & str) {
+			return str.size() > 300 ? str.substr(0, 300) + "..." : str;
+		};
+		for (const auto & out : failedRuns) {
+			std::cerr << "exit code " << out.returnCode_ << ": " << shorten(out.cmd_) << std::endl;
+			auto errLines = tokenizeString(out.stdErr_, "\n");
+			for (size_t pos = errLines.size() > 5 ? errLines.size() - 5 : 0; pos < errLines.size(); ++pos) {
+				std::cerr << "\t" << shorten(errLines[pos]) << std::endl;
+			}
+		}
+		if (!allowFailures) {
+			return 1;
+		}
+	}
 	return 0;
 }
 
