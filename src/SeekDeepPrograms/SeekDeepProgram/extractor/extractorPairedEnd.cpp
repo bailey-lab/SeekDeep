@@ -25,6 +25,8 @@
 //
 
 #include "SeekDeepPrograms/SeekDeepProgram/SeekDeepRunner.hpp"
+#include <atomic>
+#include <array>
 namespace njhseq {
 
 
@@ -370,6 +372,23 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 
 	std::map<std::string, std::map<std::string, std::map<std::string, std::map<std::string, std::vector<uint32_t>>>>> failedPrimer;
 
+	//Illumina reads from the same target start with the same bases so the primer determination, which only depends on the
+	//bases at the start of the read, is remembered by those bases so it isn't searched over and over again
+	//the result of a determination is the primer name plus what it did to the read, which is replayed on a cache hit
+	struct PrimerCallEffect{
+		std::string primerName_;
+		bool on_ = false;
+		uint32_t trimFront_ = 0;  //bases removed from the front of the read
+		uint32_t lowerCount_ = 0; //bases lower cased at the front of the read, after trimming
+	};
+	using PrimerCallCache = std::unordered_map<std::string, PrimerCallEffect>;
+	//index 0 is for the forward primer determination and 1 for the reverse primer determination, they search different primers
+	std::array<PrimerCallCache, 2> primerCallCaches;
+	const size_t primerCallCacheMaxEntries = pars.primerCallCacheMaxEntries_;
+	const bool usePrimerCallCache = primerCallCacheMaxEntries > 0 && !pars.corePars_.noPrimers_;
+	const size_t primerWindowSize = usePrimerCallCache ?
+			pars.corePars_.pDetPars.primerWithin_ + ids.pDeterminator_->getMaxPrimerSize() + 5 : 0;
+
 	for (const auto & barcodeReadsKey : barcodeReadsKeys) {
 		const auto & barcodeReadPairs = readsByPairs[barcodeReadsKey];
 		std::string barcodeName = barcodeReadsKey;
@@ -422,46 +441,158 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 		if("all" != barcodeName && ids.containsMids() && ids.mDeterminator_->mids_.at(barcodeName).forSameAsRev_){
 			primerCheckComplement = true;
 		}
-		while(barcodePairsReader.readNextRead(seq)){
-			//std::cout << barcodeCount << std::endl;
-			if (setUp.pars_.verbose_) {
-				pbar.outputProgAdd(std::cout, 1, true);
+		//the primer searches are independent per read pair so they're done in parallel, a batch at a time, and then
+		//everything that writes or counts is done serially in the original read order so the results are the same as with one thread
+		struct PrimerCall{
+			std::string forwardPrimerName_;
+			std::string reversePrimerName_;
+			bool foundInReverse_ = false;
+		};
+		const uint32_t primerSearchThreads = std::max<uint32_t>(1, pars.numThreads_);
+		const size_t primerSearchBatchSize = 20000;
+		//thread 0 uses the main aligner, the rest of the threads get their own
+		std::vector<std::unique_ptr<aligner>> extraAligners;
+		for(uint32_t t = 1; t < primerSearchThreads; ++t){
+			extraAligners.emplace_back(std::make_unique<aligner>(maxReadSize, gapPars, scoreMatrix, emptyMaps,
+					setUp.pars_.qScorePars_, countEndGaps, false));
+		}
+		std::vector<PairedRead> readBatch;
+		std::vector<PrimerCall> primerCalls;
+		bool moreReadsToRead = true;
+		while(moreReadsToRead){
+			readBatch.clear();
+			while(readBatch.size() < primerSearchBatchSize){
+				PairedRead nextSeq;
+				if(!barcodePairsReader.readNextRead(nextSeq)){
+					moreReadsToRead = false;
+					break;
+				}
+				readBatch.emplace_back(std::move(nextSeq));
 			}
-			// ++barcodeCount;
-			//find primers
-			//forward
-			std::string forwardPrimerName = "";
-			bool foundInReverse = false;
-			if(pars.corePars_.noPrimers_){
-				forwardPrimerName = ids.pDeterminator_->primers_.begin()->first;
-			}else{
-				forwardPrimerName = ids.pDeterminator_->determineForwardPrimer(seq.seqBase_, pars.corePars_.pDetPars, alignObj);
-				if ("unrecognized" ==  forwardPrimerName && primerCheckComplement) {
-					forwardPrimerName = ids.pDeterminator_->determineForwardPrimer(seq.mateSeqBase_, pars.corePars_.pDetPars, alignObj);
-					if (seq.mateSeqBase_.on_) {
-						foundInReverse = true;
+			if(readBatch.empty()){
+				break;
+			}
+			primerCalls.assign(readBatch.size(), PrimerCall{});
+			std::atomic<size_t> nextBatchPos{0};
+			std::atomic<uint32_t> nextAlignerIndex{0};
+			//new determinations found this batch, kept per thread and merged into the shared caches after the batch
+			//so the shared caches are only read while the threads are running
+			std::vector<std::array<PrimerCallCache, 2>> pendingPrimerCalls(primerSearchThreads);
+			std::function<void()> searchForPrimers = [&]() {
+				const uint32_t alignerIndex = nextAlignerIndex++;
+				aligner & threadAligner = 0 == alignerIndex ? alignObj : *extraAligners[alignerIndex - 1];
+				auto & pending = pendingPrimerCalls[alignerIndex];
+				//cacheIdx 0 is the forward primer determination, 1 is the reverse primer determination
+				auto determinePrimer = [&](size_t cacheIdx, seqInfo & read) -> std::string {
+					auto determine = [&]() {
+						return 0 == cacheIdx ?
+								ids.pDeterminator_->determineForwardPrimer(read, pars.corePars_.pDetPars, threadAligner) :
+								ids.pDeterminator_->determineWithReversePrimer(read, pars.corePars_.pDetPars, threadAligner);
+					};
+					//reads shorter than where the window starts go straight to the determinator so it behaves as it always has
+					if(!usePrimerCallCache || read.seq_.size() < pars.corePars_.pDetPars.primerStart_){
+						return determine();
+					}
+					const std::string window = read.seq_.substr(pars.corePars_.pDetPars.primerStart_, primerWindowSize);
+					auto setRead = [&read](const PrimerCallEffect & effect) {
+						read.on_ = effect.on_;
+						if(effect.trimFront_ > 0){
+							read.trimFront(effect.trimFront_);
+						}
+						if(effect.lowerCount_ > 0){
+							//the position given is the last base to be lower cased, not how many to lower case
+								changeSubStrToLowerFromBegining(read.seq_, effect.lowerCount_ - 1);
+						}
+						return effect.primerName_;
+					};
+					auto sharedFound = primerCallCaches[cacheIdx].find(window);
+					if(primerCallCaches[cacheIdx].end() != sharedFound){
+						return setRead(sharedFound->second);
+					}
+					auto pendingFound = pending[cacheIdx].find(window);
+					if(pending[cacheIdx].end() != pendingFound){
+						return setRead(pendingFound->second);
+					}
+					//not seen yet, do the search and record what it did to the read
+					const std::string before = read.seq_;
+					PrimerCallEffect effect;
+					effect.primerName_ = determine();
+					effect.on_ = read.on_;
+					effect.trimFront_ = before.size() - read.seq_.size();
+					//the last base that got changed by lower casing, the primer is always at the front
+					for(size_t pos = read.seq_.size(); pos > 0; --pos){
+						if(read.seq_[pos - 1] != before[effect.trimFront_ + pos - 1]){
+							effect.lowerCount_ = pos;
+							break;
+						}
+					}
+					std::string name = effect.primerName_;
+					pending[cacheIdx].emplace(window, std::move(effect));
+					return name;
+				};
+				size_t batchPos = 0;
+				while((batchPos = nextBatchPos++) < readBatch.size()) {
+					auto & seq = readBatch[batchPos];
+					auto & call = primerCalls[batchPos];
+					//find primers
+					//forward
+					call.forwardPrimerName_ = "";
+					call.foundInReverse_ = false;
+					if(pars.corePars_.noPrimers_){
+						call.forwardPrimerName_ = ids.pDeterminator_->primers_.begin()->first;
+					}else{
+						call.forwardPrimerName_ = determinePrimer(0, seq.seqBase_);
+						if ("unrecognized" ==  call.forwardPrimerName_ && primerCheckComplement) {
+							call.forwardPrimerName_ = determinePrimer(0, seq.mateSeqBase_);
+							if (seq.mateSeqBase_.on_) {
+								call.foundInReverse_ = true;
+							}
+						}
+					}
+					//reverse primer
+					call.reversePrimerName_ = "";
+					if(pars.corePars_.noPrimers_){
+						call.reversePrimerName_ = ids.pDeterminator_->primers_.begin()->first;
+					}else{
+						if (!call.foundInReverse_) {
+							call.reversePrimerName_ = determinePrimer(1, seq.mateSeqBase_);
+						} else {
+							call.reversePrimerName_ = determinePrimer(1, seq.seqBase_);
+						}
+					}
+				}
+			};
+			njh::concurrent::runVoidFunctionThreaded(searchForPrimers, primerSearchThreads);
+			if(usePrimerCallCache){
+				for(size_t cacheIdx = 0; cacheIdx < primerCallCaches.size(); ++cacheIdx){
+					auto & shared = primerCallCaches[cacheIdx];
+					size_t pendingTotal = 0;
+					for(const auto & pending : pendingPrimerCalls){
+						pendingTotal += pending[cacheIdx].size();
+					}
+					//start over if full so the cache follows the reads currently coming in and stays bounded
+					if(shared.size() + pendingTotal > primerCallCacheMaxEntries){
+						shared.clear();
+					}
+					for(auto & pending : pendingPrimerCalls){
+						for(auto & entry : pending[cacheIdx]){
+							if(shared.size() >= primerCallCacheMaxEntries){
+								break;
+							}
+							shared.emplace(entry.first, std::move(entry.second));
+						}
 					}
 				}
 			}
 
-
-
-			//reverse primer
-			std::string reversePrimerName = "";
-//			std::cout << __PRETTY_FUNCTION__ << " " << __LINE__ << std::endl;
-//			std::cout << "\tbarcodeName: " << barcodeName << std::endl;
-
-			if(pars.corePars_.noPrimers_){
-				reversePrimerName = ids.pDeterminator_->primers_.begin()->first;
-			}else{
-				if (!foundInReverse) {
-					reversePrimerName = ids.pDeterminator_->determineWithReversePrimer(seq.mateSeqBase_, pars.corePars_.pDetPars, alignObj);
-				} else {
-					reversePrimerName = ids.pDeterminator_->determineWithReversePrimer(seq.seqBase_,     pars.corePars_.pDetPars, alignObj);
-				}
+		for(size_t batchPos = 0; batchPos < readBatch.size(); ++batchPos){
+			auto & seq = readBatch[batchPos];
+			const std::string & forwardPrimerName = primerCalls[batchPos].forwardPrimerName_;
+			const std::string & reversePrimerName = primerCalls[batchPos].reversePrimerName_;
+			const bool foundInReverse = primerCalls[batchPos].foundInReverse_;
+			if (setUp.pars_.verbose_) {
+				pbar.outputProgAdd(std::cout, 1, true);
 			}
-
-
 
 			std::string fullname = "";
 			if(forwardPrimerName != reversePrimerName){
@@ -540,6 +671,7 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 				++allPrimerCounts[fullname];
 				++matchingPrimerCounts[fullname];
 			}
+		}
 		}
 	}
 

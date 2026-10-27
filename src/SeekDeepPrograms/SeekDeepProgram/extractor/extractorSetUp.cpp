@@ -152,6 +152,12 @@ void SeekDeepSetUp::setUpExtractorPairedEnd(ExtractorPairedEndPars & pars) {
 	pars_.gapInfo_.gapLeftRefOpen_ = 0;
 	pars_.gapInfo_.gapLeftRefExtend_ = 0;
 	pars_.gapLeft_ = "0,0";
+	setOption(pars.numThreads_, "--numThreads", "Number of threads to use for finding the primers, the output is the same no matter the number of threads", false, "Misc");
+	setOption(pars.primerCallCacheMaxEntries_, "--primerCallCacheMaxEntries", "Max number of distinct read starts to remember the primer determination for so identical read starts don't have to be searched again, the output is the same with or without it, memory used is about this number times (primer window size + 100) bytes, set to 0 to turn off", false, "Misc");
+	if(!pars_.alnInfoDirName_.empty()){
+		//the alignment cache directory isn't shared between aligners
+		pars.numThreads_ = 1;
+	}
 	processGap();
 	if (needsHelp()) {
 		printFlags(std::cout);

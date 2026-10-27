@@ -108,6 +108,8 @@ struct ExtractorPairedEndPars{
 
   PairedReadProcessor::ProcessParams pairProcessorParams_;
   std::vector<PairedReadProcessor::ReadPairOverLapStatus> defaultStatuses_;//{PairedReadProcessor::ReadPairOverLapStatus::NONE};
+  uint32_t numThreads_ = 1;
+  uint32_t primerCallCacheMaxEntries_ = 200000;
 
 };
 
