@@ -68,7 +68,7 @@ void SeekDeepSetUp::setUpExtractorPairedEnd(ExtractorPairedEndPars & pars) {
 			false, "Post-Processing-PairProcessing");
 	pars.corePars_.primIdsPars.noOverlapProcessForNoOverlapStatusTargets_ = !processNoOverlapStatus;
 	setOption(pars.pairProcessorParams_.errorAllowed_, "--overLapErrorAllowed",
-			"The amount of error to allow in the overlap processing", false, "Post-Processing-PairProcessing");
+			"The fraction of high quality mismatches to allow in the overlap when stitching, rounds down so an overlap under 1/this bases is allowed none", false, "Post-Processing-PairProcessing");
 	setOption(pars.pairProcessorParams_.hardMismatchCutOff_, "--hardMismatchCutOff",
 			 "A hard cut off for number of mismatches between overlapping sequences in pair processing", false, "Post-Processing-PairProcessing");
 	setOption(pars.pairProcessorParams_.lqMismatchCutOff, "--lqMismatchCutOff",
@@ -78,6 +78,8 @@ void SeekDeepSetUp::setUpExtractorPairedEnd(ExtractorPairedEndPars & pars) {
 
 	setOption(pars.pairProcessorParams_.minOverlap_, "--minOverlap",
 			"The minimal amount of over lap in pair processing", false, "Post-Processing-PairProcessing");
+	setOption(pars.pairProcessorParams_.mismatchPenalty_, "--stitchMismatchPenalty",
+			"The penalty for a mismatch when aligning the mates to stitch them (match score is --match_scoring), harsher than the general mismatch score so a long low identity placement of the mates doesn't out score a short true overlap", false, "Post-Processing-PairProcessing");
 	setOption(pars.pairProcessorParams_.writeOverHangs_, "--writeOverHangs",
 			"Write out the overhang for sequences that have read through", false, "Post-Processing-PairProcessing");
 	setOption(pars.pairProcessorParams_.r1Trim_, "--r1Trim",

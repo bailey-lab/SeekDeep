@@ -39,6 +39,13 @@ PairedReadProcessor::PairedReadProcessor(ProcessParams params):params_(params){
 
 }
 
+aligner PairedReadProcessor::genStitchingAligner(uint64_t maxReadSize) const {
+	//only end gaps are used when aligning the mates and those are free
+	auto gapPars = gapScoringParameters(10, 1, 0, 0, 0, 0);
+	auto scoring = substituteMatrix::createScoreMatrix(params_.matchScore_, -static_cast<int32_t>(params_.mismatchPenalty_), true, true, true);
+	return aligner(maxReadSize, gapPars, scoring, false);
+}
+
 void PairedReadProcessor::setDefaultConsensusBuilderFunc(){
 	addToConsensus = [](
 			uint32_t pos,

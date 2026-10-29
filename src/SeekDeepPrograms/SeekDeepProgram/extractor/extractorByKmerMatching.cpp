@@ -171,6 +171,8 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
 
   //set up extraction counts outputs
   ExtractionStator masterCounts;
+  //counts per target and MID, keyed by the name of the extracted file, <target><MID>, or <target>-MIDunknown/-MIDUnrecognized when the MID wasn't determined
+  ExtractionStator perMidCounts;
   OutOptions outCountsOpts(njh::files::make_path(setUp.pars_.directoryName_, "extractionProfile.tab.txt"));
   OutputStream outCounts(outCountsOpts);
 
@@ -255,6 +257,7 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
                                       &corePars,&alnPool,
                                       &qualChecker,
                                       &masterCounts,
+                                      &perMidCounts,
                                       &hardKmersPerTarget,
                                       &kmerFracPerTarget,
                                       &invIndex
@@ -267,6 +270,7 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
 
 
     ExtractionStator masterCountsCurrent;
+    ExtractionStator perMidCountsCurrent;
 
     auto currentAlignerObj = alnPool.popAligner();
     while(reader.readNextReadLock(seq)){
@@ -402,6 +406,7 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
       }
 
       std::string MIDunknownName = ids.containsMids() ? "-MIDunknown" : "";
+      std::string perMidName = njh::pasteAsStr(winnerSet, MIDunknownName);
       if(seq.on_){
         std::string frontPrimerName = "unrecognized";
         std::string backPrimerName = "unrecognized";
@@ -436,6 +441,9 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
               seq.reverseComplementRead(false, true);
               midName = midResultsProcessed.midName_;
               passesMID = true;
+              perMidName = njh::pasteAsStr(winnerSet, midName);
+            } else {
+              perMidName = njh::pasteAsStr(winnerSet, "-MIDUnrecognized");
             }
           }
         } else {
@@ -502,11 +510,15 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
         seqOut.openWrite(njh::pasteAsStr(njh::pasteAsStr(winnerSet, MIDunknownName), "-failed"), seq);
       }
       masterCountsCurrent.increaseCounts(winnerSet, seq.name_, extractorCase);
+      if(ids.containsMids()){
+        perMidCountsCurrent.increaseCounts(perMidName, seq.name_, extractorCase);
+      }
     }
     {
       std::lock_guard<std::mutex> lockGuard(mut);
 
       masterCounts.addOtherExtractorCounts(masterCountsCurrent);
+      perMidCounts.addOtherExtractorCounts(perMidCountsCurrent);
 
       for(const auto & readsPerSetCount : readsPerSetCurrent){
         readsPerSet[readsPerSetCount.first] += readsPerSetCount.second;
@@ -656,6 +668,61 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
            << "\t" << totalReadsPassedAllFilters
            << "\t" << static_cast<double>(totalReadsPassedAllFilters) / static_cast<double>(grand_total_reads)
            << std::endl;
+
+  if(ids.containsMids()){
+    //the counts per target per MID, name matches the extracted file <target><MID> so it can be linked to the sample the MID belongs to
+    //reads failing before the MID is looked for (inverse chimera, min length, either primer) are counted under MIDunknown, reads whose MID wasn't found under MIDUnrecognized
+    OutputStream outPerMid(njh::files::make_path(setUp.pars_.directoryName_, "extractionProfilePerMID.tab.txt"));
+    outPerMid << "sample\ttarget\tmid\tname\ttotal"
+              << "\tpassed\tpassedFrac"
+              << "\tminLenFailed\tmaxLenFailed\tqualityFailed\tinverseChimeraFailed"
+              << "\tforwardPrimerFailed\treversePrimerFailed\tbothForRevPrimerFailed\tMIDFailed"
+              << "\ttotalFailed" << std::endl;
+    auto midNames = getVectorOfMapKeys(ids.mids_);
+    njh::sort(midNames);
+    midNames.emplace_back("MIDUnrecognized");
+    midNames.emplace_back("MIDunknown");
+    for(const auto & setName : ids.getTargets()){
+      for(const auto & midName : midNames){
+        const bool undeterminedMid = "MIDUnrecognized" == midName || "MIDunknown" == midName;
+        const std::string name = undeterminedMid ? njh::pasteAsStr(setName, "-", midName) : njh::pasteAsStr(setName, midName);
+        //both read directions
+        ExtractionStator::extractCounts counts;
+        if(njh::in(name, perMidCounts.counts_)){
+          for(const auto & dir : perMidCounts.counts_.at(name)){
+            counts.good_ += dir.second.good_;
+            counts.bad_ += dir.second.bad_;
+            counts.minLenBad_ += dir.second.minLenBad_;
+            counts.maxLenBad_ += dir.second.maxLenBad_;
+            counts.qualityFailed_ += dir.second.qualityFailed_;
+            counts.inverse_chimera_ += dir.second.inverse_chimera_;
+            counts.badForward_ += dir.second.badForward_;
+            counts.badReverse_ += dir.second.badReverse_;
+            counts.failedBothPrimers_ += dir.second.failedBothPrimers_;
+            counts.badmid_ += dir.second.badmid_;
+          }
+        }
+        const uint32_t total = counts.good_ + counts.bad_;
+        outPerMid << sampleName
+                  << "\t" << setName
+                  << "\t" << midName
+                  << "\t" << name
+                  << "\t" << total
+                  << "\t" << counts.good_
+                  << "\t" << (0 == total ? 0 : static_cast<double>(counts.good_) / static_cast<double>(total))
+                  << "\t" << counts.minLenBad_
+                  << "\t" << counts.maxLenBad_
+                  << "\t" << counts.qualityFailed_
+                  << "\t" << counts.inverse_chimera_
+                  << "\t" << counts.badForward_
+                  << "\t" << counts.badReverse_
+                  << "\t" << counts.failedBothPrimers_
+                  << "\t" << counts.badmid_
+                  << "\t" << counts.bad_
+                  << std::endl;
+      }
+    }
+  }
 
   return 0;
 }

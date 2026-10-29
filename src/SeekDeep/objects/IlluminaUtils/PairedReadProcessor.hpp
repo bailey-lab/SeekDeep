@@ -103,7 +103,12 @@ public:
 
 	struct ProcessParams{
 		uint32_t minOverlap_ = 10;
-		double errorAllowed_ = 0.01;
+		/**< max fraction of high quality mismatches in the overlap, the number allowed rounds down so an overlap under 1/errorAllowed_ bases can have none */
+		double errorAllowed_ = 0.02;
+		/**< scoring for the aligner from genStitchingAligner(), end gaps are free when aligning the mates so mismatches are penalized more than
+		 * matches are rewarded to keep a long low identity placement (e.g. in AT rich or repetitive sequence) from out scoring a short true overlap */
+		int32_t matchScore_ = 2;
+		uint32_t mismatchPenalty_ = 4;
 		uint32_t hardMismatchCutOff_ = 20;
 		uint32_t lqMismatchCutOff = 10;
 		uint32_t hqMismatchCutOff = 10;
@@ -136,6 +141,13 @@ public:
 
 	void setDefaultConsensusBuilderFunc();
 	ProcessParams params_;
+
+	/**@brief Create an aligner for stitching mates with processPairedEnd, scored with params_.matchScore_ and params_.mismatchPenalty_
+	 *
+	 * @param maxReadSize the longest mate to be stitched, aligners don't grow on their own so call aligner::parts_.setMaxSize() for longer mates
+	 * @return the aligner
+	 */
+	aligner genStitchingAligner(uint64_t maxReadSize) const;
 
 	uint64_t guessMaxReadLenFromFile(const SeqIOOptions & inputOpts);
 
