@@ -98,13 +98,15 @@ int SeekDeepRunner::clusterDown(const njh::progutils::CmdArgs & inputCommands) {
 	//the input is read in order without seeking: once for read names and counts, once to collapse to unique sequences, and once more for --writeOutInitalSeqs
 	bool filterToMostCommonSampleNumber = !pars.dontFilterToMostCommonIlluminaSampleNumber_;
 	bool needSampleNumbers = filterToMostCommonSampleNumber || pars.countIlluminaSampleNumbers_;
-	auto decodeSampleNumber = [&pars](std::string name){
+	const std::regex illuminaSampleRegPat(pars.IlluminaSampleRegPatStr_);
+	const std::regex backUpIlluminaSampleRegPat(pars.BackUpIlluminaSampleRegPatStr_);
+	auto decodeSampleNumber = [&pars, &illuminaSampleRegPat, &backUpIlluminaSampleRegPat](std::string name){
 		if(njh::endsWith(name, "_Comp")){
 			name = name.substr(0, name.rfind("_Comp"));
 		}
-		auto decoder = std::make_unique<IlluminaNameFormatDecoder>(name, pars.IlluminaSampleRegPatStr_, pars.IlluminaSampleNumberPos_);
+		auto decoder = std::make_unique<IlluminaNameFormatDecoder>(name, illuminaSampleRegPat, pars.IlluminaSampleNumberPos_);
 		if(0 == decoder->match_.size()){
-			decoder = std::make_unique<IlluminaNameFormatDecoder>(name, pars.BackUpIlluminaSampleRegPatStr_, pars.BackUpIlluminaSampleNumberPos_);
+			decoder = std::make_unique<IlluminaNameFormatDecoder>(name, backUpIlluminaSampleRegPat, pars.BackUpIlluminaSampleNumberPos_);
 		}
 		return decoder->getSampleNumber();
 	};

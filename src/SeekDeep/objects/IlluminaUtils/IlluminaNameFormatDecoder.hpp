@@ -20,6 +20,13 @@ public:
 		std::regex_match(name_, match_, nameRegPat_);
 	}
 
+	/**@brief for decoding many names, compiling a regex is expensive (especially with libstdc++) so compile it once and pass it in */
+	IlluminaNameFormatDecoder(const std::string & name,
+			const std::regex & nameRegPat, const uint32_t sampleNumberPos) : name_(name) ,
+			nameRegPat_(nameRegPat), sampleNumberPos_(sampleNumberPos) {
+		std::regex_match(name_, match_, nameRegPat_);
+	}
+
 	IlluminaNameFormatDecoder(const std::string & name):
 			IlluminaNameFormatDecoder(name, DefaultNameRegPatStr_,
 					DefaultSampleNumberPos_) {
