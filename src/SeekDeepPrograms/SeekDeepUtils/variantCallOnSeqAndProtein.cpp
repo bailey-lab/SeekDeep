@@ -159,6 +159,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	}
 	if (exists(popSeqsDirFnp)) {
 		seqInfo seq;
+		const std::regex popSeqsRegexPatRemovalPat{popSeqsRegexPatRemoval};
 		for (const auto &target: targetNamesSet) {
 			if (!bfs::exists(njh::files::make_path(popSeqsDirFnp, target + ".fasta")) &&
 					!bfs::exists(njh::files::make_path(popSeqsDirFnp, target + ".fasta.gz"))
@@ -177,7 +178,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 			reader.openIn();
 			while (reader.readNextRead(seq)) {
 				readVec::getMaxLength(seq, maxLen);
-				seq.name_ = std::regex_replace(seq.name_, std::regex{popSeqsRegexPatRemoval}, "");
+				seq.name_ = std::regex_replace(seq.name_, popSeqsRegexPatRemovalPat, "");
 				hPopUID_to_hConsensus[target][seq.name_] = seq.seq_;
 				hConsensus_to_hPopUID[target][seq.seq_] = seq.name_;
 			}
