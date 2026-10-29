@@ -657,7 +657,7 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
   setUp.setOption(randomSeed, "--randomSeedForDownSampling", "When Randomly Downsampling, use this random seed, this way the same downsample would happen each time");
   bool writeDownsampledReads = false;
   setUp.setOption(writeDownsampledReads, "--writeDownsampledReads", "When down sampling, write the down sampled reads to a file named downsampled in the output directory");
-  bool sampleSet = setUp.setOption(sample, "--sample", "sample name to give to output");
+  bool sampleSet = setUp.setOption(sample, "--sample", "sample name to give to output, if input is a bam this defaults to the SM of the read group in the header");
   bool targetSet = setUp.setOption(target, "--target", "target name to give to output");
   bool replicateSet = setUp.setOption(replicate, "--replicate", "replicate name to give to output");
 
@@ -814,13 +814,18 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
   setUp.setOption(kLenComp, "--kLenComp", "For speeding up mapping use this k len to calc distances to skip comparisons");
   setUp.finishSetUp(std::cout);
 
+  //for unaligned bams (e.g. from nanopore dorado demux), default the sample name to the SM of the read group(s) in the header
+  if(!sampleSet && SeqIOOptions::inFormats::BAM == setUp.pars_.ioOptions_.inFormat_){
+    sampleSet = setSampleNameFromBamHeader(setUp.pars_.ioOptions_.firstName_, sample, "--sample");
+  }
+
   setUp.startARunLog(setUp.pars_.directoryName_);
   setUp.rLog_.setCurrentLapName("Start");
   setUp.writeParametersFile(setUp.pars_.directoryName_ + "parametersUsed.tab.txt",
                             false, false);
 
   if(setUp.pars_.verbose_){
-    std::cout << "Gap Scoring Ref: " << std::endl;
+    std::cout << "Gap Scoring Ref: "<< std::endl;
     std::cout << setUp.pars_.gapInfoRef_.toJson() << std::endl;
 
     std::cout << "Gap Scoring: " << std::endl;

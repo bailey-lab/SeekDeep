@@ -32,15 +32,19 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
   setUp.setOption(refSeqDir, "--refSeqDir", "reference Seq Dir, should have a .fasta file named by each target", false, "IDs");
 
   //in and out
-  setUp.processDefaultReader(VecStr{"--fastq", "--fastqgz", "--fasta", "--fastagz"});
+  setUp.processDefaultReader(VecStr{"--fastq", "--fastqgz", "--fasta", "--fastagz", "--bam"});
   setUp.processDirectoryOutputName(true);
   if("sample" == sampleName){
     sampleName = bfs::basename(setUp.pars_.ioOptions_.firstName_);
     if(njh::endsWith(setUp.pars_.ioOptions_.firstName_.string(), ".gz")){
       sampleName = bfs::path(sampleName).replace_extension("").string();
     }
+    //for unaligned bams (e.g. from nanopore dorado demux), default to the SM of the read group(s) in the header
+    if(SeqIOOptions::inFormats::BAM == setUp.pars_.ioOptions_.inFormat_){
+      setSampleNameFromBamHeader(setUp.pars_.ioOptions_.firstName_, sampleName, "--sampleName");
+    }
   }
-  setUp.setOption(sampleName, "--sampleName", "sample name");
+  setUp.setOption(sampleName, "--sampleName", "sample name, if input is a bam this defaults to the SM of the read group in the header otherwise the input file's basename");
   setUp.setOption(rename, "--rename", "rename input extracted reads");
 
   // filtering

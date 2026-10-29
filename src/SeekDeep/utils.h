@@ -10,6 +10,7 @@
 
 
 #include "SeekDeep/utils/extractTargetsFromGenomes.hpp"
+#include "SeekDeep/utils/bamSampleNames.hpp"
 
 
 
