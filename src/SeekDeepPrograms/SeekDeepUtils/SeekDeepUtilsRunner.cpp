@@ -115,16 +115,41 @@ int SeekDeepUtilsRunner::getPossibleSampleNamesFromRawInput(const njh::progutils
 	setUp.processVerbose();
 	setUp.processDebug();
 
+	RawInputSampleNamesPars singleEndPars;
+	setUp.examples_.emplace_back("SeekDeep getPossibleSampleNamesFromRawInput --inputDir demux_dir --technology nanopore --recursive --prefixWithTopDir --out sampleNames.tsv #per file report for nanopore/pacbio, bams are named by the SM of their read group");
 	setUp.setOption(pars.inputDir, "--inputDir", "Input Directory", true);
-	setUp.setOption(pars.inputFilePat, "--inputFilePat", "Input File Pat");
+	setUp.setOption(pars.recursiveInputSearch, "--recursive", "Search --inputDir recursively for input files");
+	bool inputFilePatSet = setUp.setOption(pars.inputFilePat, "--inputFilePat", "Input File Pat, for nanopore/pacbio defaults to " + singleEndPars.inputFilePat);
 	setUp.setOption(pars.illuminaInputFilePat, "--illuminaInputFilePat", "The input file pattern for illumina files, everything in the first capture will be treated as the actual name of the file");
-	setUp.setOption(pars.technology, "--technology", "Technology");
-	setUp.setOption(pars.ignoreSamples, "--ignoreSamples", "Ignore these Samples if found");
+	setUp.setOption(pars.technology, "--technology", "Technology, for nanopore or pacbio a per file report of the names is written and duplicate names are warned about");
+	stringToLower(pars.technology);
+	bool ignoreSamplesSet = setUp.setOption(pars.ignoreSamples, "--ignoreSamples", "Ignore these Samples if found, for nanopore/pacbio defaults to " + njh::conToStr(singleEndPars.ignoreSamples, ","));
 	setUp.setOption(pars.replicatePattern, "--replicatePattern", "Replicate Pattern to match on to indicate replicates when guessing sample names, should have two groups e.g. (.*)(-rep.*)");
+	//per file naming options for nanopore/pacbio
+	setUp.setOption(singleEndPars.doNotUseBamSM, "--doNotUseBamSM", "nanopore/pacbio, name bams by their file name rather than the SM of their read group");
+	setUp.setOption(singleEndPars.prefixWithTopDir, "--prefixWithTopDir", "nanopore/pacbio, prefix sample names with the top directory under --inputDir the file is in, e.g. run1/sub/barcode01.bam becomes run1_barcode01, for keeping the same barcodes from different runs apart");
+	setUp.setOption(singleEndPars.prefixSep, "--prefixSep", "nanopore/pacbio, separator between the top directory and the sample name when using --prefixWithTopDir");
+	setUp.setOption(singleEndPars.failOnDuplicates, "--failOnDuplicates", "nanopore/pacbio, exit with an error if multiple input files would be given the same sample name");
+	if (pars.techIsNanoporeOrPacbio() && !pars.replicatePattern.empty()) {
+		setUp.failed_ = true;
+		setUp.addWarning("--replicatePattern isn't used with nanopore/pacbio, which report each file's name instead");
+	}
 	setUp.processWritingOptions(tabOutOpts.out_);
 	setUp.finishSetUp(std::cout);
 
 	OutputStream out(tabOutOpts.out_);
+	if (pars.techIsNanoporeOrPacbio()) {
+		singleEndPars.inputDir = pars.inputDir;
+		singleEndPars.recursive = pars.recursiveInputSearch;
+		if (inputFilePatSet) {
+			singleEndPars.inputFilePat = pars.inputFilePat;
+		}
+		if (ignoreSamplesSet) {
+			singleEndPars.ignoreSamples = pars.ignoreSamples;
+		}
+		writeRawInputSampleNamesPerFile(singleEndPars, out);
+		return 0;
+	}
 	auto sampleNames = GuessPossibleSamps(pars);
 
 	sampleNames.outPutContents(out, "\t");

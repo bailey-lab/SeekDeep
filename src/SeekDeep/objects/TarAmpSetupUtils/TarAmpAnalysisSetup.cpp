@@ -812,7 +812,7 @@ void TarAmpAnalysisSetup::setUpPopClusteringDirs(bool verbose) const {
 table GuessPossibleSamps(const TarAmpAnalysisSetup::TarAmpPars & pars){
 	table sampleNames(VecStr{"#target", "sample", "run1"});
 	std::regex inputfilePatReg{ pars.inputFilePat };
-	auto files = njh::files::listAllFiles(pars.inputDir.string(), false, {inputfilePatReg});
+	auto files = njh::files::listAllFiles(pars.inputDir.string(), pars.recursiveInputSearch, {inputfilePatReg});
 
 	if(!pars.replicatePattern.empty()){
 		std::regex replicatePatternReg{ pars.replicatePattern };
@@ -842,7 +842,8 @@ table GuessPossibleSamps(const TarAmpAnalysisSetup::TarAmpPars & pars){
 				samplesFiles.emplace_back(f.first.filename().string());
 			}
 			for(const auto & sf : samplesFiles){
-				auto sampName = sf.substr(0, sf.rfind(".fast"));
+				//non fastx files (e.g. .bam) fall back to just removing the extension
+				auto sampName = std::string::npos == sf.rfind(".fast") ? njh::files::removeExtension(sf) : sf.substr(0, sf.rfind(".fast"));
 				if(njh::in(sampName, pars.ignoreSamples)){
 					continue;
 				}
@@ -893,7 +894,8 @@ table GuessPossibleSamps(const TarAmpAnalysisSetup::TarAmpPars & pars){
 				samplesFiles.emplace_back(f.first.filename().string());
 			}
 			for (const auto &sf: samplesFiles) {
-				auto sampName = sf.substr(0, sf.rfind(".fast"));
+				//non fastx files (e.g. .bam) fall back to just removing the extension
+				auto sampName = std::string::npos == sf.rfind(".fast") ? njh::files::removeExtension(sf) : sf.substr(0, sf.rfind(".fast"));
 				if (njh::in(sampName, pars.ignoreSamples)) {
 					continue;
 				}

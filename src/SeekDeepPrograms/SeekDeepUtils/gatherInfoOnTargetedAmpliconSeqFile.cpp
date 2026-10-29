@@ -74,6 +74,8 @@ int SeekDeepUtilsRunner::gatherInfoOnTargetedAmpliconSeqFile(
 	investPars.gapInfo_ = setUp.pars_.gapInfo_;
 	setUp.setOption(investPars.idFnp, "--id", "SeekDeep primers file", true);
 	setUp.setOption(tar_amp_pars.inputDir, "--reads_dir", "a directory of sequence files to investigate instead of a single input read, files to investigate will depend on the technology set", false);
+	setUp.setOption(tar_amp_pars.inputFilePat, "--inputFilePat", "regex pattern for the files in --reads_dir to investigate, e.g. .*\\.bam for unaligned bams", false);
+	setUp.setOption(tar_amp_pars.recursiveInputSearch, "--recursive", "search --reads_dir recursively for input files", false);
 	VecStr acceptableTechs{"454", "IonTorrent", "Illumina", "Illumina-SingleEnd", "Nanopore", "Pacbio"};
 
 	setUp.setOption(tar_amp_pars.technology, "--technology",
@@ -139,7 +141,7 @@ int SeekDeepUtilsRunner::gatherInfoOnTargetedAmpliconSeqFile(
 		auto guessedSamples = GuessPossibleSamps(tar_amp_pars);
 		auto expectedSamples = guessedSamples.getColumn("sample");
 		std::regex inputFilePat( tar_amp_pars.inputFilePat);
-		auto files = njh::files::listAllFilesThrowOnDupSymlink(tar_amp_pars.inputDir.string(), false, {inputFilePat});
+		auto files = njh::files::listAllFilesThrowOnDupSymlink(tar_amp_pars.inputDir.string(), tar_amp_pars.recursiveInputSearch, {inputFilePat});
 		ReadPairsOrganizer rpOrganizer{expectedSamples};
 		rpOrganizer.illuminaPat_ = tar_amp_pars.illuminaInputFilePat;
 		if (tar_amp_pars.techIsIllumina()) {

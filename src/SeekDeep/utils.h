@@ -11,6 +11,7 @@
 
 #include "SeekDeep/utils/extractTargetsFromGenomes.hpp"
 #include "SeekDeep/utils/bamSampleNames.hpp"
+#include "SeekDeep/utils/rawInputSampleNames.hpp"
 
 
 
