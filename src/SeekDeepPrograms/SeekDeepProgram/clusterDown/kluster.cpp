@@ -1308,10 +1308,12 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
     njh::iota<uint32_t>(readPositions, 0);
     njh::concurrent::LockableQueue<uint32_t> readPosQueue(readPositions);
 
+    //refs each read is placed with, added to readCounts in input order after mapping
+    std::vector<std::vector<uint64_t>> readRefs(allInputReads.size());
     auto mapRead =
         [&pbar, &readPosQueue, &alignPoolMap, &pars, &getScoreFunc, &readCounts, &allInputReads,
             &tiesReads, &ties, &tiesMut, &unmappable, &unmappableMut, &indeterminate, &indeterminateMut,
-            &difference, &refVariationInfo,&threadChunkNum, &setUp,
+            &difference, &refVariationInfo,&threadChunkNum, &setUp, &readRefs,
             &checkIndelsWhenMapping,&checkIndelsAgainstSNPsWhenMapping]() {
           std::vector<uint32_t> readPositionsChunk;
           auto curThreadAligner = alignPoolMap.popAligner();
@@ -1385,7 +1387,7 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
 //						std::cout << "bestRefs.size(): " << bestRefs.size() << std::endl;
                 if (bestRefs.size() == 1) {
                   //if only matching one, then place with that one
-                  readCounts[bestRefs.front()].addRead(allInputReads[readPos]->seqBase_);
+                  readRefs[readPos] = {bestRefs.front()};
                 } else if (bestRefs.size() == 0) {
                   //if no mappable candidates found, put into un-mappable
                   std::lock_guard<std::mutex> unmLock(unmappableMut);
@@ -1491,7 +1493,7 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
                   }
                   if(matchingRefs.size() == 1) {
                     //if only one matching ref, add to it
-                    readCounts[matchingRefs.front()].addRead(allInputReads[readPos]->seqBase_);
+                    readRefs[readPos] = {matchingRefs.front()};
                   } else if(matchingRefs.size() == 0) {
                     //if none of the ref work out, put it in indeterminate
                     std::lock_guard<std::mutex> indeterminateLock(indeterminateMut);
@@ -1501,14 +1503,8 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
                     std::lock_guard<std::mutex> tiesLock(tiesMut);
                     tiesReads.emplace_back(allInputReads[readPos]->seqBase_);
                     ties.emplace_back(readPos, matchingRefs);
-                    const seqInfo & info = allInputReads[readPos]->seqBase_;
-                    seqInfo tempObj(info.name_, info.seq_, info.qual_,
-                                    info.cnt_ / matchingRefs.size());
-                    tempObj.updateName();
                     if(pars.tiesDuringMapping){
-                      for (const auto & best : matchingRefs) {
-                        readCounts[best].addRead(tempObj);
-                      } 
+                      readRefs[readPos] = matchingRefs;
                     }
                   }
                 }
@@ -1530,6 +1526,20 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
     }
     for(auto & t : threads){
       t.join();
+    }
+    //add mapped reads in input order so the reads order per ref does not depend on thread timing
+    for (const auto readPos : iter::range(allInputReads.size())) {
+      if (1 == readRefs[readPos].size()) {
+        readCounts[readRefs[readPos].front()].addRead(allInputReads[readPos]->seqBase_);
+      } else if (readRefs[readPos].size() > 1) {
+        const seqInfo & info = allInputReads[readPos]->seqBase_;
+        seqInfo tempObj(info.name_, info.seq_, info.qual_,
+                        info.cnt_ / readRefs[readPos].size());
+        tempObj.updateName();
+        for (const auto & best : readRefs[readPos]) {
+          readCounts[best].addRead(tempObj);
+        }
+      }
     }
 
     if(pars.development) {
@@ -2031,10 +2041,12 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
       njh::iota<uint32_t>(readPositions, 0);
       njh::concurrent::LockableQueue<uint32_t> readPosQueue(readPositions);
 
+      //refs each read is placed with, added to readCounts in input order after mapping
+      std::vector<std::vector<uint64_t>> readRefs(allInputReads.size());
       auto mapRead =
           [&pbar, &readPosQueue, &alignPoolMap, &pars, &getScoreFunc, &readCounts, &allInputReads,
               &tiesReads, &ties, &tiesMut, &unmappable, &unmappableMut, &indeterminate, &indeterminateMut,
-              &difference, &refVariationInfo,&threadChunkNum, &setUp,
+              &difference, &refVariationInfo,&threadChunkNum, &setUp, &readRefs,
               &checkIndelsWhenMapping,&checkIndelsAgainstSNPsWhenMapping]() {
             std::vector<uint32_t> readPositionsChunk;
             auto curThreadAligner = alignPoolMap.popAligner();
@@ -2103,7 +2115,7 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
 
                   if (bestRefs.size() == 1) {
                     //if only matching one, then place with that one
-                    readCounts[bestRefs.front()].addRead(allInputReads[readPos]->seqBase_);
+                    readRefs[readPos] = {bestRefs.front()};
                   } else if (bestRefs.size() == 0) {
                     //if no mappable candidates found, put into un-mappable
                     std::lock_guard<std::mutex> unmLock(unmappableMut);
@@ -2208,7 +2220,7 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
                     }
                     if(matchingRefs.size() == 1) {
                       //if only one matching ref, add to it
-                      readCounts[matchingRefs.front()].addRead(allInputReads[readPos]->seqBase_);
+                      readRefs[readPos] = {matchingRefs.front()};
                     } else if(matchingRefs.size() == 0) {
                       //if none of the ref work out, put it in indeterminate
                       std::lock_guard<std::mutex> indeterminateLock(indeterminateMut);
@@ -2218,14 +2230,8 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
                       std::lock_guard<std::mutex> tiesLock(tiesMut);
                       tiesReads.emplace_back(allInputReads[readPos]->seqBase_);
                       ties.emplace_back(readPos, matchingRefs);
-                      const seqInfo & info = allInputReads[readPos]->seqBase_;
-                      seqInfo tempObj(info.name_, info.seq_, info.qual_,
-                                      info.cnt_ / matchingRefs.size());
-                      tempObj.updateName();
                       if(pars.tiesDuringMapping){
-                        for (const auto & best : matchingRefs) {
-                          readCounts[best].addRead(tempObj);
-                        } 
+                        readRefs[readPos] = matchingRefs;
                       }
                     }
                   }
@@ -2247,6 +2253,20 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
       }
       for(auto & t : threads){
         t.join();
+      }
+      //add mapped reads in input order so the reads order per ref does not depend on thread timing
+      for (const auto readPos : iter::range(allInputReads.size())) {
+        if (1 == readRefs[readPos].size()) {
+          readCounts[readRefs[readPos].front()].addRead(allInputReads[readPos]->seqBase_);
+        } else if (readRefs[readPos].size() > 1) {
+          const seqInfo & info = allInputReads[readPos]->seqBase_;
+          seqInfo tempObj(info.name_, info.seq_, info.qual_,
+                          info.cnt_ / readRefs[readPos].size());
+          tempObj.updateName();
+          for (const auto & best : readRefs[readPos]) {
+            readCounts[best].addRead(tempObj);
+          }
+        }
       }
 
       if(pars.development) {
@@ -2622,10 +2642,12 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
       njh::iota<uint32_t>(readPositions, 0);
       njh::concurrent::LockableQueue<uint32_t> readPosQueue(readPositions);
 
+      //refs each read is placed with, added to readCounts in input order after mapping
+      std::vector<std::vector<uint64_t>> readRefs(allInputReads.size());
       auto mapRead =
           [&pbar, &readPosQueue, &alignPoolMap, &pars, &getScoreFunc, &readCounts, &allInputReads,
               &tiesReads, &ties, &tiesMut, &unmappable, &unmappableMut, &indeterminate, &indeterminateMut,
-              &difference, &refVariationInfo,&threadChunkNum, &setUp,
+              &difference, &refVariationInfo,&threadChunkNum, &setUp, &readRefs,
               &checkIndelsWhenMapping,&checkIndelsAgainstSNPsWhenMapping]() {
             std::vector<uint32_t> readPositionsChunk;
             auto curThreadAligner = alignPoolMap.popAligner();
@@ -2694,7 +2716,7 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
 
                   if (bestRefs.size() == 1) {
                     //if only matching one, then place with that one
-                    readCounts[bestRefs.front()].addRead(allInputReads[readPos]->seqBase_);
+                    readRefs[readPos] = {bestRefs.front()};
                   } else if (bestRefs.size() == 0) {
                     //if no mappable candidates found, put into un-mappable
                     std::lock_guard<std::mutex> unmLock(unmappableMut);
@@ -2799,7 +2821,7 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
                     }
                     if(matchingRefs.size() == 1) {
                       //if only one matching ref, add to it
-                      readCounts[matchingRefs.front()].addRead(allInputReads[readPos]->seqBase_);
+                      readRefs[readPos] = {matchingRefs.front()};
                     } else if(matchingRefs.size() == 0) {
                       //if none of the ref work out, put it in indeterminate
                       std::lock_guard<std::mutex> indeterminateLock(indeterminateMut);
@@ -2809,14 +2831,8 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
                       std::lock_guard<std::mutex> tiesLock(tiesMut);
                       tiesReads.emplace_back(allInputReads[readPos]->seqBase_);
                       ties.emplace_back(readPos, matchingRefs);
-                      const seqInfo & info = allInputReads[readPos]->seqBase_;
-                      seqInfo tempObj(info.name_, info.seq_, info.qual_,
-                                      info.cnt_ / matchingRefs.size());
-                      tempObj.updateName();
                       if(pars.tiesDuringMapping){
-                        for (const auto & best : matchingRefs) {
-                          readCounts[best].addRead(tempObj);
-                        }
+                        readRefs[readPos] = matchingRefs;
                       }
                     }
                   }
@@ -2838,6 +2854,20 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
       }
       for(auto & t : threads){
         t.join();
+      }
+      //add mapped reads in input order so the reads order per ref does not depend on thread timing
+      for (const auto readPos : iter::range(allInputReads.size())) {
+        if (1 == readRefs[readPos].size()) {
+          readCounts[readRefs[readPos].front()].addRead(allInputReads[readPos]->seqBase_);
+        } else if (readRefs[readPos].size() > 1) {
+          const seqInfo & info = allInputReads[readPos]->seqBase_;
+          seqInfo tempObj(info.name_, info.seq_, info.qual_,
+                          info.cnt_ / readRefs[readPos].size());
+          tempObj.updateName();
+          for (const auto & best : readRefs[readPos]) {
+            readCounts[best].addRead(tempObj);
+          }
+        }
       }
 
       if(pars.development) {
