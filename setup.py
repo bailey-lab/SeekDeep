@@ -2,6 +2,8 @@
 
 import subprocess, sys, os, argparse,shutil
 from collections import namedtuple, defaultdict
+
+
 sys.path.append(os.path.join(os.path.dirname(__file__), "scripts/pyUtils"))
 sys.path.append(os.path.join(os.path.dirname(__file__), "scripts/setUpScripts"))
 from utils import Utils
@@ -300,6 +302,8 @@ class Packages():
             self.packages_["jsoncpp"] = self.__jsoncpp()
         if "catch" in libsNeeded:
             self.packages_["catch"] = self.__catch()
+        if "catch2" in libsNeeded:
+            self.packages_["catch2"] = self.__catch2()
         if "hts" in libsNeeded:
             self.packages_["hts"] = self.__hts()
         if "zi_lib" in libsNeeded:
@@ -589,6 +593,30 @@ class Packages():
             for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
                 pack.addHeaderOnlyVersion(url, ref)
                 pack.versions_[ref].includePath_ = os.path.join(joinNameVer(pack.versions_[ref].nameVer_), "single_include")
+            Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
+                pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
+        return pack
+
+    def __catch2(self):
+        #Catch2 v3 isn't header only, the amalgamated catch_amalgamated.hpp/.cpp in extras/ are used and the .cpp is compiled by each test Makefile
+        url = 'https://github.com/catchorg/Catch2.git'
+        name = "catch2"
+        buildCmd = ""
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git-headeronly", "v3.7.1")
+        if self.args.noInternet:
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                pack = pickle.load(inputPkl)
+                pack.defaultBuildCmd_ = buildCmd
+        elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
+            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
+                    pack = pickle.load(inputPkl)
+                    pack.defaultBuildCmd_ = buildCmd
+        else:
+            refs = pack.getGitRefs(url)
+            for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
+                pack.addHeaderOnlyVersion(url, ref)
+                pack.versions_[ref].includePath_ = os.path.join(pack.versions_[ref].includePath_, name, "extras")
             Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
             with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
                 pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
@@ -1523,7 +1551,7 @@ class Packages():
                 if Utils.isMac():
                     buildCmd = "cp " + gccJamLoc + "  " + gccJamOutLoc + """ && ./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
                      && echo "using gcc : """ + str(gccVer) + """ : {CXX} : <linker-type>darwin ;" >> tools/build/src/user-config.jam
-                     && ./b2 -d 0 cxxflags=\"-std=c++17\" --toolset=gcc -""" + str(gccVer) +  """ -j {num_cores} install
+                     && ./b2 -d 0 cxxflags=\"-std=c++17\" linkflags=\"-Wl,-rpath,{local_dir}/lib -headerpad_max_install_names\" --toolset=gcc -""" + str(gccVer) +  """ -j {num_cores} install
                      """ + installNameToolCmd
                 else:
                     buildCmd = """./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
@@ -1534,7 +1562,7 @@ class Packages():
                 if Utils.isMac():
                     buildCmd = "cp " + gccJamLoc + "  " + gccJamOutLoc + """ && echo "using gcc :  : g++ : <linker-type>darwin ;" >> tools/build/src/user-config.jam
                      && ./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
-                     && ./b2 -d 0 cxxflags=\"-std=c++17\" --toolset=gcc  -j {num_cores} install
+                     && ./b2 -d 0 cxxflags=\"-std=c++17\" linkflags=\"-Wl,-rpath,{local_dir}/lib -headerpad_max_install_names\" --toolset=gcc  -j {num_cores} install
                      """ + installNameToolCmd
                 else:
                     buildCmd = """./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
@@ -1596,6 +1624,9 @@ class Packages():
             && if [ -f {local_dir}/lib/libboost_atomic.dylib ]; then install_name_tool -id {local_dir}/lib/libboost_atomic.dylib {local_dir}/lib/libboost_atomic.dylib; fi
             """
             #print(installNameToolCmd)
+        # print("Utils.isMac()")
+        # print(Utils.isMac())
+        # sys.exit(1)
         if self.args.clang:
             if Utils.isMac():
                 buildCmd = """./bootstrap.sh --with-toolset=clang --prefix={local_dir} --with-libraries=""" + boostLibs + """
@@ -1609,7 +1640,7 @@ class Packages():
                 if Utils.isMac():
                     buildCmd = "cp " + gccJamLoc + "  " + gccJamOutLoc + """ && ./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
                      && echo "using gcc : """ + str(gccVer) + """ : {CXX} : <linker-type>darwin ;" >> tools/build/src/user-config.jam
-                     && ./b2 -d 0 cxxflags=\"-std=c++17\" linkflags=\"-Wl,-rpath,{local_dir}/lib\" --toolset=gcc -""" + str(gccVer) +  """ -j {num_cores} install
+                     && ./b2 -d 0 cxxflags=\"-std=c++17\" linkflags=\"-Wl,-rpath,{local_dir}/lib -headerpad_max_install_names\" --toolset=gcc -""" + str(gccVer) +  """ -j {num_cores} install
                      """ + installNameToolCmd
                 else:
                     buildCmd = """./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
@@ -1620,7 +1651,7 @@ class Packages():
                 if Utils.isMac():
                     buildCmd = "cp " + gccJamLoc + "  " + gccJamOutLoc + """ && echo "using gcc :  : g++ : <linker-type>darwin ;" >> tools/build/src/user-config.jam
                      && ./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
-                     && ./b2 -d 0 cxxflags=\"-std=c++17\" linkflags=\"-Wl,-rpath,{local_dir}/lib\" --toolset=gcc  -j {num_cores} install
+                     && ./b2 -d 0 cxxflags=\"-std=c++17\" linkflags=\"-Wl,-rpath,{local_dir}/lib -headerpad_max_install_names\" --toolset=gcc  -j {num_cores} install
                      """ + installNameToolCmd
                 else:
                     buildCmd = """./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
@@ -1681,18 +1712,18 @@ class Packages():
                 if Utils.isMac():
                     buildCmd = "cp " + gccJamLoc + "  " + gccJamOutLoc + """ && ./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
                      && echo "using gcc : """ + str(gccVer) + """ : {CXX} : <linker-type>darwin ;" >> tools/build/src/user-config.jam
-                     && ./b2 -d 0 cxxflags=\"-std=c++17\" --toolset=gcc -""" + str(gccVer) +  """ -j {num_cores} install
+                     && ./b2 -d 0 cxxflags=\"-std=c++17\" linkflags=\"-headerpad_max_install_names\" --toolset=gcc-""" + str(gccVer) +  """ -j {num_cores} install
                      """ + installNameToolCmd
                 else:
                     buildCmd = """./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
                      && echo "using gcc : """ + str(gccVer) + """ : {CXX} ;" >> tools/build/src/user-config.jam
-                     && ./b2 -d 0 cxxflags=\"-std=c++17\" --toolset=gcc -""" + str(gccVer) +  """ -j {num_cores} install
+                     && ./b2 -d 0 cxxflags=\"-std=c++17\" --toolset=gcc-""" + str(gccVer) +  """ -j {num_cores} install
                      """
             else:
                 if Utils.isMac():
                     buildCmd = "cp " + gccJamLoc + "  " + gccJamOutLoc + """ && echo "using gcc :  : g++ : <linker-type>darwin ;" >> tools/build/src/user-config.jam
                      && ./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
-                     && ./b2 -d 0 cxxflags=\"-std=c++17\" --toolset=gcc  -j {num_cores} install
+                     && ./b2 -d 0 cxxflags=\"-std=c++17\" linkflags=\"-headerpad_max_install_names\" --toolset=gcc  -j {num_cores} install
                      """ + installNameToolCmd
                 else:
                     buildCmd = """./bootstrap.sh --with-toolset=gcc --prefix={local_dir} --with-libraries=""" + boostLibs + """
@@ -1966,6 +1997,7 @@ class Setup:
 
                        "cppitertools": self.cppitertools,
                        "catch": self.catch,
+                       "catch2": self.catch2,
                        "cppprogutils": self.cppprogutils,
                        "r": self.r,
                        "bamtools": self.bamtools,
@@ -2647,6 +2679,9 @@ class Setup:
 
     def catch(self, version):
         self.__defaultBuild("catch", version)
+
+    def catch2(self, version):
+        self.__defaultBuild("catch2", version)
 
     def mathgl(self, version):
         self.__defaultBuild("mathgl", version)

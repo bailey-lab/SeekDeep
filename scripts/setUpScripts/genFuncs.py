@@ -11,7 +11,7 @@ class genHelper:
                          "R","BAMTOOLS","CPPCMS","MATHGL","ARMADILLO",
                          "MLPACK","LIBLINEAR","CURL","GTKMM", "NJHSEQ",
                           "NJHCPP", "SEEKDEEP",
-                         "NJHSEQDEV", "SEEKDEEPDEV", "CATCH", "JSONCPP",
+                         "NJHSEQDEV", "SEEKDEEPDEV", "CATCH", "CATCH2", "JSONCPP",
                           "TWOBIT", "SEQSERVER","NJHRINSIDE", "PSTREAMS",
                            "MONGOC", "MONGOCXX", "SHAREDMUTEX",
                            "MAGIC", "HTS", "RESTBED", "LIBPCA", "BOOST_FILESYSTEM","BOOST_MATH",
