@@ -411,11 +411,28 @@ cluster getConsensusWithAReCalc(const std::vector<T> & reads, aligner & alignerO
   if(reads.empty()){
     return {};
   }
-  cluster mainCluster(getSeqBase(*reads.begin()));
+  //seed with the read closest to the median length, ties go to the earlier read
+  std::vector<uint64_t> lens;
+  lens.reserve(reads.size());
+  for(const auto & read : reads){
+    lens.emplace_back(len(getSeqBase(read)));
+  }
+  std::sort(lens.begin(), lens.end());
+  const double medianLen = 1 == lens.size() % 2 ? lens[lens.size() / 2] : (lens[lens.size() / 2 - 1] + lens[lens.size() / 2]) / 2.0;
+  uint64_t seedPos = 0;
+  for(const auto readPos : iter::range<uint64_t>(1,reads.size())){
+    if(std::abs(static_cast<double>(len(getSeqBase(reads[readPos]))) - medianLen) <
+       std::abs(static_cast<double>(len(getSeqBase(reads[seedPos]))) - medianLen)){
+      seedPos = readPos;
+    }
+  }
+  cluster mainCluster(getSeqBase(reads[seedPos]));
   if(reads.size() > 1){
     std::vector<cluster> inClusters;
-    for(const auto readPos : iter::range<uint64_t>(1,reads.size())){
-      inClusters.emplace_back(cluster(getSeqBase(reads[readPos])));
+    for(const auto readPos : iter::range<uint64_t>(reads.size())){
+      if(readPos != seedPos){
+        inClusters.emplace_back(cluster(getSeqBase(reads[readPos])));
+      }
     }
     for(const auto & clus : inClusters){
       mainCluster.addRead(clus);
