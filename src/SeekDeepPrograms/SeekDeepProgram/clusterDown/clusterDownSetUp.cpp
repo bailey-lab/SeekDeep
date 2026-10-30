@@ -217,6 +217,16 @@ void SeekDeepSetUp::setUpClusterDown(clusterDownPars & pars) {
 
 	setOption(pars.breakoutPars.hardCutOff, "--snpBreakoutMinGroupSize", "A hard cut off for when breaking out clusters, clusters that larger(non-inclusive) than this are broken out");
 	setOption(pars.breakoutPars.snpFreqCutOff, "--snpFreqCutOff", "Cut off for when breaking out snp frequencies");
+	setOption(pars.breakoutPars.strandBiasPValueCutOff, "--snpBreakoutStrandBiasPValueCutOff", "When a cluster has reads from both directions, snps whose reverse complement read count is less likely than this (two sided binomial p-value) given the cluster's composition aren't used to breakout clusters");
+	setOption(pars.breakoutPars.useErrorModel, "--snpBreakoutErrorModel", "Instead of the snp count and frequency cut offs, use snps whose read count is significantly more than the cluster's background error rate gives (upper tail binomial test)");
+	setOption(pars.breakoutPars.errorModelPValueCutOff, "--snpBreakoutErrorModelPValueCutOff", "Error model p-value cut off, bonferroni corrected for the number of positions and alternative bases");
+	setOption(pars.breakoutPars.errorModelQuantile, "--snpBreakoutErrorModelQuantile", "Error model background error rate is this quantile of the mismatch rates of every position and alternative base");
+	setOption(pars.breakoutPars.errorModelMinErrorRate, "--snpBreakoutErrorModelMinErrorRate", "Error model background error rate is at least this");
+	setOption(pars.breakoutPars.errorModelMinCount, "--snpBreakoutErrorModelMinCount", "With the error model a snp still needs at least this many reads");
+	setOption(pars.breakoutPars.errorModelAsFilter, "--snpBreakoutErrorModelFilter", "Use the error model as an extra filter, snps also have to pass the snp count and frequency cut offs (turns on --snpBreakoutErrorModel)");
+	if (pars.breakoutPars.errorModelAsFilter) {
+		pars.breakoutPars.useErrorModel = true;
+	}
 
 	bool needsParFlag = true;
 

@@ -123,7 +123,7 @@ int SeekDeepUtilsRunner::getPossibleSampleNamesFromRawInput(const njh::progutils
 	setUp.setOption(pars.illuminaInputFilePat, "--illuminaInputFilePat", "The input file pattern for illumina files, everything in the first capture will be treated as the actual name of the file");
 	setUp.setOption(pars.technology, "--technology", "Technology, for nanopore or pacbio a per file report of the names is written and duplicate names are warned about");
 	stringToLower(pars.technology);
-	bool ignoreSamplesSet = setUp.setOption(pars.ignoreSamples, "--ignoreSamples", "Ignore these Samples if found, for nanopore/pacbio defaults to " + njh::conToStr(singleEndPars.ignoreSamples, ","));
+	bool ignoreSamplesSet = setUp.setOption(pars.ignoreSamples, "--ignoreSamples", "Ignore these Samples if found, for nanopore/pacbio defaults to " + njh::conToStr(singleEndPars.ignoreSamples, ",") + " and also ignores files within directories of these names");
 	setUp.setOption(pars.replicatePattern, "--replicatePattern", "Replicate Pattern to match on to indicate replicates when guessing sample names, should have two groups e.g. (.*)(-rep.*)");
 	//per file naming options for nanopore/pacbio
 	setUp.setOption(singleEndPars.doNotUseBamSM, "--doNotUseBamSM", "nanopore/pacbio, name bams by their file name rather than the SM of their read group");

@@ -49,6 +49,12 @@ uint32_t writeRawInputSampleNamesPerFile(const RawInputSampleNamesPars & pars, s
 		if (njh::in(input.baseName_, pars.ignoreSamples)) {
 			input.status_ = "ignored";
 		}
+		// demultiplexers write unassigned reads to e.g. bam_pass/unclassified/ with no SM and a run specific file name, so check the directories too
+		for (const auto & dir : input.relPath_.parent_path()) {
+			if (njh::in(dir.string(), pars.ignoreSamples)) {
+				input.status_ = "ignored";
+			}
+		}
 		inputs.emplace_back(input);
 	}
 

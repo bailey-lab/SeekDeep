@@ -796,7 +796,16 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
   setUp.setOption(pars.breakoutPars.snpFreqCutOff, "--snpFreqCutOff", "Cut off for when breaking out snp frequencies");
   setUp.setOption(pars.breakoutPars.hardSnpFreqCutOff, "--hardSnpFreqCutOff", "Hard SNP Freq Cut Off");
   setUp.setOption(pars.breakoutPars.minSnps, "--snpBreakoutMinSnps", "SNP Breakout Min Snps");
-  setUp.setOption(pars.breakoutPars.rev_comp_composition_cut_off, "--snp_breakout_rev_comp_composition_cut_off", "snp breakout rev comp composition cut off");
+  setUp.setOption(pars.breakoutPars.strandBiasPValueCutOff, "--snpBreakoutStrandBiasPValueCutOff", "When a cluster has reads from both directions, snps whose reverse complement read count is less likely than this (two sided binomial p-value) given the cluster's composition aren't used to breakout clusters");
+  setUp.setOption(pars.breakoutPars.useErrorModel, "--snpBreakoutErrorModel", "Instead of the snp count and frequency cut offs, use snps whose read count is significantly more than the cluster's background error rate gives (upper tail binomial test)");
+  setUp.setOption(pars.breakoutPars.errorModelPValueCutOff, "--snpBreakoutErrorModelPValueCutOff", "Error model p-value cut off, bonferroni corrected for the number of positions and alternative bases");
+  setUp.setOption(pars.breakoutPars.errorModelQuantile, "--snpBreakoutErrorModelQuantile", "Error model background error rate is this quantile of the mismatch rates of every position and alternative base");
+  setUp.setOption(pars.breakoutPars.errorModelMinErrorRate, "--snpBreakoutErrorModelMinErrorRate", "Error model background error rate is at least this");
+  setUp.setOption(pars.breakoutPars.errorModelMinCount, "--snpBreakoutErrorModelMinCount", "With the error model a snp still needs at least this many reads");
+  setUp.setOption(pars.breakoutPars.errorModelAsFilter, "--snpBreakoutErrorModelFilter", "Use the error model as an extra filter, snps also have to pass the snp count and frequency cut offs (turns on --snpBreakoutErrorModel)");
+  if (pars.breakoutPars.errorModelAsFilter) {
+    pars.breakoutPars.useErrorModel = true;
+  }
 
   setUp. setOption(pars.collapsingTandems, "--collapseTandems", "Collapsing clusters if they only differ by gaps in tandem repeats");
   setUp.setOption(pars.collapseTandemPars.freqCutoff, "--collapseTandemsFreqMultiplier", "When collapse tandem repeat gaps, larger cluster's frequency must be this many times the frequency of the smaller cluster");
@@ -2266,7 +2275,9 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
           tiesInfo << vectorToString(refNames, ",") << "\n";
         }
       }
-      SeqOutput::write(tiesObj, SeqIOOptions(mappingDir + "ties", setUp.pars_.ioOptions_.outFormat_,setUp.pars_.ioOptions_.out_));
+      if(pars.development) {
+        SeqOutput::write(tiesObj, SeqIOOptions(mappingDir + "ties", setUp.pars_.ioOptions_.outFormat_,setUp.pars_.ioOptions_.out_));
+      }
       unmappableAmount = std::accumulate(unmappable.begin(),
                                          unmappable.end(), 0.0,
                                          [](double init, const seqInfo & seq) {return init + seq.cnt_;});
