@@ -29,6 +29,7 @@
 #include <njhseq/objects/kmer/SimpleKmerHash.hpp>
 #include <njhseq/objects/dataContainers/tables/TableReader.hpp>
 #include <njhseq/objects/kmer/KmerGatherer.hpp>
+#include <njhseq/objects/kmer/KmerCollectionIO.hpp>
 
 
 namespace njhseq {
@@ -474,22 +475,8 @@ void PrimersAndMids::genKmerCountsFromRefSeqs(uint32_t kmerLen) {
 
 
 uint32_t PrimersAndMids::addKmerCounts(const bfs::path & kmersPerTargetFnp, bool ignoreMissingTargets){
-  allKmersPerTarget_.clear();
   uint32_t klen = 0;
-  {
-    TableReader uniqKmers(TableIOOpts::genTabFileIn(kmersPerTargetFnp, false));
-    if(uniqKmers.header_.nCol() < 2){
-      std::stringstream ss;
-      ss << __PRETTY_FUNCTION__ << ", error " << "need to have 2 columns" << "\n";
-      throw std::runtime_error{ss.str()};
-    }
-  	SimpleKmerHash hasher;
-    VecStr row;
-    while(uniqKmers.getNextRow(row)){
-      klen = row[1].size();
-      allKmersPerTarget_[row[0]].emplace(hasher.hash(row[1]));
-    }
-  }
+  allKmersPerTarget_ = KmerCollectionIO::readHashedCollections(kmersPerTargetFnp, klen);
   uniqueKmersToTargetPerTarget_ = KmerGatherer::filterToKmersUniqueToEachCollection(allKmersPerTarget_);
   VecStr missingTargets;
   for(const auto & name : getVectorOfMapKeys(targets_)){

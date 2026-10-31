@@ -97,8 +97,8 @@ void TarAmpSeqInvestigator::investigateSeq(const seqInfo & forwardSeq, const seq
 				//matched
 				complement = true;
 				reversePrimerName = revPosOther.primerName_;
-				if(0 != revPos.start_ ){
-					reversePrimerPrcedingBases = forwardSeq.seq_.substr(0, revPos.start_);
+				if(0 != revPosOther.start_ ){
+					reversePrimerPrcedingBases = forwardSeq.seq_.substr(0, revPosOther.start_);
 				}
 			}else{
 				//unmatched
@@ -521,9 +521,15 @@ TarAmpSeqInvestigator::prepareForInvestiagteFileRes TarAmpSeqInvestigator::prepa
 void TarAmpSeqInvestigator::investigateFile(const SeqIOOptions & opts, const prepareForInvestiagteFileRes & counts){
 	// create aligner for primer identification
 	auto scoreMatrix = substituteMatrix::createDegenScoreMatrixNoNInRef(2, -2);
-	//to avoid allocating an extremely large aligner matrix;
-	aligner alignObj(counts.maxReadSize, pars_.gapInfo_, scoreMatrix);
+	//primers are only aligned against the start of each read, so the aligner only needs to fit that window or the longest primer
+	const auto & pDetPars = pars_.pars.corePars_.pDetPars;
+	const uint64_t maxPrimerSize = ids_.pDeterminator_->getMaxPrimerSize();
+	const uint64_t primerWindowSize = pDetPars.primerStart_ + pDetPars.primerWithin_ + maxPrimerSize + 5;
+	aligner alignObj(std::max<uint64_t>(maxPrimerSize, std::min<uint64_t>(counts.maxReadSize, primerWindowSize)), pars_.gapInfo_, scoreMatrix);
 	njh::randomGenerator rgen;
+	if (pars_.randomSeedSet_) {
+		rgen.seedNum(pars_.randomSeed_);
+	}
 	std::function<bool()> processRead;
 	if (pars_.testNumber >= counts.readCount) {
 		processRead = [] {

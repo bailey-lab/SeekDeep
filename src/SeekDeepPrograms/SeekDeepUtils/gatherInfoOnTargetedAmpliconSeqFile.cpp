@@ -29,6 +29,7 @@ int SeekDeepUtilsRunner::gatherInfoOnTargetedAmpliconSeqFile(
 
   setUp.setOption(investPars.testNumber, "--testNumber", "Just use this number of reads of the top of the file");
 	setUp.setOption(tar_amp_pars.numberOfFilesToInvestigate, "--numberOfFilesToInvestigate", "Number of files to investigate when adding additional recommended flags", false, "Extra Commands");
+	investPars.randomSeedSet_ = setUp.setOption(investPars.randomSeed_, "--seed", "Seed for randomly picking the files and reads to investigate, so runs can be repeated");
 
 	setUp.setOption(investPars.dontCollapsePossibleMIDs, "--dontCollapsePossibleMIDs",
 			"Don't Collapse Possible MIDs", false);
@@ -159,33 +160,29 @@ int SeekDeepUtilsRunner::gatherInfoOnTargetedAmpliconSeqFile(
 		//investigate input seq files to recommend
 		std::vector<SeqIOOptions> filesToInvestigate;
 		njh::randomGenerator rgen;
+		if (investPars.randomSeedSet_) {
+			rgen.seedNum(investPars.randomSeed_);
+		}
 
 		if (tar_amp_pars.techIsIllumina()) {
-			double fractionToBeat = tar_amp_pars.numberOfFilesToInvestigate/static_cast<double>(readsByPairs.size());
 			for (const auto& pair: readsByPairs) {
-				if (rgen.unifRand() <= fractionToBeat) {
-					if (njh::endsWith(pair.second.first.front(), ".gz")) {
-						filesToInvestigate.emplace_back(
-							SeqIOOptions::genPairedInGz(bfs::path(pair.second.first.front()), bfs::path(pair.second.second.front())));
-					} else {
-						filesToInvestigate.emplace_back(
-							SeqIOOptions::genPairedIn(bfs::path(pair.second.first.front()), bfs::path(pair.second.second.front())));
-					}
-					if (filesToInvestigate.size() > tar_amp_pars.numberOfFilesToInvestigate) {
-						break;
-					}
+				if (njh::endsWith(pair.second.first.front(), ".gz")) {
+					filesToInvestigate.emplace_back(
+						SeqIOOptions::genPairedInGz(bfs::path(pair.second.first.front()), bfs::path(pair.second.second.front())));
+				} else {
+					filesToInvestigate.emplace_back(
+						SeqIOOptions::genPairedIn(bfs::path(pair.second.first.front()), bfs::path(pair.second.second.front())));
 				}
 			}
 		} else {
-			double fractionToBeat = tar_amp_pars.numberOfFilesToInvestigate/static_cast<double>(filesByPossibleName.size());
 			for (const auto& file: filesByPossibleName) {
-				if (rgen.unifRand() <= fractionToBeat) {
-					filesToInvestigate.emplace_back(file.second, SeqIOOptions::getInFormatFromFnpExcludePaired(file.second), false);
-					if (filesToInvestigate.size() > tar_amp_pars.numberOfFilesToInvestigate) {
-						break;
-					}
-				}
+				filesToInvestigate.emplace_back(file.second, SeqIOOptions::getInFormatFromFnpExcludePaired(file.second), false);
 			}
+		}
+		//investigate numberOfFilesToInvestigate files picked at random, or all of them if there are fewer
+		std::shuffle(filesToInvestigate.begin(), filesToInvestigate.end(), rgen.mtGen_);
+		if (filesToInvestigate.size() > tar_amp_pars.numberOfFilesToInvestigate) {
+			filesToInvestigate.resize(tar_amp_pars.numberOfFilesToInvestigate);
 		}
 		njh::concurrent::LockableQueue<SeqIOOptions> optsQueue(filesToInvestigate);
 		std::function investigateFile = [&optsQueue,&investPars,&masterInvesMut,&masterInvestigator,&investigate](){

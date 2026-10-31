@@ -34,6 +34,8 @@ public:
     uint32_t max_len_to_investigate = 10000;
 		gapScoringParameters gapInfo_;
 		double fracUndeterminedToTriggerRecount_ = 0.50;
+		uint64_t randomSeed_ = 0; //seed for sampling reads when a file has more than testNumber reads
+		bool randomSeedSet_ = false; //whether randomSeed_ was given, otherwise a random seed is used
 		bool verbose_ = false;
 		TarAmpSeqInvestigatorPars();
 	};

@@ -7,6 +7,7 @@
 
 
 #include <njhseq/objects/kmer/KmerGatherer.hpp>
+#include <njhseq/objects/kmer/KmerCollectionIO.hpp>
 #include <njhseq/objects/kmer/SimpleKmerHash.hpp>
 
 
@@ -154,32 +155,24 @@ int SeekDeepUtilsRunner::genTargetInfoFromGenomes(const njh::progutils::CmdArgs 
     setUp.rLog_.runLogFile_.flush();
 
 		{
-    	SimpleKmerHash hasher;
     	OutputStream out(njh::files::make_path(forSeekDeepDir, "allKmers.tab.txt.gz"));
     	OutputStream outInfo(njh::files::make_path(forSeekDeepDir, "allKmersCounts.tsv"));
     	outInfo << "target\tKmerCount" << std::endl;
     	for(const auto & kmersForSet : kmersPerSet){
     		outInfo << kmersForSet.first << "\t" << kmersForSet.second.size() << std::endl;
-    		for(const auto & kmer : kmersForSet.second){
-    			out << kmersForSet.first
-							<< "\t" << hasher.reverseHash(kmer) << "\n";
-    		}
+    		KmerCollectionIO::writeHashedCollection(out, kmersForSet.first, kmersForSet.second);
     	}
 		}
 
     auto uniqueKmersFinal = KmerGatherer::filterToKmersUniqueToEachCollection(kmersPerSet);
 
     {
-    	SimpleKmerHash hasher;
     	OutputStream out(njh::files::make_path(forSeekDeepDir, "uniqueKmers.tab.txt.gz"));
     	OutputStream outInfo(njh::files::make_path(forSeekDeepDir, "uniqueKmersCounts.tsv"));
     	outInfo << "target\tuniqueKmerCount" << std::endl;
     	for(const auto & kmersForSet : uniqueKmersFinal){
     		outInfo << kmersForSet.first << "\t" << kmersForSet.second.size() << std::endl;
-    		for(const auto & kmer : kmersForSet.second){
-    			out << kmersForSet.first
-							<< "\t" << hasher.reverseHash(kmer) << "\n";
-    		}
+    		KmerCollectionIO::writeHashedCollection(out, kmersForSet.first, kmersForSet.second);
     	}
     }
   }
