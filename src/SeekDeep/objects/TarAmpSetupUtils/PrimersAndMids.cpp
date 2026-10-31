@@ -300,7 +300,7 @@ table PrimersAndMids::genLenCutOffs(const VecStr & targets) const {
 	return ret;
 }
 
-table PrimersAndMids::genUniqKmerCounts(const VecStr & targets) const {
+table PrimersAndMids::genKmerCounts(const VecStr & targets) const {
 	table outTab(VecStr{"set", "kmer"});
 	outTab.hasHeader_ = false;
 	SimpleKmerHash hasher;
@@ -311,7 +311,7 @@ table PrimersAndMids::genUniqKmerCounts(const VecStr & targets) const {
 				 << std::endl;
 			throw std::runtime_error { ss.str() };
 		}
-		for(const auto hashedKmer : uniqueKmersPerTarget_.at(tar)){
+		for(const auto hashedKmer : allKmersPerTarget_.at(tar)){
 			outTab.addRow(tar, hasher.reverseHash(hashedKmer));
 		}
 	}
@@ -446,7 +446,7 @@ void PrimersAndMids::initPrimerDeterminator(){
 	pDeterminator_ = std::make_unique<PrimerDeterminator>(pInfos);
 }
 
-void PrimersAndMids::genUniqKmerCountsFromRefSeqs(uint32_t kmerLen) {
+void PrimersAndMids::genKmerCountsFromRefSeqs(uint32_t kmerLen) {
 
 	VecStr missingRefSeqs;
 	std::unordered_map<std::string, std::vector<seqInfo>> refSeqs;
@@ -467,16 +467,17 @@ void PrimersAndMids::genUniqKmerCountsFromRefSeqs(uint32_t kmerLen) {
 	kgatpars.allUpper_ = true;
 	kgatpars.noRevComp_ = true;
 	KmerGatherer kgat(kgatpars);
-	uniqueKmersPerTarget_ = kgat.getUniqueKmersSetHash(refSeqs);
+	allKmersPerTarget_ = kgat.getHashedKmerCollectionsFromSeqs(refSeqs);
+	uniqueKmersToTargetPerTarget_ = KmerGatherer::filterToKmersUniqueToEachCollection(allKmersPerTarget_);
 }
 
 
 
-uint32_t PrimersAndMids::addUniqKmerCounts(const bfs::path & uniqueKmersPerTargetFnp, bool ignoreMissingTargets){
-  uniqueKmersPerTarget_.clear();
+uint32_t PrimersAndMids::addKmerCounts(const bfs::path & kmersPerTargetFnp, bool ignoreMissingTargets){
+  allKmersPerTarget_.clear();
   uint32_t klen = 0;
   {
-    TableReader uniqKmers(TableIOOpts::genTabFileIn(uniqueKmersPerTargetFnp, false));
+    TableReader uniqKmers(TableIOOpts::genTabFileIn(kmersPerTargetFnp, false));
     if(uniqKmers.header_.nCol() < 2){
       std::stringstream ss;
       ss << __PRETTY_FUNCTION__ << ", error " << "need to have 2 columns" << "\n";
@@ -486,24 +487,25 @@ uint32_t PrimersAndMids::addUniqKmerCounts(const bfs::path & uniqueKmersPerTarge
     VecStr row;
     while(uniqKmers.getNextRow(row)){
       klen = row[1].size();
-      uniqueKmersPerTarget_[row[0]].emplace(hasher.hash(row[1]));
+      allKmersPerTarget_[row[0]].emplace(hasher.hash(row[1]));
     }
   }
+  uniqueKmersToTargetPerTarget_ = KmerGatherer::filterToKmersUniqueToEachCollection(allKmersPerTarget_);
   VecStr missingTargets;
   for(const auto & name : getVectorOfMapKeys(targets_)){
-    if(!njh::in(name, uniqueKmersPerTarget_)){
+    if(!njh::in(name, allKmersPerTarget_)){
       missingTargets.emplace_back(name);
     }
   }
 
   if(!ignoreMissingTargets && !missingTargets.empty()){
     std::stringstream ss;
-    ss << __PRETTY_FUNCTION__ << ", error " << "missing the following targets from the unique kmer sets: " << njh::conToStr(missingTargets) << "\n";
+    ss << __PRETTY_FUNCTION__ << ", error " << "missing the following targets from the kmer sets: " << njh::conToStr(missingTargets) << "\n";
     throw std::runtime_error { ss.str() };
   }
 
 	VecStr addKmerTargetsButMissingFromTars;
-	for(const auto & name : getVectorOfMapKeys(uniqueKmersPerTarget_)){
+	for(const auto & name : getVectorOfMapKeys(allKmersPerTarget_)){
 		if(!njh::in(name, targets_)){
 			addKmerTargetsButMissingFromTars.emplace_back(name);
 		}
@@ -511,7 +513,7 @@ uint32_t PrimersAndMids::addUniqKmerCounts(const bfs::path & uniqueKmersPerTarge
 
 	if(!ignoreMissingTargets && !addKmerTargetsButMissingFromTars.empty()){
 		std::stringstream ss;
-		ss << __PRETTY_FUNCTION__ << ", error " << "unique kmer sets added for the following targets but no info for them in targets_ : " << njh::conToStr(addKmerTargetsButMissingFromTars) << "\n";
+		ss << __PRETTY_FUNCTION__ << ", error " << "kmer sets added for the following targets but no info for them in targets_ : " << njh::conToStr(addKmerTargetsButMissingFromTars) << "\n";
 		throw std::runtime_error { ss.str() };
 	}
 

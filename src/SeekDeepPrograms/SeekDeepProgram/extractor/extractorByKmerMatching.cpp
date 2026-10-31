@@ -5,6 +5,7 @@
 
 #include <njhseq/objects/kmer/SimpleKmerHash.hpp>
 #include <njhseq/objects/kmer/KmerSetInvertedIndex.hpp>
+#include <njhseq/objects/kmer/KmerCollectionReadMatcher.hpp>
 
 namespace njhseq {
 
@@ -139,18 +140,14 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
   if(!refSeqDir.empty()){
     ids.addRefSeqs(refSeqDir);
   }
-  uint32_t extractionKmer = ids.addUniqKmerCounts(uniqueKmersPerTargetFnp, ignoreMissingKmerSets);
-  //the per-target table is loaded as given, with no cross-target uniqueness check, so whether the
-  //targets are exclusive is reported rather than assumed. A k-mer shared between targets counts
-  //toward every target holding it, so the counts are the same as probing each target in turn.
-  std::shared_ptr<const njhseq::KmerSetInvertedIndex> invIndex;
+  uint32_t extractionKmer = ids.addKmerCounts(uniqueKmersPerTargetFnp, ignoreMissingKmerSets);
+  //the table can hold all kmers per target (overlapping targets share kmers) or only unique kmers. All kmers pick the
+  //winning target and kmers unique to a target count how many targets a read hits. A shared kmer counts toward every
+  //target holding it.
+  const njhseq::KmerCollectionReadMatcher kmerMatcher(ids.allKmersPerTarget_, extractionKmer, useInvertedKmerIndex);
+  const auto & kmerTargetNames = kmerMatcher.names();
   if(useInvertedKmerIndex){
-    invIndex = njhseq::KmerSetInvertedIndex::get(ids.uniqueKmersPerTarget_);
-    if(nullptr != invIndex && !invIndex->usable(ids.uniqueKmersPerTarget_)){
-      invIndex = nullptr;
-    }
-  }
-  if(nullptr != invIndex){
+    auto invIndex = njhseq::KmerSetInvertedIndex::get(ids.allKmersPerTarget_);
     std::cout << "kmerSetExclusivity\tsets\t" << invIndex->nSets_
         << "\ttotalKmers\t" << invIndex->totalKmers_
         << "\tsharedKmers\t" << invIndex->nSharedKmers_
@@ -253,17 +250,17 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
 
   std::mutex mut;
   std::function<void()> readInComp = [&reader, &ids, &readsPerSet,&readsPerSetRevComp,&mut,
-                                      &extractionKmer,&seqOut,&sampleName,&rename,
+                                      &seqOut,&sampleName,&rename,
                                       &corePars,&alnPool,
                                       &qualChecker,
                                       &masterCounts,
                                       &perMidCounts,
                                       &hardKmersPerTarget,
                                       &kmerFracPerTarget,
-                                      &invIndex
+                                      &kmerMatcher,
+                                      &kmerTargetNames
                                       ]() {
     auto maxMidSize = ids.getMaxMIDSize() + 2;
-    SimpleKmerHash hasher;
     seqInfo seq;
     std::unordered_map<std::string, uint32_t> readsPerSetCurrent;
     std::unordered_map<std::string, uint32_t> readsPerSetRevCompCurrent;
@@ -271,6 +268,8 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
 
     ExtractionStator masterCountsCurrent;
     ExtractionStator perMidCountsCurrent;
+
+    auto kmerMatch = kmerMatcher.genMatch();
 
     auto currentAlignerObj = alnPool.popAligner();
     while(reader.readNextReadLock(seq)){
@@ -283,83 +282,25 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
         ++masterCountsCurrent.largeFrags_;
         continue;
       }
-      std::unordered_map<uint64_t, uint64_t> hashedInputKmers;
-      std::unordered_map<uint64_t, uint64_t> hashedInputKmersRevComp;
-      if(len(seq.seq_) > extractionKmer){
-        for(uint32_t pos = 0; pos < len(seq.seq_) - extractionKmer + 1; ++pos){
-          auto hash = hasher.hash(seq.seq_.substr(pos, extractionKmer));
-          ++hashedInputKmers[hash];
-        }
-      }
-      if(len(seq.seq_) > extractionKmer){
-        for(uint32_t pos = 0; pos < len(seq.seq_) - extractionKmer + 1; ++pos){
-          auto hash = hasher.revCompHash(seq.seq_.substr(pos, extractionKmer));
-          ++hashedInputKmersRevComp[hash];
-        }
-      }
-
-      std::unordered_map<std::string, uint32_t> foundPerSet;
-      std::unordered_map<std::string, uint32_t> foundPerSetRevComp;
-      for(const auto & setName  : njh::getVecOfMapKeys(ids.uniqueKmersPerTarget_)){
-        foundPerSet[setName] = 0;
-        foundPerSetRevComp[setName] = 0;
-      }
-      if(nullptr != invIndex){
-        for(const auto & hashedKmer : hashedInputKmers){
-          invIndex->tallyAll(hashedKmer.first, foundPerSet);
-        }
-        for(const auto & hashedKmer : hashedInputKmersRevComp){
-          invIndex->tallyAll(hashedKmer.first, foundPerSetRevComp);
-        }
-      } else {
-        for(const auto & hashedKmer : hashedInputKmers){
-          for(const auto & uniqueKmers : ids.uniqueKmersPerTarget_){
-            if(njh::in(hashedKmer.first, uniqueKmers.second)){
-              ++foundPerSet[uniqueKmers.first];
-            }
-          }
-        }
-        for(const auto & hashedKmer : hashedInputKmersRevComp){
-          for(const auto & uniqueKmers : ids.uniqueKmersPerTarget_){
-            if(njh::in(hashedKmer.first, uniqueKmers.second)){
-              ++foundPerSetRevComp[uniqueKmers.first];
-            }
-          }
-        }
-      }
+      //all kmers per target pick the winner, kmers unique to a target count the targets hit
+      kmerMatch.reset();
+      kmerMatcher.addKmers(seq.seq_, true, kmerMatch);
+      kmerMatcher.countFound(kmerMatch);
 
       //filter
-      for (auto & perSet : foundPerSet) {
-        if(perSet.second < hardKmersPerTarget || static_cast<double>(perSet.second)/static_cast<double>(hashedInputKmers.size()) <= kmerFracPerTarget) {
-          perSet.second = 0;
+      const double nInputKmers = static_cast<double>(kmerMatch.kmers.size());
+      for(auto * found : {&kmerMatch.found, &kmerMatch.foundRevComp, &kmerMatch.uniqueFound, &kmerMatch.uniqueFoundRevComp}){
+        for (auto & count : *found) {
+          if(count < hardKmersPerTarget || static_cast<double>(count)/nInputKmers <= kmerFracPerTarget) {
+            count = 0;
+          }
         }
       }
-
-      for (auto & perSet : foundPerSetRevComp) {
-        if(perSet.second < hardKmersPerTarget || static_cast<double>(perSet.second)/static_cast<double>(hashedInputKmers.size()) <= kmerFracPerTarget) {
-          perSet.second = 0;
-        }
-      }
-
-      std::string winnerSet = "undetermined";
-      double bestFrac = 0;
-      bool winnerRevComp = false;
-
-      uint32_t target_hit_count = 0;// doesn't take into account inverse hits, 1 target with large hits in forward and reverse
-      for(const auto & setName  : njh::getVecOfMapKeys(ids.uniqueKmersPerTarget_)){
-        if (foundPerSet[setName] >= hardKmersPerTarget || foundPerSetRevComp[setName] >= hardKmersPerTarget) {
-          ++target_hit_count;
-        }
-        if(static_cast<double>(foundPerSet[setName])/static_cast<double>(hashedInputKmers.size()) > bestFrac){
-          bestFrac = static_cast<double>(foundPerSet[setName])/static_cast<double>(hashedInputKmers.size());
-          winnerSet = setName;
-        }
-        if(static_cast<double>(foundPerSetRevComp[setName])/static_cast<double>(hashedInputKmers.size()) > bestFrac){
-          bestFrac = static_cast<double>(foundPerSetRevComp[setName])/static_cast<double>(hashedInputKmers.size());
-          winnerSet = setName;
-          winnerRevComp = true;
-        }
-      }
+      kmerMatcher.determineWinner(kmerMatch);
+      std::string winnerSet = kmerMatch.hasWinner() ? kmerTargetNames[kmerMatch.winnerIdx] : "undetermined";
+      const bool winnerRevComp = kmerMatch.winnerRevComp;
+      // doesn't take into account inverse hits, 1 target with large hits in forward and reverse
+      uint32_t target_hit_count = njhseq::KmerCollectionReadMatcher::countCollectionsHit(kmerMatch, hardKmersPerTarget);
       bool multi_hit = target_hit_count > 1;
       if (multi_hit) {
         winnerSet = "multihit";
@@ -392,7 +333,7 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
       auto extractorCase = ExtractionStator::extractCase::GOOD;
 
       //check for inverse hit (has hit of the same target in both the forward and reverse directions)
-      if (foundPerSet[winnerSet] >= hardKmersPerTarget && foundPerSetRevComp[winnerSet]  >= hardKmersPerTarget) {
+      if (kmerMatch.found[kmerMatch.winnerIdx] >= hardKmersPerTarget && kmerMatch.foundRevComp[kmerMatch.winnerIdx]  >= hardKmersPerTarget) {
         extractorCase = ExtractionStator::extractCase::INVERSECHIMERA;
         seq.on_ = false;
       }

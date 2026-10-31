@@ -207,7 +207,7 @@ TarAmpAnalysisSetup::TarAmpAnalysisSetup(TarAmpPars  inputPars) :
 	}
 
   if(!pars_.uniqueKmersPerTarget.empty()){
-    idsMids_->addUniqKmerCounts(pars_.uniqueKmersPerTarget);
+    idsMids_->addKmerCounts(pars_.uniqueKmersPerTarget);
   }
 
 	//add sample names
@@ -732,8 +732,8 @@ void TarAmpAnalysisSetup::writeOutIdFiles() {
 		auto lens = idsMids_->genLenCutOffs(tarCombo);
 		auto overlapStatuses = idsMids_->genOverlapStatuses(tarCombo);
 
-    if(!idsMids_->uniqueKmersPerTarget_.empty()){
-      auto uniqKmers = idsMids_->genUniqKmerCounts(tarCombo);
+    if(!idsMids_->allKmersPerTarget_.empty()){
+      auto uniqKmers = idsMids_->genKmerCounts(tarCombo);
       auto uniqKmersOutOpts = TableIOOpts::genTabFileOut(
           njh::files::make_path(idsDir_,
                                 collapseIdx + "_uniqueKmers.tab.txt.gz"));

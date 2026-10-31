@@ -95,7 +95,8 @@ public:
 	std::map<std::string, Target> targets_;
 	std::map<std::string, MidDeterminator::MID> mids_;
 
-  std::unordered_map<std::string, std::unordered_set<uint64_t>> uniqueKmersPerTarget_;
+  std::unordered_map<std::string, std::unordered_set<uint64_t>> allKmersPerTarget_;//!<all kmers found within a target, kmers can be shared between targets
+  std::unordered_map<std::string, std::unordered_set<uint64_t>> uniqueKmersToTargetPerTarget_;//!<kmers that are found only within a target and not shared with any other target, derived from allKmersPerTarget_
 
 
 	std::unique_ptr<MidDeterminator> mDeterminator_;
@@ -131,7 +132,7 @@ public:
 	[[nodiscard]] table genLenCutOffs(const VecStr & targets) const;
 	[[nodiscard]] table genOverlapStatuses(const VecStr & targets) const;
 
-  [[nodiscard]] table genUniqKmerCounts(const VecStr & targets) const;
+  [[nodiscard]] table genKmerCounts(const VecStr & targets) const;
 
 
 	[[nodiscard]] std::vector<seqInfo> getRefSeqs(const VecStr & targets) const;
@@ -144,9 +145,18 @@ public:
 
 	void addOverLapStatuses(const bfs::path& overlapStatuses);
 
-	uint32_t addUniqKmerCounts(const bfs::path& uniqueKmersPerTargetFnp, bool ignoreMissingTargets = false);
+	/**
+	 * @brief Read in the kmers per target into allKmersPerTarget_ and set uniqueKmersToTargetPerTarget_ from them
+	 * @param kmersPerTargetFnp table of 1)target,2)kmer, either all kmers per target or already unique kmers
+	 * @param ignoreMissingTargets don't throw if the table and targets_ don't have the same targets
+	 * @return the kmer length
+	 */
+	uint32_t addKmerCounts(const bfs::path& kmersPerTargetFnp, bool ignoreMissingTargets = false);
 
-	void genUniqKmerCountsFromRefSeqs(uint32_t kmerLen = 19);
+	/**
+	 * @brief Set allKmersPerTarget_ and uniqueKmersToTargetPerTarget_ from the forward strand of each target's reference seqs
+	 */
+	void genKmerCountsFromRefSeqs(uint32_t kmerLen = 19);
 
 	void addOverLapStatuses(const std::vector<PairedReadProcessor::ReadPairOverLapStatus>& allStatus);
 

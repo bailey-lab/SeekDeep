@@ -144,35 +144,12 @@ int SeekDeepUtilsRunner::genTargetInfoFromGenomes(const njh::progutils::CmdArgs 
       }
     }
     std::map<std::string, std::set<uint64_t>> kmersPerSet;
-
-		std::function<bool(const std::string &)> seqCheck = [&countPars](const std::string &k) {
-			return std::all_of(k.begin(), k.end(),
-												 [&countPars](char base) { return njh::in(base, countPars.allowableCharacters_); });
-		};
-
-
     {
-      auto allKmers = kGather.getUniqueKmersSetHashWithFiltersFromFastas(fastaFiles);
+      auto allKmers = kGather.getFilteredHashedKmerCollectionsFromFastas(fastaFiles);
       setUp.rLog_.logCurrentTime("condense");
       setUp.rLog_.runLogFile_.flush();
-      njh::concurrent::LockableQueue<std::string> seqSetNamesQueue(getVectorOfMapKeys(fastasForSet));
-      for(const auto & name : fastasForSet){
-        kmersPerSet[name.first] = std::set<uint64_t>{};
-      }
-      std::function<void()> condenseKmers = [&seqSetNamesQueue,&allKmers,&fastasForSet,&kmersPerSet](){
-        std::string name;
-        while(seqSetNamesQueue.getVal(name)){
-          SimpleKmerHash hasher;
-          for(const auto & fasta : fastasForSet.at(name)){
-            for(const auto & k : allKmers.at(fasta)){
-              kmersPerSet[name].emplace(k);
-            }
-          }
-        }
-      };
-      njh::concurrent::runVoidFunctionThreaded(condenseKmers, countPars.numThreads_);
+      kmersPerSet = KmerGatherer::condenseCollections(allKmers, fastasForSet);
     }
-    std::map<std::string, std::set<uint64_t>> uniqueKmersFinal;
     setUp.rLog_.logCurrentTime("compare");
     setUp.rLog_.runLogFile_.flush();
 
@@ -189,48 +166,8 @@ int SeekDeepUtilsRunner::genTargetInfoFromGenomes(const njh::progutils::CmdArgs 
     		}
     	}
 		}
-    for(const auto & kmersForSet : kmersPerSet){
-      uniqueKmersFinal[kmersForSet.first] = std::set<uint64_t>{};
-    }
-    {
 
-      auto namesFound = getVectorOfMapKeys(kmersPerSet);
-      if(namesFound.size() > 1){
-        njh::concurrent::LockableQueue<std::string> seqSetNamesQueue(namesFound);
-        std::function<void()> compareKmers = [&seqSetNamesQueue,&kmersPerSet,&uniqueKmersFinal](){
-          std::string name;
-          while(seqSetNamesQueue.getVal(name)){
-            std::set<uint64_t> uniqueKmers;
-            uint32_t count = 0;
-            for(const auto & otherSet : kmersPerSet){
-              if(otherSet.first == name){
-                continue;
-              }
-              if(0 == count){
-                std::vector<uint64_t> notShared;
-                std::set_difference(
-                    kmersPerSet.at(name).begin(), kmersPerSet.at(name).end(),
-                    otherSet.second.begin(), otherSet.second.end(),
-                    std::back_inserter(notShared));
-                uniqueKmers = njh::vecToSet(notShared);
-              }else{
-                std::vector<uint64_t> notShared;
-                std::set_difference(
-                    uniqueKmers.begin(), uniqueKmers.end(),
-                    otherSet.second.begin(), otherSet.second.end(),
-                    std::back_inserter(notShared));
-                uniqueKmers = njh::vecToSet(notShared);
-              }
-              ++count;
-            }
-            uniqueKmersFinal[name] = uniqueKmers;
-          }
-        };
-        njh::concurrent::runVoidFunctionThreaded(compareKmers, countPars.numThreads_);
-      }else if( namesFound.size() == 1){
-        uniqueKmersFinal[namesFound.front()] = kmersPerSet[namesFound.front()];
-      }
-    }
+    auto uniqueKmersFinal = KmerGatherer::filterToKmersUniqueToEachCollection(kmersPerSet);
 
     {
     	SimpleKmerHash hasher;
