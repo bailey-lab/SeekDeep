@@ -7,6 +7,226 @@
 
 namespace njhseq {
 
+namespace {
+
+/**
+ * \brief the amino acid three letter codes for a sequence with the first letter capitalized, e.g. "Asn" for N
+ * \param aas the amino acids
+ * \param allowX whether X/x is allowed and written as XXX
+ * \return the concatenated codes
+ */
+std::string aaTriCodeName(const std::string & aas, const bool allowX) {
+	std::string ret;
+	for (const auto c : aas) {
+		if (allowX && (c == 'X' || c == 'x')) {
+			ret += "XXX";
+		} else {
+			auto currentTriCode = aminoAcidInfo::infos::allInfo.at(c).triCode_;
+			currentTriCode[0] = static_cast<char>(toupper(currentTriCode[0]));
+			ret += currentTriCode;
+		}
+	}
+	return ret;
+}
+
+/**
+ * \brief write the amino acid changes table, a row for every sample for every allele of every protein variant record
+ * \param pvcf the combined protein vcf
+ * \param knownAAVariantRegions the known amino acid change locations, used for the Targeted column
+ * \param refInfoNextToAlt place the reference info next to each alternate's info rather than in its own row
+ * \param out the stream to write to
+ */
+void writeAAChangesInfoTable(const VCFOutput & pvcf,
+                             const std::vector<GenomicRegion> & knownAAVariantRegions,
+                             const bool refInfoNextToAlt,
+                             std::ostream & out) {
+	out << "Gene_ID"
+			<< "\t" << "Gene_Transcript_ID"
+			<< "\t" << "Gene"
+			<< "\t" << "Mutation_Name"
+			<< "\t" << "ExonicFunc"
+			<< "\t" << "AA_Change"
+			<< "\t" << "Targeted"
+			<< "\t" << "CoveredBy"
+			<< "\t" << "sample";
+	out << "\t" << "reference_AA_pos"
+	    << "\t" << "reference_AA";
+	if (refInfoNextToAlt) {
+		out << "\t" << "alternate_AA";
+		out << "\t" << "reference_AA_cnt"
+		    << "\t" << "reference_AA_freq"
+		    << "\t" << "alternate_AA_cnt"
+		    << "\t" << "alternate_AA_freq"
+		    << "\t" << "AA_withinSampleCoverage"
+		    << "\t" << "AlleleCount"
+		    << "\t" << "AlleleFrequency"
+		    << "\t" << "SampleCount"
+		    << "\t" << "SamplePrevalence";
+	} else {
+		out << "\t" << "AA"
+		    << "\t" << "is_reference"
+		    << "\t" << "AA_cnt"
+		    << "\t" << "AA_freq"
+		    << "\t" << "AA_withinSampleCoverage"
+		    << "\t" << "AlleleCount"
+		    << "\t" << "AlleleFrequency"
+		    << "\t" << "AlleleTotal"
+		    << "\t" << "SampleCount"
+		    << "\t" << "SamplePrevalence"
+		    << "\t" << "SampleTotal";
+	}
+	out << '\n';
+
+	auto getSampleField = [](const MetaDataInName & sampInfo, const std::string & field) -> const std::string & {
+		const auto search = sampInfo.meta_.find(field);
+		if (sampInfo.meta_.end() == search) {
+			//throws the missing field error
+			sampInfo.getMeta(field);
+		}
+		return search->second;
+	};
+	//the rows for a record are built here and written once per sample
+	std::string rows;
+	for (const auto & rec : pvcf.records_) {
+		std::string targeted = "No";
+		const auto genomicRegion = rec.genRegion();
+		for (const auto & knownRegion : knownAAVariantRegions) {
+			if (genomicRegion.overlaps(knownRegion)) {
+				targeted = "Yes";
+				break;
+			}
+		}
+		const auto TYPE = tokenizeString(rec.info_.getMeta("TYPE"), ",");
+		const auto ACs = tokenizeString(rec.info_.getMeta("AC_REAL"), ",");
+		const auto AFs = tokenizeString(rec.info_.getMeta("AF_REAL"), ",");
+		const auto SCs = tokenizeString(rec.info_.getMeta("SC"), ",");
+		const auto PREVs = tokenizeString(rec.info_.getMeta("PREV"), ",");
+		const auto geneID = rec.info_.getMeta("GeneID");
+		const auto geneName = rec.info_.getMeta("GeneName");
+		const auto coveredBy = rec.info_.getMeta("TARGET");
+		const auto refTriCodeName = aaTriCodeName(rec.ref_, false);
+		const auto pos = estd::to_string(rec.pos_);
+		//the columns before the sample name are the same for every sample
+		const std::string recordStart = geneID + "\t" + rec.chrom_ + "\t" + geneName + "\t";
+		const std::string recordEnd = "\t" + targeted + "\t" + coveredBy + "\t";
+
+		//per alt row parts
+		VecStr altRowStarts;
+		VecStr altRowMids;
+		VecStr altRowEnds;
+		for (const auto & altEnum : iter::enumerate(rec.alts_)) {
+			const auto & alt = altEnum.element;
+			const auto altTriCodeName = aaTriCodeName(alt, true);
+			std::string ExonicFunc;
+			if (TYPE[altEnum.index] == "snp") {
+				ExonicFunc = "missense_variant";
+			} else if (TYPE[altEnum.index] == "del") {
+				ExonicFunc = "conservative_inframe_deletion";
+			} else if (TYPE[altEnum.index] == "ins") {
+				ExonicFunc = "conservative_inframe_insertion";
+			}
+			altRowStarts.emplace_back(recordStart + njh::pasteAsStr(geneName, "-", refTriCodeName, rec.pos_, altTriCodeName)
+			                          + "\t" + ExonicFunc
+			                          + "\t" + njh::pasteAsStr(refTriCodeName, rec.pos_, altTriCodeName)
+			                          + recordEnd);
+			if (refInfoNextToAlt) {
+				altRowMids.emplace_back("\t" + pos + "\t" + rec.ref_ + "\t" + alt);
+				altRowEnds.emplace_back("\t" + ACs[altEnum.index] + "\t" + AFs[altEnum.index] + "\t" + SCs[altEnum.index] + "\t" + PREVs[altEnum.index] + '\n');
+			} else {
+				altRowMids.emplace_back("\t" + pos + "\t" + rec.ref_ + "\t" + alt + "\t" + "FALSE");
+			}
+		}
+
+		if (refInfoNextToAlt) {
+			for (const auto & sample : rec.sampleFormatInfos_) {
+				rows.clear();
+				const auto & DP = getSampleField(sample.second, "DP");
+				const auto sample_ADs = tokenizeString(getSampleField(sample.second, "AD"), ",");
+				const auto sample_AFs = tokenizeString(getSampleField(sample.second, "AF"), ",");
+				for (const auto altPos : iter::range(rec.alts_.size())) {
+					rows += altRowStarts[altPos];
+					rows += sample.first;
+					rows += altRowMids[altPos];
+					if ("." == DP) {
+						//no coverage
+						rows += "\t0\t0\t0\t0\t0";
+					} else {
+						rows += "\t" + sample_ADs[0] + "\t" + sample_AFs[0] + "\t" + sample_ADs[altPos + 1] + "\t" + sample_AFs[altPos + 1] + "\t" + DP;
+					}
+					rows += altRowEnds[altPos];
+				}
+				out << rows;
+			}
+			continue;
+		}
+
+		//reference counts
+		const auto AN = njh::StrToNumConverter::stoToNum<uint32_t>(rec.info_.getMeta("AN_REAL"));
+		const auto ref_AC = AN - vectorSum(vecStrToVecNum<uint32_t>(ACs));
+		const auto ref_AF = 1 - vectorSum(vecStrToVecNum<double>(AFs));
+		const auto NS = njh::StrToNumConverter::stoToNum<uint32_t>(rec.info_.getMeta("NS"));
+		uint32_t ref_SC = 0;
+		for (const auto & sample : rec.sampleFormatInfos_) {
+			const auto & DP = getSampleField(sample.second, "DP");
+			if ("." != DP) {
+				const auto sample_ADs = tokenizeString(getSampleField(sample.second, "AD"), ",");
+				if (njh::StrToNumConverter::stoToNum<uint32_t>(sample_ADs[0]) > 0) {
+					++ref_SC;
+				}
+			}
+		}
+		const double ref_PREV = ref_SC / static_cast<double>(NS);
+		const auto ANStr = estd::to_string(AN);
+		const auto NSStr = estd::to_string(NS);
+		for (const auto altPos : iter::range(rec.alts_.size())) {
+			altRowEnds.emplace_back("\t" + ACs[altPos] + "\t" + AFs[altPos] + "\t" + ANStr + "\t" + SCs[altPos] + "\t" + PREVs[altPos] + "\t" + NSStr + '\n');
+		}
+		const std::string refRowStart = recordStart + njh::pasteAsStr(geneName, "-", refTriCodeName, rec.pos_)
+		                                + "\t" + "NA"
+		                                + "\t" + njh::pasteAsStr(refTriCodeName, rec.pos_)
+		                                + recordEnd;
+		const std::string refRowMid = "\t" + pos + "\t" + rec.ref_ + "\t" + rec.ref_ + "\t" + "TRUE";
+		const std::string refRowEnd = "\t" + estd::to_string(ref_AC)
+		                              + "\t" + estd::to_string(ref_AF)
+		                              + "\t" + ANStr
+		                              + "\t" + estd::to_string(ref_SC)
+		                              + "\t" + estd::to_string(ref_PREV)
+		                              + "\t" + NSStr + '\n';
+		for (const auto & sample : rec.sampleFormatInfos_) {
+			rows.clear();
+			const auto & DP = getSampleField(sample.second, "DP");
+			const auto sample_ADs = tokenizeString(getSampleField(sample.second, "AD"), ",");
+			const auto sample_AFs = tokenizeString(getSampleField(sample.second, "AF"), ",");
+			for (const auto altPos : iter::range(rec.alts_.size())) {
+				rows += altRowStarts[altPos];
+				rows += sample.first;
+				rows += altRowMids[altPos];
+				if ("." == DP) {
+					//no coverage
+					rows += "\t0\t0\t0";
+				} else {
+					rows += "\t" + sample_ADs[altPos + 1] + "\t" + sample_AFs[altPos + 1] + "\t" + DP;
+				}
+				rows += altRowEnds[altPos];
+			}
+			//adding reference
+			rows += refRowStart;
+			rows += sample.first;
+			rows += refRowMid;
+			if ("." == DP) {
+				//no coverage
+				rows += "\t0\t0\t0";
+			} else {
+				rows += "\t" + sample_ADs[0] + "\t" + sample_AFs[0] + "\t" + DP;
+			}
+			rows += refRowEnd;
+			out << rows;
+		}
+	}
+}
+
+} // namespace
+
 int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 				const njh::progutils::CmdArgs &inputCommands) {
 	bfs::path resultsFnp;
@@ -653,306 +873,9 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 
 			firstPVcf.writeOutFixedAndSampleMeta(pvcfOutFile, knownAAVariantRegions);
 		}
-		if (aaSummaryRefInfoNextToAlt){
-			// aminoAcidInfo::infos::allInfo
+		{
 			OutputStream aminoAcidChangesTable(njh::files::make_path(reportsSummaryDir, "AAChangesInfo.tsv.gz"));
-			aminoAcidChangesTable << "Gene_ID"
-					<< "\t" << "Gene_Transcript_ID"
-					<< "\t" << "Gene"
-					<< "\t" << "Mutation_Name"
-					<< "\t" << "ExonicFunc"
-					<< "\t" << "AA_Change"
-					<< "\t" << "Targeted"
-					<< "\t" << "CoveredBy"
-					<< "\t" << "sample";
-			aminoAcidChangesTable << "\t" << "reference_AA_pos"
-			                      << "\t" << "reference_AA"
-			                      << "\t" << "alternate_AA";
-
-			aminoAcidChangesTable
-					<< "\t" << "reference_AA_cnt"
-			    << "\t" << "reference_AA_freq"
-					<< "\t" << "alternate_AA_cnt"
-					<< "\t" << "alternate_AA_freq"
-					<< "\t" << "AA_withinSampleCoverage"
-					<< "\t" << "AlleleCount"
-					<< "\t" << "AlleleFrequency"
-					<< "\t" << "SampleCount"
-					<< "\t" << "SamplePrevalence";
-			aminoAcidChangesTable << std::endl;
-			for(const auto & rec : firstPVcf.records_) {
-				std::string targeted = "No";
-
-				auto genomicRegion = rec.genRegion();
-				for(const auto & knownRegion : knownAAVariantRegions) {
-					if(genomicRegion.overlaps(knownRegion)) {
-						targeted = "Yes";
-						break;
-					}
-				}
-				for(const auto & sample : rec.sampleFormatInfos_) {
-
-					auto TYPE = tokenizeString(rec.info_.getMeta("TYPE"), ",");
-
-					auto DP = sample.second.getMeta("DP");
-					auto sample_ADs = tokenizeString(sample.second.getMeta("AD"), ",");
-					auto sample_AFs = tokenizeString(sample.second.getMeta("AF"), ",");
-					auto ACs = tokenizeString(rec.info_.getMeta("AC_REAL"), ",");
-					auto AFs = tokenizeString(rec.info_.getMeta("AF_REAL"), ",");
-					auto SCs = tokenizeString(rec.info_.getMeta("SC"), ",");
-					auto PREVs = tokenizeString(rec.info_.getMeta("PREV"), ",");
-					auto ref = rec.ref_;
-					std::string refTriCodeName;
-					for(const auto c : ref) {
-						auto currentTriCode = aminoAcidInfo::infos::allInfo.at(c).triCode_;
-						currentTriCode[0] = static_cast<char>(toupper(currentTriCode[0]));
-						refTriCodeName+= currentTriCode;
-					}
-					for(const auto & altEnum : iter::enumerate(rec.alts_)) {
-
-						auto alt = altEnum.element;
-						std::string altTriCodeName;
-						for(const auto c : alt) {
-							if(c != 'X' && c != 'x') {
-								auto currentTriCode = aminoAcidInfo::infos::allInfo.at(c).triCode_;
-								currentTriCode[0] = static_cast<char>(toupper(currentTriCode[0]));
-								altTriCodeName+= currentTriCode;
-							} else {
-								std::string currentTriCode = "XXX";
-								altTriCodeName+= currentTriCode;
-							}
-						}
-
-						std::string ExonicFunc;
-						if (TYPE[altEnum.index] == "snp") {
-							ExonicFunc = "missense_variant";
-						} else if (TYPE[altEnum.index] == "del") {
-							ExonicFunc = "conservative_inframe_deletion";
-						} else if (TYPE[altEnum.index] == "ins") {
-							ExonicFunc = "conservative_inframe_insertion";
-						}
-
-
-						std::string geneName = rec.info_.getMeta("GeneName");
-
-						aminoAcidChangesTable << rec.info_.getMeta("GeneID")
-							<< "\t" << rec.chrom_
-							<< "\t" << geneName
-							<< "\t" << njh::pasteAsStr(geneName, "-", refTriCodeName, rec.pos_, altTriCodeName)
-							<< "\t" << ExonicFunc
-							<< "\t" << njh::pasteAsStr(refTriCodeName, rec.pos_, altTriCodeName)
-							<< "\t" << targeted
-						  << "\t" << rec.info_.getMeta("TARGET")
-							<< "\t" << sample.first;
-
-						aminoAcidChangesTable << "\t" << rec.pos_
-											  << "\t" << rec.ref_
-											  << "\t" << alt;
-
-						if("." == DP) {
-							//no coverage
-							aminoAcidChangesTable
-									<< "\t" << "0"
-									<< "\t" << "0"
-									<< "\t" << "0"
-									<< "\t" << "0"
-									<< "\t" << "0";
-						} else {
-							aminoAcidChangesTable
-									<< "\t" << sample_ADs[0]
-									<< "\t" << sample_AFs[0]
-									<< "\t" << sample_ADs[altEnum.index + 1]
-									<< "\t" << sample_AFs[altEnum.index + 1]
-									<< "\t" << DP;
-						}
-						aminoAcidChangesTable
-							<< "\t" << ACs[altEnum.index]
-							<< "\t" << AFs[altEnum.index]
-							<< "\t" << SCs[altEnum.index]
-							<< "\t" << PREVs[altEnum.index];
-						aminoAcidChangesTable << std::endl;
-					}
-				}
-			}
-		} else {
-			OutputStream aminoAcidChangesTable(njh::files::make_path(reportsSummaryDir, "AAChangesInfo.tsv.gz"));
-			aminoAcidChangesTable << "Gene_ID"
-					<< "\t" << "Gene_Transcript_ID"
-					<< "\t" << "Gene"
-					<< "\t" << "Mutation_Name"
-					<< "\t" << "ExonicFunc"
-					<< "\t" << "AA_Change"
-					<< "\t" << "Targeted"
-					<< "\t" << "CoveredBy"
-					<< "\t" << "sample";
-			aminoAcidChangesTable << "\t" << "reference_AA_pos"
-			                      << "\t" << "reference_AA";
-
-			aminoAcidChangesTable
-					<< "\t" << "AA"
-					<< "\t" << "is_reference"
-					<< "\t" << "AA_cnt"
-			    << "\t" << "AA_freq"
-					<< "\t" << "AA_withinSampleCoverage"
-					<< "\t" << "AlleleCount"
-					<< "\t" << "AlleleFrequency"
-					<< "\t" << "AlleleTotal"
-					<< "\t" << "SampleCount"
-					<< "\t" << "SamplePrevalence"
-					<< "\t" << "SampleTotal"
-			;
-			aminoAcidChangesTable << std::endl;
-			for(const auto & rec : firstPVcf.records_) {
-				std::string targeted = "No";
-
-				auto genomicRegion = rec.genRegion();
-				for(const auto & knownRegion : knownAAVariantRegions) {
-					if(genomicRegion.overlaps(knownRegion)) {
-						targeted = "Yes";
-						break;
-					}
-				}
-				auto TYPE = tokenizeString(rec.info_.getMeta("TYPE"), ",");
-				auto ACs = tokenizeString(rec.info_.getMeta("AC_REAL"), ",");
-				auto AFs = tokenizeString(rec.info_.getMeta("AF_REAL"), ",");
-				auto SCs = tokenizeString(rec.info_.getMeta("SC"), ",");
-				auto PREVs = tokenizeString(rec.info_.getMeta("PREV"), ",");
-				const auto & ref = rec.ref_;
-				//getting ref numbers
-				// // allele
-				auto AN = njh::StrToNumConverter::stoToNum<uint32_t>(rec.info_.getMeta("AN_REAL"));
-				auto ref_AC = AN - vectorSum(vecStrToVecNum<uint32_t>(ACs));
-				auto ref_AF = 1 - vectorSum(vecStrToVecNum<double>(AFs));
-				// // sample
-				auto NS = njh::StrToNumConverter::stoToNum<uint32_t>(rec.info_.getMeta("NS"));
-				uint32_t ref_SC = 0;
-				for(const auto & sample : rec.sampleFormatInfos_) {
-					auto DP = sample.second.getMeta("DP");
-					if("." != DP) {
-						auto sample_ADs = tokenizeString(sample.second.getMeta("AD"), ",");
-						if (njh::StrToNumConverter::stoToNum<uint32_t>(sample_ADs[0]) > 0) {
-							++ref_SC;
-						}
-					}
-				}
-
-				double ref_PREV = ref_SC/static_cast<double>(NS);
-
-				std::string refTriCodeName;
-				for(const auto c : ref) {
-					auto currentTriCode = aminoAcidInfo::infos::allInfo.at(c).triCode_;
-					currentTriCode[0] = static_cast<char>(toupper(currentTriCode[0]));
-					refTriCodeName+= currentTriCode;
-				}
-				std::string geneName = rec.info_.getMeta("GeneName");
-
-				for(const auto & sample : rec.sampleFormatInfos_) {
-					auto DP = sample.second.getMeta("DP");
-					auto sample_ADs = tokenizeString(sample.second.getMeta("AD"), ",");
-					auto sample_AFs = tokenizeString(sample.second.getMeta("AF"), ",");
-					for(const auto & altEnum : iter::enumerate(rec.alts_)) {
-						const auto & alt = altEnum.element;
-						std::string altTriCodeName;
-						for(const auto c : alt) {
-							if(c != 'X' && c != 'x') {
-								auto currentTriCode = aminoAcidInfo::infos::allInfo.at(c).triCode_;
-								currentTriCode[0] = static_cast<char>(toupper(currentTriCode[0]));
-								altTriCodeName+= currentTriCode;
-							} else {
-								std::string currentTriCode = "XXX";
-								altTriCodeName+= currentTriCode;
-							}
-						}
-
-						std::string ExonicFunc;
-						if (TYPE[altEnum.index] == "snp") {
-							ExonicFunc = "missense_variant";
-						} else if (TYPE[altEnum.index] == "del") {
-							ExonicFunc = "conservative_inframe_deletion";
-						} else if (TYPE[altEnum.index] == "ins") {
-							ExonicFunc = "conservative_inframe_insertion";
-						}
-						aminoAcidChangesTable << rec.info_.getMeta("GeneID")
-							<< "\t" << rec.chrom_
-							<< "\t" << geneName
-							<< "\t" << njh::pasteAsStr(geneName, "-", refTriCodeName, rec.pos_, altTriCodeName)
-							<< "\t" << ExonicFunc
-							<< "\t" << njh::pasteAsStr(refTriCodeName, rec.pos_, altTriCodeName)
-							<< "\t" << targeted
-						  << "\t" << rec.info_.getMeta("TARGET")
-							<< "\t" << sample.first;
-
-						aminoAcidChangesTable
-												<< "\t" << rec.pos_
-											  << "\t" << rec.ref_
-											  << "\t" << alt
-												<< "\t" << "FALSE";
-						// << "\t" << "AA"
-						// << "\t" << "is_reference"
-						// << "\t" << "AA_cnt"
-						// << "\t" << "AA_freq"
-						// << "\t" << "AA_withinSampleCoverage"
-
-						if("." == DP) {
-							//no coverage
-							aminoAcidChangesTable
-									<< "\t" << "0"
-									<< "\t" << "0"
-									<< "\t" << "0";
-						} else {
-							aminoAcidChangesTable
-									<< "\t" << sample_ADs[altEnum.index + 1]
-									<< "\t" << sample_AFs[altEnum.index + 1]
-									<< "\t" << DP;
-						}
-						aminoAcidChangesTable
-							<< "\t" << ACs[altEnum.index]
-							<< "\t" << AFs[altEnum.index]
-							<< "\t" << AN
-							<< "\t" << SCs[altEnum.index]
-							<< "\t" << PREVs[altEnum.index]
-							<< "\t" << NS;
-						aminoAcidChangesTable << std::endl;
-					}
-					{
-						//adding reference
-						aminoAcidChangesTable << rec.info_.getMeta("GeneID")
-								<< "\t" << rec.chrom_
-								<< "\t" << geneName
-								<< "\t" << njh::pasteAsStr(geneName, "-", refTriCodeName, rec.pos_)
-								<< "\t" << "NA"
-								<< "\t" << njh::pasteAsStr(refTriCodeName, rec.pos_)
-								<< "\t" << targeted
-								<< "\t" << rec.info_.getMeta("TARGET")
-								<< "\t" << sample.first;
-						aminoAcidChangesTable
-												<< "\t" << rec.pos_
-												<< "\t" << rec.ref_
-												<< "\t" << rec.ref_
-												<< "\t" << "TRUE";
-						if("." == DP) {
-							//no coverage
-							aminoAcidChangesTable
-									<< "\t" << "0"
-									<< "\t" << "0"
-									<< "\t" << "0";
-						} else {
-							aminoAcidChangesTable
-									<< "\t" << sample_ADs[0]
-									<< "\t" << sample_AFs[0]
-									<< "\t" << DP;
-						}
-						aminoAcidChangesTable
-								<< "\t" << ref_AC
-								<< "\t" << ref_AF
-								<< "\t" << AN
-								<< "\t" << ref_SC
-								<< "\t" << ref_PREV
-								<< "\t" << NS;
-						aminoAcidChangesTable << std::endl;
-					}
-				}
-			}
+			writeAAChangesInfoTable(firstPVcf, knownAAVariantRegions, aaSummaryRefInfoNextToAlt, aminoAcidChangesTable);
 		}
 	}
 	//process genomic
