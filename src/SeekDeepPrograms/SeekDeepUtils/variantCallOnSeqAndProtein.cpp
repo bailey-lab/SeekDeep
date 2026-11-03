@@ -294,6 +294,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 
 	setUp.setOption(collapseVarCallPars.variantCallerRunPars.complexVarPars.withinDist, "--complexVariantWithinDist", "The distance within to link complex variants");
 	setUp.setOption(collapseVarCallPars.variantCallerRunPars.complexVarPars.fractionOfCoveredSamples, "--complexVariantFractionOfCoveredSamples", "complex Variant Fraction Of Covered Samples");
+	setUp.setOption(collapseVarCallPars.variantCallerRunPars.complexVarPars.fractionOfSamplesCoveringSpan, "--complexVariantFractionOfSamplesCoveringSpan", "Fraction of samples that must cover a complex variant's full span for it to be reported");
 
 
 	setUp.setOption(numThreads, "--numThreads", "Number of threads to use");
