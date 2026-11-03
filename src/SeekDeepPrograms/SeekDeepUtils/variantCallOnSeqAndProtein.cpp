@@ -986,7 +986,11 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 			firstGVcf.writeOutFixedAndSampleMeta(gvcfOutFile);
 		}
 	}
-	//combine summary tables
+	//combine summary tables, while going through the rows also gather the unique haplotypes and count the locations per target
+	const VecStr perHaplotypeColumns{"target","seq","transcript","translatedSeq","transcript_fullAATyped","transcript_knownAATyped"};
+	std::unique_ptr<table> summaryPerHaplotype;
+	std::unique_ptr<table::GroupColumnsCounter> genomicLocCounter;
+	std::unique_ptr<table::GroupColumnsCounter> proteinLocCounter;
 	{
 		fullWatch.startNewLap("gather summary tables");
 		//summary tables
@@ -1000,11 +1004,27 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 		if (!summaryFnps.empty()) {
 			njh::files::bfs::path firstFileFnp = summaryFnps.front();
 			TableReader firstTable(TableIOOpts(InOptions(firstFileFnp), "\t", true));
+			firstTable.header_.checkForColumnsThrow(perHaplotypeColumns, __PRETTY_FUNCTION__);
+			const auto perHaplotypePositions = getPositionsMultipleTargets(firstTable.header_.columnNames_, perHaplotypeColumns);
+			summaryPerHaplotype = std::make_unique<table>(getTargetsAtPositions(firstTable.header_.columnNames_, perHaplotypePositions));
+			//unique rows in the order they are first seen
+			std::unordered_set<std::string> perHaplotypeSeen;
+			genomicLocCounter = std::make_unique<table::GroupColumnsCounter>(firstTable.header_, VecStr{ "chrom", "0based_start", "0based_end","target", "length", "strand"});
+			proteinLocCounter = std::make_unique<table::GroupColumnsCounter>(firstTable.header_, VecStr{"transcript", "transcript_1based_start", "transcript_1based_end", "target",  "transcript_length"});
+			auto addSummaryRow = [&](const VecStr & row) {
+				auto perHaplotypeRow = getTargetsAtPositions(row, perHaplotypePositions);
+				if (perHaplotypeSeen.emplace(njh::conToStr(perHaplotypeRow, "\t")).second) {
+					summaryPerHaplotype->addRow(perHaplotypeRow);
+				}
+				genomicLocCounter->addRow(row);
+				proteinLocCounter->addRow(row);
+			};
 			OutputStream out(njh::files::make_path(reportsSummaryDir, "allSummaryTables.tab.txt.gz"));
 			out << njh::conToStr(firstTable.header_.columnNames_, "\t") << '\n'; {
 				VecStr firstTableRow;
 				while (firstTable.getNextRow(firstTableRow)) {
 					out << njh::conToStr(firstTableRow, "\t") << '\n';
+					addSummaryRow(firstTableRow);
 				}
 			}
 			for (const auto& file: summaryFnps) {
@@ -1021,6 +1041,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 													}
 					while (currentTable.getNextRow(currentRow)) {
 						out << njh::conToStr(currentRow, "\t") << '\n';
+						addSummaryRow(currentRow);
 					}
 				}
 			}
@@ -1081,14 +1102,16 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	}
 	//create counts of summary table
 	{
-		table allSummaryTable(TableIOOpts::genTabFileIn(njh::files::make_path(reportsSummaryDir, "allSummaryTables.tab.txt.gz")));
-		{
-			//summary of per haplotype
-			auto summary_per_haplotype = allSummaryTable.getColumns(VecStr{"target","seq","transcript","translatedSeq","transcript_fullAATyped","transcript_knownAATyped"}).getUniqueRows();
-			summary_per_haplotype.outPutContents(TableIOOpts::genTabFileOut(njh::files::make_path(reportsSummaryDir, "allSummaryPerMicrohaplotype.tab.txt.gz")));
+		if(nullptr == summaryPerHaplotype) {
+			//no summary tables were combined, reading the combined table throws the missing file error
+			table allSummaryTable(TableIOOpts::genTabFileIn(njh::files::make_path(reportsSummaryDir, "allSummaryTables.tab.txt.gz")));
 		}
 		{
-			auto genomicLocCounts = allSummaryTable.countGroupColumns(VecStr{ "chrom", "0based_start", "0based_end","target", "length", "strand"});
+			//summary of per haplotype
+			summaryPerHaplotype->outPutContents(TableIOOpts::genTabFileOut(njh::files::make_path(reportsSummaryDir, "allSummaryPerMicrohaplotype.tab.txt.gz")));
+		}
+		{
+			auto genomicLocCounts = genomicLocCounter->genTable();
 			VecStr isMax;
 			std::unordered_map<std::string, uint32_t> maxCounts;
 			for(const auto & row : genomicLocCounts) {
@@ -1114,7 +1137,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 			genomicLocCounts.outPutContents(TableIOOpts::genTabFileOut(njh::files::make_path(reportsInfoDir, "genomicLocPerTargetsCounts.tab.txt.gz")));
 		}
 		{
-			auto proteinLocCounts = allSummaryTable.countGroupColumns(VecStr{"transcript", "transcript_1based_start", "transcript_1based_end", "target",  "transcript_length"});
+			auto proteinLocCounts = proteinLocCounter->genTable();
 			proteinLocCounts.addColumn(VecStr{"+"}, "transcript_strand");
 			proteinLocCounts = proteinLocCounts.getColumns(VecStr{"transcript", "transcript_1based_start", "transcript_1based_end", "target",  "transcript_length", "transcript_strand", "n"});
 			VecStr isMax;
