@@ -77,13 +77,15 @@ void writeAAChangesInfoTable(const VCFOutput & pvcf,
 	}
 	out << '\n';
 
-	auto getSampleField = [](const MetaDataInName & sampInfo, const std::string & field) -> const std::string & {
-		const auto search = sampInfo.meta_.find(field);
-		if (sampInfo.meta_.end() == search) {
-			//throws the missing field error
-			sampInfo.getMeta(field);
+	//the position of a FORMAT field in a record's sample values, will throw if the record doesn't have it
+	auto getFieldIndex = [](const VCFOutput::VCFRecord & rec, const std::string & field) {
+		const auto index = rec.formatKeyIndex(field);
+		if (std::string::npos == index) {
+			std::stringstream ss;
+			ss << __PRETTY_FUNCTION__ << ", error " << "no FORMAT field " << field << " for " << rec.chrom_ << ":" << rec.pos_ << ", current fields are: " << njh::conToStr(rec.formatKeys_, ",") << "\n";
+			throw std::runtime_error{ss.str()};
 		}
-		return search->second;
+		return index;
 	};
 	//the rows for a record are built here and written once per sample
 	std::string rows;
@@ -137,15 +139,21 @@ void writeAAChangesInfoTable(const VCFOutput & pvcf,
 			}
 		}
 
+		const bool hasSamples = !rec.sampleValues_.empty();
+		const auto DPIndex = hasSamples ? getFieldIndex(rec, "DP") : 0;
+		const auto ADIndex = hasSamples ? getFieldIndex(rec, "AD") : 0;
+		const auto AFIndex = hasSamples ? getFieldIndex(rec, "AF") : 0;
 		if (refInfoNextToAlt) {
-			for (const auto & sample : rec.sampleFormatInfos_) {
+			for (const auto & sampleEnum : iter::enumerate(rec.sampleValues_)) {
 				rows.clear();
-				const auto & DP = getSampleField(sample.second, "DP");
-				const auto sample_ADs = tokenizeString(getSampleField(sample.second, "AD"), ",");
-				const auto sample_AFs = tokenizeString(getSampleField(sample.second, "AF"), ",");
+				const auto & sampleName = pvcf.samples_.at(sampleEnum.index);
+				const auto vals = VCFOutput::VCFRecord::splitSampleValues(sampleEnum.element);
+				const std::string DP(vals.at(DPIndex));
+				const auto sample_ADs = tokenizeString(std::string(vals.at(ADIndex)), ",");
+				const auto sample_AFs = tokenizeString(std::string(vals.at(AFIndex)), ",");
 				for (const auto altPos : iter::range(rec.alts_.size())) {
 					rows += altRowStarts[altPos];
-					rows += sample.first;
+					rows += sampleName;
 					rows += altRowMids[altPos];
 					if ("." == DP) {
 						//no coverage
@@ -166,10 +174,10 @@ void writeAAChangesInfoTable(const VCFOutput & pvcf,
 		const auto ref_AF = 1 - vectorSum(vecStrToVecNum<double>(AFs));
 		const auto NS = njh::StrToNumConverter::stoToNum<uint32_t>(rec.info_.getMeta("NS"));
 		uint32_t ref_SC = 0;
-		for (const auto & sample : rec.sampleFormatInfos_) {
-			const auto & DP = getSampleField(sample.second, "DP");
-			if ("." != DP) {
-				const auto sample_ADs = tokenizeString(getSampleField(sample.second, "AD"), ",");
+		for (const auto & sampleValues : rec.sampleValues_) {
+			const auto vals = VCFOutput::VCFRecord::splitSampleValues(sampleValues);
+			if ("." != vals.at(DPIndex)) {
+				const auto sample_ADs = tokenizeString(std::string(vals.at(ADIndex)), ",");
 				if (njh::StrToNumConverter::stoToNum<uint32_t>(sample_ADs[0]) > 0) {
 					++ref_SC;
 				}
@@ -192,14 +200,16 @@ void writeAAChangesInfoTable(const VCFOutput & pvcf,
 		                              + "\t" + estd::to_string(ref_SC)
 		                              + "\t" + estd::to_string(ref_PREV)
 		                              + "\t" + NSStr + '\n';
-		for (const auto & sample : rec.sampleFormatInfos_) {
+		for (const auto & sampleEnum : iter::enumerate(rec.sampleValues_)) {
 			rows.clear();
-			const auto & DP = getSampleField(sample.second, "DP");
-			const auto sample_ADs = tokenizeString(getSampleField(sample.second, "AD"), ",");
-			const auto sample_AFs = tokenizeString(getSampleField(sample.second, "AF"), ",");
+			const auto & sampleName = pvcf.samples_.at(sampleEnum.index);
+			const auto vals = VCFOutput::VCFRecord::splitSampleValues(sampleEnum.element);
+			const std::string DP(vals.at(DPIndex));
+			const auto sample_ADs = tokenizeString(std::string(vals.at(ADIndex)), ",");
+			const auto sample_AFs = tokenizeString(std::string(vals.at(AFIndex)), ",");
 			for (const auto altPos : iter::range(rec.alts_.size())) {
 				rows += altRowStarts[altPos];
-				rows += sample.first;
+				rows += sampleName;
 				rows += altRowMids[altPos];
 				if ("." == DP) {
 					//no coverage
@@ -211,7 +221,7 @@ void writeAAChangesInfoTable(const VCFOutput & pvcf,
 			}
 			//adding reference
 			rows += refRowStart;
-			rows += sample.first;
+			rows += sampleName;
 			rows += refRowMid;
 			if ("." == DP) {
 				//no coverage
@@ -240,7 +250,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	bfs::path popSeqsDirFnp = "";
 
 	bfs::path metaFnp = "";
-	VCFOutput::comnbineVCFsPars combiningVcfPars;
+	VCFOutput::combineVCFsPars combiningVcfPars;
 	// bool doNotRescueVariantCallsAcrossTargets = false;
 	std::string popSeqsRegexPatRemoval = R"(_([tf])?\d+(\.\d+)?$)";
 	uint32_t numThreads = 1;
@@ -863,7 +873,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	if(!proteinVcfs.empty()){
 		fullWatch.startNewLap("combine protein vcfs");
 		// std::cout << __PRETTY_FUNCTION__ << " " << __FILE__ << " " << __LINE__ << std::endl;
-		auto firstPVcf = VCFOutput::comnbineVCFs(proteinVcfs, sampleNamesSet, combiningVcfPars);
+		auto firstPVcf = VCFOutput::combineVCFs(proteinVcfs, sampleNamesSet, combiningVcfPars);
 		// std::cout << __PRETTY_FUNCTION__ << " " << __FILE__ << " " << __LINE__ << std::endl;
 		{
 			OutputStream pvcf(njh::files::make_path(reportsVcfsDir, "allProteinVariantCalls.vcf.gz"));
@@ -883,7 +893,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	if(!genomicVcfs.empty()) {
 		fullWatch.startNewLap("combine genomic vcfs");
 		// std::cout << __PRETTY_FUNCTION__ << " " << __FILE__ << " " << __LINE__ << std::endl;
-		auto firstGVcf = VCFOutput::comnbineVCFs(genomicVcfs, sampleNamesSet, combiningVcfPars);
+		auto firstGVcf = VCFOutput::combineVCFs(genomicVcfs, sampleNamesSet, combiningVcfPars);
 		// std::cout << __PRETTY_FUNCTION__ << " " << __FILE__ << " " << __LINE__ << std::endl;
 		{
 			OutputStream gvcfOutFile(njh::files::make_path(reportsVcfsDir, "allGenomicVariantCalls.vcf.gz"));
@@ -901,11 +911,11 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	}
 	//process complex genomic
 	if(!complexGenomicVcfs.empty()) {
-		fullWatch.startNewLap("combine genomic vcfs");
+		fullWatch.startNewLap("combine complex genomic vcfs");
 		// std::cout << __PRETTY_FUNCTION__ << " " << __FILE__ << " " << __LINE__ << std::endl;
 		// std::cout << __PRETTY_FUNCTION__ << " " << __FILE__ << " " << __LINE__ << std::endl;
 		{
-			auto firstGVcf = VCFOutput::comnbineVCFs(complexGenomicVcfs, sampleNamesSet, combiningVcfPars);
+			auto firstGVcf = VCFOutput::combineVCFs(complexGenomicVcfs, sampleNamesSet, combiningVcfPars);
 			OutputStream gvcfOutFile(njh::files::make_path(reportsVcfsDir, "allComplexGenomicVariantCalls.vcf.gz"));
 			firstGVcf.writeOutFixedAndSampleMeta(gvcfOutFile);
 		}

@@ -276,7 +276,7 @@ namespace njhseq {
 // 		}
 // 		//std::cout << __FILE__ << " " << __LINE__ << std::endl;
 // 		//add in blanks for any missing samples for any of the records
-// 		firstPVcf.addInBlnaksForAnyMissingSamples(sampleNamesSet);
+// 		firstPVcf.addInBlanksForAnyMissingSamples(sampleNamesSet);
 // 		if(firstPVcf.records_.empty()) {
 // 			firstPVcf.samples_ = VecStr{sampleNamesSet.begin(), sampleNamesSet.end()};
 // 		}
@@ -311,7 +311,7 @@ namespace njhseq {
 // 					}
 // 				}
 // 				//std::cout << __FILE__ << " " << __LINE__ << std::endl;
-// 				currentPvcf.addInBlnaksForAnyMissingSamples(sampleNamesSet);
+// 				currentPvcf.addInBlanksForAnyMissingSamples(sampleNamesSet);
 // 				firstPVcf.records_.reserve(firstPVcf.records_.size() + currentPvcf.records_.size());
 // 				for(auto & record : currentPvcf.records_) {
 // 					firstPVcf.records_.emplace_back(std::move(record));
@@ -320,7 +320,7 @@ namespace njhseq {
 // 			}
 // 		}
 // 		//std::cout << __FILE__ << " " << __LINE__ << std::endl;
-// 		firstPVcf.addInBlnaksForAnyMissingSamples(sampleNamesSet);
+// 		firstPVcf.addInBlanksForAnyMissingSamples(sampleNamesSet);
 // 		firstPVcf.sortRecords();
 // 		//eliminate duplicate variant calls and optional merge variants calls across amplicons that overlap that may have been missing in one target for a sample but present others
 // 		//std::cout << __FILE__ << " " << __LINE__ << std::endl;
@@ -624,7 +624,7 @@ namespace njhseq {
 // 			firstGVcf.addInRecordsFromFile(in);
 // 		}
 // 		//add in blanks for any missing samples for any of the records
-// 		firstGVcf.addInBlnaksForAnyMissingSamples(sampleNamesSet);
+// 		firstGVcf.addInBlanksForAnyMissingSamples(sampleNamesSet);
 // 		if(firstGVcf.records_.empty()) {
 // 			firstGVcf.samples_ = VecStr{sampleNamesSet.begin(), sampleNamesSet.end()};
 // 		}
@@ -655,7 +655,7 @@ namespace njhseq {
 // 						throw std::runtime_error{ss.str()};
 // 					}
 // 				}
-// 				currentGvcf.addInBlnaksForAnyMissingSamples(sampleNamesSet);
+// 				currentGvcf.addInBlanksForAnyMissingSamples(sampleNamesSet);
 // 				firstGVcf.records_.reserve(firstGVcf.records_.size() + currentGvcf.records_.size());
 // 				for(auto & record : currentGvcf.records_) {
 // 					firstGVcf.records_.emplace_back(std::move(record));
@@ -663,7 +663,7 @@ namespace njhseq {
 // 				//std::move(currentPvcf.records_.begin(), currentPvcf.records_.back(). std::back_inserter(firstPVcf.records_));
 // 			}
 // 		}
-// 		firstGVcf.addInBlnaksForAnyMissingSamples(sampleNamesSet);
+// 		firstGVcf.addInBlanksForAnyMissingSamples(sampleNamesSet);
 // 		firstGVcf.sortRecords();
 // 		//eliminate duplicate variant calls
 // 		{
