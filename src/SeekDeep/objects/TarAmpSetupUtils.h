@@ -13,6 +13,7 @@
 
 
 
+#include "SeekDeep/objects/TarAmpSetupUtils/AmpliconReadQC.hpp"
 #include "SeekDeep/objects/TarAmpSetupUtils/PrimersAndMids.hpp"
 #include "SeekDeep/objects/TarAmpSetupUtils/SampleFileNameGenerator.hpp"
 #include "SeekDeep/objects/TarAmpSetupUtils/TarAmpAnalysisSetup.hpp"

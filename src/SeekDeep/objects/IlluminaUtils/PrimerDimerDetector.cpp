@@ -104,6 +104,7 @@ PrimerDimerDetector::PrimerDimerDetector(const PrimerDeterminator & primers, Det
 	maxPrimerSize_ = primers.getMaxPrimerSize();
 	const auto addPrimers = [this](const std::string & name, const std::vector<PrimerDeterminator::primerInfo::PrimerSeq> & seqs){
 		for(const auto & primer : seqs){
+			primerIdxsByName_[name].emplace_back(primers_.size());
 			primers_.emplace_back(NamedPrimer{name, primer.info_, primer.infoRC_});
 		}
 	};
@@ -124,6 +125,10 @@ uint64_t PrimerDimerDetector::getMaxPrimerSize() const{
 	return maxPrimerSize_;
 }
 
+uint64_t PrimerDimerDetector::getMaxDimerSize() const{
+	return 2 * maxPrimerSize_ + pars_.maxGapBetweenPrimers_;
+}
+
 PrimerDimerDetector::PrimerMatch PrimerDimerDetector::genMatch(const std::string & name, const seqInfo & primer, bool revComp, aligner & alignerObj){
 	PrimerMatch match;
 	match.primerName_ = name;
@@ -138,37 +143,72 @@ PrimerDimerDetector::PrimerMatch PrimerDimerDetector::genMatch(const std::string
 	return match;
 }
 
+static void alignPrimer(const seqInfo & seq, const seqInfo & primer, aligner & alignerObj){
+	alignerObj.alignCacheLocal(seq, primer);
+	alignerObj.rearrangeObjsLocal(seq, primer);
+	alignerObj.profileAlignment(seq, primer, false, true, false);
+}
+
+void PrimerDimerDetector::testFront(const seqInfo & seq, const NamedPrimer & primer, aligner & alignerObj, DetectorResults & ret, std::vector<PrimerMatch> & frontCandidates) const{
+	alignPrimer(seq, primer.info_, alignerObj);
+	if(pars_.allowableErrors_.passErrorProfile(alignerObj.comp_) &&
+			0 == alignerObj.parts_.lHolder_.localAStart_ &&
+			0 == alignerObj.parts_.lHolder_.localBStart_){
+		if(alignerObj.parts_.lHolder_.localBSize_ >= pars_.minPrimerMatchBases_){
+			ret.frontMatches_.emplace_back(genMatch(primer.name_, primer.info_, false, alignerObj));
+		}else if(alignerObj.parts_.lHolder_.localBSize_ >= pars_.minCandidateMatchBases_){
+			frontCandidates.emplace_back(genMatch(primer.name_, primer.info_, false, alignerObj));
+		}
+	}
+}
+
+void PrimerDimerDetector::testEnd(const seqInfo & seq, const NamedPrimer & primer, aligner & alignerObj, DetectorResults & ret, std::vector<PrimerMatch> & endCandidates) const{
+	alignPrimer(seq, primer.infoRC_, alignerObj);
+	if(pars_.allowableErrors_.passErrorProfile(alignerObj.comp_) &&
+			len(seq) == alignerObj.parts_.lHolder_.localAStart_ + alignerObj.parts_.lHolder_.localASize_ &&
+			len(primer.infoRC_) == alignerObj.parts_.lHolder_.localBStart_ + alignerObj.parts_.lHolder_.localBSize_){
+		if(alignerObj.parts_.lHolder_.localBSize_ >= pars_.minPrimerMatchBases_){
+			ret.endMatches_.emplace_back(genMatch(primer.name_, primer.infoRC_, true, alignerObj));
+		}else if(alignerObj.parts_.lHolder_.localBSize_ >= pars_.minCandidateMatchBases_){
+			endCandidates.emplace_back(genMatch(primer.name_, primer.infoRC_, true, alignerObj));
+		}
+	}
+}
+
 PrimerDimerDetector::DetectorResults PrimerDimerDetector::detect(const seqInfo & seq, aligner & alignerObj) const{
 	DetectorResults ret;
-	const auto alignPrimer = [&seq, &alignerObj](const seqInfo & primer){
-		alignerObj.alignCacheLocal(seq, primer);
-		alignerObj.rearrangeObjsLocal(seq, primer);
-		alignerObj.profileAlignment(seq, primer, false, true, false);
-	};
 	std::vector<PrimerMatch> frontCandidates;
 	std::vector<PrimerMatch> endCandidates;
 	for(const auto & primer : primers_){
-		alignPrimer(primer.info_);
-		if(pars_.allowableErrors_.passErrorProfile(alignerObj.comp_) &&
-				0 == alignerObj.parts_.lHolder_.localAStart_ &&
-				0 == alignerObj.parts_.lHolder_.localBStart_){
-			if(alignerObj.parts_.lHolder_.localBSize_ >= pars_.minPrimerMatchBases_){
-				ret.frontMatches_.emplace_back(genMatch(primer.name_, primer.info_, false, alignerObj));
-			}else if(alignerObj.parts_.lHolder_.localBSize_ >= pars_.minCandidateMatchBases_){
-				frontCandidates.emplace_back(genMatch(primer.name_, primer.info_, false, alignerObj));
-			}
+		testFront(seq, primer, alignerObj, ret, frontCandidates);
+		testEnd(seq, primer, alignerObj, ret, endCandidates);
+	}
+	finishResults(ret, frontCandidates, endCandidates);
+	return ret;
+}
+
+PrimerDimerDetector::DetectorResults PrimerDimerDetector::detect(const seqInfo & seq, const std::string & frontPrimerName, const std::string & endPrimerName, aligner & alignerObj) const{
+	const auto frontIdxs = primerIdxsByName_.find(frontPrimerName);
+	const auto endIdxs = primerIdxsByName_.find(endPrimerName);
+	if(primerIdxsByName_.end() != frontIdxs && primerIdxsByName_.end() != endIdxs){
+		DetectorResults ret;
+		std::vector<PrimerMatch> frontCandidates;
+		std::vector<PrimerMatch> endCandidates;
+		for(const auto idx : frontIdxs->second){
+			testFront(seq, primers_[idx], alignerObj, ret, frontCandidates);
 		}
-		alignPrimer(primer.infoRC_);
-		if(pars_.allowableErrors_.passErrorProfile(alignerObj.comp_) &&
-				len(seq) == alignerObj.parts_.lHolder_.localAStart_ + alignerObj.parts_.lHolder_.localASize_ &&
-				len(primer.infoRC_) == alignerObj.parts_.lHolder_.localBStart_ + alignerObj.parts_.lHolder_.localBSize_){
-			if(alignerObj.parts_.lHolder_.localBSize_ >= pars_.minPrimerMatchBases_){
-				ret.endMatches_.emplace_back(genMatch(primer.name_, primer.infoRC_, true, alignerObj));
-			}else if(alignerObj.parts_.lHolder_.localBSize_ >= pars_.minCandidateMatchBases_){
-				endCandidates.emplace_back(genMatch(primer.name_, primer.infoRC_, true, alignerObj));
-			}
+		for(const auto idx : endIdxs->second){
+			testEnd(seq, primers_[idx], alignerObj, ret, endCandidates);
+		}
+		finishResults(ret, frontCandidates, endCandidates);
+		if(ReadCategory::DIMER == ret.category_){
+			return ret;
 		}
 	}
+	return detect(seq, alignerObj);
+}
+
+void PrimerDimerDetector::finishResults(DetectorResults & ret, const std::vector<PrimerMatch> & frontCandidates, const std::vector<PrimerMatch> & endCandidates) const{
 	//a primer trusted at only one end, keep what could be its partner at the other end
 	const auto addCandidates = [this, &ret](const std::vector<PrimerMatch> & trusted, const std::vector<PrimerMatch> & candidates){
 		for(const auto & candidate : candidates){
@@ -213,7 +253,59 @@ PrimerDimerDetector::DetectorResults PrimerDimerDetector::detect(const seqInfo &
 	}else if(!ret.frontMatches_.empty() || !ret.endMatches_.empty()){
 		ret.category_ = ReadCategory::ONE_PRIMER;
 	}
-	return ret;
+}
+
+void PrimerDimerTallies::add(const std::string & midName, const PrimerDimerDetector::DetectorResults & res, uint32_t readLen){
+	if(PrimerDimerDetector::ReadCategory::DIMER == res.category_){
+		const auto & dimer = res.dimers_.front();
+		auto & tally = tallies_[std::make_tuple(midName, PrimerDimerDetector::getReadCategoryStr(res.category_), dimer.front_.primerName_, dimer.end_.primerName_, std::string(""))];
+		++tally.count_;
+		if(0 == dimer.getGap()){
+			++tally.noGap_;
+		}else{
+			++tally.gapped_;
+		}
+		tally.lengths_.emplace_back(readLen);
+	}else if(PrimerDimerDetector::ReadCategory::UNRESOLVED_DIMER == res.category_){
+		VecStr candidates;
+		for(const auto & candidate : res.candidatePartners_){
+			candidates.emplace_back(candidate.primerName_);
+		}
+		auto & tally = tallies_[std::make_tuple(midName, PrimerDimerDetector::getReadCategoryStr(res.category_),
+				res.frontMatches_.empty() ? std::string("") : res.frontMatches_.front().primerName_,
+				res.endMatches_.empty() ? std::string("") : res.endMatches_.front().primerName_,
+				njh::conToStr(candidates, ";"))];
+		++tally.count_;
+		tally.lengths_.emplace_back(readLen);
+	}
+}
+
+void PrimerDimerTallies::writeHeader(std::ostream & out){
+	out << "inputName\tsampleName\tMIDName\tcategory\tfrontPrimer\tendPrimer\tcandidatePartners\tcount\tMIDtotal\tperc\tprimersOverlapOrAbut\tprimersGapped\tmedianLength\toverLapErrorAllowed\tmaxGapBetweenPrimers\tminPrimerMatchBases" << "\n";
+}
+
+void PrimerDimerTallies::write(std::ostream & out, const std::string & inputName, const std::string & sampleName,
+		const std::function<uint64_t(const std::string &)> & getMidTotal,
+		double overLapErrorAllowed, const PrimerDimerDetector::DetectorPars & pars){
+	for(auto & tally : tallies_){
+		const auto midTotal = getMidTotal(std::get<0>(tally.first));
+		out << inputName
+				<< "\t" << sampleName
+				<< "\t" << std::get<0>(tally.first)
+				<< "\t" << std::get<1>(tally.first)
+				<< "\t" << std::get<2>(tally.first)
+				<< "\t" << std::get<3>(tally.first)
+				<< "\t" << std::get<4>(tally.first)
+				<< "\t" << tally.second.count_
+				<< "\t" << midTotal
+				<< "\t" << (0 == midTotal ? 0.0 : 100.0 * tally.second.count_ / midTotal)
+				<< "\t" << tally.second.noGap_
+				<< "\t" << tally.second.gapped_
+				<< "\t" << vectorMedianRef(tally.second.lengths_)
+				<< "\t" << overLapErrorAllowed
+				<< "\t" << pars.maxGapBetweenPrimers_
+				<< "\t" << pars.minPrimerMatchBases_ << std::endl;
+	}
 }
 
 }  // namespace njhseq

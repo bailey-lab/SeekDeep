@@ -25,6 +25,7 @@
 //
 
 #include "SeekDeepPrograms/SeekDeepProgram/SeekDeepRunner.hpp"
+#include "SeekDeep/objects/IlluminaUtils/PrimerDimerDetector.hpp"
 #include <atomic>
 #include <array>
 namespace njhseq {
@@ -366,6 +367,31 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 
 	std::map<std::string, std::map<std::string, std::map<std::string, std::map<std::string, std::vector<uint32_t>>>>> failedPrimer;
 
+	//the primer dimer report only reads the pairs, nothing that gets kept depends on it
+	const bool reportPrimerDimers = !pars.noPrimerDimerReport_ && !pars.corePars_.noPrimers_;
+	PrimerDimerTallies primerDimerTallies;
+	std::unique_ptr<PrimerDimerDetector> primerDimerDetector;
+	std::unique_ptr<aligner> primerDimerAligner;
+	PairedReadProcessor::ProcessedResultsCounts primerDimerPairProcessCounts;
+	if(reportPrimerDimers){
+		primerDimerDetector = std::make_unique<PrimerDimerDetector>(*ids.pDeterminator_, pars.primerDimerPars_);
+		primerDimerAligner = std::make_unique<aligner>(primerDimerDetector->genAligner(primerDimerDetector->getMaxDimerSize()));
+	}
+	//call before the primers get removed from the combined read, primers are lower cased in the mates
+	const auto tallyPrimerDimer = [&](const std::string & midName, const PairedReadProcessor::ProcessedPairRes & pairRes,
+			const std::string & forwardPrimerName, const std::string & reversePrimerName){
+		if(PairedReadProcessor::ReadPairOverLapStatus::R1BEGINSINR2 != pairRes.status_ ||
+				len(*pairRes.combinedSeq_) > primerDimerDetector->getMaxDimerSize()){
+			return;
+		}
+		seqInfo combined = *pairRes.combinedSeq_;
+		njh::strToUpper(combined.seq_);
+		const auto res = "unrecognized" == forwardPrimerName || "unrecognized" == reversePrimerName ?
+				primerDimerDetector->detect(combined, *primerDimerAligner) :
+				primerDimerDetector->detect(combined, forwardPrimerName + "_F", reversePrimerName + "_R", *primerDimerAligner);
+		primerDimerTallies.add(midName, res, len(combined));
+	};
+
 	//Illumina reads from the same target start with the same bases so the primer determination, which only depends on the
 	//bases at the start of the read, is remembered by those bases so it isn't searched over and over again
 	//the result of a determination is the primer name plus what it did to the read, which is replayed on a cache hit
@@ -611,6 +637,9 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 				seq.mateSeqBase_.reverseComplementRead(false, true);
 				seq.mateRComplemented_ = true;
 				auto mismatchedPairRes = pairProcessor.processPairedEnd(seq, mismatchedPrimerPairProcessCounts, processingPairsAligner);
+				if(reportPrimerDimers){
+					tallyPrimerDimer(barcodeName, mismatchedPairRes, forwardPrimerName, reversePrimerName);
+				}
 				if(mismatchedPairRes.status_ != PairedReadProcessor::ReadPairOverLapStatus::NONE &&
 						mismatchedPairRes.status_ != PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP){
 					readVec::handelLowerCaseBases(mismatchedPairRes.combinedSeq_, "remove");
@@ -635,6 +664,9 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 				seq.mateSeqBase_.reverseComplementRead(false, true);
 				seq.mateRComplemented_ = true;
 				auto mismatchedPairRes = pairProcessor.processPairedEnd(seq, mismatchedPrimerPairProcessCounts, processingPairsAligner);
+				if(reportPrimerDimers){
+					tallyPrimerDimer(barcodeName, mismatchedPairRes, forwardPrimerName, reversePrimerName);
+				}
 				if(mismatchedPairRes.status_ != PairedReadProcessor::ReadPairOverLapStatus::NONE &&
 						mismatchedPairRes.status_ != PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP){
 					readVec::handelLowerCaseBases(mismatchedPairRes.combinedSeq_, "remove");
@@ -658,6 +690,13 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 					seq.seqBase_ = seq.mateSeqBase_;
 					seq.mateSeqBase_ = tempMate;
 
+				}
+				if(reportPrimerDimers){
+					//these get stitched for real later on, or not at all for no overlap targets, so stitch a copy
+					auto seqToStitch = seq;
+					seqToStitch.mateSeqBase_.reverseComplementRead(false, true);
+					seqToStitch.mateRComplemented_ = true;
+					tallyPrimerDimer(barcodeName, pairProcessor.processPairedEnd(seqToStitch, primerDimerPairProcessCounts, processingPairsAligner), forwardPrimerName, reversePrimerName);
 				}
 				stats.increaseCounts(fullname, seq.seqBase_.name_,
 						ExtractionStator::extractCase::GOOD);
@@ -707,6 +746,13 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 			}
 		}
 		failedPrimer.clear();
+	}
+	if(reportPrimerDimers){
+		OutputStream primerDimerCountsOut(OutOptions(njh::files::make_path(setUp.pars_.directoryName_, "primerDimerCounts.tab.txt")));
+		PrimerDimerTallies::writeHeader(primerDimerCountsOut);
+		primerDimerTallies.write(primerDimerCountsOut, seqName, pars.corePars_.sampleName, [&counts](const std::string & midName){
+			return counts[midName].first + counts[midName].second;
+		}, pars.pairProcessorParams_.errorAllowed_, primerDimerDetector->pars_);
 	}
 
 	//key1 = target, key2 = overlap status, value = count of that status

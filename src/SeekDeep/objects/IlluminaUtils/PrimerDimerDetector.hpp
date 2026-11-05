@@ -138,7 +138,26 @@ public:
 	 */
 	[[nodiscard]] DetectorResults detect(const seqInfo & seq, aligner & alignerObj) const;
 
+	/**@brief Find the dimers in a read when the primers at its ends have already been determined
+	 *
+	 * Only aligns those two primers and searches all of the primers only if they don't make a dimer, so that a panel's
+	 * size doesn't slow down the reads where the primers are already known
+	 *
+	 * @param seq the read, see detect()
+	 * @param frontPrimerName the name of the primer at the start of the read, the target name plus _F or _R
+	 * @param endPrimerName the name of the primer at the end of the read, the target name plus _F or _R
+	 * @param alignerObj an aligner from genAligner() big enough for seq
+	 * @return the primers found and the best pairs
+	 */
+	[[nodiscard]] DetectorResults detect(const seqInfo & seq, const std::string & frontPrimerName, const std::string & endPrimerName, aligner & alignerObj) const;
+
 	[[nodiscard]] uint64_t getMaxPrimerSize() const;
+
+	/**@brief The longest read that could be a dimer, two whole primers with the most bases allowed between them
+	 *
+	 * @return the length
+	 */
+	[[nodiscard]] uint64_t getMaxDimerSize() const;
 
 private:
 	struct NamedPrimer{
@@ -147,9 +166,53 @@ private:
 		seqInfo infoRC_;
 	};
 	std::vector<NamedPrimer> primers_;
+	std::unordered_map<std::string, std::vector<size_t>> primerIdxsByName_;
 	uint64_t maxPrimerSize_{0};
 
 	static PrimerMatch genMatch(const std::string & name, const seqInfo & primer, bool revComp, aligner & alignerObj);
+
+	void testFront(const seqInfo & seq, const NamedPrimer & primer, aligner & alignerObj, DetectorResults & ret, std::vector<PrimerMatch> & frontCandidates) const;
+	void testEnd(const seqInfo & seq, const NamedPrimer & primer, aligner & alignerObj, DetectorResults & ret, std::vector<PrimerMatch> & endCandidates) const;
+	void finishResults(DetectorResults & ret, const std::vector<PrimerMatch> & frontCandidates, const std::vector<PrimerMatch> & endCandidates) const;
+};
+
+/**@brief Counts of the dimers and unresolved dimers found per primer pair, the report written per sample or per MID
+ *
+ */
+class PrimerDimerTallies{
+public:
+	/**@brief Add a read if it's a dimer or an unresolved dimer, other reads are ignored
+	 *
+	 * @param midName the MID the read came from, or just a name to group them under
+	 * @param res the results for the read
+	 * @param readLen the length of the read
+	 */
+	void add(const std::string & midName, const PrimerDimerDetector::DetectorResults & res, uint32_t readLen);
+
+	static void writeHeader(std::ostream & out);
+
+	/**@brief Write out a row per primer pair per MID
+	 *
+	 * @param out where to write
+	 * @param inputName name of the input
+	 * @param sampleName name of the sample
+	 * @param getMidTotal gets the total number of read pairs for a MID, to give the percent of it that each row is
+	 * @param overLapErrorAllowed the setting the mates were stitched with
+	 * @param pars the settings the dimers were called with
+	 */
+	void write(std::ostream & out, const std::string & inputName, const std::string & sampleName,
+			const std::function<uint64_t(const std::string &)> & getMidTotal,
+			double overLapErrorAllowed, const PrimerDimerDetector::DetectorPars & pars);
+
+private:
+	struct Tally{
+		uint32_t count_ = 0;
+		uint32_t noGap_ = 0; /**< the primers overlap or abut */
+		uint32_t gapped_ = 0;
+		std::vector<uint32_t> lengths_;
+	};
+	//key is mid, category, front primer, end primer, candidate partners
+	std::map<std::tuple<std::string, std::string, std::string, std::string, std::string>, Tally> tallies_;
 };
 
 }  // namespace njhseq

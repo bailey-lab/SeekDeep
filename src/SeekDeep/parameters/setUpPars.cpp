@@ -139,6 +139,7 @@ ExtractorPairedEndPars::ExtractorPairedEndPars(){
 
 	pairProcessorParams_.minOverlap_ = 8;
 	pairProcessorParams_.errorAllowed_ = 0.02;
+	pairProcessorParams_.stitchCacheMaxEntries_ = 500000;
 
 
 }

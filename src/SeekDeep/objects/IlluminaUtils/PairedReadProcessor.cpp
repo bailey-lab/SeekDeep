@@ -336,8 +336,21 @@ PairedReadProcessor::ProcessedPairRes PairedReadProcessor::processPairedEnd(
 			readVecTrimmer::trimOffEndBases(seq.mateSeqBase_, params_.r2Trim_);
 		}
 	}
+	//only the bases go into the alignment, the qualities come in later with profileAlignment so mates with the same bases can share it
+	const auto alignMates = [this, &alignerObj](const seqInfo & mate1, const seqInfo & mate2){
+		if(0 == params_.stitchCacheMaxEntries_){
+			alignerObj.alignRegGlobalNoInternalGaps(mate1, mate2);
+			return;
+		}
+		//start over if full so the cache stays bounded
+		if(alignerObj.numberOfAlingmentsDone_ >= params_.stitchCacheMaxEntries_){
+			alignerObj.resetAlnCache();
+			alignerObj.numberOfAlingmentsDone_ = 0;
+		}
+		alignerObj.alignCacheGlobalNoInternalGaps(mate1, mate2);
+	};
 	//std::cout << __PRETTY_FUNCTION__ << " " << __LINE__ <<  std::endl;
-	alignerObj.alignRegGlobalNoInternalGaps(seq.seqBase_, seq.mateSeqBase_);
+	alignMates(seq.seqBase_, seq.mateSeqBase_);
 	//std::cout << __PRETTY_FUNCTION__ << " " << __LINE__ <<  std::endl;
 	//alignerObj.profileAlignment(seq.seqBase_, seq.mateSeqBase_, false, true, true);
 	alignerObj.profileAlignment(seq.seqBase_, seq.mateSeqBase_, false, true, false);
@@ -415,7 +428,7 @@ PairedReadProcessor::ProcessedPairRes PairedReadProcessor::processPairedEnd(
 			}
 			if(static_cast<double>(len(copySeq.seqBase_))/len(seq.seqBase_) >= params_.percentAfterTrimCutOff_ &&
 					static_cast<double>(len(copySeq.mateSeqBase_))/len(seq.mateSeqBase_)  >= params_.percentAfterTrimCutOff_ ){
-				alignerObj.alignRegGlobalNoInternalGaps(copySeq.seqBase_, copySeq.mateSeqBase_);
+				alignMates(copySeq.seqBase_, copySeq.mateSeqBase_);
 				alignerObj.profileAlignment(            copySeq.seqBase_, copySeq.mateSeqBase_, false, true, false);
 			}
 		}

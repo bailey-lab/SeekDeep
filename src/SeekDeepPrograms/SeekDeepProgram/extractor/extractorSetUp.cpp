@@ -140,6 +140,11 @@ void SeekDeepSetUp::setUpExtractorPairedEnd(ExtractorPairedEndPars & pars) {
 			"A file with two columns, target,status; status column should contain 1 of 3 values (capitalization doesn't matter): r1BegOverR2End,r1EndOverR2Beg,NoOverlap. r1BegOverR2End=target size < read length (causes read through),r1EndOverR2Beg= target size > read length less than 2 x read length, NoOverlap=target size > 2 x read length", !setDefaultOverlapStatus, "Post Processing");
 
 	setOption(pars.pairProcessorParams_.primerDimmerSize_, "--primerDimerSize", "Size of r1 begins in r2 stitched reads that should be considered primer dimers");
+	setOption(pars.pairProcessorParams_.stitchCacheMaxEntries_, "--stitchCacheMaxEntries", "Max number of mate pairs to remember the alignment of so that they only have to be aligned once when stitching, 0 to not remember any, the output is the same either way");
+	setOption(pars.noPrimerDimerReport_, "--noPrimerDimerReport", "Don't write primerDimerCounts.tab.txt, which stitches all the pairs and looks for primers at both ends of the ones short enough to read through each other, it doesn't change which reads get kept", false, "Primer Dimer Report");
+	setOption(pars.primerDimerPars_.maxGapBetweenPrimers_, "--maxGapBetweenPrimers", "For the primer dimer report, the most bases allowed between the primers at each end of a read, the primers can also overlap or abut", false, "Primer Dimer Report");
+	setOption(pars.primerDimerPars_.minPrimerMatchBases_, "--minPrimerMatchBases", "For the primer dimer report, the fewest bases of a primer that have to match at a read's end for it to be trusted, 0 to work it out from the number of primers since the more primers there are the more likely a short match is by chance", false, "Primer Dimer Report");
+	setOption(pars.primerDimerPars_.minCandidateMatchBases_, "--minCandidateMatchBases", "For the primer dimer report, the fewest bases of a primer that have to match at a read's end for it to be kept as a possible partner of a trusted primer at the other end, which makes the read an unresolved dimer", false, "Primer Dimer Report");
 
 	pars_.gapInfo_.gapOpen_ = 5;
 	pars_.gapInfo_.gapExtend_ = 1;

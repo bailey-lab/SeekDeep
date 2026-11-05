@@ -37,6 +37,7 @@
 
 
 #include "SeekDeep/objects/IlluminaUtils/PairedReadProcessor.hpp"
+#include "SeekDeep/objects/IlluminaUtils/PrimerDimerDetector.hpp"
 #include "SeekDeep/objects/TarAmpSetupUtils/PrimersAndMids.hpp"
 #include "SeekDeep/objects/IlluminaUtils/IlluminaNameFormatDecoder.hpp"
 #include <njhseq/PopulationGeneticsUtils.h>
@@ -110,6 +111,8 @@ struct ExtractorPairedEndPars{
   std::vector<PairedReadProcessor::ReadPairOverLapStatus> defaultStatuses_;//{PairedReadProcessor::ReadPairOverLapStatus::NONE};
   uint32_t numThreads_ = 1;
   uint32_t primerCallCacheMaxEntries_ = 200000;
+  bool noPrimerDimerReport_ = false;
+  PrimerDimerDetector::DetectorPars primerDimerPars_;
 
 };
 

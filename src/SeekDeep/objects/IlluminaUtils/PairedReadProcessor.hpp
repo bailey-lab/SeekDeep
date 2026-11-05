@@ -122,6 +122,11 @@ public:
 
 		uint32_t primerDimmerSize_{100};
 
+		/**< the most mate pairs to remember the alignment of before starting over, 0 to not remember them. Amplicon mates
+		 * repeat a lot so this saves a lot of alignments, but the aligner given to processPairedEnd should only be used for
+		 * this as it uses aligner::numberOfAlingmentsDone_ and aligner::resetAlnCache() */
+		uint32_t stitchCacheMaxEntries_{0};
+
 		uint32_t r1Trim_ = 0;
 		uint32_t r2Trim_ = 0;
 
