@@ -13,6 +13,60 @@
 
 namespace njhseq {
 
+/**@brief Write what R1 and R2 would be for a target that gets analyzed as two separate targets, target-R1 and target-R2
+ *
+ * R1 reads in from the forward primer and R2 reads in from the reverse primer and is written in the direction it's sequenced so these
+ * match the extracted mates. The same windows as the R1 and R2 regions in the beds (see genMateRegions in extractTargetsFromGenomes.cpp).
+ * Sequences that become identical once shortened get collapsed with their names concatenated, the same as the target's fasta.
+ *
+ * @param primersRemovedSeqs the target's sequences with the primers removed
+ * @param primer the target's primers, uses the shortest of each so the sequences cover as much as a read could
+ * @param pairedEndLength the length of the reads
+ * @param refSeqsDir the directory to write target-R1.fasta and target-R2.fasta to
+ */
+static void writeMateRefSeqs(const std::vector<seqInfo> & primersRemovedSeqs,
+		const PrimerDeterminator::primerInfo & primer,
+		uint32_t pairedEndLength,
+		const bfs::path & refSeqsDir){
+	auto basesPastPrimer = [&pairedEndLength](const std::vector<PrimerDeterminator::primerInfo::PrimerSeq> & primers){
+		uint64_t shortest = std::numeric_limits<uint64_t>::max();
+		for(const auto & primerSeq : primers){
+			shortest = std::min<uint64_t>(shortest, len(primerSeq.info_));
+		}
+		return shortest < pairedEndLength ? pairedEndLength - shortest : 0;
+	};
+	const uint64_t r1Bases = basesPastPrimer(primer.fwds_);
+	const uint64_t r2Bases = basesPastPrimer(primer.revs_);
+	std::vector<seqInfo> r1Seqs;
+	std::vector<seqInfo> r2Seqs;
+	auto collapseInto = [](std::vector<seqInfo> & refs, const seqInfo & seq){
+		for(auto & ref : refs){
+			if(ref.seq_ == seq.seq_){
+				ref.name_.append("-" + seq.name_);
+				return;
+			}
+		}
+		refs.emplace_back(seq);
+	};
+	for(const auto & seq : primersRemovedSeqs){
+		if(r1Bases > 0){
+			collapseInto(r1Seqs, seq.getSubRead(0, std::min<uint64_t>(r1Bases, len(seq))));
+		}
+		if(r2Bases > 0){
+			const uint64_t size = std::min<uint64_t>(r2Bases, len(seq));
+			auto r2Seq = seq.getSubRead(len(seq) - size, size);
+			r2Seq.reverseComplementRead(false, true);
+			collapseInto(r2Seqs, r2Seq);
+		}
+	}
+	if(!r1Seqs.empty()){
+		SeqOutput::write(r1Seqs, SeqIOOptions::genFastaOut(njh::files::make_path(refSeqsDir, primer.primerPairName_ + "-R1.fasta")));
+	}
+	if(!r2Seqs.empty()){
+		SeqOutput::write(r2Seqs, SeqIOOptions::genFastaOut(njh::files::make_path(refSeqsDir, primer.primerPairName_ + "-R2.fasta")));
+	}
+}
+
 int SeekDeepUtilsRunner::genTargetInfoFromGenomes(const njh::progutils::CmdArgs & inputCommands) {
 	extractBetweenSeqsPars pars;
 
@@ -105,6 +159,10 @@ int SeekDeepUtilsRunner::genTargetInfoFromGenomes(const njh::progutils::CmdArgs 
 				std::set<std::string> statuses;
 				if(finalMaxSize > maxInsertSize){
 					statuses.emplace("NoOverLap");
+					writeMateRefSeqs(SeqInput::getSeqVec<seqInfo>(SeqIOOptions::genFastaIn(primersRemovedFnp)),
+							njh::mapAt(ids.pDeterminator_->primers_, tar),
+							pars.pairedEndLength,
+							refSeqsDir);
 				} else {
 					if(finalMaxSize >= pars.pairedEndLength){
 						statuses.emplace("R1EndsInR2");

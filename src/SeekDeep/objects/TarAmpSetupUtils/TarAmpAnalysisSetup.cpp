@@ -649,7 +649,12 @@ void TarAmpAnalysisSetup::addRefSeqs(const bfs::path & refSeqsDir){
 	for (const auto & ff : fastaFiles) {
 		auto tarName = bfs::basename(ff.first);
 		found.emplace_back(tarName);
-		if (!njh::in(tarName, tars)) {
+		//the refs for targets analyzed as two separate targets, target-R1 and target-R2, are looked for in refsDir_ when setting up the population clustering
+		const bool mateRef = (njh::endsWith(tarName, "-R1") || njh::endsWith(tarName, "-R2")) &&
+				njh::in(tarName.substr(0, tarName.size() - 3), tars);
+		if (mateRef) {
+			bfs::copy_file(ff.first, njh::files::make_path(refsDir_, tarName + ".fasta"), bfs::copy_options::overwrite_existing);
+		} else if (!njh::in(tarName, tars)) {
 			forRefSeqs_.notMatching_.emplace_back(tarName);
 		} else {
 			auto inOpts = SeqIOOptions::genFastaIn(ff.first.string(), false);

@@ -743,6 +743,7 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 				processWriter.overhangsWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOutGz(njh::files::make_path(overHansDir, name + "_overhangs")));
 				if(njh::in(PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP, njh::mapAt(ids.targets_, extractedPrimer).overlapStatuses_)){
 					processWriter.notCombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genPairedOutGz(njh::files::make_path(unfilteredByPairsProcessedDir, name)));
+					processWriter.perfectOverlapCombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOutGz(njh::files::make_path(badDir, name + "_perfectOverlap")));
 					processWriter.r1BeginsInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOutGz(njh::files::make_path(badDir, name + "_r1BeginsInR2")));
 					processWriter.r1EndsInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOutGz(njh::files::make_path(badDir, name + "_r1EndsInR2")));
 					processWriter.r1AllInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOutGz(njh::files::make_path(badDir, name + "_r1AllInR2")));
@@ -778,6 +779,7 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 				processWriter.overhangsWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(njh::files::make_path(overHansDir, name + "_overhangs")));
 				if(njh::in(PairedReadProcessor::ReadPairOverLapStatus::NOOVERLAP, njh::mapAt(ids.targets_, extractedPrimer).overlapStatuses_)){
 					processWriter.notCombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genPairedOut(njh::files::make_path(unfilteredByPairsProcessedDir, name)));
+					processWriter.perfectOverlapCombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(njh::files::make_path(badDir, name + "_perfectOverlap")));
 					processWriter.r1BeginsInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(njh::files::make_path(badDir, name + "_r1BeginsInR2")));
 					processWriter.r1EndsInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(njh::files::make_path(badDir, name + "_r1EndsInR2")));
 					processWriter.r1AllInR2CombinedWriter = std::make_unique<SeqOutput>(SeqIOOptions::genFastqOut(njh::files::make_path(badDir, name + "_r1AllInR2")));
@@ -948,11 +950,14 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 						|| filteringSeq.seqBase_.seq_.size() <= pars.corePars_.primIdsPars.compKmerLen_
 						|| filteringSeq.mateSeqBase_.seq_.size() <= pars.corePars_.primIdsPars.compKmerLen_){
 					bool pass = false;
-					if(pairProcessor.params_.r1Trim_ > 0 && pairProcessor.params_.r1Trim_ < len(filteringSeq.seqBase_)){
-						readVecTrimmer::trimOffEndBases(filteringSeq.seqBase_, pairProcessor.params_.r1Trim_);
-					}
-					if(pairProcessor.params_.r2Trim_ > 0 && pairProcessor.params_.r2Trim_ < len(filteringSeq.mateSeqBase_)){
-						readVecTrimmer::trimOffEndBases(filteringSeq.mateSeqBase_, pairProcessor.params_.r2Trim_);
+					//if these pairs went through pair processing their ends have already been trimmed
+					if(pars.corePars_.primIdsPars.noOverlapProcessForNoOverlapStatusTargets_){
+						if(pairProcessor.params_.r1Trim_ > 0 && pairProcessor.params_.r1Trim_ < len(filteringSeq.seqBase_)){
+							readVecTrimmer::trimOffEndBases(filteringSeq.seqBase_, pairProcessor.params_.r1Trim_);
+						}
+						if(pairProcessor.params_.r2Trim_ > 0 && pairProcessor.params_.r2Trim_ < len(filteringSeq.mateSeqBase_)){
+							readVecTrimmer::trimOffEndBases(filteringSeq.mateSeqBase_, pairProcessor.params_.r2Trim_);
+						}
 					}
 
 					if(ids.targets_.at(extractedPrimer).refs_.empty()){
