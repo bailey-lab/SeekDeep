@@ -25,6 +25,7 @@
 //
 
 #include <njhseq/alignment/aligner/aligner.hpp>
+#include <njhseq/PrimerIDUtils/PrimerDimerUtils.hpp>
 #include <njhseq/seqToolsUtils/determinators/PrimerDeterminator.hpp>
 
 namespace njhseq {
@@ -159,12 +160,39 @@ public:
 	 */
 	[[nodiscard]] uint64_t getMaxDimerSize() const;
 
+	/**@brief The predicted strength of two primers annealing to each other, the more negative the stronger
+	 *
+	 */
+	struct PrimerPairScores{
+		bool scored_{false}; /**< false if there's nothing that could be scored, e.g. the primers have degenerate bases */
+		double standard_{0};
+		double proofreading_{0}; /**< for polymerases that can remove unpaired 3' bases, see PrimerDimerUtils::computeProofreadingDimerScore */
+
+		[[nodiscard]] double worst() const;
+		/**@brief Keep the lowest of each score
+		 *
+		 * @param other the scores to compare to
+		 */
+		void keepLowest(const PrimerPairScores & other);
+	};
+
+	/**@brief Score two primers against each other, a primer with several sequences gets the lowest of them
+	 *
+	 * Only the primer sequences themselves are scored, not any adapters that are on them in the actual oligos
+	 *
+	 * @param primerName1 the name of a primer, the target name plus _F or _R
+	 * @param primerName2 the name of the other primer
+	 * @return the scores
+	 */
+	[[nodiscard]] PrimerPairScores scorePrimers(const std::string & primerName1, const std::string & primerName2) const;
+
 private:
 	struct NamedPrimer{
 		std::string name_;
 		seqInfo info_;
 		seqInfo infoRC_;
 	};
+	PrimerDimerUtils dimerScorer_;
 	std::vector<NamedPrimer> primers_;
 	std::unordered_map<std::string, std::vector<size_t>> primerIdxsByName_;
 	uint64_t maxPrimerSize_{0};
@@ -198,11 +226,11 @@ public:
 	 * @param sampleName name of the sample
 	 * @param getMidTotal gets the total number of read pairs for a MID, to give the percent of it that each row is
 	 * @param overLapErrorAllowed the setting the mates were stitched with
-	 * @param pars the settings the dimers were called with
+	 * @param detector what called the dimers, for its settings and to score the primers, an unresolved dimer gets the lowest score of its trusted primer against each of its candidate partners
 	 */
 	void write(std::ostream & out, const std::string & inputName, const std::string & sampleName,
 			const std::function<uint64_t(const std::string &)> & getMidTotal,
-			double overLapErrorAllowed, const PrimerDimerDetector::DetectorPars & pars);
+			double overLapErrorAllowed, const PrimerDimerDetector & detector);
 
 private:
 	struct Tally{

@@ -129,6 +129,48 @@ uint64_t PrimerDimerDetector::getMaxDimerSize() const{
 	return 2 * maxPrimerSize_ + pars_.maxGapBetweenPrimers_;
 }
 
+double PrimerDimerDetector::PrimerPairScores::worst() const{
+	return std::min(standard_, proofreading_);
+}
+
+void PrimerDimerDetector::PrimerPairScores::keepLowest(const PrimerPairScores & other){
+	if(!other.scored_){
+		return;
+	}
+	standard_ = scored_ ? std::min(standard_, other.standard_) : other.standard_;
+	proofreading_ = scored_ ? std::min(proofreading_, other.proofreading_) : other.proofreading_;
+	scored_ = true;
+}
+
+PrimerDimerDetector::PrimerPairScores PrimerDimerDetector::scorePrimers(const std::string & primerName1, const std::string & primerName2) const{
+	PrimerPairScores ret;
+	const auto primers1 = primerIdxsByName_.find(primerName1);
+	const auto primers2 = primerIdxsByName_.find(primerName2);
+	if(primerIdxsByName_.end() == primers1 || primerIdxsByName_.end() == primers2){
+		return ret;
+	}
+	//the scoring tables only have the four bases
+	const auto canScore = [](const std::string & seq){
+		return seq.size() > 1 && std::all_of(seq.begin(), seq.end(), [](char base){
+			return 'A' == base || 'C' == base || 'G' == base || 'T' == base;
+		});
+	};
+	for(const auto idx1 : primers1->second){
+		const auto seq1 = njh::strToUpperRet(primers_[idx1].info_.seq_);
+		for(const auto idx2 : primers2->second){
+			const auto seq2 = njh::strToUpperRet(primers_[idx2].info_.seq_);
+			if(canScore(seq1) && canScore(seq2)){
+				PrimerPairScores scores;
+				scores.scored_ = true;
+				scores.standard_ = dimerScorer_.computeDimerScoreTop(seq1, seq2);
+				scores.proofreading_ = dimerScorer_.computeProofreadingDimerScore(seq1, seq2);
+				ret.keepLowest(scores);
+			}
+		}
+	}
+	return ret;
+}
+
 PrimerDimerDetector::PrimerMatch PrimerDimerDetector::genMatch(const std::string & name, const seqInfo & primer, bool revComp, aligner & alignerObj){
 	PrimerMatch match;
 	match.primerName_ = name;
@@ -281,14 +323,24 @@ void PrimerDimerTallies::add(const std::string & midName, const PrimerDimerDetec
 }
 
 void PrimerDimerTallies::writeHeader(std::ostream & out){
-	out << "inputName\tsampleName\tMIDName\tcategory\tfrontPrimer\tendPrimer\tcandidatePartners\tcount\tMIDtotal\tperc\tprimersOverlapOrAbut\tprimersGapped\tmedianLength\toverLapErrorAllowed\tmaxGapBetweenPrimers\tminPrimerMatchBases" << "\n";
+	out << "inputName\tsampleName\tMIDName\tcategory\tfrontPrimer\tendPrimer\tcandidatePartners\tcount\tMIDtotal\tperc\tprimersOverlapOrAbut\tprimersGapped\tmedianLength\tdimerScoreStandard\tdimerScoreProofreading\tdimerScoreWorst\toverLapErrorAllowed\tmaxGapBetweenPrimers\tminPrimerMatchBases" << "\n";
 }
 
 void PrimerDimerTallies::write(std::ostream & out, const std::string & inputName, const std::string & sampleName,
 		const std::function<uint64_t(const std::string &)> & getMidTotal,
-		double overLapErrorAllowed, const PrimerDimerDetector::DetectorPars & pars){
+		double overLapErrorAllowed, const PrimerDimerDetector & detector){
 	for(auto & tally : tallies_){
 		const auto midTotal = getMidTotal(std::get<0>(tally.first));
+		const auto & frontPrimer = std::get<2>(tally.first);
+		const auto & endPrimer = std::get<3>(tally.first);
+		PrimerDimerDetector::PrimerPairScores scores;
+		if(std::get<4>(tally.first).empty()){
+			scores = detector.scorePrimers(frontPrimer, endPrimer);
+		}else{
+			for(const auto & candidate : tokenizeString(std::get<4>(tally.first), ";")){
+				scores.keepLowest(detector.scorePrimers(frontPrimer.empty() ? endPrimer : frontPrimer, candidate));
+			}
+		}
 		out << inputName
 				<< "\t" << sampleName
 				<< "\t" << std::get<0>(tally.first)
@@ -302,9 +354,12 @@ void PrimerDimerTallies::write(std::ostream & out, const std::string & inputName
 				<< "\t" << tally.second.noGap_
 				<< "\t" << tally.second.gapped_
 				<< "\t" << vectorMedianRef(tally.second.lengths_)
+				<< "\t" << (scores.scored_ ? estd::to_string(scores.standard_) : std::string(""))
+				<< "\t" << (scores.scored_ ? estd::to_string(scores.proofreading_) : std::string(""))
+				<< "\t" << (scores.scored_ ? estd::to_string(scores.worst()) : std::string(""))
 				<< "\t" << overLapErrorAllowed
-				<< "\t" << pars.maxGapBetweenPrimers_
-				<< "\t" << pars.minPrimerMatchBases_ << std::endl;
+				<< "\t" << detector.pars_.maxGapBetweenPrimers_
+				<< "\t" << detector.pars_.minPrimerMatchBases_ << std::endl;
 	}
 }
 

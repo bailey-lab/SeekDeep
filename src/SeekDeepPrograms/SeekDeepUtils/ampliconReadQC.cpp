@@ -155,6 +155,7 @@ int SeekDeepUtilsRunner::ampliconReadQC(const njh::progutils::CmdArgs & inputCom
 	setUp.setOption(pars.primerPars_.primerWithin_, "--primerWithinStart", "By default the primers are searched at the very beginning of seq, use this flag to extended the search, should be kept low to cut down on false positives", false, primerGroup);
 	setUp.setOption(pars.primerPars_.primerStart_, "--primerSearchStart", "By default the primers are searched at the very beginning of seq, use this flag to start the search here", false, primerGroup);
 	setUp.setOption(pars.primerPars_.allowable_.hqMismatches_, "--primerNumOfMismatches", "The number of mismatches to allow in primers", false, primerGroup);
+	setUp.setOption(pars.primerPars_.checkComplement_, "--checkRevComplementForPrimers", "Also check whether the mates are the other way around when the forward primer isn't found on the first mate", false, primerGroup);
 	setUp.setOption(pars.primerCallCacheMaxEntries_, "--primerCallCacheMaxEntries", "Max number of distinct read starts per sample to remember the primer found for so it's not searched for again, 0 to not remember any, the output is the same either way", false, primerGroup);
 	bool useAlnPrimerSearch = false;
 	setUp.setOption(useAlnPrimerSearch, "--useAlnPrimerSearch", "Use alignment to search for primers rather than motif search, motif search is faster but alignment search allows indels", false, primerGroup);
@@ -349,8 +350,9 @@ int SeekDeepUtilsRunner::ampliconReadQC(const njh::progutils::CmdArgs & inputCom
 		return primerName.substr(0, primerName.rfind('_'));
 	};
 
+	//all gzipped since the tables with sequences in them grow with the depth and diversity of the run
 	const auto outPath = [&setUp](const std::string & fileName){
-		return OutOptions(njh::files::make_path(setUp.pars_.directoryName_, fileName));
+		return OutOptions(njh::files::make_path(setUp.pars_.directoryName_, fileName + ".gz"));
 	};
 	OutputStream categoryOut(outPath("readCategoryCounts.tsv"));
 	categoryOut << "sample\ttotal";
@@ -410,7 +412,7 @@ int SeekDeepUtilsRunner::ampliconReadQC(const njh::progutils::CmdArgs & inputCom
 		}
 
 		res.dimers_.write(dimerOut, samples[sampleIdx].r1_.filename().string(), res.sampleName_,
-				[&res](const std::string &){ return res.total_; }, pars.dimerOverLapErrorAllowed_, qc.detector_.pars_);
+				[&res](const std::string &){ return res.total_; }, pars.dimerOverLapErrorAllowed_, qc.detector_);
 
 		for(auto & target : res.targetCounts_){
 			VecStr expected;

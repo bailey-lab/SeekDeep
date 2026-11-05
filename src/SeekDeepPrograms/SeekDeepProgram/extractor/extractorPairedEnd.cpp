@@ -752,7 +752,7 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 		PrimerDimerTallies::writeHeader(primerDimerCountsOut);
 		primerDimerTallies.write(primerDimerCountsOut, seqName, pars.corePars_.sampleName, [&counts](const std::string & midName){
 			return counts[midName].first + counts[midName].second;
-		}, pars.pairProcessorParams_.errorAllowed_, primerDimerDetector->pars_);
+		}, pars.pairProcessorParams_.errorAllowed_, *primerDimerDetector);
 	}
 
 	//key1 = target, key2 = overlap status, value = count of that status

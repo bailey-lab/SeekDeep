@@ -248,7 +248,15 @@ AmpliconReadQC::SampleResults AmpliconReadQC::processSample(const SeqIOOptions &
 	while(reader.readNextRead(seq)){
 		++ret.total_;
 		stitchingAligner.parts_.setMaxSize(std::max(len(seq.seqBase_), len(seq.mateSeqBase_)));
-		const auto forwardCall = callPrimer(0, seq.seqBase_);
+		auto forwardCall = callPrimer(0, seq.seqBase_);
+		if(pars_.primerPars_.checkComplement_ && unrecognized == forwardCall.name_){
+			//the same as extractorPairedEnd, the whole pair could be in the other direction
+			auto mateForwardCall = callPrimer(0, seq.mateSeqBase_);
+			if(unrecognized != mateForwardCall.name_){
+				std::swap(seq.seqBase_, seq.mateSeqBase_);
+				forwardCall = std::move(mateForwardCall);
+			}
+		}
 		const auto reverseCall = callPrimer(1, seq.mateSeqBase_);
 		const auto & forwardName = forwardCall.name_;
 		const auto & reverseName = reverseCall.name_;
@@ -442,6 +450,11 @@ std::unordered_map<std::string, AmpliconProductPlacer::Placement> AmpliconProduc
 		std::string genome_;
 		BLASTHitTab hit_;
 	};
+	//blast needs these as plain files but they aren't needed that way once it's done with them
+	const auto gzAndRemove = [](const bfs::path & fnp){
+		gzZipFile(IoOptions(InOptions(fnp), OutOptions(bfs::path(fnp.string() + ".gz"))));
+		bfs::remove(fnp);
+	};
 	BioCmdsUtils bioRunner;
 	njh::sys::requireExternalProgramThrow("blastn");
 	//the best hit of each query, index is the position in toBlast
@@ -455,18 +468,21 @@ std::unordered_map<std::string, AmpliconProductPlacer::Placement> AmpliconProduc
 					" -perc_identity ", pars_.minPercentId_, " -qcov_hsp_perc ", 100 * pars_.minCoverage_,
 					" -evalue 1 -max_target_seqs 20 -outfmt 6 -num_threads ", pars_.numThreads_, " -out ", hitsFnp.string()),
 					queryFnp, hitsFnp);
-			BioDataFileIO<BLASTHitTab> reader{IoOptions(InOptions(hitsFnp))};
-			reader.openIn();
-			BLASTHitTab hit;
-			while(reader.readNextRecord(hit)){
-				const auto queryPos = njh::StrToNumConverter::stoToNum<size_t>(hit.queryName_.substr(3));
-				const double coverage = static_cast<double>(hit.alignLen_) / toBlast[queryPos].first.size();
-				if(hit.perId_ >= pars_.minPercentId_ && coverage >= pars_.minCoverage_ && hit.bitScore_ > bestHits[queryPos].bitScore_){
-					bestHits[queryPos].bitScore_ = hit.bitScore_;
-					bestHits[queryPos].genome_ = genomeName;
-					bestHits[queryPos].hit_ = hit;
+			{
+				BioDataFileIO<BLASTHitTab> reader{IoOptions(InOptions(hitsFnp))};
+				reader.openIn();
+				BLASTHitTab hit;
+				while(reader.readNextRecord(hit)){
+					const auto queryPos = njh::StrToNumConverter::stoToNum<size_t>(hit.queryName_.substr(3));
+					const double coverage = static_cast<double>(hit.alignLen_) / toBlast[queryPos].first.size();
+					if(hit.perId_ >= pars_.minPercentId_ && coverage >= pars_.minCoverage_ && hit.bitScore_ > bestHits[queryPos].bitScore_){
+						bestHits[queryPos].bitScore_ = hit.bitScore_;
+						bestHits[queryPos].genome_ = genomeName;
+						bestHits[queryPos].hit_ = hit;
+					}
 				}
 			}
+			gzAndRemove(hitsFnp);
 		};
 		if(anyShort){
 			runSearch(shortQueryFnp, "short", "-task blastn-short -word_size 11 -dust no");
@@ -483,6 +499,8 @@ std::unordered_map<std::string, AmpliconProductPlacer::Placement> AmpliconProduc
 	if(!pars_.hostGenomeFnp_.empty()){
 		blastGenome("host", pars_.hostGenomeFnp_, bestHostHits);
 	}
+	gzAndRemove(shortQueryFnp);
+	gzAndRemove(longQueryFnp);
 
 	//the targets are looked up by genome and chromosome
 	std::unordered_map<std::string, std::unordered_map<std::string, std::vector<std::shared_ptr<Bed6RecordCore>>>> targetLocs;
