@@ -11,6 +11,7 @@
 
 #include "SeekDeep/objects/IlluminaUtils/IlluminaNameFormatDecoder.hpp"
 #include "SeekDeep/objects/IlluminaUtils/PairedReadProcessor.hpp"
+#include "SeekDeep/objects/IlluminaUtils/PrimerDimerDetector.hpp"
 #include "SeekDeep/objects/IlluminaUtils/ReadPairsOrganizer.hpp"
 
 
