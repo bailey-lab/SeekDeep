@@ -41,6 +41,7 @@ SeekDeepUtilsRunner::SeekDeepUtilsRunner() :
 				  addFunc("rBind", ManipulateTableRunner::rBind, false),
 					addFunc("genTargetInfoFromGenomes", genTargetInfoFromGenomes, false),
 					addFunc("ampliconReadQC", ampliconReadQC, false),
+					addFunc("testForFoldbacks", testForFoldbacks, false),
 					addFunc("benchmarkTarAmpControlMixtures", benchmarkTarAmpControlMixtures, false),
 					addFunc("benchmarkMultiTarAmpControlMixtures", benchmarkMultiTarAmpControlMixtures, false),
 					addFunc("gatherInfoOnTargetedAmpliconSeqFile", gatherInfoOnTargetedAmpliconSeqFile, false),
