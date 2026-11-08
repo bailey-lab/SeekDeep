@@ -101,6 +101,16 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 			"Write the per sample directories under samplesOutput/ and the final/ links to them, all their info is also in sampleClustersInfo.tab.txt.gz", false, "Output");
 	setOption(pars.writeSampleInputClusters, "--writeSampleInputClusters",
 			"Write sampleInputClusters, the per replicate input clusters that make up every sample's final and excluded clusters", false, "Output");
+	setOption(pars.writePMO, "--writePMO",
+			"Write a minimum PMO of the final haplotypes to PMO.json.gz, needs --pmoPrimers", false, "Output");
+	setOption(pars.pmoPrimersFnp, "--pmoPrimers",
+			"An id file (target, forward, reverse) with the primers for this target, its name should match --experimentName", pars.writePMO, "Output");
+	setOption(pars.pmoPrimerTarget, "--pmoPrimerTarget",
+			"Target to look up in --pmoPrimers when it isn't the same as --experimentName, e.g. when mates are analyzed separately", false, "Output");
+	setOption(pars.pmoPanelName, "--pmoPanelName",
+			"Panel name for the PMO, defaults to the experiment name", false, "Output");
+	setOption(pars.pmoProgramVersion, "--pmoProgramVersion",
+			"SeekDeep version to record in the PMO", false, "Output");
 	processDebug();
 	processVerbose();
 	pars_.colOpts_.verboseOpts_.verbose_ = pars_.verbose_;

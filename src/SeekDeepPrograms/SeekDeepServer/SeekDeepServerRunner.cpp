@@ -33,7 +33,8 @@ SeekDeepServerRunner::SeekDeepServerRunner()
     : njh::progutils::ProgramRunner(
     		{
 				addFunc("genProjectConfig", genProjectConfig, false),
-				addFunc("popClusteringViewer", popClusteringViewer, false)
+				addFunc("popClusteringViewer", popClusteringViewer, false),
+				addFunc("pmoViewer", pmoViewer, false)
     		},//
                     "SeekDeepServer") {}
 
@@ -115,6 +116,53 @@ int SeekDeepServerRunner::popClusteringViewer(const njh::progutils::CmdArgs & in
 	return 0;
 }
 
+
+int SeekDeepServerRunner::pmoViewer(const njh::progutils::CmdArgs & inputCommands){
+	njhseq::seqSetUp setUp(inputCommands);
+	SeqAppCorePars corePars;
+	corePars.port_ = 9882;
+	corePars.name_ = "pmv";
+	bfs::path pmoFnp = "";
+	bfs::path resourceDirName = njh::files::make_path(SeekDeep_INSTALLDIR, "etc/serverResources").string();
+	setUp.setOption(resourceDirName, "--resourceDirName",
+			"Name of the resource Directory where the js and html is located",
+			!bfs::exists(resourceDirName));
+	setUp.setOption(pmoFnp, "--pmo", "The PMO file to serve, can be gzipped", true);
+	setUp.processDebug();
+	setUp.processVerbose();
+	corePars.setCoreOptions(setUp);
+	setUp.finishSetUp(std::cout);
+	resourceDirName = njh::appendAsNeededRet(resourceDirName.string(), "/");
+	if(!bfs::exists(resourceDirName)){
+		std::stringstream ss;
+		ss << __PRETTY_FUNCTION__ << ": error, resource directory " << resourceDirName << " doesn't exist";
+		throw std::runtime_error{ss.str()};
+	}
+	Json::Value appConfig;
+	corePars.addCoreOpts(appConfig);
+	appConfig["pmo"] = njh::json::toJson(pmoFnp);
+	appConfig["resources"] = njh::json::toJson(resourceDirName);
+	if(setUp.pars_.verbose_){
+		std::cout << corePars.getAddress() << std::endl;
+	}
+	pmv viewer(appConfig);
+	auto resources = viewer.getAllResources();
+	auto settings = std::make_shared<restbed::Settings>();
+	settings->set_port(corePars.port_);
+	settings->set_default_header("Connection", "close");
+	settings->set_bind_address(corePars.bindAddress_);
+	restbed::Service service;
+	service.set_error_handler(errorHandler);
+	for(const auto & resource : resources){
+		service.publish(resource);
+	}
+	try {
+		service.start(settings);
+	} catch (std::exception & e) {
+		std::cerr << e.what() << std::endl;
+	}
+	return 0;
+}
 
 int SeekDeepServerRunner::genProjectConfig(
 		const njh::progutils::CmdArgs & inputCommands) {

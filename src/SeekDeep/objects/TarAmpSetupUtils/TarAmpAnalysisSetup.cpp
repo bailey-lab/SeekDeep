@@ -765,6 +765,8 @@ void TarAmpAnalysisSetup::writeOutIdFiles() {
 						njh::files::make_path(idsDir_, collapseIdx + ".id.txt")),
 				tarCombo);
 	}
+	//all the primers together, for the PMO each target writes in processClusters
+	idsMids_->writeIdFile(OutOptions(njh::files::make_path(idsDir_, "allTargets.id.txt")));
 	for(const auto & tar : idsMids_->targets_){
 		if(!tar.second.refs_.empty()){
 			SeqOutput::write(tar.second.refs_,

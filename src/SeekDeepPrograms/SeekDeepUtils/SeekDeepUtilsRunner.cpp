@@ -42,6 +42,7 @@ SeekDeepUtilsRunner::SeekDeepUtilsRunner() :
 					addFunc("genTargetInfoFromGenomes", genTargetInfoFromGenomes, false),
 					addFunc("ampliconReadQC", ampliconReadQC, false),
 					addFunc("testForFoldbacks", testForFoldbacks, false),
+					addFunc("nanoporeAmpliconReadQC", nanoporeAmpliconReadQC, false),
 					addFunc("benchmarkTarAmpControlMixtures", benchmarkTarAmpControlMixtures, false),
 					addFunc("benchmarkMultiTarAmpControlMixtures", benchmarkMultiTarAmpControlMixtures, false),
 					addFunc("gatherInfoOnTargetedAmpliconSeqFile", gatherInfoOnTargetedAmpliconSeqFile, false),

@@ -38,6 +38,7 @@ class SeekDeepServerRunner : public njh::progutils::ProgramRunner {
   
   static int genProjectConfig(const njh::progutils::CmdArgs & inputCommands);
   static int popClusteringViewer(const njh::progutils::CmdArgs & inputCommands);
+  static int pmoViewer(const njh::progutils::CmdArgs & inputCommands);
 
 
 };

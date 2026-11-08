@@ -267,6 +267,11 @@ struct processClustersPars {
   bool writeGroupInfoFiles = false; //! write the per group tables under groups/, otherwise only groups/groupMetaData.json is written
   bool writeSampleDirs = false; //! write the per sample directories under samplesOutput/ and the final/ links to them
   bool writeSampleInputClusters = false; //! write sampleInputClusters, the per replicate sub clusters of every sample's clusters
+  bool writePMO = false; //! write a minimum PMO, PMO.json.gz, needs pmoPrimersFnp
+  bfs::path pmoPrimersFnp; //! id file with the primers for this target
+  std::string pmoPanelName; //! panel name for the PMO, defaults to the experiment name
+  std::string pmoPrimerTarget; //! target to look up in pmoPrimersFnp, defaults to the experiment name
+  std::string pmoProgramVersion = "3.0.1"; //! SeekDeep version recorded in the PMO
 
   bool onPerId = false;
   bool plotRepAgreement = false;

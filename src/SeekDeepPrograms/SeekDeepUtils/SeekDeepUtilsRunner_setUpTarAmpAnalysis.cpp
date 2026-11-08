@@ -1156,6 +1156,9 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 						"groupMeta.tab.txt").string() + "\"";
 	}
 
+	processClusterTemplate += " --writePMO --pmoPrimers \""
+			+ njh::files::make_path(bfs::absolute(analysisSetup.idsDir_), "allTargets.id.txt").string() + "\"";
+
 	auto popDir = njh::files::make_path(bfs::absolute(analysisSetup.dir_),
 			"popClustering");
 
@@ -1174,7 +1177,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 				std::stringstream processClustersCmdsStream;
 				processClustersCmdsStream
 						<< "cd \"" + njh::files::make_path(popDir, tar + mate ).string() + "\" && "
-								+ currentProcessClusterTemplate + " --experimentName " + tar+ mate;
+								+ currentProcessClusterTemplate + " --experimentName " + tar+ mate + " --pmoPrimerTarget " + tar;
 				auto refSeqFnp = njh::files::make_path(pars.outDir, "info/refs/" + tar+ mate + ".fasta");
 				if(bfs::exists(refSeqFnp) && !pars.refSeqsDir.empty()){
 					processClustersCmdsStream << " --ref " << bfs::absolute(refSeqFnp);

@@ -27,6 +27,7 @@
 #include "SeekDeepPrograms/SeekDeepProgram/SeekDeepRunner.hpp"
 #include <njhseq/objects/Meta/MetaUtils.hpp>
 #include <njhseq/objects/dataContainers/tables/TableReader.hpp>
+#include "SeekDeep/objects/TarAmpSetupUtils/PrimersAndMids.hpp"
 
 namespace njhseq {
 
@@ -48,6 +49,24 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 	// parameters file
 	setUp.writeParametersFile(setUp.pars_.directoryName_ + "parametersUsed.txt",
 			false, false);
+
+	//check the primers up front rather than finding out after clustering
+	collapse::SampleCollapseCollection::MinimumPmoPars pmoPars;
+	if (pars.writePMO) {
+		PrimersAndMids primers(pars.pmoPrimersFnp);
+		const auto primerTarget = pars.pmoPrimerTarget.empty() ? pars.experimentNames.populationName_ : pars.pmoPrimerTarget;
+		if (!primers.hasTarget(primerTarget)) {
+			std::stringstream ss;
+			ss << __PRETTY_FUNCTION__ << ", error, " << pars.pmoPrimersFnp << " doesn't have primers for " << primerTarget << ", options are " << njh::conToStr(njh::getVecOfMapKeys(primers.targets_), ", ") << "\n";
+			throw std::runtime_error{ss.str()};
+		}
+		const auto & primerInfo = primers.targets_.at(primerTarget).info_;
+		pmoPars.forwardPrimer_ = primerInfo.forwardPrimerRaw_;
+		pmoPars.reversePrimer_ = primerInfo.reversePrimerRaw_;
+		pmoPars.panelName_ = pars.pmoPanelName;
+		pmoPars.programName_ = "SeekDeep processClusters";
+		pmoPars.programVersion_ = pars.pmoProgramVersion;
+	}
 
 	//write clustering parameters
 	auto parsDir = njh::files::makeDir(setUp.pars_.directoryName_, njh::files::MkdirPar("pars"));
@@ -823,6 +842,10 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 	}
 
 	sampColl.createCoreJsonFile();
+
+	if (pars.writePMO) {
+		sampColl.writeMinimumPMO(njh::files::make_path(sampColl.masterOutputDir_, "PMO.json.gz"), pmoPars);
+	}
 
 	if (!flatMasterDir) {
 		auto analysisFiles = njh::files::listAllFiles(pars.masterDir, true,

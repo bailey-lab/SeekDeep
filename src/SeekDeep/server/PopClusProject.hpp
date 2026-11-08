@@ -30,6 +30,8 @@
 #include <njhseq/common.h>
 #include <njhseq/objects/dataContainers/tables/TableCache.hpp>
 #include <njhseq/objects/collapseObjects/SampleCollapseCollection.hpp>
+#include <njhcpp/IO/BlockGzip.hpp>
+#include <mutex>
 
 namespace njhseq {
 
@@ -76,6 +78,42 @@ public:
 	 * @param cache the cache to add seq files to
 	 */
 	void registerSeqFiles(SeqCache & cache);
+
+	/**@brief Add a sample's final haplotypes to the cache from sampleClustersInfo, does nothing if they are already registered
+	 *
+	 * @param sample the sample to add
+	 * @param cache the cache to add to, the sequences are written to a fastq file in its working directory
+	 */
+	void registerSampleSeqs(const std::string & sample, SeqCache & cache);
+
+	/**@brief The group and sub group tables, read from the groups directory if processClusters wrote them, otherwise computed from the population output the first time a group is asked for
+	 *
+	 */
+	const table & topGroupInfo(const std::string & group);
+	const table & subGroupPopInfo(const std::string & group, const std::string & subGroup);
+	const table & subGroupSampInfo(const std::string & group, const std::string & subGroup);
+	const table & subGroupHapIdTab(const std::string & group, const std::string & subGroup);
+	VecStr subGroupSampleNames(const std::string & group, const std::string & subGroup);
+
+private:
+	struct ComputedSubGroup {
+		table popInfo_;
+		table sampInfo_;
+		table hapIdTab_;
+		VecStr sampNames_;
+	};
+	struct ComputedGroup {
+		table groupInfo_;
+		std::unordered_map<std::string, ComputedSubGroup> subGroups_;
+	};
+	std::unordered_map<std::string, ComputedGroup> computedGroups_;
+	std::mutex computedGroupsMut_;
+
+	bfs::path sampleClustersInfoFnp_;
+	std::unique_ptr<njh::BlockGzipIndex> sampleClustersIndex_;
+
+	ComputedSubGroup computeSubGroup(const std::set<std::string> & samples);
+	const ComputedGroup & computedGroup(const std::string & group);
 
 };
 

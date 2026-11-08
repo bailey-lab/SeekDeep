@@ -28,13 +28,15 @@
 #include <njhcpp.h>
 #include <SeekDeepPrograms/SeekDeepServerRunner.h>
 #include "SeekDeepPrograms/SeekDeepUtils.h"
+#include <njhseq/ProgramRunners/PmoRunner.hpp>
 
 namespace njhseq {
 
 SeekDeepRunner::SeekDeepRunner() :
 		njh::progutils::OneRing(
 				{ addRing<SeekDeepUtilsRunner>(),
-					addRing<SeekDeepServerRunner>()
+					addRing<SeekDeepServerRunner>(),
+					addRing<PmoRunner>()
 				},
 				{
 						addFunc("extractor", extractor, false),

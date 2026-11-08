@@ -36,6 +36,11 @@
 namespace njhseq {
 
 
+/**@brief Get a color for each name, in sorted name order, as hex strings
+ *
+ */
+VecStr genColorsStrsForNamesMultiples(VecStr popNames);
+
 class pcv: public njhseq::SeqApp {
 public:
 	pcv(const Json::Value & config);

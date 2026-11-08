@@ -44,6 +44,7 @@ class SeekDeepUtilsRunner : public njh::progutils::ProgramRunner {
   static int genTargetInfoFromGenomes(const njh::progutils::CmdArgs & inputCommands);
   static int ampliconReadQC(const njh::progutils::CmdArgs & inputCommands);
   static int testForFoldbacks(const njh::progutils::CmdArgs & inputCommands);
+  static int nanoporeAmpliconReadQC(const njh::progutils::CmdArgs & inputCommands);
 
   static int benchmarkControlMixturesOnProcessedClustersDir(const njh::progutils::CmdArgs & inputCommands);
   static int benchmarkTarAmpControlMixtures(const njh::progutils::CmdArgs & inputCommands);

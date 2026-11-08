@@ -353,7 +353,7 @@ void pcv::getGroupsPopInfosPostHandler(std::shared_ptr<restbed::Session> session
 		if(nullptr != collections_[projectName]->collection_->groupDataPaths_){
 			if (njh::in(groupName, collections_[projectName]->collection_->groupDataPaths_->allGroupPaths_)) {
 				ret["groupNames"] = njh::json::toJson(collections_[projectName]->collection_->groupMetaData_->groupData_.at(groupName)->subGroupsLevels_);
-				ret["popInfo"] = tableToJsonByRow(collections_[projectName]->topGroupTabs_.at(groupName)->get(), "g_GroupName", VecStr{});
+				ret["popInfo"] = tableToJsonByRow(collections_[projectName]->topGroupInfo(groupName), "g_GroupName", VecStr{});
 			} else {
 				std::cerr << __PRETTY_FUNCTION__ << ": error, no such group as " << groupName
 						<< " " << "in project " << projectName << ", options are "
@@ -601,6 +601,7 @@ void pcv::getSampSeqsPostHandler(std::shared_ptr<restbed::Session> session,
 		if (njh::in(projectName, collections_)) {
 			auto sampleName = postData["sampleName"].asString();
 			if (collections_[projectName]->collection_->hasSample(sampleName)) {
+				collections_[projectName]->registerSampleSeqs(sampleName, *seqs_);
 				uint32_t sesUid = startSeqCacheSession();
 				seqData = seqsBySession_[sesUid]->getJson(
 						projectName + "_" + sampleName);
@@ -994,7 +995,7 @@ void pcv::groupGetSampleNamesHanlder(
 								groupName).groupPaths_)) {
 					ret["groupSamples"] =
 							njh::json::toJson(
-									collections_[projectName]->collection_->groupDataPaths_->allGroupPaths_.at(groupName).groupPaths_.at(subGroupName).readInSampNames());
+									collections_[projectName]->subGroupSampleNames(groupName, subGroupName));
 				} else {
 					std::cerr << __PRETTY_FUNCTION__ << ": error, no such sub group as "
 							<< subGroupName << " in group " << groupName << " in project "
@@ -1049,7 +1050,7 @@ void pcv::groupGetSampleInfoTabPostHanlder(
 				if (njh::in(groupName, collections_[projectName]->collection_->groupDataPaths_->allGroupPaths_)) {
 					if(njh::in(subGroupName, collections_[projectName]->collection_->groupDataPaths_->allGroupPaths_.at(groupName).groupPaths_)){
 						auto sampNames = njh::json::jsonArrayToVec<std::string>(postData["sampNames"], [](const Json::Value & val){ return val.asString();});
-						auto sampTable_ = collections_[projectName]->subGroupTabs_.at(groupName).at(subGroupName).sampInfo_->get();
+						auto sampTable_ = collections_[projectName]->subGroupSampInfo(groupName, subGroupName);
 						auto containsSampName = [&sampNames](const std::string & str) {
 							return njh::in(str, sampNames);
 						};
@@ -1227,7 +1228,7 @@ void pcv::groupGetPopInfoPostHanlder(
 						auto popUIDs = njh::json::jsonArrayToVec<std::string>(postData["popUIDs"],
 								[](const Json::Value & val) {return val.asString();});
 						auto trimedPopTab =
-								collections_[projectName]->subGroupTabs_.at(groupName).at(subGroupName).popInfo_->get().extractByComp(
+								collections_[projectName]->subGroupPopInfo(groupName, subGroupName).extractByComp(
 										"h_popUID",
 										[&popUIDs](const std::string & str) {return njh::in(str, popUIDs);});
 						ret = tableToJsonByRow(trimedPopTab, "h_popUID", VecStr { }, VecStr {
@@ -1288,7 +1289,7 @@ void pcv::groupGetHapIdTablePostHanlder(
 								[](const Json::Value & val) {return val.asString();});
 						auto samples = njh::json::jsonArrayToVec<std::string>(postData["samples"],
 								[](const Json::Value & val) {return val.asString();});
-						auto hapIdTab = collections_[projectName]->subGroupTabs_.at(groupName).at(subGroupName).hapIdTab_->get().getColumns(concatVecs(VecStr{"#PopUID"}, samples)).extractByComp(
+						auto hapIdTab = collections_[projectName]->subGroupHapIdTab(groupName, subGroupName).getColumns(concatVecs(VecStr{"#PopUID"}, samples)).extractByComp(
 								"#PopUID",
 								[&popUIDs](const std::string & str) {return njh::in(str, popUIDs);});
 
