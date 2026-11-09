@@ -27,6 +27,7 @@
 #include "SeekDeepPrograms/SeekDeepProgram/SeekDeepRunner.hpp"
 #include <njhseq/objects/Meta/MetaUtils.hpp>
 #include <njhseq/objects/dataContainers/tables/TableReader.hpp>
+#include <njhseq/objects/BioDataObject/pmo/pmoUtils.hpp>
 #include "SeekDeep/objects/TarAmpSetupUtils/PrimersAndMids.hpp"
 
 namespace njhseq {
@@ -373,11 +374,26 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 
 
   auto varCallDirPath = njh::files::make_path(sampColl.masterOutputDir_,  "variantCalling");
+  std::unique_ptr<TranslatorByAlignment::TranslatorByAlignmentResult> variantCalls;
   if(!pars.collapseVarCallPars.transPars.lzPars_.genomeFnp.empty()){
-    //if genome set call variants against genome
-    pars.collapseVarCallPars.identifier = pars.experimentNames.populationName_;
-    pars.collapseVarCallPars.outputDirectory = varCallDirPath;
-    collapseAndCallVariants(pars.collapseVarCallPars, outPopSeqsPerSamp);
+    //call variants on the final haplotypes the same way variantCallOnSeqAndProtein does, targets missing from --genomicLocations aren't called
+    std::shared_ptr<Bed6RecordCore> location;
+    bool callTarget = true;
+    if(!pars.finalHapsVarCallPars.genomicLocationsFnp.empty()){
+      auto locations = readVariantCallLocations(pars.finalHapsVarCallPars.genomicLocationsFnp, pars.finalHapsVarCallPars.genomicLocationsChangePeriodToDash);
+      auto search = locations.find(pars.experimentNames.populationName_);
+      callTarget = locations.end() != search;
+      if(callTarget){
+        location = search->second;
+      }
+    }
+    if(callTarget){
+      pars.collapseVarCallPars.outputDirectory = varCallDirPath;
+      variantCalls = std::make_unique<TranslatorByAlignment::TranslatorByAlignmentResult>(callVariantsOnFinalHaps(
+          sampColl.genSampleCollapseInfo(sampColl.popNames_.samples_), pars.experimentNames.populationName_,
+          pars.collapseVarCallPars, location, pars.groupingsFile,
+          njh::files::make_path(sampColl.masterOutputDir_, "variantCallingInputSeqs.fasta.gz")));
+    }
   }
 
 //  for(const auto & popClus : sampColl.popCollapse_->collapsed_.clusters_){
@@ -754,7 +770,7 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 //        std::cout << "CollapsedName: " << row[seqNamesTab.header_.getColPos("CollapsedName")] << std::endl;
 //        std::cout << "PopUID: " << row[seqNamesTab.header_.getColPos("PopUID")] << std::endl;
 
-        nameKey[row[seqNamesTab.header_.getColPos("CollapsedName")]] = row[seqNamesTab.header_.getColPos("PopUID")];
+        nameKey[row[seqNamesTab.header_.getColPos("CollapsedName")]] = row[seqNamesTab.header_.getColPos("originalIdentifier")];
       }
     }
     {
@@ -844,7 +860,13 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 	sampColl.createCoreJsonFile();
 
 	if (pars.writePMO) {
-		sampColl.writeMinimumPMO(njh::files::make_path(sampColl.masterOutputDir_, "PMO.json.gz"), pmoPars);
+		auto pmoObj = sampColl.genMinimumPMO(pmoPars);
+		if (variantCalls) {
+			addVariantCallsToPmo(pmoObj, pars.experimentNames.populationName_, pars.collapseVarCallPars, *variantCalls, pars.pmoGenomePars);
+		}
+		OutOptions pmoOutOpts(njh::files::make_path(sampColl.masterOutputDir_, "PMO.json.gz"), ".gz");
+		pmoOutOpts.overWriteFile_ = true;
+		pmo::writePmo(pmoObj, pmoOutOpts);
 	}
 
 	if (!flatMasterDir) {

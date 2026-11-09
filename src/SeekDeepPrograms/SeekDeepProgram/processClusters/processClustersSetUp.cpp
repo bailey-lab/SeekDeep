@@ -70,11 +70,12 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
   setOption(pars.collapseVarCallPars.variantCallerRunPars.lowVariantCutOff, "--lowVariantCutOff", "Low Variant Cut Off, don't report variants below this fraction");
   pars.collapseVarCallPars.calcPopMeasuresPars.lowVarFreq = pars.collapseVarCallPars.variantCallerRunPars.lowVariantCutOff;
   pars.collapseVarCallPars.transPars.setOptions(*this);
+  pars.finalHapsVarCallPars.setOptions(*this, pars.collapseVarCallPars);
   setOption(pars.collapseVarCallPars.calcPopMeasuresPars.getPairwiseComps, "--getPairwiseComps", "get Pairwise comparison metrics");
   bool noDiagAlnPairwiseComps = false;
   setOption(pars.collapseVarCallPars.noDiagAlnPairwiseComps, "--noDiagAlnPairwiseComps", "Use diagonal Alignment for Pairwise Comparisons");
   pars.collapseVarCallPars.calcPopMeasuresPars.diagAlnPairwiseComps = !noDiagAlnPairwiseComps;
-  //setOption(pars.collapseVarCallPars.ignoreSubFields, "--ignoreSubFields", "Meta Sub Field values to ignore when calculating variants, e.g. --ignoreSubFields \"isFieldSample:TRUE,PreferredSample:FALSE\"");
+  setOption(pars.collapseVarCallPars.ignoreSubFields, "--ignoreSubFields", "Meta Sub Field values to ignore when calculating variants, e.g. --ignoreSubFields \"isFieldSample:TRUE,PreferredSample:FALSE\"");
 
 	setOption(pars.masterDir, "--masterDir", "Master directory containing sample sequence files", false, "Input");
 	pars.masterDir = bfs::absolute(pars.masterDir);
@@ -111,6 +112,7 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 			"Panel name for the PMO, defaults to the experiment name", false, "Output");
 	setOption(pars.pmoProgramVersion, "--pmoProgramVersion",
 			"SeekDeep version to record in the PMO", false, "Output");
+	pars.pmoGenomePars.setOptions(*this);
 	processDebug();
 	processVerbose();
 	pars_.colOpts_.verboseOpts_.verbose_ = pars_.verbose_;

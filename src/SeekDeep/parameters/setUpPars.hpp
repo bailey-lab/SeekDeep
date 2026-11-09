@@ -42,6 +42,7 @@
 #include "SeekDeep/objects/IlluminaUtils/IlluminaNameFormatDecoder.hpp"
 #include <njhseq/PopulationGeneticsUtils.h>
 #include <njhseq/helpers/clusterCollapser.hpp>
+#include "SeekDeep/utils/VariantCallInput.hpp"
 
 namespace njhseq {
 
@@ -272,6 +273,7 @@ struct processClustersPars {
   std::string pmoPanelName; //! panel name for the PMO, defaults to the experiment name
   std::string pmoPrimerTarget; //! target to look up in pmoPrimersFnp, defaults to the experiment name
   std::string pmoProgramVersion = "3.0.1"; //! SeekDeep version recorded in the PMO
+  PmoGenomePars pmoGenomePars; //! the genome for the PMO when variants are called
 
   bool onPerId = false;
   bool plotRepAgreement = false;
@@ -296,6 +298,7 @@ struct processClustersPars {
 
 
   CollapseAndCallVariantsPars collapseVarCallPars;
+  FinalHapsVariantCallPars finalHapsVarCallPars; //! calling variants on the final haplotypes like variantCallOnSeqAndProtein
 
 
 

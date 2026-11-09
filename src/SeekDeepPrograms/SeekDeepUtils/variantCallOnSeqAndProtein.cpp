@@ -4,6 +4,8 @@
 #include "SeekDeepUtilsRunner.hpp"
 
 #include <njhseq/objects/dataContainers/tables/TableReader.hpp>
+#include <njhseq/objects/BioDataObject/pmo/pmoUtils.hpp>
+#include "SeekDeep/utils/VariantCallInput.hpp"
 
 namespace njhseq {
 
@@ -326,6 +328,14 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 									"Population Sequences, in this directory should be a fasta file with the name of each target");
 
 	setUp.setOption(metaFnp, "--metaFnp", "meta data for the control samples");
+	bfs::path pmoFnp;
+	PmoGenomePars pmoGenomePars;
+	bfs::path perTargetVariantCallsDir;
+	std::string perTargetVariantCallsSubDir;
+	setUp.setOption(perTargetVariantCallsDir, "--perTargetVariantCallsDir", "Make the reports from variant calls already made per target instead of calling them, a target's calls (what collapseAndCallVariants writes) are in <this>/<target>/<--perTargetVariantCallsSubDir>, e.g. the variantCalling directories of processClusters and PathWeaver runProcessClustersOnRecon");
+	setUp.setOption(perTargetVariantCallsSubDir, "--perTargetVariantCallsSubDir", "The directory within each target's directory of --perTargetVariantCallsDir with its variant calls, e.g. variantCalling for PathWeaver runProcessClustersOnRecon output");
+	setUp.setOption(pmoFnp, "--pmo", "A PMO with the haplotypes in --resultsFnp, the variant calls are added to its haplotypes by sequence and it's written to reports/allPMO.json.gz", false, "PMO");
+	pmoGenomePars.setOptions(setUp);
 	setUp.setOption(popSeqsRegexPatRemoval, "--popSeqsRegexPatRemoval",
 									"optional regex pattern to process the input pop sequences from --popSeqsFnp to make it match up with the input results folder");
 
@@ -339,6 +349,21 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 
 	Json::Value runLog;
 	std::mutex runLogMut;
+
+	if (!perTargetVariantCallsDir.empty() && !pmoFnp.empty()) {
+		std::stringstream ss;
+		ss << __PRETTY_FUNCTION__ << ", error " << "--pmo can't be used with --perTargetVariantCallsDir, the calls aren't made here\n";
+		throw std::runtime_error{ss.str()};
+	}
+	std::unique_ptr<pmo::PortableMicrohaplotypeObject> pmoObj;
+	std::set<std::string> pmoTargets;
+	std::mutex pmoMut;
+	if (!pmoFnp.empty()) {
+		pmoObj = std::make_unique<pmo::PortableMicrohaplotypeObject>(pmo::readPmo(pmoFnp));
+		for (const auto & target : pmoObj->target_info_) {
+			pmoTargets.emplace(target.target_name_);
+		}
+	}
 	njh::stopWatch fullWatch;
 	fullWatch.setLapName("initial set up");
 
@@ -358,10 +383,8 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	//population seqs;
 	auto sampInfoFnp = resultsFnp;
 
-	//key1 == target, key2 == sample
-	std::unordered_map<std::string, std::unordered_map<std::string, std::vector<seqInfo>>> allResultSeqs;
-	//key1 == target, key2 == seq, value = popUID
-	std::unordered_map<std::string, std::unordered_map<std::string, std::string>> seqToPopHapUID;
+	//the final haplotypes per target and sample
+	VariantCallInput input;
 
 	std::unique_ptr<MultipleGroupMetaData> metaGroupData;
 	if (exists(metaFnp)) {
@@ -417,10 +440,6 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	}
 
 	{
-		std::unordered_map<std::string, std::unordered_set<std::string>> allSamplesInOutput;
-		std::unordered_map<std::string, std::unordered_map<std::string, std::set<std::string>>> hPopUIDPopSamps;
-		std::unordered_map<std::string, std::unordered_map<std::string, std::string>> cNameToPopUID;
-		std::unordered_map<std::string, std::unordered_map<std::string, std::unordered_map<std::string, double>>> readCountsPerHapPerSample;
 		TableReader sampInfoReader(TableIOOpts::genTabFileIn(sampInfoFnp, true));
 		sampInfoReader.header_.checkForColumnsThrow(requiredColumns, __PRETTY_FUNCTION__);
 		VecStr row;
@@ -439,100 +458,33 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 				continue;
 			}
 			targetNamesSet.emplace(target);
-			if(!isDoubleStr(row[sampInfoReader.header_.getColPos(withinSampleReadCntColName)])) {
-				std::stringstream ss;
-				ss << __PRETTY_FUNCTION__ << " " << __FILE__ << " " << __LINE__ << ", error " << " for row: "<< "\n";
-				ss << njh::conToStr(row, "\t") << "\n";
-				ss << "Within Sample Read Count column, " << withinSampleReadCntColName << ":" << row[sampInfoReader.header_.getColPos(withinSampleReadCntColName)] << ", does not look like a number" << "\n";
-				if(allWhiteSpaceStr(row[sampInfoReader.header_.getColPos(withinSampleReadCntColName)])) {
-					ss << "value can't be empty, has to be a number" << "\n";
-				}
-				throw std::runtime_error{ss.str()};
-			}
-
-			auto readCnt = njh::StrToNumConverter::stoToNum<double>(
-							row[sampInfoReader.header_.getColPos(withinSampleReadCntColName)]);
 			const auto& h_popUID = row[sampInfoReader.header_.getColPos(popHapIdColName)];
-			auto hapName = njh::pasteAsStr(sample, "__", h_popUID);
-			std::string hapSeq;
-			if (popSeqsDirFnp.empty()) {
-				hPopUID_to_hConsensus[target][h_popUID] = row[sampInfoReader.header_.getColPos(popHapSeqColName)];
-				hapSeq = row[sampInfoReader.header_.getColPos(popHapSeqColName)];
-				hConsensus_to_hPopUID[target][hapSeq] = h_popUID;
-			} else {
-				hapSeq = njh::mapAt(njh::mapAt(hPopUID_to_hConsensus, target), h_popUID);
-			}
-			seqInfo clus(hapName, hapSeq);
-			clus.cnt_ = readCnt;
-			bool add = true;
-			for (auto &seq: allResultSeqs[target][sample]) {
-				if (seq.seq_ == clus.seq_) {
-					add = false;
-					seq.cnt_ += readCnt;
-					readCountsPerHapPerSample[target][sample][hapName] += readCnt;
-					break;
-				}
-			}
-			if (add) {
-				readCountsPerHapPerSample[target][sample][hapName] = readCnt;
-				allResultSeqs[target][sample].emplace_back(clus);
-			}
-			readVec::getMaxLength(clus, maxLen);
-			cNameToPopUID[target][hapName] = h_popUID;
-			hPopUIDPopSamps[target][h_popUID].emplace(sample);
-			allSamplesInOutput[target].emplace(sample);
+			const std::string hapSeq = popSeqsDirFnp.empty()
+					? row[sampInfoReader.header_.getColPos(popHapSeqColName)]
+					: njh::mapAt(njh::mapAt(hPopUID_to_hConsensus, target), h_popUID);
+			input.addHap(target, sample, row[sampInfoReader.header_.getColPos(withinSampleReadCntColName)], h_popUID, hapSeq, row);
 			inputSampleNamesSet.emplace(sample);
 		}
 	}
-	//std::cout << __PRETTY_FUNCTION__ << " " << __FILE__ << " " << __LINE__ << std::endl;
-
-	if (!exists(popSeqsDirFnp)) {
-		std::unordered_map<std::string, std::vector<seqInfo>> popSeqs;
-		for (const auto &tarPopHaps: hPopUID_to_hConsensus) {
-			for (const auto &popHap: tarPopHaps.second) {
-				popSeqs[tarPopHaps.first].emplace_back(popHap.first, popHap.second);
-			}
+	//population haplotype ids come from the population seqs file names when given
+	if (!popSeqsDirFnp.empty()) {
+		for (const auto & target : hConsensus_to_hPopUID) {
+			input.popHapIdBySeq_[target.first] = target.second;
 		}
 	}
 	//std::cout << __PRETTY_FUNCTION__ << " " << __FILE__ << " " << __LINE__ << std::endl;
 
 	//write out seqs
-	for(const auto & tar : allResultSeqs) {
+	for(const auto & tar : input.seqs_) {
 		auto tarDir = njh::files::make_path(setUp.pars_.directoryName_, tar.first);
 		njh::files::makeDir(njh::files::MkdirPar{tarDir});
-		auto outSeqOpts = SeqIOOptions::genFastaOutGz(njh::files::make_path(setUp.pars_.directoryName_, tar.first, "inputSeqs.fasta.gz"));
-		SeqOutput writer(outSeqOpts);
-		writer.openOut();
-		for(const auto & sampSeqs : tar.second) {
-			for( auto  seq : sampSeqs.second) {
-				MetaDataInName meta;
-				if(nullptr != metaGroupData) {
-					meta = metaGroupData->getMetaForSample(sampSeqs.first);
-				}
-				meta.addMeta("sample", sampSeqs.first, true);
-				meta.addMeta("readCount", std::max(1.0, std::round(seq.cnt_)), true);
-				meta.addMeta("originalIdentifier", hConsensus_to_hPopUID[tar.first][seq.seq_]);
-				meta.resetMetaInName(seq.name_);
-				writer.write(seq);
-			}
-		}
+		input.writeInputSeqs(tar.first, njh::files::make_path(setUp.pars_.directoryName_, tar.first, "inputSeqs.fasta.gz"), metaGroupData.get());
 	}
 	//std::cout << __PRETTY_FUNCTION__ << " " << __FILE__ << " " << __LINE__ << std::endl;
 
 	std::unordered_map<std::string, std::shared_ptr<Bed6RecordCore>> genomicLocs;
 	if(!bedLocs.empty()) {
-		auto locs = getBeds(bedLocs);
-		for(auto & loc : locs) {
-			if(genomicLocsChangePeriodToDash) {
-				loc->name_ = njh::replaceString(loc->name_, ".", "-");
-			}
-			if(njh::in(loc->name_, genomicLocs)) {
-				std::stringstream ss;
-				ss << __PRETTY_FUNCTION__ << ", error " << "already have location: " << loc->name_ << "\n";
-				throw std::runtime_error{ss.str()};
-			}
-			genomicLocs[loc->name_] = loc;
-		}
+		genomicLocs = readVariantCallLocations(bedLocs, genomicLocsChangePeriodToDash);
 		VecStr missingTargets;
 		for(const auto & tar : targetNamesSet) {
 			if(njh::notIn(tar, genomicLocs)) {
@@ -558,7 +510,8 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 
 	{
 		std::function<void()> callVariants = [&collapseVarCallPars,&targetNamesQueue, &setUp,
-					&genomicLocs, &runLogMut, &runLogTargetTimes]() {
+					&genomicLocs, &runLogMut, &runLogTargetTimes, &pmoObj, &pmoTargets, &pmoMut, &pmoGenomePars,
+					&perTargetVariantCallsDir, &perTargetVariantCallsSubDir]() {
 			std::string target;
 			while(targetNamesQueue.getVal(target)) {
 				njh::stopWatch watch;
@@ -566,9 +519,23 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 				currentLog["target"] = target;
 				//std::cout << __PRETTY_FUNCTION__ << " " << __FILE__ << " " << __LINE__ << std::endl;
 
+				const auto varCallDirPath = njh::files::make_path(setUp.pars_.directoryName_, target,  "variantCalling");
+				if (!perTargetVariantCallsDir.empty()) {
+					//link in the calls already made
+					auto existingCalls = bfs::absolute(njh::files::make_path(perTargetVariantCallsDir, target, perTargetVariantCallsSubDir));
+					if (!bfs::exists(njh::files::make_path(existingCalls, "uniqueSeqs.fasta.gz"))) {
+						std::stringstream ss;
+						ss << __PRETTY_FUNCTION__ << ", error " << "no variant calls for target " << target << " in " << existingCalls << "\n";
+						throw std::runtime_error{ss.str()};
+					}
+					bfs::create_directory_symlink(existingCalls, varCallDirPath);
+					currentLog["totalTime"] = watch.totalTime();
+					std::lock_guard<std::mutex> lock(runLogMut);
+					runLogTargetTimes.append(currentLog);
+					continue;
+				}
 				auto inputSeqsOpts = SeqIOOptions::genFastaInGz(njh::files::make_path(setUp.pars_.directoryName_, target, "inputSeqs.fasta.gz"));
 				auto inputSeqs = SeqInput::getSeqVec<seqInfo>(inputSeqsOpts);
-				const auto varCallDirPath = njh::files::make_path(setUp.pars_.directoryName_, target,  "variantCalling");
 				auto collapseVarCallParsForTar = collapseVarCallPars;
 				collapseVarCallParsForTar.identifier = target;
 				collapseVarCallParsForTar.outputDirectory = varCallDirPath;
@@ -579,7 +546,13 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 				}
 				//std::cout << __PRETTY_FUNCTION__ << " " << __FILE__ << " " << __LINE__ << std::endl;
 
-				collapseAndCallVariants(collapseVarCallParsForTar, inputSeqs);
+				auto calls = collapseAndCallVariants(collapseVarCallParsForTar, inputSeqs);
+				if (pmoObj && njh::in(target, pmoTargets)) {
+					std::lock_guard<std::mutex> lock(pmoMut);
+					auto added = addVariantCallsToPmo(*pmoObj, target, collapseVarCallParsForTar, calls, pmoGenomePars);
+					currentLog["pmoHapsWithCalls"] = added.mhapsWithCalls_;
+					currentLog["pmoHapsWithoutCalls"] = added.mhapsWithoutCalls_;
+				}
 				currentLog["totalTime"] = watch.totalTime();
 				//std::cout << __PRETTY_FUNCTION__ << " " << __FILE__ << " " << __LINE__ << std::endl;
 
@@ -595,6 +568,12 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 
 	auto reportsDir = njh::files::make_path(setUp.pars_.directoryName_, "reports");
 	njh::files::makeDir(njh::files::MkdirPar{reportsDir});
+	if (pmoObj) {
+		pmoObj->validate();
+		OutOptions pmoOutOpts(njh::files::make_path(reportsDir, "allPMO.json.gz"), ".gz");
+		pmoOutOpts.overWriteFile_ = true;
+		pmo::writePmo(*pmoObj, pmoOutOpts);
+	}
 
 	//vcfs
 	auto reportsVcfsDir = njh::files::make_path(reportsDir, "vcfs");
@@ -733,9 +712,9 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 			hapCountsOut << tar;
 			readCountsOut << tar;
 			for(const auto & samp : sampleNamesSet) {
-				hapCountsOut << "\t" << allResultSeqs[tar][samp].size();
+				hapCountsOut << "\t" << input.seqs_[tar][samp].size();
 				uint32_t currentReadCount = 0;
-				for(const auto & r : allResultSeqs[tar][samp]) {
+				for(const auto & r : input.seqs_[tar][samp]) {
 					currentReadCount += static_cast<uint32_t>(std::round(r.cnt_));
 				}
 				readCountsOut << "\t" << currentReadCount;

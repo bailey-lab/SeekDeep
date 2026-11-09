@@ -799,13 +799,15 @@ HaplotypeRainbow.prototype.draw = function(ctx, scrollLeft, scrollTop, viewWidth
 	//leave a gap between rows and outline the haplotypes once they're big enough to see
 	var barHeight = rowHeight >= 6 ? rowHeight * 0.8 : rowHeight;
 	var barOffset = (rowHeight - barHeight) / 2;
-	var outline = rowHeight >= 8 && colWidth >= 6;
+	//black outlines once bars are 3 px, thinner on small bars so the colors still show
+	var smallestSide = Math.min(colWidth, barHeight);
+	var outline = smallestSide >= 3;
 	var order = "rank" === opts.cellOrder ? self.rankOrder : null;
 	var stacked = "stacked" === opts.layout;
 	//while a haplotype is hovered the rest of its column fades so the samples sharing it stand out
 	var hoverCol = withHover && self.hover && self.hover.rank >= 0 ? self.hover.col : -1;
 	var hoverRank = hoverCol >= 0 ? self.hover.rank : -1;
-	ctx.lineWidth = 0.5;
+	ctx.lineWidth = smallestSide >= 6 ? 1 : 0.5;
 	ctx.strokeStyle = "#000000";
 
 	ctx.save();
@@ -1153,6 +1155,20 @@ $(document).ready(function(){
 		getJSON('/' + rName + '/metaGroups')
 	]).then(function(results){
 		new HaplotypeRainbow(rName, results[0], results[1]["groups"], groupName, subGroupName);
+		//only PMOs with protein variants have amino acid calls
+		if(!results[0]["hasAminoAcidCalls"]){
+			return;
+		}
+		addPanelOnlyHead("#mainContent", "Amino Acids in These Samples");
+		addDiv("#mainContent", "aminoAcidNote");
+		d3.select("#aminoAcidNote").append("p")
+			.text("Every amino acid at each typed position, the reference first. AlleleFrequency is the mean within sample read frequency over the samples typed at the position (SampleTotal), "
+				+ "SamplePrevalence is the fraction of those samples with the amino acid, AlleleCount and AlleleTotal count sample haplotypes.");
+		addDiv("#mainContent", "aminoAcidTable");
+		return getJSON('/' + rName + '/aminoAcidChanges' + (groupUrl ? "/" + groupUrl : "")).then(function(aminoAcids){
+			var stub = "aminoAcids" + (groupUrl ? "_" + groupName + "_" + subGroupName : "_allSamples");
+			new njhTable("#aminoAcidTable", aminoAcids, stub.replace(/[^A-Za-z0-9_.-]/g, "_"), false);
+		});
 	}).catch(logRequestError).then(function(){
 		removeAllDivGifLoading();
 	});

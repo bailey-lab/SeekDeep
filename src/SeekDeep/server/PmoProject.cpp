@@ -93,6 +93,16 @@ PmoProject::PmoProject(const bfs::path & pmoFnp) {
 				search = targetHapIds.emplace(mhap.seq_, target.hapSeqs_.size()).first;
 				target.hapSeqs_.emplace_back(mhap.seq_);
 				target.hapNames_.emplace_back(mhap.microhaplotype_name_.has_value() ? mhap.microhaplotype_name_.value() : "");
+				auto & aminoAcids = target.hapAminoAcids_.emplace_back();
+				if (mhap.associated_protein_variants_.has_value()) {
+					for (const auto & variant : mhap.associated_protein_variants_.value()) {
+						const auto & loc = variant.protein_location_;
+						aminoAcids.emplace_back(AminoAcidCall{loc.chrom_, variant.gene_name_.value_or(""), variant.alternative_gene_name_.value_or(""), loc.start_,
+								loc.ref_seq_.value_or(""), loc.alt_seq_.value_or("")});
+						hasGeneNames_ = hasGeneNames_ || variant.alternative_gene_name_.has_value();
+					}
+				}
+				hasAminoAcidCalls_ = hasAminoAcidCalls_ || !aminoAcids.empty();
 			}
 			hapIdsByMhapsId.back().emplace_back(search->second);
 		}
@@ -649,6 +659,7 @@ Json::Value PmoProject::genHaplotypeRainbow(const VecStr & samples) const {
 		++targetPos;
 	}
 
+	ret["hasAminoAcidCalls"] = hasAminoAcidCalls_;
 	ret["metaFields"] = njh::json::toJson(metaGroups_);
 	auto & sampleMetaOut = ret["sampleMeta"];
 	sampleMetaOut = Json::arrayValue;
@@ -670,6 +681,158 @@ const Json::Value & PmoProject::haplotypeRainbow(const std::string & group, cons
 		return search->second;
 	}
 	return rainbows_.emplace(key, genHaplotypeRainbow(group.empty() ? librarySamples_ : metaSubGroupSampleNames(group, subGroup))).first->second;
+}
+
+bool PmoProject::hasAminoAcidCalls() const {
+	return hasAminoAcidCalls_;
+}
+
+table PmoProject::genAminoAcidChanges(const VecStr & samples) const {
+	//a position is a transcript and 1-based amino acid position
+	using Position = std::pair<std::string, uint32_t>;
+	struct AlleleCounts {
+		uint32_t haps_{0};
+		uint32_t samples_{0};
+		double fracSum_{0};
+	};
+	struct PositionCounts {
+		std::string gene_;
+		std::string geneName_;
+		std::string refAA_;
+		std::set<std::string> targets_;
+		uint32_t samples_{0};
+		uint32_t haps_{0};
+		std::map<std::string, AlleleCounts> alleles_;
+	};
+	struct SampleAllele {
+		uint64_t reads_{0};
+		uint32_t haps_{0};
+	};
+	std::map<Position, PositionCounts> positions;
+	//key1 = position, key2 = target, key3 = amino acid
+	using SampleCalls = std::map<Position, std::map<std::string, std::map<std::string, SampleAllele>>>;
+	auto genSampleCalls = [this, &positions](const std::string & sample) {
+		SampleCalls ret;
+		for (const auto & target : targets_) {
+			auto detected = target.second.detected_.find(sample);
+			if (target.second.detected_.end() == detected) {
+				continue;
+			}
+			for (const auto & hap : detected->second) {
+				for (const auto & call : target.second.hapAminoAcids_.at(hap.hapId_)) {
+					auto & allele = ret[Position{call.transcript_, call.pos_}][target.first][call.aa_];
+					allele.reads_ += hap.reads_;
+					++allele.haps_;
+					auto & posCounts = positions[Position{call.transcript_, call.pos_}];
+					posCounts.gene_ = call.gene_;
+					posCounts.geneName_ = call.geneName_;
+					posCounts.refAA_ = call.refAA_;
+				}
+			}
+		}
+		return ret;
+	};
+	//like combining the per target vcfs, a position uses the target typed in the most samples (first by name on ties)
+	//and samples without that target use the target with the most reads for them
+	std::map<Position, std::map<std::string, uint32_t>> samplesPerTarget;
+	for (const auto & sample : samples) {
+		for (const auto & position : genSampleCalls(sample)) {
+			for (const auto & target : position.second) {
+				++samplesPerTarget[position.first][target.first];
+			}
+		}
+	}
+	std::map<Position, std::string> mainTarget;
+	for (const auto & position : samplesPerTarget) {
+		uint32_t most = 0;
+		for (const auto & target : position.second) {
+			if (target.second > most) {
+				most = target.second;
+				mainTarget[position.first] = target.first;
+			}
+		}
+	}
+	for (const auto & sample : samples) {
+		for (const auto & position : genSampleCalls(sample)) {
+			auto bestSearch = position.second.find(mainTarget.at(position.first));
+			if (position.second.end() == bestSearch) {
+				uint64_t bestReads = 0;
+				for (auto targetSearch = position.second.begin(); targetSearch != position.second.end(); ++targetSearch) {
+					uint64_t reads = 0;
+					for (const auto & allele : targetSearch->second) {
+						reads += allele.second.reads_;
+					}
+					if (position.second.end() == bestSearch || reads > bestReads) {
+						bestSearch = targetSearch;
+						bestReads = reads;
+					}
+				}
+			}
+			const auto & best = bestSearch->second;
+			uint64_t bestReads = 0;
+			uint32_t bestHaps = 0;
+			for (const auto & allele : best) {
+				bestReads += allele.second.reads_;
+				bestHaps += allele.second.haps_;
+			}
+			auto & posCounts = positions[position.first];
+			++posCounts.samples_;
+			posCounts.haps_ += bestHaps;
+			posCounts.targets_.emplace(bestSearch->first);
+			for (const auto & allele : best) {
+				auto & counts = posCounts.alleles_[allele.first];
+				counts.haps_ += allele.second.haps_;
+				++counts.samples_;
+				//haplotypes without reads count equally
+				counts.fracSum_ += bestReads > 0 ? allele.second.reads_ / static_cast<double>(bestReads) : allele.second.haps_ / static_cast<double>(bestHaps);
+			}
+		}
+	}
+
+	table ret(VecStr{"Gene_ID", "Gene_Transcript_ID", "AA_Change", "reference_AA_pos", "reference_AA", "AA", "is_reference",
+			"AlleleCount", "AlleleFrequency", "AlleleTotal", "SampleCount", "SamplePrevalence", "SampleTotal", "CoveredBy"});
+	if (hasGeneNames_) {
+		ret.columnNames_.insert(ret.columnNames_.begin() + 1, "Gene");
+	}
+	for (auto & position : positions) {
+		auto & posCounts = position.second;
+		if (0 == posCounts.samples_) {
+			continue;
+		}
+		posCounts.alleles_[posCounts.refAA_];
+		//the reference first then the most frequent
+		auto aas = njh::getVecOfMapKeys(posCounts.alleles_);
+		std::stable_sort(aas.begin(), aas.end(), [&posCounts](const std::string & first, const std::string & second) {
+			if ((first == posCounts.refAA_) != (second == posCounts.refAA_)) {
+				return first == posCounts.refAA_;
+			}
+			return posCounts.alleles_.at(first).fracSum_ > posCounts.alleles_.at(second).fracSum_;
+		});
+		for (const auto & aa : aas) {
+			const auto & counts = posCounts.alleles_.at(aa);
+			const bool isRef = aa == posCounts.refAA_;
+			ret.content_.emplace_back(toVecStr(posCounts.gene_, position.first.first,
+					njh::pasteAsStr(posCounts.refAA_, position.first.second, isRef ? "" : aa),
+					position.first.second, posCounts.refAA_, aa, isRef ? "TRUE" : "FALSE",
+					counts.haps_, counts.fracSum_ / posCounts.samples_, posCounts.haps_,
+					counts.samples_, counts.samples_ / static_cast<double>(posCounts.samples_), posCounts.samples_,
+					njh::conToStr(posCounts.targets_, "::")));
+			if (hasGeneNames_) {
+				ret.content_.back().insert(ret.content_.back().begin() + 1, posCounts.geneName_.empty() ? "NA" : posCounts.geneName_);
+			}
+		}
+	}
+	return ret;
+}
+
+const table & PmoProject::aminoAcidChanges(const std::string & group, const std::string & subGroup) {
+	std::lock_guard<std::mutex> lock(tablesMut_);
+	const auto key = std::make_pair(group, subGroup);
+	auto search = aminoAcidChanges_.find(key);
+	if (aminoAcidChanges_.end() != search) {
+		return search->second;
+	}
+	return aminoAcidChanges_.emplace(key, genAminoAcidChanges(group.empty() ? librarySamples_ : metaSubGroupSampleNames(group, subGroup))).first->second;
 }
 
 }  // namespace njhseq

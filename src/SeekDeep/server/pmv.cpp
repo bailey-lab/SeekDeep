@@ -347,6 +347,14 @@ std::vector<std::shared_ptr<restbed::Resource>> pmv::getAllResources() {
 			respondJson(session, project_->haplotypeRainbow(group, subGroup));
 		});
 	}));
+	ret.emplace_back(getRoute(seg("aminoAcidChanges", {}), [this](const Session & session) {
+		respondJson(session, tableToJsonByRow(project_->aminoAcidChanges(), "AA_Change"));
+	}));
+	ret.emplace_back(getRoute(seg("aminoAcidChanges", {"groupName", "subGroupName"}), [this, metaSubGroupOr404](const Session & session) {
+		metaSubGroupOr404(session, [this, &session](const std::string & group, const std::string & subGroup) {
+			respondJson(session, tableToJsonByRow(project_->aminoAcidChanges(group, subGroup), "AA_Change"));
+		});
+	}));
 
 	//sample
 	ret.emplace_back(getRoute(seg("sampleMainPage", {"target", "sampleName"}), [this](const Session & session) {

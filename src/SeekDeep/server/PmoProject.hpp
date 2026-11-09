@@ -131,12 +131,39 @@ public:
 	 */
 	const Json::Value & haplotypeRainbow(const std::string & group = "", const std::string & subGroup = "");
 
+	/**@brief Whether any haplotype has amino acid calls (associated_protein_variants)
+	 *
+	 */
+	[[nodiscard]] bool hasAminoAcidCalls() const;
+
+	/**@brief Every amino acid seen at each typed protein position in a set of samples, calculated like AAChangesInfo from variantCallOnSeqAndProtein
+	 *
+	 * Like combining the per target vcfs, a position uses the target typed in the most of these samples, samples without it use the target with the most reads for them.
+	 * AlleleCount and AlleleTotal count sample haplotypes, AlleleFrequency is the mean over the samples typed at the position of the amino acid's within sample read fraction,
+	 * SampleCount is the samples with the amino acid and SamplePrevalence is that over SampleTotal, the samples typed at the position.
+	 * Every position has a row for the reference amino acid even when no sample has it.
+	 * There's a Gene column with the alternative gene names when any variant has one.
+	 *
+	 * @param group the meta field to take samples from, empty for all library samples
+	 * @param subGroup the value of that field
+	 * @return the table, computed once per sub group
+	 */
+	const table & aminoAcidChanges(const std::string & group = "", const std::string & subGroup = "");
+
 	Json::Value header_; /**< the pmo_header of the file */
 
 private:
 	struct DetectedHap {
 		uint32_t hapId_;
 		uint32_t reads_;
+	};
+	struct AminoAcidCall {
+		std::string transcript_;
+		std::string gene_;
+		std::string geneName_; /**< alternative_gene_name, empty without one*/
+		uint32_t pos_; /**< 1-based*/
+		std::string refAA_;
+		std::string aa_;
 	};
 	struct Target {
 		std::string name_;
@@ -145,8 +172,11 @@ private:
 		bool fakePrimers_{false};
 		VecStr hapNames_;
 		VecStr hapSeqs_;
+		std::vector<std::vector<AminoAcidCall>> hapAminoAcids_; /**< by haplotype id*/
 		std::map<std::string, std::vector<DetectedHap>> detected_; /**< by sample, most reads first*/
 	};
+	bool hasAminoAcidCalls_{false};
+	bool hasGeneNames_{false};
 
 	std::map<std::string, Target> targets_;
 	VecStr librarySamples_;
@@ -159,8 +189,10 @@ private:
 	std::map<std::string, std::map<std::string, std::map<std::string, TargetTables>>> tablesBySubGroup_;
 	std::map<std::string, std::map<std::string, table>> groupInfoByTarget_;
 	std::map<std::pair<std::string, std::string>, Json::Value> rainbows_; /**< by group and sub group*/
+	std::map<std::pair<std::string, std::string>, table> aminoAcidChanges_; /**< by group and sub group*/
 
 	[[nodiscard]] Json::Value genHaplotypeRainbow(const VecStr & samples) const;
+	[[nodiscard]] table genAminoAcidChanges(const VecStr & samples) const;
 
 	[[nodiscard]] std::string metaValue(const std::string & sample, const std::string & group) const;
 	[[nodiscard]] TargetTables genTables(const Target & target, const VecStr & samples) const;
