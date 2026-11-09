@@ -99,9 +99,9 @@ struct FinalHapsVariantCallPars {
  * @param location the target's genomic location, can be null
  * @param metaFnp the sample meta, can be empty
  * @param inputSeqsFnp where to write the input haplotypes
- * @return the variant calls
+ * @return the variant calls, null when the target has no haplotypes, in which case nothing is written
  */
-TranslatorByAlignment::TranslatorByAlignmentResult callVariantsOnFinalHaps(const table & finalResults,
+std::unique_ptr<TranslatorByAlignment::TranslatorByAlignmentResult> callVariantsOnFinalHaps(const table & finalResults,
 		const std::string & target,
 		CollapseAndCallVariantsPars varCallPars,
 		const std::shared_ptr<Bed6RecordCore> & location,

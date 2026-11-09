@@ -102,25 +102,28 @@ void FinalHapsVariantCallPars::setOptions(seqSetUp & setUp, CollapseAndCallVaria
 	setUp.setOption(varCallPars.metaFieldsToCalcPopDiffs, "--metaFieldsToCalcPopDiffs", "Meta fields to calculate population differences on when calling variants", false, "Variant Calling");
 }
 
-TranslatorByAlignment::TranslatorByAlignmentResult callVariantsOnFinalHaps(const table & finalResults,
+std::unique_ptr<TranslatorByAlignment::TranslatorByAlignmentResult> callVariantsOnFinalHaps(const table & finalResults,
 		const std::string & target,
 		CollapseAndCallVariantsPars varCallPars,
 		const std::shared_ptr<Bed6RecordCore> & location,
 		const bfs::path & metaFnp,
 		const bfs::path & inputSeqsFnp) {
+	VariantCallInput input;
+	input.addTargetRows(finalResults, target);
+	if (!njh::in(target, input.seqs_)) {
+		return nullptr;
+	}
 	std::unique_ptr<MultipleGroupMetaData> meta;
 	if (!metaFnp.empty() && bfs::exists(metaFnp)) {
 		meta = std::make_unique<MultipleGroupMetaData>(metaFnp);
 	}
-	VariantCallInput input;
-	input.addTargetRows(finalResults, target);
 	input.writeInputSeqs(target, inputSeqsFnp, meta.get());
 	auto inputSeqs = SeqInput::getSeqVec<seqInfo>(SeqIOOptions::genFastaInGz(inputSeqsFnp));
 	varCallPars.identifier = target;
 	if (nullptr != location) {
 		varCallPars.refSeqRegion = GenomicRegion(*location);
 	}
-	return collapseAndCallVariants(varCallPars, inputSeqs);
+	return std::make_unique<TranslatorByAlignment::TranslatorByAlignmentResult>(collapseAndCallVariants(varCallPars, inputSeqs));
 }
 
 }  // namespace njhseq

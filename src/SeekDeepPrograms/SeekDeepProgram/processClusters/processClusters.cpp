@@ -389,10 +389,10 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
     }
     if(callTarget){
       pars.collapseVarCallPars.outputDirectory = varCallDirPath;
-      variantCalls = std::make_unique<TranslatorByAlignment::TranslatorByAlignmentResult>(callVariantsOnFinalHaps(
+      variantCalls = callVariantsOnFinalHaps(
           sampColl.genSampleCollapseInfo(sampColl.popNames_.samples_), pars.experimentNames.populationName_,
           pars.collapseVarCallPars, location, pars.groupingsFile,
-          njh::files::make_path(sampColl.masterOutputDir_, "variantCallingInputSeqs.fasta.gz")));
+          njh::files::make_path(sampColl.masterOutputDir_, "variantCallingInputSeqs.fasta.gz"));
     }
   }
 
