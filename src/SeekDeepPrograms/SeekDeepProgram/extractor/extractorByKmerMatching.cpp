@@ -313,8 +313,18 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
       }
 
       if(rename){
+        //keep how many of the read's ends had the sample's barcode (nanopore demultiplexing), for clustering to count
+        std::string keptMeta;
+        if(MetaDataInName::nameHasMetaData(seq.name_)){
+          MetaDataInName inMeta(seq.name_);
+          if(inMeta.containsMeta("barcodeEnds")){
+            MetaDataInName barcodeEndsMeta;
+            barcodeEndsMeta.addMeta("barcodeEnds", inMeta.getMeta("barcodeEnds"));
+            keptMeta = barcodeEndsMeta.createMetaName();
+          }
+        }
         auto threadId = estd::to_string(std::this_thread::get_id());
-        seq.name_ = njh::pasteAsStr(sampleName, ".",winnerSet, ".", readsPerSetCurrent[winnerSet] + readsPerSetRevCompCurrent[winnerSet], ".", threadId);
+        seq.name_ = njh::pasteAsStr(sampleName, ".",winnerSet, ".", readsPerSetCurrent[winnerSet] + readsPerSetRevCompCurrent[winnerSet], ".", threadId, keptMeta);
         if(winnerRevComp){
           seq.name_.append("_Comp");
         }

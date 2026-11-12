@@ -244,6 +244,9 @@ struct processClustersPars {
   collapse::SampleCollapseCollection::performLowLevelFiltersPars lowLevelPopFiltPars_;
 
   bool keepChimeras = false;
+  //leave out samples with fewer reads than this that had the sample's barcode read at both ends, 0 turns it off; only applies when the reads carry barcode end info
+  //(nanopore one-end demultiplexing), run 3 PCR barcoding: 1 removed 15 of 16 wrong panel calls for 5 of 673 haplotypes
+  uint32_t minBothEndsBarcodeReads = 1;
  // bool recheckChimeras = false;
   double chiCutOff = .40;
   PopNamesInfo experimentNames{"PopUID", VecStr{}, VecStr{} };

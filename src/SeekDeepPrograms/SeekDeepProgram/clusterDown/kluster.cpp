@@ -3160,6 +3160,27 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
     if (replicateSet) {
       meta.addMeta("replicate", replicate);
     }
+    //how many of the cluster's reads had the sample's barcode read at both ends or only one, when the demultiplexer tagged them with barcodeEnds
+    double bothEndsBarcodeReads = 0;
+    double oneEndBarcodeReads = 0;
+    bool barcodeEndsTagged = false;
+    for (const auto & read : seq.reads_) {
+      if (MetaDataInName::nameHasMetaData(read->seqBase_.name_)) {
+        MetaDataInName readMeta(read->seqBase_.name_);
+        if (readMeta.containsMeta("barcodeEnds")) {
+          barcodeEndsTagged = true;
+          if ("2" == readMeta.getMeta("barcodeEnds")) {
+            bothEndsBarcodeReads += read->seqBase_.cnt_;
+          } else {
+            oneEndBarcodeReads += read->seqBase_.cnt_;
+          }
+        }
+      }
+    }
+    if (barcodeEndsTagged) {
+      meta.addMeta("bothEndsBarcodeReads", bothEndsBarcodeReads);
+      meta.addMeta("oneEndBarcodeReads", oneEndBarcodeReads);
+    }
     meta.resetMetaInName(seq.seqBase_.name_, seq.seqBase_.name_.rfind("_t"));
   }
 

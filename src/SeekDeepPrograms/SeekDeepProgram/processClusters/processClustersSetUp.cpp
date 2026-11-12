@@ -238,6 +238,9 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 
 	setOption(pars_.chiOpts_.checkChimeras_, "--recheckChimeras", "Check Input sequences for possible Chimeras", false, "Chimeras");
 	setOption(pars.keepChimeras, "--keepChimeras", "KeepChimeras", false, "Chimeras");
+	setOption(pars.minBothEndsBarcodeReads, "--minBothEndsBarcodeReads",
+			"Leave a sample out of population clustering (reported as ExcludeSampleBelowMinBothEndsBarcodeReads) when fewer than this many of its reads had its barcode read at both ends, from the bothEndsBarcodeReads counts kluster writes when the demultiplexer tagged reads with barcodeEnds; 0 turns this off, and samples whose reads carry no barcode end info are never left out, so reads demultiplexed without the tag are unaffected",
+			false, "Filtering");
 	setOption(pars_.chiOpts_.parentFreqs_, "--parFreqs", "Chimeric Parent Frequency multiplier cutoff", false, "Chimeras");
 
 	setOption(pars.numThreads, "--numThreads", "Number of threads to use");

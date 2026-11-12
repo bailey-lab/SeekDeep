@@ -212,6 +212,60 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 	std::unordered_map<std::string, double> customCutOffsMap = collapse::SampleCollapseCollection::processCustomCutOffs(pars.customCutOffs, samplesDirs, pars.fracCutoff);
 	std::unordered_map<std::string, double> customCutOffsMapPerRep = collapse::SampleCollapseCollection::processCustomCutOffs(pars.customCutOffs, samplesDirs, pars.withinReplicateFracCutOff);
 
+	//reads per sample that had the sample's barcode read at both ends or only one, from the counts kluster puts in the cluster names
+	struct BarcodeEndsSupport {
+		double bothEnds_ = 0;
+		double oneEnd_ = 0;
+		double untagged_ = 0;
+		bool tagged() const {
+			return bothEnds_ + oneEnd_ > 0;
+		}
+	};
+	std::map<std::string, BarcodeEndsSupport> barcodeEndsSupport;
+	for (const auto & samp : samplesDirs) {
+		auto & support = barcodeEndsSupport[samp];
+		for (const auto & rep : repFiles.at(samp)) {
+			SeqInput reader(SeqIOOptions(rep.repFnp_, SeqIOOptions::getInFormatFromFnp(rep.repFnp_), true));
+			reader.openIn();
+			seqInfo seq;
+			while (reader.readNextRead(seq)) {
+				MetaDataInName meta;
+				if (MetaDataInName::nameHasMetaData(seq.name_)) {
+					meta = MetaDataInName(seq.name_);
+				}
+				if (meta.containsMeta("bothEndsBarcodeReads") && meta.containsMeta("oneEndBarcodeReads")) {
+					support.bothEnds_ += meta.getMeta<double>("bothEndsBarcodeReads");
+					support.oneEnd_ += meta.getMeta<double>("oneEndBarcodeReads");
+				} else {
+					support.untagged_ += seq.cnt_;
+				}
+			}
+		}
+	}
+	const bool anyBarcodeEndsInfo = std::any_of(barcodeEndsSupport.begin(), barcodeEndsSupport.end(),
+			[](const auto & support) { return support.second.tagged(); });
+	std::set<std::string> samplesBelowMinBothEndsBarcodeReads;
+	if (pars.minBothEndsBarcodeReads > 0) {
+		for (const auto & support : barcodeEndsSupport) {
+			if (support.second.tagged() && support.second.bothEnds_ < pars.minBothEndsBarcodeReads) {
+				samplesBelowMinBothEndsBarcodeReads.emplace(support.first);
+			}
+		}
+	}
+	if (anyBarcodeEndsInfo) {
+		OutputStream supportOut(njh::files::make_path(setUp.pars_.directoryName_, "bothEndsBarcodeSupport.tab.txt"));
+		supportOut << "sample\tbothEndsBarcodeReads\toneEndBarcodeReads\tuntaggedReads\tbothEndsBarcodeFrac\texcluded" << std::endl;
+		for (const auto & support : barcodeEndsSupport) {
+			const auto & s = support.second;
+			supportOut << support.first
+					<< "\t" << s.bothEnds_
+					<< "\t" << s.oneEnd_
+					<< "\t" << s.untagged_
+					<< "\t" << (s.tagged() ? s.bothEnds_ / (s.bothEnds_ + s.oneEnd_) : 0)
+					<< "\t" << njh::boolToStr(njh::in(support.first, samplesBelowMinBothEndsBarcodeReads)) << std::endl;
+		}
+	}
+
 	{
 		njh::concurrent::LockableQueue<std::string> sampleQueue(samplesDirs);
 		njhseq::concurrent::AlignerPool alnPool(alignerObj, pars.numThreads);
@@ -221,7 +275,7 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 		std::function<void()> setupClusterSamples = [&sampleQueue, &alnPool,&collapserObj,&pars,&setUp,
 																&expectedSeqs,&sampColl,&customCutOffsMap,
 																&customCutOffsMapPerRep,
-																&repFiles](){
+																&repFiles, &samplesBelowMinBothEndsBarcodeReads](){
 
 			std::string samp;
 			auto currentAligner = alnPool.popAligner();
@@ -230,6 +284,9 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 					std::cout << "Starting: " << samp << std::endl;
 				}
 				sampColl.setUpSample(samp, repFiles.at(samp), *currentAligner, collapserObj, setUp.pars_.chiOpts_);
+				if (njh::in(samp, samplesBelowMinBothEndsBarcodeReads)) {
+					sampColl.excludeSample(samp, "ExcludeSampleBelowMinBothEndsBarcodeReads");
+				}
 
 				sampColl.clusterSample(samp, *currentAligner, collapserObj, pars.iteratorMap);
 				auto sampPtr = sampColl.getSampleCollapse(samp);
