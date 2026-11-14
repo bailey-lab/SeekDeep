@@ -150,6 +150,20 @@ public:
 	 */
 	const table & aminoAcidChanges(const std::string & group = "", const std::string & subGroup = "");
 
+	/**@brief haplotypeRainbow() for a chosen set of samples and targets, not cached
+	 *
+	 * @param samples library samples to include, kept in the project's sample order, unknown names are skipped
+	 * @param targets targets to include, unknown names are skipped
+	 */
+	[[nodiscard]] Json::Value haplotypeRainbowFor(const VecStr & samples, const VecStr & targets) const;
+
+	/**@brief aminoAcidChanges() for a chosen set of samples and targets, only positions in those targets, not cached
+	 *
+	 * @param samples library samples to include, unknown names are skipped
+	 * @param targets targets to include, unknown names are skipped
+	 */
+	[[nodiscard]] table aminoAcidChangesFor(const VecStr & samples, const VecStr & targets) const;
+
 	Json::Value header_; /**< the pmo_header of the file */
 
 private:
@@ -191,8 +205,12 @@ private:
 	std::map<std::pair<std::string, std::string>, Json::Value> rainbows_; /**< by group and sub group*/
 	std::map<std::pair<std::string, std::string>, table> aminoAcidChanges_; /**< by group and sub group*/
 
-	[[nodiscard]] Json::Value genHaplotypeRainbow(const VecStr & samples) const;
-	[[nodiscard]] table genAminoAcidChanges(const VecStr & samples) const;
+	//targets limits to those targets, empty for all
+	[[nodiscard]] Json::Value genHaplotypeRainbow(const VecStr & samples, const std::set<std::string> & targets = {}) const;
+	[[nodiscard]] table genAminoAcidChanges(const VecStr & samples, const std::set<std::string> & targets = {}) const;
+	//the known library samples among samples in the project's order, and the known targets among targets
+	[[nodiscard]] VecStr knownLibrarySamples(const VecStr & samples) const;
+	[[nodiscard]] std::set<std::string> knownTargets(const VecStr & targets) const;
 
 	[[nodiscard]] std::string metaValue(const std::string & sample, const std::string & group) const;
 	[[nodiscard]] TargetTables genTables(const Target & target, const VecStr & samples) const;

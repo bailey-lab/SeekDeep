@@ -17,8 +17,19 @@ $(document).ready(function(){
 	addPanelWithDiv("#mainContent", "notDetectedLinks", "Targets Without Haplotypes");
 	addPanelOnlyHead("#mainContent", "Haplotypes Sequences");
 	addDiv("#mainContent", "dnaViewer");
-	getJSON('/' + rName + '/projectsNames').then(function (projectsNames) {
-		createMainPageNavBar("#topNav", projectsNames["projects"]);
+	Promise.all([getJSON('/' + rName + '/projectsNames'), getJSON('/' + rName + '/librarySampleNames')]).then(function (navNames) {
+		createMainPageNavBar("#topNav", navNames[0]["projects"]);
+		addNavDrop("#projectNav", "Samples", "samplesDrop");
+		var sampleLinkPre = "/" + rName + "/sampleAcrossTargetsPage/";
+		d3.select("#samplesDrop")
+			.selectAll("li")
+			.data(navNames[1]["samples"])
+			.enter()
+				.append("li")
+					.attr("class", function(d){ return d == sampName ? "active" : ""; })
+				.append("a")
+					.attr("href", function(d){ return sampleLinkPre + encodeURIComponent(d); })
+					.text(function(d){ return d; });
 	}).catch(logRequestError);
 	getJSON('/' + rName + '/sampleAcrossTargets/' + sampleUrlName).then(function(info){
 		var rows = info["tab"];

@@ -588,13 +588,16 @@ VecStr PmoProject::metaSubGroupSampleNames(const std::string & group, const std:
 	return ret;
 }
 
-Json::Value PmoProject::genHaplotypeRainbow(const VecStr & samples) const {
+Json::Value PmoProject::genHaplotypeRainbow(const VecStr & samples, const std::set<std::string> & targets) const {
+	const auto skipTarget = [&targets](const std::string & target) {
+		return !targets.empty() && !njh::in(target, targets);
+	};
 	VecStr withData;
 	VecStr withoutData;
 	for (const auto & sample : samples) {
 		bool detected = false;
 		for (const auto & target : targets_) {
-			if (njh::in(sample, target.second.detected_)) {
+			if (!skipTarget(target.first) && njh::in(sample, target.second.detected_)) {
 				detected = true;
 				break;
 			}
@@ -615,6 +618,9 @@ Json::Value PmoProject::genHaplotypeRainbow(const VecStr & samples) const {
 	calls = Json::arrayValue;
 	uint32_t targetPos = 0;
 	for (const auto & target : targets_) {
+		if (skipTarget(target.first)) {
+			continue;
+		}
 		std::map<uint32_t, uint32_t> sampleCounts;
 		for (const auto & detected : target.second.detected_) {
 			if (njh::in(detected.first, samplePositions)) {
@@ -683,11 +689,36 @@ const Json::Value & PmoProject::haplotypeRainbow(const std::string & group, cons
 	return rainbows_.emplace(key, genHaplotypeRainbow(group.empty() ? librarySamples_ : metaSubGroupSampleNames(group, subGroup))).first->second;
 }
 
+VecStr PmoProject::knownLibrarySamples(const VecStr & samples) const {
+	std::unordered_set<std::string> wanted(samples.begin(), samples.end());
+	VecStr ret;
+	for (const auto & sample : librarySamples_) {
+		if (njh::in(sample, wanted)) {
+			ret.emplace_back(sample);
+		}
+	}
+	return ret;
+}
+
+std::set<std::string> PmoProject::knownTargets(const VecStr & targets) const {
+	std::set<std::string> ret;
+	for (const auto & target : targets) {
+		if (njh::in(target, targets_)) {
+			ret.emplace(target);
+		}
+	}
+	return ret;
+}
+
+Json::Value PmoProject::haplotypeRainbowFor(const VecStr & samples, const VecStr & targets) const {
+	return genHaplotypeRainbow(knownLibrarySamples(samples), knownTargets(targets));
+}
+
 bool PmoProject::hasAminoAcidCalls() const {
 	return hasAminoAcidCalls_;
 }
 
-table PmoProject::genAminoAcidChanges(const VecStr & samples) const {
+table PmoProject::genAminoAcidChanges(const VecStr & samples, const std::set<std::string> & targets) const {
 	//a position is a transcript and 1-based amino acid position
 	using Position = std::pair<std::string, uint32_t>;
 	struct AlleleCounts {
@@ -711,9 +742,12 @@ table PmoProject::genAminoAcidChanges(const VecStr & samples) const {
 	std::map<Position, PositionCounts> positions;
 	//key1 = position, key2 = target, key3 = amino acid
 	using SampleCalls = std::map<Position, std::map<std::string, std::map<std::string, SampleAllele>>>;
-	auto genSampleCalls = [this, &positions](const std::string & sample) {
+	auto genSampleCalls = [this, &positions, &targets](const std::string & sample) {
 		SampleCalls ret;
 		for (const auto & target : targets_) {
+			if (!targets.empty() && !njh::in(target.first, targets)) {
+				continue;
+			}
 			auto detected = target.second.detected_.find(sample);
 			if (target.second.detected_.end() == detected) {
 				continue;
@@ -833,6 +867,10 @@ const table & PmoProject::aminoAcidChanges(const std::string & group, const std:
 		return search->second;
 	}
 	return aminoAcidChanges_.emplace(key, genAminoAcidChanges(group.empty() ? librarySamples_ : metaSubGroupSampleNames(group, subGroup))).first->second;
+}
+
+table PmoProject::aminoAcidChangesFor(const VecStr & samples, const VecStr & targets) const {
+	return genAminoAcidChanges(knownLibrarySamples(samples), knownTargets(targets));
 }
 
 }  // namespace njhseq

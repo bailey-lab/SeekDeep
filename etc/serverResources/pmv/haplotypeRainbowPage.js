@@ -233,12 +233,43 @@ function averageLinkageOrder(n, distFunc){
 function HaplotypeRainbow(rName, data, metaGroups, groupName, subGroupName){
 	var self = this;
 	self.rName = rName;
-	self.samples = data["samples"];
-	self.targets = data["targets"];
 	self.metaFields = data["metaFields"];
-	self.sampleMeta = data["sampleMeta"];
 	self.groupName = groupName;
 	self.subGroupName = subGroupName;
+	self.isSelection = false;
+	self.opts = {
+		sampleSort: "alphabetical",
+		targetSort: "alphabetical",
+		cellOrder: "rank",
+		layout: "stacked",
+		colorMode: "rainbowLog",
+		period: 11,
+		rowHeight: 14,
+		colWidth: 8,
+		showSampleLabels: true,
+		showTargetLabels: true
+	};
+	//row height and column width follow the data until they're set by hand
+	self.rowHeightSet = false;
+	self.colWidthSet = false;
+	self.hover = null;
+	self.drawPending = false;
+	self.addControls(metaGroups);
+	self.setUpPlot();
+	self.setData(data, "");
+}
+
+/**
+ * Show new rainbow data in the same plot, keeping the options
+ * @param data from /haplotypeRainbow or /haplotypeRainbowSelected
+ * @param selectionNote what part of the samples and targets is shown, empty when it's all of them
+ */
+HaplotypeRainbow.prototype.setData = function(data, selectionNote){
+	var self = this;
+	self.isSelection = selectionNote.length > 0;
+	self.samples = data["samples"];
+	self.targets = data["targets"];
+	self.sampleMeta = data["sampleMeta"];
 	var sampleCount = self.samples.length;
 	var targetCount = self.targets.length;
 	self.sampleCount = sampleCount;
@@ -288,40 +319,43 @@ function HaplotypeRainbow(rName, data, metaGroups, groupName, subGroupName){
 		}
 	}
 
-	self.opts = {
-		sampleSort: "alphabetical",
-		targetSort: "alphabetical",
-		cellOrder: "rank",
-		layout: "stacked",
-		colorMode: "rainbowLog",
-		period: 11,
-		rowHeight: Math.max(1, Math.min(14, Math.floor(1400 / Math.max(1, sampleCount)))),
-		colWidth: 8,
-		showSampleLabels: true,
-		showTargetLabels: true
-	};
-	self.sampleOrder = _.range(sampleCount);
-	self.targetOrder = _.range(targetCount);
 	self.hover = null;
-	self.drawPending = false;
-
+	self.tooltip.style("display", "none");
 	self.measureLabels();
-	self.opts.colWidth = Math.max(3, Math.min(24, Math.floor((d34.select("#rainbowPlot").node().clientWidth - self.leftMargin() - 20) / Math.max(1, targetCount))));
-	self.addSummary(data);
-	self.addControls(metaGroups);
-	self.setUpPlot();
-	self.updateColors();
-	self.updateLayout();
-}
+	if(!self.rowHeightSet){
+		self.opts.rowHeight = Math.max(1, Math.min(14, Math.floor(1400 / Math.max(1, sampleCount))));
+		self.setRowHeightControl(self.opts.rowHeight);
+	}
+	if(!self.colWidthSet){
+		self.opts.colWidth = Math.max(3, Math.min(24, Math.floor((d34.select("#rainbowPlot").node().clientWidth - self.leftMargin() - 20) / Math.max(1, targetCount))));
+		self.setColWidthControl(self.opts.colWidth);
+	}
+	self.addSummary(data, selectionNote);
+	//clustering is only offered for smaller sets of samples
+	var tooManyToCluster = sampleCount > rainbowMaxClusterSamples;
+	d34.select("#rainbowSampleSort").selectAll("option")
+		.property("disabled", function(d){ return !!d.cluster && tooManyToCluster; })
+		.text(function(d){ return d.text + (d.cluster && tooManyToCluster ? " (" + rainbowMaxClusterSamples + " samples or fewer)" : ""); });
+	if(tooManyToCluster && 0 === self.opts.sampleSort.indexOf("cluster:")){
+		self.opts.sampleSort = "alphabetical";
+		d34.select("#rainbowSampleSort").property("value", self.opts.sampleSort);
+	}
+	self.updateTargetOrder();
+	self.updateSampleOrder();
+};
 
-HaplotypeRainbow.prototype.addSummary = function(data){
+HaplotypeRainbow.prototype.addSummary = function(data, selectionNote){
 	var self = this;
 	var summary = d34.select("#rainbowSummary");
+	summary.selectAll("*").remove();
 	var callCount = data["calls"].length / 4;
+	if(selectionNote){
+		summary.append("div").style("font-weight", "bold").text(selectionNote);
+	}
 	summary.append("div").text(self.sampleCount + " samples with haplotypes, " + self.targetCount + " targets, " + callCount + " haplotype calls");
 	var withoutData = data["samplesWithoutData"];
 	if(withoutData.length > 0){
-		summary.append("div").text(withoutData.length + " samples have no haplotypes in any target and aren't shown: " + withoutData.slice(0, 50).join(", ") + (withoutData.length > 50 ? ", ..." : ""));
+		summary.append("div").text(withoutData.length + " samples have no haplotypes in " + (selectionNote ? "these targets" : "any target") + " and aren't shown: " + withoutData.slice(0, 50).join(", ") + (withoutData.length > 50 ? ", ..." : ""));
 	}
 	summary.append("div")
 		.style("color", "#555")
@@ -358,7 +392,11 @@ HaplotypeRainbow.prototype.addControls = function(metaGroups){
 			shown.text(this.value + "px");
 			onChange(parseInt(this.value));
 		});
-		return input;
+		//sets the slider without calling onChange
+		return function(newValue){
+			input.property("value", newValue);
+			shown.text(newValue + "px");
+		};
 	};
 	var addCheck = function(parent, label, id, value, onChange){
 		parent.append("input").attr("type", "checkbox").attr("id", id).style("margin-left", "12px").property("checked", value)
@@ -379,14 +417,12 @@ HaplotypeRainbow.prototype.addControls = function(metaGroups){
 	});
 
 	var orderRow = row();
-	var tooManyToCluster = self.sampleCount > rainbowMaxClusterSamples;
-	var clusterNote = tooManyToCluster ? " (" + rainbowMaxClusterSamples + " samples or fewer)" : "";
 	var sampleSortOptions = [
 		{value: "alphabetical", text: "name"},
 		{value: "targetsTyped", text: "targets with haplotypes"},
-		{value: "cluster:frequency", text: "clustering on all haplotypes, weighted by within-sample frequency" + clusterNote, disabled: tooManyToCluster},
-		{value: "cluster:presence", text: "clustering on all haplotypes, presence only" + clusterNote, disabled: tooManyToCluster},
-		{value: "cluster:major", text: "clustering on major haplotypes" + clusterNote, disabled: tooManyToCluster}
+		{value: "cluster:frequency", text: "clustering on all haplotypes, weighted by within-sample frequency", cluster: true},
+		{value: "cluster:presence", text: "clustering on all haplotypes, presence only", cluster: true},
+		{value: "cluster:major", text: "clustering on major haplotypes", cluster: true}
 	];
 	self.metaFields.forEach(function(field, fieldPos){
 		sampleSortOptions.push({value: "meta:" + fieldPos, text: field});
@@ -430,12 +466,14 @@ HaplotypeRainbow.prototype.addControls = function(metaGroups){
 	});
 
 	var sizeRow = row();
-	addRange(sizeRow, "Row height", "rainbowRowHeight", 1, 30, self.opts.rowHeight, function(value){
+	self.setRowHeightControl = addRange(sizeRow, "Row height", "rainbowRowHeight", 1, 30, self.opts.rowHeight, function(value){
 		self.opts.rowHeight = value;
+		self.rowHeightSet = true;
 		self.updateLayout();
 	});
-	addRange(sizeRow, "Column width", "rainbowColWidth", 1, 40, self.opts.colWidth, function(value){
+	self.setColWidthControl = addRange(sizeRow, "Column width", "rainbowColWidth", 1, 40, self.opts.colWidth, function(value){
 		self.opts.colWidth = value;
+		self.colWidthSet = true;
 		self.updateLayout();
 	});
 	addCheck(sizeRow, "sample names", "rainbowSampleLabels", self.opts.showSampleLabels, function(value){
@@ -461,6 +499,9 @@ HaplotypeRainbow.prototype.fileStub = function(){
 	var stub = "haplotypeRainbow";
 	if(self.groupName){
 		stub += "_" + self.groupName + "_" + self.subGroupName;
+	}
+	if(self.isSelection){
+		stub += "_selected";
 	}
 	return stub.replace(/[^A-Za-z0-9._-]/g, "_");
 };
@@ -1128,6 +1169,81 @@ HaplotypeRainbow.prototype.downloadTable = function(){
 	rainbowSaveBlob(new Blob([lines.join("\n") + "\n"], {type: "text/tab-separated-values"}), self.fileStub() + ".tsv");
 };
 
+/**
+ * A list of checkboxes to choose names from, all checked to start, with a filter box
+ * @param parent d3 selection to add to
+ * @param title what the names are, e.g. Samples
+ * @param names the names
+ * @param searchTexts text the filter matches for each name, defaults to the names
+ * @param onChange called when what's checked changes
+ */
+function RainbowNameSelector(parent, title, names, searchTexts, onChange){
+	var self = this;
+	self.names = names;
+	self.checked = new Uint8Array(names.length).fill(1);
+	self.onChange = onChange;
+	var searchLower = (searchTexts || names).map(function(text){ return String(text).toLowerCase(); });
+	var box = parent.append("div").style("margin-bottom", "12px");
+	var head = box.append("div").style("margin-bottom", "4px");
+	head.append("b").text(title);
+	self.countText = head.append("span").style("margin-left", "8px");
+	var tools = box.append("div").style("margin-bottom", "4px");
+	var filter = tools.append("input").attr("type", "search").attr("placeholder", "filter " + title.toLowerCase())
+		.style("width", "220px").style("margin-right", "8px");
+	var addButton = function(text, func){
+		tools.append("button").attr("class", "btn btn-default btn-xs").style("margin-right", "4px").text(text).on("click", func);
+	};
+	addButton("Check all", function(){ self.setAll(true, false); });
+	addButton("Uncheck all", function(){ self.setAll(false, false); });
+	addButton("Check filtered", function(){ self.setAll(true, true); });
+	addButton("Uncheck filtered", function(){ self.setAll(false, true); });
+	var list = box.append("div")
+		.style("max-height", "160px").style("overflow", "auto")
+		.style("border", "1px solid #ccc").style("padding", "4px");
+	self.labels = list.selectAll("label").data(names.map(function(name, pos){ return pos; })).enter().append("label")
+		.style("display", "inline-block").style("margin", "1px 4px").style("font-weight", "normal").style("white-space", "nowrap");
+	self.boxes = self.labels.append("input").attr("type", "checkbox").property("checked", true).style("margin-right", "3px")
+		.on("change", function(pos){
+			self.checked[pos] = this.checked ? 1 : 0;
+			self.changed();
+		});
+	self.labels.append("span").text(function(pos){ return names[pos]; });
+	self.shown = new Uint8Array(names.length).fill(1);
+	filter.on("input", function(){
+		var query = this.value.trim().toLowerCase();
+		self.labels.style("display", function(pos){
+			self.shown[pos] = "" === query || searchLower[pos].indexOf(query) >= 0 ? 1 : 0;
+			return self.shown[pos] ? "inline-block" : "none";
+		});
+	});
+	self.updateCount();
+}
+
+RainbowNameSelector.prototype.setAll = function(value, onlyFiltered){
+	var self = this;
+	self.boxes.each(function(pos){
+		if(!onlyFiltered || self.shown[pos]){
+			self.checked[pos] = value ? 1 : 0;
+			this.checked = value;
+		}
+	});
+	self.changed();
+};
+
+RainbowNameSelector.prototype.changed = function(){
+	this.updateCount();
+	this.onChange();
+};
+
+RainbowNameSelector.prototype.updateCount = function(){
+	this.countText.text(this.selected().length + " of " + this.names.length + " checked");
+};
+
+RainbowNameSelector.prototype.selected = function(){
+	var self = this;
+	return self.names.filter(function(name, pos){ return self.checked[pos]; });
+};
+
 $(document).ready(function(){
 	var rName = getRootName();
 	//the path is the root name, the page, then optionally the meta field and its value
@@ -1142,6 +1258,7 @@ $(document).ready(function(){
 	setHeadTitle(title);
 	$("#jumboTitle").text(title);
 	addPanelWithDiv("#mainContent", "rainbowSummary", "Summary");
+	addPanelWithDiv("#mainContent", "rainbowSelection", "Samples and Targets Shown");
 	addPanelWithDiv("#mainContent", "rainbowControls", "Options");
 	addPanelOnlyHead("#mainContent", "Haplotypes Across Samples and Targets");
 	addDiv("#mainContent", "rainbowLegend");
@@ -1150,13 +1267,66 @@ $(document).ready(function(){
 		createMainPageNavBar("#topNav", projectsNames["projects"]);
 	}).catch(logRequestError);
 	prsentDivGifLoading();
+	var aminoAcidStub = ("aminoAcids" + (groupUrl ? "_" + groupName + "_" + subGroupName : "_allSamples")).replace(/[^A-Za-z0-9_.-]/g, "_");
+	var showAminoAcids = function(aminoAcids, isSelection){
+		d3.select("#aminoAcidTable").selectAll("*").remove();
+		new njhTable("#aminoAcidTable", aminoAcids, aminoAcidStub + (isSelection ? "_selected" : ""), false);
+	};
 	Promise.all([
 		getJSON('/' + rName + '/haplotypeRainbow' + (groupUrl ? "/" + groupUrl : "")),
 		getJSON('/' + rName + '/metaGroups')
 	]).then(function(results){
-		new HaplotypeRainbow(rName, results[0], results[1]["groups"], groupName, subGroupName);
+		var data = results[0];
+		var rainbow = new HaplotypeRainbow(rName, data, results[1]["groups"], groupName, subGroupName);
+		var hasAminoAcids = data["hasAminoAcidCalls"];
+		//choosing which samples and targets to show, out of the ones with haplotypes on this page
+		var allSamples = data["samples"];
+		var allTargets = data["targets"].map(function(target){ return target["name"]; });
+		var selection = d3.select("#rainbowSelection");
+		selection.append("p").style("color", "#555")
+			.text("Uncheck samples or targets to leave them out, then update. Haplotype ranks, colors and the amino acid table are recalculated for what's shown. "
+				+ "The sample filter also matches the sample's meta data.");
+		var updateRow = selection.append("div").style("margin-bottom", "8px");
+		var updateButton = updateRow.append("button").attr("class", "btn btn-primary btn-sm").text("Update plot").property("disabled", true);
+		var selectionMessage = updateRow.append("span").style("margin-left", "8px");
+		var onSelectionChange = function(){
+			updateButton.property("disabled", false);
+			selectionMessage.text("");
+		};
+		var sampleSearch = allSamples.map(function(sample, pos){ return [sample].concat(data["sampleMeta"][pos]).join(" "); });
+		var sampleSelector = new RainbowNameSelector(selection, "Samples", allSamples, sampleSearch, onSelectionChange);
+		var targetSelector = new RainbowNameSelector(selection, "Targets", allTargets, null, onSelectionChange);
+		updateButton.on("click", function(){
+			var samples = sampleSelector.selected();
+			var targets = targetSelector.selected();
+			if(0 === samples.length || 0 === targets.length){
+				selectionMessage.style("color", "#C00000").text("check at least one sample and one target");
+				return;
+			}
+			updateButton.property("disabled", true);
+			var isSelection = samples.length < allSamples.length || targets.length < allTargets.length;
+			var selectionNote = isSelection ? "Showing " + samples.length + " of " + allSamples.length + " samples and " + targets.length + " of " + allTargets.length + " targets" : "";
+			var post = {samples: samples, targets: targets};
+			prsentDivGifLoading();
+			var requests = [isSelection
+				? postJSON('/' + rName + '/haplotypeRainbowSelected', post)
+				: getJSON('/' + rName + '/haplotypeRainbow' + (groupUrl ? "/" + groupUrl : ""))];
+			if(hasAminoAcids){
+				requests.push(isSelection
+					? postJSON('/' + rName + '/aminoAcidChangesSelected', post)
+					: getJSON('/' + rName + '/aminoAcidChanges' + (groupUrl ? "/" + groupUrl : "")));
+			}
+			Promise.all(requests).then(function(updated){
+				rainbow.setData(updated[0], selectionNote);
+				if(hasAminoAcids){
+					showAminoAcids(updated[1], isSelection);
+				}
+			}).catch(logRequestError).then(function(){
+				removeAllDivGifLoading();
+			});
+		});
 		//only PMOs with protein variants have amino acid calls
-		if(!results[0]["hasAminoAcidCalls"]){
+		if(!hasAminoAcids){
 			return;
 		}
 		addPanelOnlyHead("#mainContent", "Amino Acids in These Samples");
@@ -1166,8 +1336,7 @@ $(document).ready(function(){
 				+ "SamplePrevalence is the fraction of those samples with the amino acid, AlleleCount and AlleleTotal count sample haplotypes.");
 		addDiv("#mainContent", "aminoAcidTable");
 		return getJSON('/' + rName + '/aminoAcidChanges' + (groupUrl ? "/" + groupUrl : "")).then(function(aminoAcids){
-			var stub = "aminoAcids" + (groupUrl ? "_" + groupName + "_" + subGroupName : "_allSamples");
-			new njhTable("#aminoAcidTable", aminoAcids, stub.replace(/[^A-Za-z0-9_.-]/g, "_"), false);
+			showAminoAcids(aminoAcids, false);
 		});
 	}).catch(logRequestError).then(function(){
 		removeAllDivGifLoading();

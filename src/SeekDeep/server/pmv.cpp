@@ -347,6 +347,13 @@ std::vector<std::shared_ptr<restbed::Resource>> pmv::getAllResources() {
 			respondJson(session, project_->haplotypeRainbow(group, subGroup));
 		});
 	}));
+	//a chosen set of samples and targets, posted as {"samples":[...], "targets":[...]}
+	ret.emplace_back(postRoute(seg("haplotypeRainbowSelected", {}), [this, toStrVec](const Session & session, const Json::Value & post) {
+		respondJson(session, project_->haplotypeRainbowFor(toStrVec(post["samples"]), toStrVec(post["targets"])));
+	}));
+	ret.emplace_back(postRoute(seg("aminoAcidChangesSelected", {}), [this, toStrVec](const Session & session, const Json::Value & post) {
+		respondJson(session, tableToJsonByRow(project_->aminoAcidChangesFor(toStrVec(post["samples"]), toStrVec(post["targets"])), "AA_Change"));
+	}));
 	ret.emplace_back(getRoute(seg("aminoAcidChanges", {}), [this](const Session & session) {
 		respondJson(session, tableToJsonByRow(project_->aminoAcidChanges(), "AA_Change"));
 	}));
