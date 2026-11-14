@@ -40,6 +40,7 @@ SeekDeepUtilsRunner::SeekDeepUtilsRunner() :
 					addFunc("replaceUnderscores", replaceUnderscores, false),
 				  addFunc("rBind", ManipulateTableRunner::rBind, false),
 					addFunc("genTargetInfoFromGenomes", genTargetInfoFromGenomes, false),
+					addFunc("assignTargetGenomes", assignTargetGenomes, false),
 					addFunc("ampliconReadQC", ampliconReadQC, false),
 					addFunc("testForFoldbacks", testForFoldbacks, false),
 					addFunc("nanoporeAmpliconReadQC", nanoporeAmpliconReadQC, false),

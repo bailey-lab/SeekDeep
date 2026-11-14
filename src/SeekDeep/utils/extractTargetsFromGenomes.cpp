@@ -1127,7 +1127,8 @@ void combinePrimerLocations(const ExtractContext & ctx, const bfs::path & locati
 /**@brief Make the regions covered by R1 and R2, named NAME-R1 and NAME-R2
  *
  * The same naming as SeekDeep setUpTarAmpAnalysis uses for targets that are analyzed as two separate targets. R1 starts at the
- * forward primer so for regions on the reverse strand R1 is at the end of the genomic region.
+ * forward primer so for regions on the reverse strand R1 is at the end of the genomic region. R2 is on the opposite strand of the
+ * region, the direction its reads are sequenced in.
  *
  * @param outerRegions the regions with the primers, the pair of the inner regions by name
  * @param regions the regions to make the mate regions for, the outer or the inner regions
@@ -1163,6 +1164,9 @@ BedRecords genMateRegions(const BedRecords & outerRegions, const BedRecords & re
 			mateReg->chromStart_ = start;
 			mateReg->chromEnd_ = end;
 			mateReg->name_ = reg->name_ + mate.first;
+			if("-R2" == mate.first){
+				mateReg->strand_ = '-' == reg->strand_ ? '+' : '-';
+			}
 			ret.emplace_back(mateReg);
 		}
 	}
