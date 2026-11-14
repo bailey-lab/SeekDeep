@@ -233,7 +233,10 @@ function averageLinkageOrder(n, distFunc){
 function HaplotypeRainbow(rName, data, metaGroups, groupName, subGroupName){
 	var self = this;
 	self.rName = rName;
-	self.metaFields = data["metaFields"];
+	self.baseMetaFields = data["metaFields"];
+	self.metaFields = self.baseMetaFields.slice();
+	//groups from the between-sample distances, null until generated
+	self.distanceGroups = null;
 	self.groupName = groupName;
 	self.subGroupName = subGroupName;
 	self.isSelection = false;
@@ -269,7 +272,10 @@ HaplotypeRainbow.prototype.setData = function(data, selectionNote){
 	self.isSelection = selectionNote.length > 0;
 	self.samples = data["samples"];
 	self.targets = data["targets"];
-	self.sampleMeta = data["sampleMeta"];
+	self.baseSampleMeta = data["sampleMeta"];
+	self.sampleMeta = self.baseSampleMeta;
+	//groups were for the samples and targets shown before
+	self.clearDistanceGroups();
 	var sampleCount = self.samples.length;
 	var targetCount = self.targets.length;
 	self.sampleCount = sampleCount;
@@ -572,7 +578,55 @@ HaplotypeRainbow.prototype.measureLabels = function(){
 
 HaplotypeRainbow.prototype.metaBandFieldPos = function(){
 	var sort = this.opts.sampleSort;
+	if("distanceGroup" === sort){
+		return this.distanceGroups ? this.distanceGroups.fieldPos : -1;
+	}
 	return 0 === sort.indexOf("meta:") ? parseInt(sort.substring(5)) : -1;
+};
+
+/**
+ * Add the groups from /sampleDistances as a distance_group meta field and order the samples by them
+ * @param result from /sampleDistances, its order and groupBySample
+ */
+HaplotypeRainbow.prototype.setDistanceGroups = function(result){
+	var self = this;
+	var groupBySample = {};
+	var rankBySample = {};
+	result["order"].forEach(function(sample, pos){
+		groupBySample[sample] = result["groupBySample"][pos];
+		rankBySample[sample] = pos;
+	});
+	self.metaFields = self.baseMetaFields.concat(["distance_group"]);
+	self.sampleMeta = self.baseSampleMeta.map(function(meta, sampleIdx){
+		var group = groupBySample[self.samples[sampleIdx]];
+		return meta.concat([undefined === group ? "NA" : group]);
+	});
+	self.distanceGroups = {fieldPos: self.metaFields.length - 1, rankBySample: rankBySample};
+	var sortSelect = d34.select("#rainbowSampleSort");
+	if(sortSelect.select("option[value=distanceGroup]").empty()){
+		sortSelect.append("option").datum({value: "distanceGroup", text: "distance_group, between-sample clustering"})
+			.attr("value", "distanceGroup")
+			.text(function(d){ return d.text; });
+	}
+	self.opts.sampleSort = "distanceGroup";
+	sortSelect.property("value", "distanceGroup");
+	self.updateSampleOrder();
+};
+
+//remove the distance_group field, the order goes back to name when it was being used
+HaplotypeRainbow.prototype.clearDistanceGroups = function(){
+	var self = this;
+	if(!self.distanceGroups){
+		return;
+	}
+	self.distanceGroups = null;
+	self.metaFields = self.baseMetaFields.slice();
+	self.sampleMeta = self.baseSampleMeta;
+	d34.select("#rainbowSampleSort").select("option[value=distanceGroup]").remove();
+	if("distanceGroup" === self.opts.sampleSort){
+		self.opts.sampleSort = "alphabetical";
+		d34.select("#rainbowSampleSort").property("value", self.opts.sampleSort);
+	}
 };
 
 HaplotypeRainbow.prototype.sampleLabelsShown = function(){
@@ -656,8 +710,10 @@ HaplotypeRainbow.prototype.updateMetaLegend = function(){
 	var values = _.uniq(self.sampleMeta.map(function(meta){ return meta[fieldPos]; })).sort();
 	var palette = values.length <= 10 ? d34.schemeCategory10 : d34.schemeCategory20;
 	self.metaColors = {};
+	//samples left out of the distance groups are greys
+	var greys = {"NA": "#CCCCCC", "nogroup": "#DDDDDD", "low_coverage": "#999999"};
 	values.forEach(function(value, pos){
-		self.metaColors[value] = "NA" === value ? "#CCCCCC" : palette[pos % palette.length];
+		self.metaColors[value] = greys.hasOwnProperty(value) ? greys[value] : palette[pos % palette.length];
 	});
 	self.metaLegend.append("span").style("margin-right", "8px").style("font-weight", "bold").text(self.metaFields[fieldPos] + ":");
 	var shownValues = values.slice(0, 60);
@@ -683,6 +739,16 @@ HaplotypeRainbow.prototype.updateSampleOrder = function(){
 	} else if("targetsTyped" === sort){
 		self.sampleOrder = byName.slice().sort(function(first, second){
 			return self.targetsTyped[second] - self.targetsTyped[first] || first - second;
+		});
+	} else if("distanceGroup" === sort){
+		//the server's order, groups by size then average linkage within each
+		var rankBySample = self.distanceGroups.rankBySample;
+		var rankOf = function(sampleIdx){
+			var rank = rankBySample[self.samples[sampleIdx]];
+			return undefined === rank ? Infinity : rank;
+		};
+		self.sampleOrder = byName.slice().sort(function(first, second){
+			return rankOf(first) - rankOf(second) || first - second;
 		});
 	} else if(0 === sort.indexOf("cluster:")){
 		var gif = prsentDivGifLoading();
@@ -1244,6 +1310,196 @@ RainbowNameSelector.prototype.selected = function(){
 	return self.names.filter(function(name, pos){ return self.checked[pos]; });
 };
 
+var rainbowMaxDistanceSamples = 3000;
+
+/**
+ * Between-sample CCC, RMSE and Jaccard for the samples and targets on the rainbow, and DBSCAN clustering on one of them,
+ * the groups go onto the rainbow as distance_group
+ * @param rName the root name of the viewer
+ * @param rainbow the HaplotypeRainbow
+ * @param inputsSelector where the settings and Generate button go
+ * @param resultsSelector where the tables go
+ * @param fileStub start of the download names
+ */
+function RainbowDistancePanel(rName, rainbow, inputsSelector, resultsSelector, fileStub){
+	var self = this;
+	self.rName = rName;
+	self.rainbow = rainbow;
+	self.results = d34.select(resultsSelector);
+	self.fileStub = fileStub;
+	self.lastPost = null;
+	var defaults = {
+		ccc: {cutOff: 0.95, label: "CCC at or above"},
+		rmse: {cutOff: 0.15, label: "RMSE at or below"},
+		jaccard: {cutOff: 0.90, label: "Jaccard at or above"}
+	};
+	var inputs = d34.select(inputsSelector);
+	inputs.append("p").style("color", "#555")
+		.text("Compares every pair of samples on the plot over the targets both have haplotypes in: "
+			+ "CCC (Lin's concordance) and RMSE of the within-sample haplotype frequencies, and the Jaccard index of their haplotypes. "
+			+ "Samples are then clustered with DBSCAN, two samples being neighbors when the chosen measure passes the cut off; "
+			+ "a sample needs at least the min neighbors to start a group, and smaller sets of neighbors are kept as their own groups. "
+			+ "Samples with haplotypes in less than the min loci coverage fraction of the targets aren't clustered (low_coverage). "
+			+ "The groups are added to the plot as distance_group. At most " + rainbowMaxDistanceSamples + " samples.");
+	var row = inputs.append("div").style("margin-bottom", "8px");
+	var addLabel = function(text, id){
+		return row.append("label").attr("for", id).style("margin", "0 6px 0 12px").text(text);
+	};
+	var addNumber = function(id, value, step, min, max){
+		var input = row.append("input").attr("type", "number").attr("id", id).attr("step", step).style("width", "80px").property("value", value);
+		if(undefined !== min){
+			input.attr("min", min);
+		}
+		if(undefined !== max){
+			input.attr("max", max);
+		}
+		return input;
+	};
+	addLabel("Cluster on", "rainbowDistMeasure").style("margin-left", "0");
+	self.measure = row.append("select").attr("id", "rainbowDistMeasure");
+	self.measure.selectAll("option").data([
+		{value: "ccc", text: "CCC"},
+		{value: "rmse", text: "RMSE"},
+		{value: "jaccard", text: "Jaccard"}
+	]).enter().append("option").attr("value", function(d){ return d.value; }).text(function(d){ return d.text; });
+	var cutOffLabel = addLabel(defaults.ccc.label, "rainbowDistCutOff");
+	self.cutOff = addNumber("rainbowDistCutOff", defaults.ccc.cutOff, 0.01);
+	self.measure.on("change", function(){
+		cutOffLabel.text(defaults[this.value].label);
+		self.cutOff.property("value", defaults[this.value].cutOff);
+	});
+	addLabel("Min neighbors", "rainbowDistMinNeighbors");
+	self.minNeighbors = addNumber("rainbowDistMinNeighbors", 5, 1, 1);
+	addLabel("Min loci coverage", "rainbowDistMinCoverage");
+	self.minCoverage = addNumber("rainbowDistMinCoverage", 0.90, 0.05, 0, 1);
+	var buttonRow = inputs.append("div");
+	self.generateButton = buttonRow.append("button").attr("class", "btn btn-primary btn-sm").text("Generate")
+		.on("click", function(){ self.generate(); });
+	self.message = buttonRow.append("span").style("margin-left", "8px");
+	self.results.append("p").style("color", "#555").text("Set the options above and Generate.");
+	self.update();
+}
+
+//the samples and targets on the plot, which is what gets compared
+RainbowDistancePanel.prototype.shown = function(){
+	return {
+		samples: this.rainbow.samples.slice(),
+		targets: this.rainbow.targets.map(function(target){ return target["name"]; })
+	};
+};
+
+//called when the plot's samples or targets change
+RainbowDistancePanel.prototype.update = function(){
+	var self = this;
+	var sampleCount = self.rainbow.sampleCount;
+	var tooMany = sampleCount > rainbowMaxDistanceSamples;
+	self.generateButton.property("disabled", tooMany || sampleCount < 2);
+	if(tooMany){
+		self.message.style("color", "#C00000").text(sampleCount + " samples are on the plot, choose " + rainbowMaxDistanceSamples + " or fewer above to compare them");
+	} else if(sampleCount < 2){
+		self.message.style("color", "#C00000").text("needs at least 2 samples on the plot");
+	} else if(self.lastPost){
+		self.message.style("color", "#C00000").text("the samples or targets shown have changed since these results, Generate again for them");
+	} else {
+		self.message.style("color", "#555").text(sampleCount + " samples and " + self.rainbow.targetCount + " targets will be compared");
+	}
+};
+
+RainbowDistancePanel.prototype.readPars = function(){
+	var self = this;
+	var cutOff = parseFloat(self.cutOff.property("value"));
+	var minNeighbors = parseInt(self.minNeighbors.property("value"));
+	var minCoverage = parseFloat(self.minCoverage.property("value"));
+	if(isNaN(cutOff) || isNaN(minNeighbors) || minNeighbors < 1 || isNaN(minCoverage) || minCoverage < 0 || minCoverage > 1){
+		return null;
+	}
+	return {measure: self.measure.property("value"), cutOff: cutOff, minNeighbors: minNeighbors, minLociCoverage: minCoverage};
+};
+
+RainbowDistancePanel.prototype.generate = function(){
+	var self = this;
+	var pars = self.readPars();
+	if(!pars){
+		self.message.style("color", "#C00000").text("the cut off, min neighbors (1 or more) and min loci coverage (0 to 1) need to be numbers");
+		return;
+	}
+	var post = $.extend(self.shown(), pars);
+	self.generateButton.property("disabled", true);
+	self.message.style("color", "#555").text("comparing " + post.samples.length + " samples...");
+	prsentDivGifLoading();
+	postJSON("/" + self.rName + "/sampleDistances", post).then(function(result){
+		if(result["error"]){
+			self.message.style("color", "#C00000").text(result["error"]);
+			return;
+		}
+		self.lastPost = post;
+		self.message.style("color", "#555").text("");
+		self.showResults(result);
+		self.rainbow.setDistanceGroups(result);
+	}).catch(function(err){
+		self.message.style("color", "#C00000").text("comparing the samples failed");
+		logRequestError(err);
+	}).then(function(){
+		removeAllDivGifLoading();
+		self.generateButton.property("disabled", false);
+	});
+};
+
+RainbowDistancePanel.prototype.showResults = function(result){
+	var self = this;
+	var measureNames = {ccc: "CCC", rmse: "RMSE", jaccard: "Jaccard"};
+	var stub = (self.fileStub + "_" + result["measure"]).replace(/[^A-Za-z0-9_.-]/g, "_");
+	self.results.selectAll("*").remove();
+	var summary = self.results.append("div").style("margin-bottom", "12px");
+	summary.append("div").style("font-weight", "bold")
+		.text("Clustered on " + measureNames[result["measure"]] + " " + ("rmse" === result["measure"] ? "at or below " : "at or above ") + result["cutOff"]
+			+ ", min neighbors " + result["minNeighbors"] + ", min loci coverage " + result["minLociCoverage"]);
+	var counts = {};
+	result["groupBySample"].forEach(function(group){
+		counts[group] = (counts[group] || 0) + 1;
+	});
+	summary.append("div").text(result["order"].length + " samples over " + result["targetCount"] + " targets: " + result["groupCount"] + " groups"
+		+ ", " + (counts["nogroup"] || 0) + " in no group, " + (counts["low_coverage"] || 0) + " with low coverage");
+	if(result["samplesWithoutData"].length > 0){
+		summary.append("div").text(result["samplesWithoutData"].length + " samples have no haplotypes in these targets and aren't compared");
+	}
+	var addSection = function(title, id){
+		self.results.append("h4").text(title);
+		self.results.append("div").attr("id", id).style("margin-bottom", "16px");
+	};
+	addSection("Groups", "rainbowDistGroups");
+	self.results.select("#rainbowDistGroups").append("p").style("color", "#555")
+		.text("min, median, mean and max of each measure over the pairs of samples within the group");
+	new njhTable("#rainbowDistGroups", result["groups"], stub + "_groups", false);
+	addSection("Samples", "rainbowDistSamples");
+	new njhTable("#rainbowDistSamples", result["samples"], stub + "_samples", false);
+	addSection("Sample Pairs", "rainbowDistPairs");
+	var pairsNote = self.results.select("#rainbowDistPairs").append("div").style("margin-bottom", "6px");
+	var shownPairs = result["pairs"]["tab"].length;
+	var noteText = result["sharingPairCount"] + " of " + result["pairCount"] + " pairs share at least one target";
+	if(shownPairs < result["sharingPairCount"]){
+		noteText += ", the " + shownPairs + " closest on " + measureNames[result["measure"]] + " are shown";
+	}
+	pairsNote.append("span").text(noteText + ". ");
+	pairsNote.append("button").attr("class", "btn btn-success btn-xs").text("Download all pairs")
+		.on("click", function(){ self.downloadPairs(stub + "_pairs.tsv"); });
+	new njhTable("#rainbowDistPairs", result["pairs"], stub + "_pairs_shown", false);
+};
+
+//every pair, including those sharing no targets, from the server as a tsv
+RainbowDistancePanel.prototype.downloadPairs = function(fileName){
+	var self = this;
+	if(!self.lastPost){
+		return;
+	}
+	prsentDivGifLoading();
+	makeRequest({url: "/" + self.rName + "/sampleDistancePairs", method: "POST", params: self.lastPost, headers: {"Content-Type": "application/json"}}).then(function(text){
+		rainbowSaveBlob(new Blob([text], {type: "text/tab-separated-values"}), fileName);
+	}).catch(logRequestError).then(function(){
+		removeAllDivGifLoading();
+	});
+};
+
 $(document).ready(function(){
 	var rName = getRootName();
 	//the path is the root name, the page, then optionally the meta field and its value
@@ -1259,10 +1515,13 @@ $(document).ready(function(){
 	$("#jumboTitle").text(title);
 	addPanelWithDiv("#mainContent", "rainbowSummary", "Summary");
 	addPanelWithDiv("#mainContent", "rainbowSelection", "Samples and Targets Shown");
+	addPanelWithDiv("#mainContent", "rainbowDistances", "Between-Sample Distances");
 	addPanelWithDiv("#mainContent", "rainbowControls", "Options");
 	addPanelOnlyHead("#mainContent", "Haplotypes Across Samples and Targets");
 	addDiv("#mainContent", "rainbowLegend");
 	addDiv("#mainContent", "rainbowPlot");
+	addPanelOnlyHead("#mainContent", "Between-Sample Distance Results");
+	addDiv("#mainContent", "rainbowDistanceResults");
 	getJSON('/' + rName + '/projectsNames').then(function(projectsNames){
 		createMainPageNavBar("#topNav", projectsNames["projects"]);
 	}).catch(logRequestError);
@@ -1278,6 +1537,8 @@ $(document).ready(function(){
 	]).then(function(results){
 		var data = results[0];
 		var rainbow = new HaplotypeRainbow(rName, data, results[1]["groups"], groupName, subGroupName);
+		var distances = new RainbowDistancePanel(rName, rainbow, "#rainbowDistances", "#rainbowDistanceResults",
+			"sampleDistances" + (groupUrl ? "_" + groupName + "_" + subGroupName : "_allSamples"));
 		var hasAminoAcids = data["hasAminoAcidCalls"];
 		//choosing which samples and targets to show, out of the ones with haplotypes on this page
 		var allSamples = data["samples"];
@@ -1318,6 +1579,7 @@ $(document).ready(function(){
 			}
 			Promise.all(requests).then(function(updated){
 				rainbow.setData(updated[0], selectionNote);
+				distances.update();
 				if(hasAminoAcids){
 					showAminoAcids(updated[1], isSelection);
 				}

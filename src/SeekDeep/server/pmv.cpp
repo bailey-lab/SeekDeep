@@ -38,6 +38,9 @@ pmv::pmv(const Json::Value & config) :
 	//per process since the working directory defaults to the shared /tmp/
 	seqsDir_ = njh::files::make_path(seqs_->workingDir_, njh::pasteAsStr("pmoSeqs_", getpid()));
 	project_ = std::make_unique<PmoProject>(config["pmo"].asString());
+	if (config.isMember("numThreads")) {
+		numThreads_ = std::max<uint32_t>(1, config["numThreads"].asUInt());
+	}
 }
 
 VecStr pmv::requiredOptions() const {
@@ -353,6 +356,58 @@ std::vector<std::shared_ptr<restbed::Resource>> pmv::getAllResources() {
 	}));
 	ret.emplace_back(postRoute(seg("aminoAcidChangesSelected", {}), [this, toStrVec](const Session & session, const Json::Value & post) {
 		respondJson(session, tableToJsonByRow(project_->aminoAcidChangesFor(toStrVec(post["samples"]), toStrVec(post["targets"])), "AA_Change"));
+	}));
+	//between sample distances and clustering on them for a chosen set of samples and targets, posted as
+	//{"samples":[...], "targets":[...], "measure":"ccc|rmse|jaccard", "cutOff":0.95, "minNeighbors":5, "minLociCoverage":0.9}
+	const auto sampleDistancePars = [this](const Json::Value & post) {
+		HapsSampleClustering::Pars pars;
+		pars.measure_ = HapsSampleClustering::measureFromName(post.get("measure", "ccc").asString());
+		pars.cutOff_ = post.get("cutOff", pars.cutOff_).asDouble();
+		pars.minNeighbors_ = post.get("minNeighbors", pars.minNeighbors_).asUInt();
+		pars.minLociCoverage_ = post.get("minLociCoverage", pars.minLociCoverage_).asDouble();
+		pars.numThreads_ = numThreads_;
+		return pars;
+	};
+	ret.emplace_back(postRoute(seg("sampleDistances", {}), [this, toStrVec, sampleDistancePars](const Session & session, const Json::Value & post) {
+		Json::Value out;
+		try {
+			const auto pars = sampleDistancePars(post);
+			auto results = project_->sampleDistances(toStrVec(post["samples"]), toStrVec(post["targets"]), pars, maxSampleDistancePairsShown_);
+			out["samplesWithoutData"] = njh::json::toJson(results.samplesWithoutData_);
+			if (!results.error_.empty()) {
+				out["error"] = results.error_;
+			} else {
+				out["measure"] = HapsSampleClustering::measureName(pars.measure_);
+				out["cutOff"] = pars.cutOff_;
+				out["minNeighbors"] = pars.minNeighbors_;
+				out["minLociCoverage"] = pars.minLociCoverage_;
+				out["targetCount"] = results.targetCount_;
+				out["groupCount"] = results.groupCount_;
+				out["pairCount"] = Json::UInt64(results.pairCount_);
+				out["sharingPairCount"] = Json::UInt64(results.sharingPairCount_);
+				out["maxPairsShown"] = Json::UInt64(maxSampleDistancePairsShown_);
+				out["samples"] = tableToJsonByRow(results.samples_, "sample", VecStr{}, VecStr{"distance_group"});
+				out["groups"] = tableToJsonByRow(results.groups_, "group", VecStr{}, VecStr{"group"});
+				out["pairs"] = results.pairs_;
+				out["order"] = njh::json::toJson(results.order_);
+				out["groupBySample"] = njh::json::toJson(results.groupBySample_);
+			}
+		} catch (const std::exception & e) {
+			out["error"] = e.what();
+		}
+		respondJson(session, out);
+	}));
+	//every pair as a tab delimited table, same post as sampleDistances
+	ret.emplace_back(postRoute(seg("sampleDistancePairs", {}), [this, toStrVec, sampleDistancePars](const Session & session, const Json::Value & post) {
+		std::string body;
+		try {
+			body = project_->sampleDistancePairs(toStrVec(post["samples"]), toStrVec(post["targets"]), sampleDistancePars(post));
+		} catch (const std::exception & e) {
+			std::cerr << e.what() << std::endl;
+		}
+		auto headers = HeaderFactory::initiatePlainTxtHeader(body);
+		headers.emplace("Connection", "close");
+		session->close(restbed::OK, body, headers);
 	}));
 	ret.emplace_back(getRoute(seg("aminoAcidChanges", {}), [this](const Session & session) {
 		respondJson(session, tableToJsonByRow(project_->aminoAcidChanges(), "AA_Change"));

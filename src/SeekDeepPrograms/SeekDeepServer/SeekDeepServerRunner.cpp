@@ -128,6 +128,8 @@ int SeekDeepServerRunner::pmoViewer(const njh::progutils::CmdArgs & inputCommand
 			"Name of the resource Directory where the js and html is located",
 			!bfs::exists(resourceDirName));
 	setUp.setOption(pmoFnp, "--pmo", "The PMO file to serve, can be gzipped", true);
+	uint32_t numThreads = 1;
+	setUp.setOption(numThreads, "--numThreads", "Threads for comparing samples on the haplotype rainbow page");
 	setUp.processDebug();
 	setUp.processVerbose();
 	corePars.setCoreOptions(setUp);
@@ -142,6 +144,7 @@ int SeekDeepServerRunner::pmoViewer(const njh::progutils::CmdArgs & inputCommand
 	corePars.addCoreOpts(appConfig);
 	appConfig["pmo"] = njh::json::toJson(pmoFnp);
 	appConfig["resources"] = njh::json::toJson(resourceDirName);
+	appConfig["numThreads"] = numThreads;
 	if(setUp.pars_.verbose_){
 		std::cout << corePars.getAddress() << std::endl;
 	}

@@ -22,6 +22,7 @@
 #include <njhseq/common.h>
 #include <njhseq/objects/dataContainers/tables/table.hpp>
 #include <njhseq/IO/OutputStream.hpp>
+#include <njhseq/PopulationGenetics/HapsSampleClustering.hpp>
 #include <mutex>
 
 namespace njhseq {
@@ -70,6 +71,7 @@ public:
 
 	/**@brief One row per target with its primers and a summary of what was detected
 	 *
+	 * There's a gene_name column after the target when any target in the PMO has one, NA for those without.
 	 */
 	[[nodiscard]] table targetsInfo();
 
@@ -164,6 +166,43 @@ public:
 	 */
 	[[nodiscard]] table aminoAcidChangesFor(const VecStr & samples, const VecStr & targets) const;
 
+	static constexpr uint32_t maxSampleDistanceSamples = 3000; /**< the most samples sampleDistances() takes*/
+
+	/**@brief Between sample CCC, RMSE and Jaccard on shared targets and DBSCAN clustering on one of them, for a chosen set of samples and targets, not cached
+	 *
+	 * Within sample frequencies are reads over the sample's reads for the target, split evenly when there are none.
+	 * Groups are numbered by size, largest first, and samples that aren't clustered are nogroup or low_coverage.
+	 *
+	 */
+	struct SampleDistances {
+		std::string error_; /**< set instead of the results when they can't be calculated*/
+		VecStr samplesWithoutData_; /**< chosen samples with nothing detected in the chosen targets*/
+		uint32_t targetCount_{0}; /**< chosen targets with data in any chosen sample*/
+		uint32_t groupCount_{0};
+		uint64_t pairCount_{0}; /**< all pairs of samples with data*/
+		uint64_t sharingPairCount_{0}; /**< pairs sharing at least one target*/
+		table samples_; /**< sample, distance_group, targets_typed, loci_coverage then the meta fields*/
+		table groups_; /**< per group stats of the pairs within it*/
+		Json::Value pairs_; /**< the closest pairs, up to the max asked for, in the tableToJsonByRow layout; pairs sharing no targets are left out*/
+		VecStr order_; /**< samples by group, largest first, then nogroup and low_coverage, average linkage order within each*/
+		VecStr groupBySample_; /**< distance_group in order_*/
+	};
+
+	/**@brief sampleDistances() results
+	 *
+	 * @param samples library samples to include, unknown names are skipped
+	 * @param targets targets to include, unknown names are skipped
+	 * @param pars the measure, cut off and DBSCAN settings
+	 * @param maxPairs the most pairs to put in pairs_
+	 */
+	[[nodiscard]] SampleDistances sampleDistances(const VecStr & samples, const VecStr & targets, const HapsSampleClustering::Pars & pars, uint64_t maxPairs) const;
+
+	/**@brief every pair from sampleDistances() as a tab delimited table, NA for the measures of pairs sharing no targets
+	 *
+	 * @return empty when they can't be calculated
+	 */
+	[[nodiscard]] std::string sampleDistancePairs(const VecStr & samples, const VecStr & targets, const HapsSampleClustering::Pars & pars) const;
+
 	Json::Value header_; /**< the pmo_header of the file */
 
 private:
@@ -183,6 +222,7 @@ private:
 		std::string name_;
 		std::string forwardPrimer_;
 		std::string reversePrimer_;
+		std::string geneName_; /**< target_info gene_name, empty without one*/
 		bool fakePrimers_{false};
 		VecStr hapNames_;
 		VecStr hapSeqs_;
@@ -191,6 +231,7 @@ private:
 	};
 	bool hasAminoAcidCalls_{false};
 	bool hasGeneNames_{false};
+	bool hasTargetGeneNames_{false};
 
 	std::map<std::string, Target> targets_;
 	VecStr librarySamples_;
@@ -211,6 +252,15 @@ private:
 	//the known library samples among samples in the project's order, and the known targets among targets
 	[[nodiscard]] VecStr knownLibrarySamples(const VecStr & samples) const;
 	[[nodiscard]] std::set<std::string> knownTargets(const VecStr & targets) const;
+
+	struct SampleDistanceCalcs {
+		std::string error_;
+		VecStr samplesWithoutData_;
+		std::unique_ptr<HapsEncodedMatrix> haps_;
+		std::unique_ptr<HapsSampleClustering::Measures> measures_;
+	};
+	//the encoded haplotypes and measures for the chosen samples and targets, error_ set when there are too few or too many samples
+	[[nodiscard]] SampleDistanceCalcs calcSampleDistances(const VecStr & samples, const VecStr & targets, const HapsSampleClustering::Pars & pars) const;
 
 	[[nodiscard]] std::string metaValue(const std::string & sample, const std::string & group) const;
 	[[nodiscard]] TargetTables genTables(const Target & target, const VecStr & samples) const;

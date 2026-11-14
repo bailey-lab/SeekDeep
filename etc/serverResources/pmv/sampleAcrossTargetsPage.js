@@ -21,15 +21,55 @@ $(document).ready(function(){
 		createMainPageNavBar("#topNav", navNames[0]["projects"]);
 		addNavDrop("#projectNav", "Samples", "samplesDrop");
 		var sampleLinkPre = "/" + rName + "/sampleAcrossTargetsPage/";
-		d3.select("#samplesDrop")
-			.selectAll("li")
+		var samplesDrop = d3.select("#samplesDrop");
+		//filter box kept at the top while the list scrolls
+		var filter = samplesDrop.append("li")
+			.style("position", "sticky")
+			.style("top", "0")
+			.style("z-index", "1")
+			.style("background", "#fff")
+			.style("padding", "4px 8px")
+			.append("input")
+				.attr("type", "search")
+				.attr("class", "form-control input-sm")
+				.attr("placeholder", "Filter samples");
+		var noMatches = samplesDrop.append("li")
+			.attr("class", "dropdown-header")
+			.style("display", "none")
+			.text("No matching samples");
+		var sampleItems = samplesDrop.selectAll("li.sampleItem")
 			.data(navNames[1]["samples"])
 			.enter()
 				.append("li")
-					.attr("class", function(d){ return d == sampName ? "active" : ""; })
-				.append("a")
-					.attr("href", function(d){ return sampleLinkPre + encodeURIComponent(d); })
-					.text(function(d){ return d; });
+					.attr("class", function(d){ return d == sampName ? "sampleItem active" : "sampleItem"; });
+		sampleItems.append("a")
+			.attr("href", function(d){ return sampleLinkPre + encodeURIComponent(d); })
+			.text(function(d){ return d; });
+		//case insensitive substring match, Enter opens the first match
+		filter.on("input", function(){
+			var term = this.value.trim().toLowerCase();
+			var shown = 0;
+			sampleItems.style("display", function(d){
+				var match = "" === term || d.toLowerCase().indexOf(term) >= 0;
+				if(match){
+					++shown;
+				}
+				return match ? null : "none";
+			});
+			noMatches.style("display", 0 === shown ? null : "none");
+		});
+		filter.node().addEventListener("keydown", function(e){
+			if("Enter" === e.key){
+				e.preventDefault();
+				var first = sampleItems.filter(function(){ return "none" !== this.style.display; }).select("a").node();
+				if(first){
+					window.location.href = first.getAttribute("href");
+				}
+			}
+		});
+		$("#samplesDrop").parent().on("shown.bs.dropdown", function(){
+			filter.node().focus();
+		});
 	}).catch(logRequestError);
 	getJSON('/' + rName + '/sampleAcrossTargets/' + sampleUrlName).then(function(info){
 		var rows = info["tab"];

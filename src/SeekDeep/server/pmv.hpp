@@ -31,7 +31,7 @@ namespace njhseq {
 class pmv: public njhseq::SeqApp {
 public:
 	/**
-	 * @param config needs the SeqApp options and "pmo" and "resources"
+	 * @param config needs the SeqApp options and "pmo" and "resources", can have "numThreads"
 	 */
 	explicit pmv(const Json::Value & config);
 
@@ -44,6 +44,8 @@ private:
 	using PathSegs = std::vector<UrlPathFactory::PathSeg>;
 
 	std::unique_ptr<PmoProject> project_;
+	uint32_t numThreads_{1}; /**< for the between sample distances*/
+	static constexpr uint64_t maxSampleDistancePairsShown_ = 100000;
 	bfs::path resourceDir_;
 	bfs::path seqsDir_;
 

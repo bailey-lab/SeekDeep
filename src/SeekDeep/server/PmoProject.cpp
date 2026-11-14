@@ -85,6 +85,8 @@ PmoProject::PmoProject(const bfs::path & pmoFnp) {
 		target.name_ = info.target_name_;
 		target.forwardPrimer_ = info.forward_primer_.seq_;
 		target.reversePrimer_ = info.reverse_primer_.seq_;
+		target.geneName_ = info.gene_name_.value_or("");
+		hasTargetGeneNames_ = hasTargetGeneNames_ || !target.geneName_.empty();
 		target.fakePrimers_ = info.target_attributes_.has_value() && njh::in(std::string(pmo::PMO_FAKE_PRIMERS_ATTRIBUTE), info.target_attributes_.value());
 		auto & targetHapIds = hapIdBySeq[info.target_name_];
 		for (const auto & mhap : representatives.microhaplotypes_) {
@@ -430,6 +432,13 @@ table PmoProject::targetsInfo() {
 				hasData ? popInfo.getColumn("p_ExpectedHeterozygosity").front() : "0",
 				hasData ? popInfo.getColumn("p_meanCoi").front() : "0",
 				hasData ? popInfo.getColumn("p_maxCoi").front() : "0"));
+		if (hasTargetGeneNames_) {
+			ret.content_.back().insert(ret.content_.back().begin() + 1, target.second.geneName_.empty() ? "NA" : target.second.geneName_);
+		}
+	}
+	if (hasTargetGeneNames_) {
+		ret.columnNames_.insert(ret.columnNames_.begin() + 1, "gene_name");
+		ret.setColNamePositions();
 	}
 	return ret;
 }
@@ -712,6 +721,243 @@ std::set<std::string> PmoProject::knownTargets(const VecStr & targets) const {
 
 Json::Value PmoProject::haplotypeRainbowFor(const VecStr & samples, const VecStr & targets) const {
 	return genHaplotypeRainbow(knownLibrarySamples(samples), knownTargets(targets));
+}
+
+PmoProject::SampleDistanceCalcs PmoProject::calcSampleDistances(const VecStr & samples, const VecStr & targets, const HapsSampleClustering::Pars & pars) const {
+	SampleDistanceCalcs ret;
+	const auto chosenSamples = knownLibrarySamples(samples);
+	const auto chosenTargets = knownTargets(targets);
+	const std::unordered_set<std::string> chosenSampleSet(chosenSamples.begin(), chosenSamples.end());
+	std::vector<HapsEncodedMatrix::SampTarHapAbund> rows;
+	std::unordered_set<std::string> withData;
+	for (const auto & target : targets_) {
+		if (!chosenTargets.empty() && !njh::in(target.first, chosenTargets)) {
+			continue;
+		}
+		for (const auto & detected : target.second.detected_) {
+			if (!njh::in(detected.first, chosenSampleSet)) {
+				continue;
+			}
+			withData.emplace(detected.first);
+			std::map<uint32_t, uint64_t> readsByHapId;
+			uint64_t totalReads = 0;
+			for (const auto & hap : detected.second) {
+				readsByHapId[hap.hapId_] += hap.reads_;
+				totalReads += hap.reads_;
+			}
+			for (const auto & hap : readsByHapId) {
+				rows.emplace_back(HapsEncodedMatrix::SampTarHapAbund{detected.first, target.first, estd::to_string(hap.first),
+						totalReads > 0 ? hap.second / static_cast<double>(totalReads) : 1.0 / readsByHapId.size()});
+			}
+		}
+	}
+	for (const auto & sample : chosenSamples) {
+		if (!njh::in(sample, withData)) {
+			ret.samplesWithoutData_.emplace_back(sample);
+		}
+	}
+	if (withData.size() < 2) {
+		ret.error_ = njh::pasteAsStr("need at least 2 samples with haplotypes in the chosen targets, there are ", withData.size());
+		return ret;
+	}
+	if (withData.size() > maxSampleDistanceSamples) {
+		ret.error_ = njh::pasteAsStr("at most ", maxSampleDistanceSamples, " samples can be compared, there are ", withData.size(), " with haplotypes in the chosen targets");
+		return ret;
+	}
+	HapsEncodedMatrix::SetWithExternalPars hapsPars;
+	hapsPars.numThreads = pars.numThreads_;
+	ret.haps_ = std::make_unique<HapsEncodedMatrix>(rows, hapsPars);
+	ret.measures_ = std::make_unique<HapsSampleClustering::Measures>(HapsSampleClustering::calcMeasures(*ret.haps_));
+	return ret;
+}
+
+PmoProject::SampleDistances PmoProject::sampleDistances(const VecStr & samples, const VecStr & targets, const HapsSampleClustering::Pars & pars, uint64_t maxPairs) const {
+	SampleDistances ret;
+	auto calcs = calcSampleDistances(samples, targets, pars);
+	ret.samplesWithoutData_ = calcs.samplesWithoutData_;
+	if (!calcs.error_.empty()) {
+		ret.error_ = calcs.error_;
+		return ret;
+	}
+	const auto & haps = *calcs.haps_;
+	const auto & measures = *calcs.measures_;
+	const auto clusters = HapsSampleClustering::cluster(haps, measures, pars);
+	const auto distances = HapsSampleClustering::distances(measures, pars.measure_, pars.numThreads_);
+	const uint32_t sampleCount = haps.sampNamesVec_.size();
+	ret.targetCount_ = haps.tarNamesVec_.size();
+	ret.pairCount_ = static_cast<uint64_t>(sampleCount) * (sampleCount - 1) / 2;
+
+	//groups numbered by size, largest first
+	std::vector<uint32_t> groupIds;
+	for (const auto & group : clusters.groupIndexes_) {
+		if (HapsSampleClustering::noGroup != group.first) {
+			groupIds.emplace_back(group.first);
+		}
+	}
+	std::stable_sort(groupIds.begin(), groupIds.end(), [&clusters](uint32_t first, uint32_t second) {
+		return clusters.groupIndexes_.at(first).size() > clusters.groupIndexes_.at(second).size();
+	});
+	ret.groupCount_ = groupIds.size();
+	const auto nameWidth = estd::to_string(groupIds.size()).size();
+	std::unordered_map<uint32_t, std::string> nameByGroupId;
+	for (const auto pos : iter::range(groupIds.size())) {
+		auto name = estd::to_string(pos + 1);
+		//zero padded so they sort as text
+		nameByGroupId[groupIds[pos]] = std::string(nameWidth - name.size(), '0') + name;
+	}
+	VecStr groupNames(sampleCount);
+	std::vector<uint32_t> noGroupSamples;
+	std::vector<uint32_t> lowCoverageSamples;
+	for (uint32_t pos = 0; pos < sampleCount; ++pos) {
+		if (clusters.lowCoverage_[pos]) {
+			groupNames[pos] = "low_coverage";
+			lowCoverageSamples.emplace_back(pos);
+		} else if (HapsSampleClustering::noGroup == clusters.groups_[pos]) {
+			groupNames[pos] = "nogroup";
+			noGroupSamples.emplace_back(pos);
+		} else {
+			groupNames[pos] = nameByGroupId.at(clusters.groups_[pos]);
+		}
+	}
+
+	//sample order, average linkage within each group
+	const double missingDistance = HapsSampleClustering::Measure::ccc == pars.measure_ ? 2 : 1;
+	std::vector<uint32_t> order;
+	for (const auto & groupId : groupIds) {
+		addOtherVec(order, HapsSampleClustering::averageLinkageOrder(clusters.groupIndexes_.at(groupId), distances, missingDistance));
+	}
+	addOtherVec(order, HapsSampleClustering::averageLinkageOrder(noGroupSamples, distances, missingDistance));
+	addOtherVec(order, HapsSampleClustering::averageLinkageOrder(lowCoverageSamples, distances, missingDistance));
+	for (const auto & pos : order) {
+		ret.order_.emplace_back(haps.sampNamesVec_[pos]);
+		ret.groupBySample_.emplace_back(groupNames[pos]);
+	}
+
+	const auto numToStr = [](double num) {
+		if (std::isnan(num)) {
+			return std::string("NA");
+		}
+		std::stringstream ss;
+		ss << num;
+		return ss.str();
+	};
+
+	//per sample
+	{
+		ret.samples_ = table(concatVecs(VecStr{"sample", "distance_group", "targets_typed", "loci_coverage"}, metaGroups_));
+		const auto targetsPerSample = haps.getNumberTargetsPerSample();
+		const auto coveragePerSample = haps.getTargetCoveragePerSample();
+		for (const auto & pos : order) {
+			const auto & sample = haps.sampNamesVec_[pos];
+			VecStr row{sample, groupNames[pos], estd::to_string(targetsPerSample.at(sample)), numToStr(coveragePerSample.at(sample))};
+			for (const auto & group : metaGroups_) {
+				row.emplace_back(metaValue(sample, group));
+			}
+			ret.samples_.content_.emplace_back(row);
+		}
+	}
+	//per group, the pairs within it
+	{
+		ret.groups_ = table(VecStr{"group", "sample_count",
+				"min_ccc", "median_ccc", "mean_ccc", "max_ccc",
+				"min_rmse", "median_rmse", "mean_rmse", "max_rmse",
+				"min_jaccard", "median_jaccard", "mean_jaccard", "max_jaccard"});
+		for (const auto & groupId : groupIds) {
+			VecStr row{nameByGroupId.at(groupId), estd::to_string(clusters.groupIndexes_.at(groupId).size())};
+			for (const auto & stats : {clusters.cccStats_.at(groupId), clusters.rmseStats_.at(groupId), clusters.jaccardStats_.at(groupId)}) {
+				for (const auto & stat : VecStr{"min", "median", "mean", "max"}) {
+					row.emplace_back(numToStr(stats.at(stat)));
+				}
+			}
+			ret.groups_.content_.emplace_back(row);
+		}
+		for (const auto & ungrouped : std::vector<std::pair<std::string, uint32_t>>{{"nogroup", noGroupSamples.size()}, {"low_coverage", lowCoverageSamples.size()}}) {
+			if (ungrouped.second > 0) {
+				VecStr row{ungrouped.first, estd::to_string(ungrouped.second)};
+				addOtherVec(row, VecStr(12, "NA"));
+				ret.groups_.content_.emplace_back(row);
+			}
+		}
+	}
+	//the closest pairs that share targets
+	{
+		struct PairDist {
+			uint32_t first_;
+			uint32_t second_;
+			double dist_;
+		};
+		std::vector<PairDist> pairs;
+		for (uint32_t first = 0; first < sampleCount; ++first) {
+			for (uint32_t second = first + 1; second < sampleCount; ++second) {
+				if (measures.cccRmse_.targets_shared[first][second] > 0) {
+					const auto dist = distances[first][second];
+					pairs.emplace_back(PairDist{first, second, std::isnan(dist) ? missingDistance : dist});
+				}
+			}
+		}
+		const auto pairDistLess = [](const PairDist & first, const PairDist & second) {
+			if (first.dist_ != second.dist_) {
+				return first.dist_ < second.dist_;
+			}
+			return first.first_ == second.first_ ? first.second_ < second.second_ : first.first_ < second.first_;
+		};
+		ret.sharingPairCount_ = pairs.size();
+		if (pairs.size() > maxPairs) {
+			std::partial_sort(pairs.begin(), pairs.begin() + maxPairs, pairs.end(), pairDistLess);
+			pairs.resize(maxPairs);
+		} else {
+			std::sort(pairs.begin(), pairs.end(), pairDistLess);
+		}
+		const auto numOrNull = [](double num) {
+			return std::isnan(num) ? Json::Value(Json::nullValue) : Json::Value(num);
+		};
+		auto & tab = ret.pairs_["tab"];
+		tab = Json::arrayValue;
+		for (const auto & pair : pairs) {
+			Json::Value row;
+			row["sample1"] = haps.sampNamesVec_[pair.first_];
+			row["sample2"] = haps.sampNamesVec_[pair.second_];
+			row["group1"] = groupNames[pair.first_];
+			row["group2"] = groupNames[pair.second_];
+			row["targets_shared"] = measures.cccRmse_.targets_shared[pair.first_][pair.second_];
+			row["ccc"] = numOrNull(measures.cccRmse_.ccc[pair.first_][pair.second_]);
+			row["rmse"] = numOrNull(measures.cccRmse_.rmse[pair.first_][pair.second_]);
+			row["jaccard"] = numOrNull(measures.jaccard_[pair.first_][pair.second_]);
+			tab.append(row);
+		}
+		ret.pairs_["columnNames"] = njh::json::toJson(VecStr{"sample1", "sample2", "group1", "group2", "targets_shared", "ccc", "rmse", "jaccard"});
+		ret.pairs_["numericColNames"] = njh::json::toJson(VecStr{"targets_shared", "ccc", "rmse", "jaccard"});
+		ret.pairs_["mainColName"] = "sample1";
+		ret.pairs_["initialVisibleColumns"] = Json::arrayValue;
+		ret.pairs_["hideOnStartColNames"] = Json::arrayValue;
+	}
+	return ret;
+}
+
+std::string PmoProject::sampleDistancePairs(const VecStr & samples, const VecStr & targets, const HapsSampleClustering::Pars & pars) const {
+	auto calcs = calcSampleDistances(samples, targets, pars);
+	if (!calcs.error_.empty()) {
+		return "";
+	}
+	const auto & haps = *calcs.haps_;
+	const auto & measures = *calcs.measures_;
+	const uint32_t sampleCount = haps.sampNamesVec_.size();
+	std::stringstream out;
+	out << "sample1\tsample2\ttargets_shared\tccc\trmse\tjaccard\n";
+	for (uint32_t first = 0; first < sampleCount; ++first) {
+		for (uint32_t second = first + 1; second < sampleCount; ++second) {
+			const auto targetsShared = measures.cccRmse_.targets_shared[first][second];
+			out << haps.sampNamesVec_[first] << "\t" << haps.sampNamesVec_[second] << "\t" << targetsShared;
+			if (0 == targetsShared) {
+				out << "\tNA\tNA\tNA\n";
+			} else {
+				out << "\t" << measures.cccRmse_.ccc[first][second]
+						<< "\t" << measures.cccRmse_.rmse[first][second]
+						<< "\t" << measures.jaccard_[first][second] << "\n";
+			}
+		}
+	}
+	return out.str();
 }
 
 bool PmoProject::hasAminoAcidCalls() const {
