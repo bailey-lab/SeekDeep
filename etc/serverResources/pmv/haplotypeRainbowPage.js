@@ -241,7 +241,8 @@ function HaplotypeRainbow(rName, data, metaGroups, groupName, subGroupName){
 	self.subGroupName = subGroupName;
 	self.isSelection = false;
 	self.opts = {
-		sampleSort: "alphabetical",
+		//sort keys in order, each later one orders the samples tied on the ones before it
+		sampleSorts: ["alphabetical"],
 		targetSort: "alphabetical",
 		cellOrder: "rank",
 		layout: "stacked",
@@ -337,15 +338,8 @@ HaplotypeRainbow.prototype.setData = function(data, selectionNote){
 		self.setColWidthControl(self.opts.colWidth);
 	}
 	self.addSummary(data, selectionNote);
-	//clustering is only offered for smaller sets of samples
-	var tooManyToCluster = sampleCount > rainbowMaxClusterSamples;
-	d34.select("#rainbowSampleSort").selectAll("option")
-		.property("disabled", function(d){ return !!d.cluster && tooManyToCluster; })
-		.text(function(d){ return d.text + (d.cluster && tooManyToCluster ? " (" + rainbowMaxClusterSamples + " samples or fewer)" : ""); });
-	if(tooManyToCluster && 0 === self.opts.sampleSort.indexOf("cluster:")){
-		self.opts.sampleSort = "alphabetical";
-		d34.select("#rainbowSampleSort").property("value", self.opts.sampleSort);
-	}
+	self.callFrac = null;
+	self.renderSampleSorts();
 	self.updateTargetOrder();
 	self.updateSampleOrder();
 };
@@ -422,21 +416,11 @@ HaplotypeRainbow.prototype.addControls = function(metaGroups){
 		window.location = "/" + self.rName + "/haplotypeRainbowPage" + (value ? "/" + value : "");
 	});
 
+	//the sample sort keys are drawn by renderSampleSorts()
+	var sampleSortRow = row();
+	sampleSortRow.append("span").attr("id", "rainbowSampleSorts");
+	sampleSortRow.append("span").attr("id", "rainbowSortNote").style("margin-left", "8px").style("color", "#C00000");
 	var orderRow = row();
-	var sampleSortOptions = [
-		{value: "alphabetical", text: "name"},
-		{value: "targetsTyped", text: "targets with haplotypes"},
-		{value: "cluster:frequency", text: "clustering on all haplotypes, weighted by within-sample frequency", cluster: true},
-		{value: "cluster:presence", text: "clustering on all haplotypes, presence only", cluster: true},
-		{value: "cluster:major", text: "clustering on major haplotypes", cluster: true}
-	];
-	self.metaFields.forEach(function(field, fieldPos){
-		sampleSortOptions.push({value: "meta:" + fieldPos, text: field});
-	});
-	addSelect(orderRow, "Order samples by", "rainbowSampleSort", sampleSortOptions, self.opts.sampleSort, function(value){
-		self.opts.sampleSort = value;
-		self.updateSampleOrder();
-	});
 	addSelect(orderRow, "Order targets by", "rainbowTargetSort", [
 		{value: "alphabetical", text: "name"},
 		{value: "haplotypes", text: "most haplotypes"},
@@ -576,12 +560,110 @@ HaplotypeRainbow.prototype.measureLabels = function(){
 	});
 };
 
-HaplotypeRainbow.prototype.metaBandFieldPos = function(){
-	var sort = this.opts.sampleSort;
-	if("distanceGroup" === sort){
-		return this.distanceGroups ? this.distanceGroups.fieldPos : -1;
+//the meta fields of the sample sort keys in order, each gets a color band
+HaplotypeRainbow.prototype.metaBandFieldPositions = function(){
+	var self = this;
+	var ret = [];
+	self.opts.sampleSorts.forEach(function(sort){
+		var fieldPos = -1;
+		if("distanceGroup" === sort && self.distanceGroups){
+			fieldPos = self.distanceGroups.fieldPos;
+		} else if(0 === sort.indexOf("meta:")){
+			fieldPos = parseInt(sort.substring(5));
+		}
+		if(fieldPos >= 0 && ret.indexOf(fieldPos) < 0){
+			ret.push(fieldPos);
+		}
+	});
+	return ret;
+};
+
+HaplotypeRainbow.prototype.sampleSortOptions = function(){
+	var self = this;
+	var options = [
+		{value: "alphabetical", text: "name"},
+		{value: "targetsTyped", text: "targets with haplotypes"},
+		{value: "cluster:frequency", text: "clustering on all haplotypes, weighted by within-sample frequency", cluster: true},
+		{value: "cluster:presence", text: "clustering on all haplotypes, presence only", cluster: true},
+		{value: "cluster:major", text: "clustering on major haplotypes", cluster: true}
+	];
+	self.metaFields.forEach(function(field, fieldPos){
+		if(self.distanceGroups && fieldPos === self.distanceGroups.fieldPos){
+			options.push({value: "distanceGroup", text: "distance_group, between-sample clustering"});
+		} else {
+			options.push({value: "meta:" + fieldPos, text: field});
+		}
+	});
+	return options;
+};
+
+//name and clustering give every sample its own place, so sorting after them changes nothing
+function rainbowSortIsTotal(sort){
+	return "alphabetical" === sort || 0 === sort.indexOf("cluster:");
+}
+
+/**
+ * The sample sort selects, the first is "Order samples by" and each added one is "then by", up to 4
+ * A key used at one level isn't offered at the others, levels after one that leaves no ties are marked as having no effect
+ * Clustering as the first key is only offered for rainbowMaxClusterSamples samples or fewer, after other keys it clusters within each of their groups
+ */
+HaplotypeRainbow.prototype.renderSampleSorts = function(){
+	var self = this;
+	var holder = d34.select("#rainbowSampleSorts");
+	holder.selectAll("*").remove();
+	var options = self.sampleSortOptions();
+	var values = options.map(function(option){ return option.value; });
+	var tooManyToCluster = self.sampleCount > rainbowMaxClusterSamples;
+	var sorts = [];
+	self.opts.sampleSorts.forEach(function(sort){
+		var usable = values.indexOf(sort) >= 0 && sorts.indexOf(sort) < 0 && !(0 === sorts.length && tooManyToCluster && 0 === sort.indexOf("cluster:"));
+		if(usable){
+			sorts.push(sort);
+		}
+	});
+	self.opts.sampleSorts = 0 === sorts.length ? ["alphabetical"] : sorts;
+	self.opts.sampleSorts.forEach(function(sort, pos){
+		var keyHolder = holder.append("span").style("white-space", "nowrap").style("margin-right", "4px");
+		keyHolder.append("label").style("margin", 0 === pos ? "0 6px 0 12px" : "0 6px 0 6px").text(0 === pos ? "Order samples by" : "then by");
+		var sel = keyHolder.append("select").attr("class", "rainbowSampleSort");
+		var levelOptions = options.filter(function(option){
+			var usedAt = self.opts.sampleSorts.indexOf(option.value);
+			return usedAt < 0 || usedAt === pos;
+		});
+		sel.selectAll("option").data(levelOptions).enter().append("option")
+			.attr("value", function(d){ return d.value; })
+			.property("disabled", function(d){ return !!d.cluster && 0 === pos && tooManyToCluster; })
+			.text(function(d){ return d.text + (d.cluster && 0 === pos && tooManyToCluster ? " (" + rainbowMaxClusterSamples + " samples or fewer)" : ""); });
+		sel.property("value", sort);
+		sel.on("change", function(){
+			self.opts.sampleSorts[pos] = this.value;
+			self.renderSampleSorts();
+			self.updateSampleOrder();
+		});
+		if(self.opts.sampleSorts.slice(0, pos).some(rainbowSortIsTotal)){
+			keyHolder.append("span").style("margin-left", "3px").style("color", "#888")
+				.text("(no effect, an earlier sort leaves no ties)");
+		}
+		if(pos > 0){
+			keyHolder.append("button").attr("class", "btn btn-default btn-xs").attr("title", "remove this sort").style("margin-left", "3px").text("x")
+				.on("click", function(){
+					self.opts.sampleSorts.splice(pos, 1);
+					self.renderSampleSorts();
+					self.updateSampleOrder();
+				});
+		}
+	});
+	var unused = options.filter(function(option){ return self.opts.sampleSorts.indexOf(option.value) < 0; });
+	if(self.opts.sampleSorts.length < 4 && unused.length > 0){
+		holder.append("button").attr("class", "btn btn-default btn-xs").style("margin-left", "6px").text("+ then by")
+			.on("click", function(){
+				//the next meta field not already used, otherwise the next unused key
+				var next = unused.filter(function(option){ return 0 === option.value.indexOf("meta:"); });
+				self.opts.sampleSorts.push(next.length > 0 ? next[0].value : unused[0].value);
+				self.renderSampleSorts();
+				self.updateSampleOrder();
+			});
 	}
-	return 0 === sort.indexOf("meta:") ? parseInt(sort.substring(5)) : -1;
 };
 
 /**
@@ -592,24 +674,25 @@ HaplotypeRainbow.prototype.setDistanceGroups = function(result){
 	var self = this;
 	var groupBySample = {};
 	var rankBySample = {};
+	var groupRanks = {};
+	var groupRankBySample = {};
 	result["order"].forEach(function(sample, pos){
-		groupBySample[sample] = result["groupBySample"][pos];
+		var group = result["groupBySample"][pos];
+		groupBySample[sample] = group;
 		rankBySample[sample] = pos;
+		if(!groupRanks.hasOwnProperty(group)){
+			groupRanks[group] = Object.keys(groupRanks).length;
+		}
+		groupRankBySample[sample] = groupRanks[group];
 	});
 	self.metaFields = self.baseMetaFields.concat(["distance_group"]);
 	self.sampleMeta = self.baseSampleMeta.map(function(meta, sampleIdx){
 		var group = groupBySample[self.samples[sampleIdx]];
 		return meta.concat([undefined === group ? "NA" : group]);
 	});
-	self.distanceGroups = {fieldPos: self.metaFields.length - 1, rankBySample: rankBySample};
-	var sortSelect = d34.select("#rainbowSampleSort");
-	if(sortSelect.select("option[value=distanceGroup]").empty()){
-		sortSelect.append("option").datum({value: "distanceGroup", text: "distance_group, between-sample clustering"})
-			.attr("value", "distanceGroup")
-			.text(function(d){ return d.text; });
-	}
-	self.opts.sampleSort = "distanceGroup";
-	sortSelect.property("value", "distanceGroup");
+	self.distanceGroups = {fieldPos: self.metaFields.length - 1, rankBySample: rankBySample, groupRankBySample: groupRankBySample};
+	self.opts.sampleSorts = ["distanceGroup"];
+	self.renderSampleSorts();
 	self.updateSampleOrder();
 };
 
@@ -622,11 +705,8 @@ HaplotypeRainbow.prototype.clearDistanceGroups = function(){
 	self.distanceGroups = null;
 	self.metaFields = self.baseMetaFields.slice();
 	self.sampleMeta = self.baseSampleMeta;
-	d34.select("#rainbowSampleSort").select("option[value=distanceGroup]").remove();
-	if("distanceGroup" === self.opts.sampleSort){
-		self.opts.sampleSort = "alphabetical";
-		d34.select("#rainbowSampleSort").property("value", self.opts.sampleSort);
-	}
+	self.opts.sampleSorts = self.opts.sampleSorts.filter(function(sort){ return "distanceGroup" !== sort; });
+	self.renderSampleSorts();
 };
 
 HaplotypeRainbow.prototype.sampleLabelsShown = function(){
@@ -637,8 +717,10 @@ HaplotypeRainbow.prototype.targetLabelsShown = function(){
 	return this.opts.showTargetLabels && this.opts.colWidth >= 8;
 };
 
+//each band is 14 wide with 2 between them
 HaplotypeRainbow.prototype.metaBandWidth = function(){
-	return this.metaBandFieldPos() >= 0 ? 14 : 0;
+	var bands = this.metaBandFieldPositions().length;
+	return bands > 0 ? bands * 16 - 2 : 0;
 };
 
 //room on the left for the sample names and meta band, kept even without names so rows can be hovered
@@ -702,72 +784,134 @@ HaplotypeRainbow.prototype.updateColors = function(){
 HaplotypeRainbow.prototype.updateMetaLegend = function(){
 	var self = this;
 	self.metaLegend.selectAll("*").remove();
-	var fieldPos = self.metaBandFieldPos();
-	if(fieldPos < 0){
-		self.metaColors = null;
-		return;
-	}
-	var values = _.uniq(self.sampleMeta.map(function(meta){ return meta[fieldPos]; })).sort();
-	var palette = values.length <= 10 ? d34.schemeCategory10 : d34.schemeCategory20;
-	self.metaColors = {};
+	self.metaColorsByField = {};
 	//samples left out of the distance groups are greys
 	var greys = {"NA": "#CCCCCC", "nogroup": "#DDDDDD", "low_coverage": "#999999"};
-	values.forEach(function(value, pos){
-		self.metaColors[value] = greys.hasOwnProperty(value) ? greys[value] : palette[pos % palette.length];
+	self.metaBandFieldPositions().forEach(function(fieldPos){
+		var values = _.uniq(self.sampleMeta.map(function(meta){ return meta[fieldPos]; })).sort();
+		var colored = values.filter(function(value){ return !greys.hasOwnProperty(value); });
+		var palette = rainbowCategoryColors(colored.length);
+		var colors = {};
+		colored.forEach(function(value, pos){
+			colors[value] = palette[pos];
+		});
+		values.forEach(function(value){
+			if(greys.hasOwnProperty(value)){
+				colors[value] = greys[value];
+			}
+		});
+		self.metaColorsByField[fieldPos] = colors;
+		var line = self.metaLegend.append("div");
+		line.append("span").style("margin-right", "8px").style("font-weight", "bold").text(self.metaFields[fieldPos] + ":");
+		var shownValues = values.slice(0, 60);
+		var items = line.selectAll(".rainbowMetaItem").data(shownValues).enter().append("span")
+			.attr("class", "rainbowMetaItem")
+			.style("margin-right", "12px")
+			.style("white-space", "nowrap");
+		items.append("span")
+			.style("display", "inline-block").style("width", "12px").style("height", "12px").style("vertical-align", "middle").style("margin-right", "4px")
+			.style("background", function(d){ return colors[d]; });
+		items.append("span").text(function(d){ return d; });
+		if(values.length > shownValues.length){
+			line.append("span").text("and " + (values.length - shownValues.length) + " more");
+		}
 	});
-	self.metaLegend.append("span").style("margin-right", "8px").style("font-weight", "bold").text(self.metaFields[fieldPos] + ":");
-	var shownValues = values.slice(0, 60);
-	var items = self.metaLegend.selectAll(".rainbowMetaItem").data(shownValues).enter().append("span")
-		.attr("class", "rainbowMetaItem")
-		.style("margin-right", "12px")
-		.style("white-space", "nowrap");
-	items.append("span")
-		.style("display", "inline-block").style("width", "12px").style("height", "12px").style("vertical-align", "middle").style("margin-right", "4px")
-		.style("background", function(d){ return self.metaColors[d]; });
-	items.append("span").text(function(d){ return d; });
-	if(values.length > shownValues.length){
-		self.metaLegend.append("span").text("and " + (values.length - shownValues.length) + " more");
-	}
 };
 
+//a sortable value per sample for a sort key other than clustering
+HaplotypeRainbow.prototype.sampleSortKey = function(sort){
+	var self = this;
+	if("targetsTyped" === sort){
+		return function(sampleIdx){ return -self.targetsTyped[sampleIdx]; };
+	}
+	if("distanceGroup" === sort){
+		//groups in the server's order, by size
+		return function(sampleIdx){
+			var group = self.distanceGroups.groupRankBySample[self.samples[sampleIdx]];
+			return undefined === group ? Infinity : group;
+		};
+	}
+	if(0 === sort.indexOf("meta:")){
+		var fieldPos = parseInt(sort.substring(5));
+		return function(sampleIdx){ return self.sampleMeta[sampleIdx][fieldPos]; };
+	}
+	return function(sampleIdx){ return sampleIdx; };
+};
+
+/**
+ * Order the samples by each sort key in turn within the groups of samples tied on the keys before it, ties at the end go by name,
+ * or by the server's average linkage order when distance_group is one of the keys.
+ * Clustering orders each group by average linkage, groups over rainbowMaxClusterSamples are left by name.
+ */
 HaplotypeRainbow.prototype.updateSampleOrder = function(){
 	var self = this;
-	var sort = self.opts.sampleSort;
-	var byName = _.range(self.sampleCount);
-	if("alphabetical" === sort){
-		self.sampleOrder = byName;
-	} else if("targetsTyped" === sort){
-		self.sampleOrder = byName.slice().sort(function(first, second){
-			return self.targetsTyped[second] - self.targetsTyped[first] || first - second;
+	var sorts = self.opts.sampleSorts.slice();
+	var compare = function(first, second){
+		return first < second ? -1 : first > second ? 1 : 0;
+	};
+	var orderSamples = function(){
+		var groups = [_.range(self.sampleCount)];
+		var tooBigToCluster = 0;
+		sorts.forEach(function(sort){
+			var next = [];
+			groups.forEach(function(group){
+				if(group.length < 2){
+					next.push(group);
+				} else if(0 === sort.indexOf("cluster:")){
+					if(group.length > rainbowMaxClusterSamples){
+						++tooBigToCluster;
+						next.push(group);
+					} else {
+						self.clusterSampleOrder(sort.substring(8), group).forEach(function(sampleIdx){ next.push([sampleIdx]); });
+					}
+				} else {
+					var key = self.sampleSortKey(sort);
+					var keyed = group.map(function(sampleIdx){ return {idx: sampleIdx, key: key(sampleIdx)}; });
+					keyed.sort(function(first, second){ return compare(first.key, second.key) || first.idx - second.idx; });
+					//runs of the same value are the groups for the next key
+					var current = [];
+					keyed.forEach(function(item, pos){
+						if(pos > 0 && 0 !== compare(item.key, keyed[pos - 1].key)){
+							next.push(current);
+							current = [];
+						}
+						current.push(item.idx);
+					});
+					next.push(current);
+				}
+			});
+			groups = next;
 		});
-	} else if("distanceGroup" === sort){
-		//the server's order, groups by size then average linkage within each
-		var rankBySample = self.distanceGroups.rankBySample;
-		var rankOf = function(sampleIdx){
-			var rank = rankBySample[self.samples[sampleIdx]];
-			return undefined === rank ? Infinity : rank;
-		};
-		self.sampleOrder = byName.slice().sort(function(first, second){
-			return rankOf(first) - rankOf(second) || first - second;
+		var order = [];
+		var byLinkage = null;
+		if(self.distanceGroups && sorts.indexOf("distanceGroup") >= 0){
+			var rankBySample = self.distanceGroups.rankBySample;
+			byLinkage = function(sampleIdx){
+				var rank = rankBySample[self.samples[sampleIdx]];
+				return undefined === rank ? Infinity : rank;
+			};
+		}
+		groups.forEach(function(group){
+			if(byLinkage && group.length > 1){
+				group = group.slice().sort(function(first, second){ return byLinkage(first) - byLinkage(second) || first - second; });
+			}
+			group.forEach(function(sampleIdx){ order.push(sampleIdx); });
 		});
-	} else if(0 === sort.indexOf("cluster:")){
-		var gif = prsentDivGifLoading();
+		self.sampleOrder = order;
+		d34.select("#rainbowSortNote").text(tooBigToCluster > 0
+			? tooBigToCluster + " groups have more than " + rainbowMaxClusterSamples + " samples and weren't clustered, they're by name" : "");
+		self.updateLayout();
+	};
+	if(sorts.some(function(sort){ return 0 === sort.indexOf("cluster:"); })){
+		prsentDivGifLoading();
 		//let the loading screen show before the clustering blocks
 		setTimeout(function(){
-			self.sampleOrder = self.clusterSampleOrder(sort.substring(8));
+			orderSamples();
 			removeAllDivGifLoading();
-			self.updateLayout();
 		}, 30);
 		return;
-	} else {
-		var fieldPos = self.metaBandFieldPos();
-		self.sampleOrder = byName.slice().sort(function(first, second){
-			var firstValue = self.sampleMeta[first][fieldPos];
-			var secondValue = self.sampleMeta[second][fieldPos];
-			return firstValue < secondValue ? -1 : firstValue > secondValue ? 1 : first - second;
-		});
 	}
-	self.updateLayout();
+	orderSamples();
 };
 
 /**
@@ -777,23 +921,30 @@ HaplotypeRainbow.prototype.updateSampleOrder = function(){
  *   major: 0 if the haplotypes with the most reads match, otherwise 1
  *   frequency: 1 - the sum over haplotypes of the smaller within-sample fraction of the two samples (Bray-Curtis)
  *   presence: 1 - shared haplotypes / haplotypes in either sample (Jaccard)
+ * @param items the sample positions to order
+ * @return items in clustering order
  */
-HaplotypeRainbow.prototype.clusterSampleOrder = function(mode){
+HaplotypeRainbow.prototype.clusterSampleOrder = function(mode, items){
 	var self = this;
 	var targetCount = self.targetCount;
 	var cellStart = self.cellStart;
 	var callRank = self.callRank;
-	//within-sample fractions, split evenly when a cell has no reads as it's drawn
-	var callFrac = new Float64Array(callRank.length);
-	for(var cell = 0; cell < self.sampleCount * targetCount; ++cell){
-		var count = cellStart[cell + 1] - cellStart[cell];
-		for(var pos = cellStart[cell]; pos < cellStart[cell + 1]; ++pos){
-			callFrac[pos] = self.cellReads[cell] > 0 ? self.callReads[pos] / self.cellReads[cell] : 1 / count;
+	//within-sample fractions, split evenly when a cell has no reads as it's drawn, kept until the data changes
+	if(!self.callFrac){
+		self.callFrac = new Float64Array(callRank.length);
+		for(var cell = 0; cell < self.sampleCount * targetCount; ++cell){
+			var count = cellStart[cell + 1] - cellStart[cell];
+			for(var pos = cellStart[cell]; pos < cellStart[cell + 1]; ++pos){
+				self.callFrac[pos] = self.cellReads[cell] > 0 ? self.callReads[pos] / self.cellReads[cell] : 1 / count;
+			}
 		}
 	}
+	var callFrac = self.callFrac;
 	var major = "major" === mode;
 	var presence = "presence" === mode;
-	return averageLinkageOrder(self.sampleCount, function(first, second){
+	return averageLinkageOrder(items.length, function(firstPos, secondPos){
+		var first = items[firstPos];
+		var second = items[secondPos];
 		var shared = 0;
 		var total = 0;
 		var firstOff = first * targetCount;
@@ -826,7 +977,7 @@ HaplotypeRainbow.prototype.clusterSampleOrder = function(mode){
 			total += presence ? 1 - matched / (firstEnd - firstStart + secondEnd - secondStart - matched) : Math.max(0, 1 - matched);
 		}
 		return 0 === shared ? 1 : total / shared;
-	});
+	}).map(function(pos){ return items[pos]; });
 };
 
 HaplotypeRainbow.prototype.updateTargetOrder = function(){
@@ -1006,16 +1157,19 @@ HaplotypeRainbow.prototype.draw = function(ctx, scrollLeft, scrollTop, viewWidth
 	ctx.rect(0, top, left, viewHeight - top);
 	ctx.clip();
 	var bandWidth = self.metaBandWidth();
-	var fieldPos = self.metaBandFieldPos();
+	var bandFields = self.metaBandFieldPositions();
 	ctx.textAlign = "right";
 	ctx.textBaseline = "middle";
 	for(var row = firstRow; row <= lastRow; ++row){
 		var sampleIdx = self.sampleOrder[row];
 		var hovered = withHover && self.hover && self.hover.row === row;
-		if(bandWidth > 0 && self.metaColors){
-			ctx.fillStyle = self.metaColors[self.sampleMeta[sampleIdx][fieldPos]];
-			ctx.fillRect(left - bandWidth - 2, rowY(row), bandWidth, rowHeight);
-		}
+		bandFields.forEach(function(fieldPos, bandPos){
+			var colors = self.metaColorsByField[fieldPos];
+			if(colors){
+				ctx.fillStyle = colors[self.sampleMeta[sampleIdx][fieldPos]];
+				ctx.fillRect(left - bandWidth - 2 + bandPos * 16, rowY(row), 14, rowHeight);
+			}
+		});
 		if(self.sampleLabelsShown()){
 			ctx.fillStyle = hovered ? "#C00000" : "#000000";
 			ctx.fillText(self.samples[sampleIdx], left - bandWidth - 6, rowY(row) + rowHeight / 2);
@@ -1235,82 +1389,26 @@ HaplotypeRainbow.prototype.downloadTable = function(){
 	rainbowSaveBlob(new Blob([lines.join("\n") + "\n"], {type: "text/tab-separated-values"}), self.fileStub() + ".tsv");
 };
 
-/**
- * A list of checkboxes to choose names from, all checked to start, with a filter box
- * @param parent d3 selection to add to
- * @param title what the names are, e.g. Samples
- * @param names the names
- * @param searchTexts text the filter matches for each name, defaults to the names
- * @param onChange called when what's checked changes
- */
-function RainbowNameSelector(parent, title, names, searchTexts, onChange){
-	var self = this;
-	self.names = names;
-	self.checked = new Uint8Array(names.length).fill(1);
-	self.onChange = onChange;
-	var searchLower = (searchTexts || names).map(function(text){ return String(text).toLowerCase(); });
-	var box = parent.append("div").style("margin-bottom", "12px");
-	var head = box.append("div").style("margin-bottom", "4px");
-	head.append("b").text(title);
-	self.countText = head.append("span").style("margin-left", "8px");
-	var tools = box.append("div").style("margin-bottom", "4px");
-	var filter = tools.append("input").attr("type", "search").attr("placeholder", "filter " + title.toLowerCase())
-		.style("width", "220px").style("margin-right", "8px");
-	var addButton = function(text, func){
-		tools.append("button").attr("class", "btn btn-default btn-xs").style("margin-right", "4px").text(text).on("click", func);
-	};
-	addButton("Check all", function(){ self.setAll(true, false); });
-	addButton("Uncheck all", function(){ self.setAll(false, false); });
-	addButton("Check filtered", function(){ self.setAll(true, true); });
-	addButton("Uncheck filtered", function(){ self.setAll(false, true); });
-	var list = box.append("div")
-		.style("max-height", "160px").style("overflow", "auto")
-		.style("border", "1px solid #ccc").style("padding", "4px");
-	self.labels = list.selectAll("label").data(names.map(function(name, pos){ return pos; })).enter().append("label")
-		.style("display", "inline-block").style("margin", "1px 4px").style("font-weight", "normal").style("white-space", "nowrap");
-	self.boxes = self.labels.append("input").attr("type", "checkbox").property("checked", true).style("margin-right", "3px")
-		.on("change", function(pos){
-			self.checked[pos] = this.checked ? 1 : 0;
-			self.changed();
-		});
-	self.labels.append("span").text(function(pos){ return names[pos]; });
-	self.shown = new Uint8Array(names.length).fill(1);
-	filter.on("input", function(){
-		var query = this.value.trim().toLowerCase();
-		self.labels.style("display", function(pos){
-			self.shown[pos] = "" === query || searchLower[pos].indexOf(query) >= 0 ? 1 : 0;
-			return self.shown[pos] ? "inline-block" : "none";
-		});
-	});
-	self.updateCount();
-}
-
-RainbowNameSelector.prototype.setAll = function(value, onlyFiltered){
-	var self = this;
-	self.boxes.each(function(pos){
-		if(!onlyFiltered || self.shown[pos]){
-			self.checked[pos] = value ? 1 : 0;
-			this.checked = value;
-		}
-	});
-	self.changed();
-};
-
-RainbowNameSelector.prototype.changed = function(){
-	this.updateCount();
-	this.onChange();
-};
-
-RainbowNameSelector.prototype.updateCount = function(){
-	this.countText.text(this.selected().length + " of " + this.names.length + " checked");
-};
-
-RainbowNameSelector.prototype.selected = function(){
-	var self = this;
-	return self.names.filter(function(name, pos){ return self.checked[pos]; });
-};
-
 var rainbowMaxDistanceSamples = 3000;
+
+var rainbowDistinctColorCache = {};
+
+/**
+ * Colors for categories, d3's 10 and 20 color schemes up to 20, past that distinctColorHexStrs() from seqServer's utils.js
+ * @param count how many colors
+ */
+function rainbowCategoryColors(count){
+	if(count <= 10){
+		return d34.schemeCategory10.slice(0, count);
+	}
+	if(count <= 20){
+		return d34.schemeCategory20.slice(0, count);
+	}
+	if(!rainbowDistinctColorCache.hasOwnProperty(count)){
+		rainbowDistinctColorCache[count] = distinctColorHexStrs(count);
+	}
+	return rainbowDistinctColorCache[count];
+}
 
 /**
  * Between-sample CCC, RMSE and Jaccard for the samples and targets on the rainbow, and DBSCAN clustering on one of them,
@@ -1555,8 +1653,9 @@ $(document).ready(function(){
 			selectionMessage.text("");
 		};
 		var sampleSearch = allSamples.map(function(sample, pos){ return [sample].concat(data["sampleMeta"][pos]).join(" "); });
-		var sampleSelector = new RainbowNameSelector(selection, "Samples", allSamples, sampleSearch, onSelectionChange);
-		var targetSelector = new RainbowNameSelector(selection, "Targets", allTargets, null, onSelectionChange);
+		//shown a page at a time with a filter, njhPagedList in seqServer tableFuncs.js
+		var sampleSelector = new njhPagedList("#rainbowSelection", {names: allSamples, searchTexts: sampleSearch, mode: "checkbox", title: "Samples", onChange: onSelectionChange});
+		var targetSelector = new njhPagedList("#rainbowSelection", {names: allTargets, mode: "checkbox", title: "Targets", onChange: onSelectionChange});
 		updateButton.on("click", function(){
 			var samples = sampleSelector.selected();
 			var targets = targetSelector.selected();

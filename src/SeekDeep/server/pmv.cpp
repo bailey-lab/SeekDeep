@@ -136,6 +136,35 @@ Json::Value pmv::popInfoJson(const table & popTab, const VecStr & popUIDs, const
 
 Json::Value pmv::hapIdTabJson(const table & hapIdTab, const VecStr & popUIDs, const VecStr & samples) {
 	const std::set<std::string> popUIDsSet(popUIDs.begin(), popUIDs.end());
+	if (samples.size() > popUIDs.size()) {
+		//more samples than haplotypes, a row per sample so the table doesn't get thousands of columns
+		std::vector<uint32_t> hapRows;
+		VecStr hapCols;
+		for (const auto rowPos : iter::range<uint32_t>(hapIdTab.content_.size())) {
+			if (njh::in(hapIdTab.content_[rowPos].front(), popUIDsSet)) {
+				hapRows.emplace_back(rowPos);
+				hapCols.emplace_back(njh::replaceString(hapIdTab.content_[rowPos].front(), ".", "_"));
+			}
+		}
+		Json::Value ret;
+		auto & tab = ret["tab"];
+		tab = Json::arrayValue;
+		for (const auto & sample : samples) {
+			const auto colPos = hapIdTab.getColPos(sample);
+			Json::Value row;
+			row["sample"] = sample;
+			for (const auto hapPos : iter::range(hapRows.size())) {
+				row[hapCols[hapPos]] = njh::lexical_cast<double>(hapIdTab.content_[hapRows[hapPos]][colPos]);
+			}
+			tab.append(row);
+		}
+		ret["columnNames"] = njh::json::toJson(concatVecs(VecStr{"sample"}, hapCols));
+		ret["numericColNames"] = njh::json::toJson(hapCols);
+		ret["mainColName"] = "sample";
+		ret["initialVisibleColumns"] = Json::arrayValue;
+		ret["hideOnStartColNames"] = Json::arrayValue;
+		return ret;
+	}
 	auto trimmedTab = hapIdTab.getColumns(concatVecs(VecStr{"#PopUID"}, samples)).extractByComp("#PopUID", [&popUIDsSet](const std::string & str) {
 		return njh::in(str, popUIDsSet);
 	});

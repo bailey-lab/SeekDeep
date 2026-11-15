@@ -28,6 +28,7 @@
 //
 #include <seqServer/apps/SeqApp.hpp>
 #include <seqServer/utils.h>
+#include <njhseq/utils/distinctColors.hpp>
 //#include <njhcpp.h>
 #include "SeekDeep/server/PopClusProject.hpp"
 
@@ -36,7 +37,7 @@
 namespace njhseq {
 
 
-/**@brief Get a color for each name, in sorted name order, as hex strings
+/**@brief Get a color for each name, in sorted name order, as hex strings, from genDistinctColorHexStrs() so they're as far apart as possible
  *
  */
 VecStr genColorsStrsForNamesMultiples(VecStr popNames);

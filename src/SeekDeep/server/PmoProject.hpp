@@ -264,6 +264,19 @@ private:
 
 	[[nodiscard]] std::string metaValue(const std::string & sample, const std::string & group) const;
 	[[nodiscard]] TargetTables genTables(const Target & target, const VecStr & samples) const;
+
+	//the population summary columns of popInfo_ (p_TotalInputReadCnt, p_TotalHaplotypes, p_ExpectedHeterozygosity and the COI stats) without building the tables
+	struct PopSummary {
+		uint64_t totalReads_{0};
+		uint64_t totalClusters_{0};
+		uint32_t haplotypes_{0};
+		double he_{0};
+		double coiMean_{0};
+		double coiMedian_{0};
+		uint32_t coiMin_{0};
+		uint32_t coiMax_{0};
+	};
+	[[nodiscard]] PopSummary genPopSummary(const Target & target, const VecStr & samples) const;
 	void computeGroup(const std::string & target, const std::string & group);
 };
 

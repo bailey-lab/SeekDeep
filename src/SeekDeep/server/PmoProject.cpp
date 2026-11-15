@@ -219,7 +219,6 @@ PmoProject::TargetTables PmoProject::genTables(const Target & target, const VecS
 	//the fraction of each haplotype in each sample
 	std::map<uint32_t, HapStats> hapStats;
 	std::map<std::string, uint64_t> sampleReads;
-	std::vector<uint32_t> cois;
 	uint64_t totalReads = 0;
 	uint64_t totalClusters = 0;
 	for (const auto & sample : samples) {
@@ -231,7 +230,6 @@ PmoProject::TargetTables PmoProject::genTables(const Target & target, const VecS
 		sampleReads[sample] = reads;
 		totalReads += reads;
 		totalClusters += detected.size();
-		cois.emplace_back(detected.size());
 		for (const auto clusPos : iter::range(detected.size())) {
 			auto & stats = hapStats[detected[clusPos].hapId_];
 			stats.sumOfFracs_ += 0 == reads ? 0 : detected[clusPos].reads_ / static_cast<double>(reads);
@@ -277,23 +275,12 @@ PmoProject::TargetTables PmoProject::genTables(const Target & target, const VecS
 	}
 
 	//population table
-	double coiMean = 0;
-	double coiMedian = 0;
-	uint32_t coiMin = 0;
-	uint32_t coiMax = 0;
-	if (!cois.empty()) {
-		std::sort(cois.begin(), cois.end());
-		coiMean = std::accumulate(cois.begin(), cois.end(), 0.0) / cois.size();
-		coiMedian = 0 == cois.size() % 2 ? (cois[cois.size() / 2 - 1] + cois[cois.size() / 2]) / 2.0 : cois[cois.size() / 2];
-		coiMin = cois.front();
-		coiMax = cois.back();
-	}
-	//he = [n/(n - 1)][1 - sum(pi^2)]
-	double sumOfSquares = 0;
-	for (const auto & stats : hapStats) {
-		sumOfSquares += std::pow(stats.second.samples_.size() / static_cast<double>(totalClusters), 2);
-	}
-	const double he = totalClusters > 1 ? (totalClusters / (totalClusters - 1.0)) * (1 - sumOfSquares) : 0;
+	const auto summary = genPopSummary(target, samples);
+	const auto coiMean = summary.coiMean_;
+	const auto coiMedian = summary.coiMedian_;
+	const auto coiMin = summary.coiMin_;
+	const auto coiMax = summary.coiMax_;
+	const auto he = summary.he_;
 
 	VecStr popCols{"h_popUID", "p_Name", "p_TotalInputReadCnt", "p_TotalInputClusterCnt", "p_TotalPopulationSampCnt", "p_TotalHaplotypes",
 		"p_ExpectedHeterozygosity", "p_meanCoi", "p_medianCoi", "p_minCoi", "p_maxCoi"};
@@ -348,6 +335,36 @@ PmoProject::TargetTables PmoProject::genTables(const Target & target, const VecS
 					estd::to_string(0 == reads ? 0.0 : hap.reads_ / static_cast<double>(reads));
 		}
 	}
+	return ret;
+}
+
+PmoProject::PopSummary PmoProject::genPopSummary(const Target & target, const VecStr & samples) const {
+	PopSummary ret;
+	std::map<uint32_t, uint32_t> samplesPerHap;
+	std::vector<uint32_t> cois;
+	for (const auto & sample : samples) {
+		const auto & detected = target.detected_.at(sample);
+		for (const auto & hap : detected) {
+			ret.totalReads_ += hap.reads_;
+			++samplesPerHap[hap.hapId_];
+		}
+		ret.totalClusters_ += detected.size();
+		cois.emplace_back(detected.size());
+	}
+	ret.haplotypes_ = samplesPerHap.size();
+	if (!cois.empty()) {
+		std::sort(cois.begin(), cois.end());
+		ret.coiMean_ = std::accumulate(cois.begin(), cois.end(), 0.0) / cois.size();
+		ret.coiMedian_ = 0 == cois.size() % 2 ? (cois[cois.size() / 2 - 1] + cois[cois.size() / 2]) / 2.0 : cois[cois.size() / 2];
+		ret.coiMin_ = cois.front();
+		ret.coiMax_ = cois.back();
+	}
+	//he = [n/(n - 1)][1 - sum(pi^2)]
+	double sumOfSquares = 0;
+	for (const auto & hap : samplesPerHap) {
+		sumOfSquares += std::pow(hap.second / static_cast<double>(ret.totalClusters_), 2);
+	}
+	ret.he_ = ret.totalClusters_ > 1 ? (ret.totalClusters_ / (ret.totalClusters_ - 1.0)) * (1 - sumOfSquares) : 0;
 	return ret;
 }
 
@@ -425,13 +442,14 @@ const table & PmoProject::groupInfo(const std::string & target, const std::strin
 table PmoProject::targetsInfo() {
 	table ret(VecStr{"target", "forward_primer", "reverse_primer", "fake_primers", "samples", "haplotypes", "reads", "expected_heterozygosity", "mean_coi", "max_coi"});
 	for (const auto & target : targets_) {
-		const auto & popInfo = targetTables(target.first).popInfo_;
-		const bool hasData = !popInfo.content_.empty();
-		ret.content_.emplace_back(toVecStr(target.first, target.second.forwardPrimer_, target.second.reversePrimer_, target.second.fakePrimers_ ? "yes" : "no", target.second.detected_.size(), popInfo.content_.size(),
-				hasData ? popInfo.getColumn("p_TotalInputReadCnt").front() : "0",
-				hasData ? popInfo.getColumn("p_ExpectedHeterozygosity").front() : "0",
-				hasData ? popInfo.getColumn("p_meanCoi").front() : "0",
-				hasData ? popInfo.getColumn("p_maxCoi").front() : "0"));
+		//the same values as the target's popInfo_ without building its tables
+		const auto summary = genPopSummary(target.second, sampleNames(target.first));
+		const bool hasData = summary.haplotypes_ > 0;
+		ret.content_.emplace_back(toVecStr(target.first, target.second.forwardPrimer_, target.second.reversePrimer_, target.second.fakePrimers_ ? "yes" : "no", target.second.detected_.size(), summary.haplotypes_,
+				hasData ? estd::to_string(summary.totalReads_) : "0",
+				hasData ? estd::to_string(summary.he_) : "0",
+				hasData ? estd::to_string(summary.coiMean_) : "0",
+				hasData ? estd::to_string(summary.coiMax_) : "0"));
 		if (hasTargetGeneNames_) {
 			ret.content_.back().insert(ret.content_.back().begin() + 1, target.second.geneName_.empty() ? "NA" : target.second.geneName_);
 		}

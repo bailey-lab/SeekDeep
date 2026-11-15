@@ -63,6 +63,7 @@ private:
 
 	Json::Value sampInfoJson(const table & sampTab, const VecStr & sampNames, bool hasGroupCol) const;
 	static Json::Value popInfoJson(const table & popTab, const VecStr & popUIDs, const VecStr & excludeFromNum);
+	//haplotypes by samples, transposed to a row per sample when there are more samples than haplotypes
 	static Json::Value hapIdTabJson(const table & hapIdTab, const VecStr & popUIDs, const VecStr & samples);
 	Json::Value popSeqsJson(const std::string & target, const Json::Value & postData);
 };

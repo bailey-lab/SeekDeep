@@ -64,11 +64,8 @@ $(document).ready(function(){
 				var hapIdTab = new njhTable("#hapIdTab", hapIdTabInfo, names["projectName"] + "_" + groupName + "_" + subGroupName + "_hapIdTable", false);
 				hapIdTab.enactPoorMansHeatMap();
 				function updateChartOnClick() {
-					//get all currently checked sample boxes and then update the current samples
-				    var allVals = [];
-				    $('#sampNameMenu :checked').each(function() {
-				      allVals.push($(this).val());
-				    });
+					//the checked samples, across every page of the sample list
+				    var allVals = sampMenu.selected();
 				    var currentSampNames = _.intersection(names["groupSamples"], allVals);
 				    var currentPopInfoTab = {};
 				    var currentPopSeqData = {};
@@ -97,7 +94,8 @@ $(document).ready(function(){
 					});
 				};
 				//create samp menu
-				var sampMenu = new njhCheckboxMenu("#sampNameMenu", names["groupSamples"], updateChartOnClick);
+				//shown a page at a time with a filter, njhPagedList in seqServer tableFuncs.js
+				var sampMenu = new njhPagedList("#sampNameMenu", {names: names["groupSamples"], mode: "checkbox", title: "Samples", onChange: updateChartOnClick});
 
 			}).catch(logRequestError).then(function(){
 				//stop loading page

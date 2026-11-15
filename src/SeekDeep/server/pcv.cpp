@@ -445,15 +445,9 @@ void pcv::getGroupNamesHandler(
 
 
 VecStr genColorsStrsForNamesMultiples(VecStr popNames){
+	//sorts and removes the duplicates, the colors go with the names in that order
 	removeDuplicates(popNames);
-	auto popColors = getColorsForNames(popNames);
-	VecStr popColorsStrs;
-	auto keys = getVectorOfMapKeys(popColors);
-	njh::sort(keys);
-	for(const auto & pColorKey : keys){
-		popColorsStrs.emplace_back(popColors[pColorKey].getHexStr());
-	}
-	return popColorsStrs;
+	return genDistinctColorHexStrs(popNames.size());
 }
 
 void pcv::getSampleInfoTabPostHandler(std::shared_ptr<restbed::Session> session,
