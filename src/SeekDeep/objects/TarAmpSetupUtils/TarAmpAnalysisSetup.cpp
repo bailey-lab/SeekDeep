@@ -888,6 +888,7 @@ table GuessPossibleSamps(const TarAmpAnalysisSetup::TarAmpPars & pars){
 	} else {
 		if (pars.techIsIllumina()) {
 			ReadPairsOrganizer rpOrganizer(VecStr{});
+			rpOrganizer.illuminaPat_ = pars.illuminaInputFilePat;
 			rpOrganizer.processFiles(files);
 			for (const auto &samp: rpOrganizer.readPairsUnrecognized_) {
 				if (njh::in(samp.first, pars.ignoreSamples)) {

@@ -121,6 +121,7 @@ int SeekDeepUtilsRunner::getPossibleSampleNamesFromRawInput(const njh::progutils
 
 	RawInputSampleNamesPars singleEndPars;
 	setUp.examples_.emplace_back("SeekDeep getPossibleSampleNamesFromRawInput --inputDir demux_dir --technology nanopore --recursive --prefixWithTopDir --out sampleNames.tsv #per file report for nanopore/pacbio, bams are named by the SM of their read group");
+	setUp.examples_.emplace_back("SeekDeep getPossibleSampleNamesFromRawInput --inputDir fastq --replicatePattern \"(.*)(-R[0-9]+)\" --sampleKeyOut sampleKey.tsv #also write a sample key for elucidatornf, Ctrl1-R1 and Ctrl1-R2 become replicates of Ctrl1");
 	setUp.setOption(pars.inputDir, "--inputDir", "Input Directory", true);
 	setUp.setOption(pars.recursiveInputSearch, "--recursive", "Search --inputDir recursively for input files");
 	bool inputFilePatSet = setUp.setOption(pars.inputFilePat, "--inputFilePat", "Input File Pat, for nanopore/pacbio defaults to " + singleEndPars.inputFilePat);
@@ -129,6 +130,8 @@ int SeekDeepUtilsRunner::getPossibleSampleNamesFromRawInput(const njh::progutils
 	stringToLower(pars.technology);
 	bool ignoreSamplesSet = setUp.setOption(pars.ignoreSamples, "--ignoreSamples", "Ignore these Samples if found, for nanopore/pacbio defaults to " + njh::conToStr(singleEndPars.ignoreSamples, ",") + " and also ignores files within directories of these names");
 	setUp.setOption(pars.replicatePattern, "--replicatePattern", "Replicate Pattern to match on to indicate replicates when guessing sample names, should have two groups e.g. (.*)(-rep.*)");
+	bfs::path sampleKeyOut;
+	setUp.setOption(sampleKeyOut, "--sampleKeyOut", "also write a sample key for the elucidatornf illumina pipelines (--amplicon_sample_key_fnp) with columns input, sample and replicate, with --replicatePattern the inputs become replicates of the sample named by its first group");
 	//per file naming options for nanopore/pacbio
 	setUp.setOption(singleEndPars.doNotUseBamSM, "--doNotUseBamSM", "nanopore/pacbio, name bams by their file name rather than the SM of their read group");
 	setUp.setOption(singleEndPars.prefixWithTopDir, "--prefixWithTopDir", "nanopore/pacbio, prefix sample names with the top directory under --inputDir the file is in, e.g. run1/sub/barcode01.bam becomes run1_barcode01, for keeping the same barcodes from different runs apart");
@@ -137,6 +140,10 @@ int SeekDeepUtilsRunner::getPossibleSampleNamesFromRawInput(const njh::progutils
 	if (pars.techIsNanoporeOrPacbio() && !pars.replicatePattern.empty()) {
 		setUp.failed_ = true;
 		setUp.addWarning("--replicatePattern isn't used with nanopore/pacbio, which report each file's name instead");
+	}
+	if (pars.techIsNanoporeOrPacbio() && !sampleKeyOut.empty()) {
+		setUp.failed_ = true;
+		setUp.addWarning("--sampleKeyOut isn't used with nanopore/pacbio, use the sample column of the per file report");
 	}
 	setUp.processWritingOptions(tabOutOpts.out_);
 	setUp.finishSetUp(std::cout);
@@ -157,6 +164,21 @@ int SeekDeepUtilsRunner::getPossibleSampleNamesFromRawInput(const njh::progutils
 	auto sampleNames = GuessPossibleSamps(pars);
 
 	sampleNames.outPutContents(out, "\t");
+	if (!sampleKeyOut.empty()) {
+		OutOptions keyOpts(sampleKeyOut);
+		keyOpts.transferOverwriteOpts(tabOutOpts.out_);
+		OutputStream keyOut(keyOpts);
+		keyOut << "input\tsample\treplicate" << "\n";
+		//the run columns after sample hold the input names, more than one per row when they are replicates
+		auto samplePos = sampleNames.getColPos("sample");
+		for (const auto & row : sampleNames.content_) {
+			for (uint32_t pos = samplePos + 1; pos < row.size(); ++pos) {
+				if (!row[pos].empty()) {
+					keyOut << row[pos] << "\t" << row[samplePos] << "\t" << row[pos] << "\n";
+				}
+			}
+		}
+	}
 	return 0;
 }
 
