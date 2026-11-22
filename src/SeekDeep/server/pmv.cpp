@@ -386,6 +386,9 @@ std::vector<std::shared_ptr<restbed::Resource>> pmv::getAllResources() {
 	ret.emplace_back(postRoute(seg("aminoAcidChangesSelected", {}), [this, toStrVec](const Session & session, const Json::Value & post) {
 		respondJson(session, tableToJsonByRow(project_->aminoAcidChangesFor(toStrVec(post["samples"]), toStrVec(post["targets"])), "AA_Change"));
 	}));
+	ret.emplace_back(postRoute(seg("sampleAminoAcidsSelected", {}), [this, toStrVec](const Session & session, const Json::Value & post) {
+		respondJson(session, tableToJsonByRow(project_->sampleAminoAcidsFor(toStrVec(post["samples"]), toStrVec(post["targets"])), "sample", VecStr{}, VecStr{"sample"}));
+	}));
 	//between sample distances and clustering on them for a chosen set of samples and targets, posted as
 	//{"samples":[...], "targets":[...], "measure":"ccc|rmse|jaccard", "cutOff":0.95, "minNeighbors":5, "minLociCoverage":0.9}
 	const auto sampleDistancePars = [this](const Json::Value & post) {
@@ -444,6 +447,14 @@ std::vector<std::shared_ptr<restbed::Resource>> pmv::getAllResources() {
 	ret.emplace_back(getRoute(seg("aminoAcidChanges", {"groupName", "subGroupName"}), [this, metaSubGroupOr404](const Session & session) {
 		metaSubGroupOr404(session, [this, &session](const std::string & group, const std::string & subGroup) {
 			respondJson(session, tableToJsonByRow(project_->aminoAcidChanges(group, subGroup), "AA_Change"));
+		});
+	}));
+	ret.emplace_back(getRoute(seg("sampleAminoAcids", {}), [this](const Session & session) {
+		respondJson(session, tableToJsonByRow(project_->sampleAminoAcids(), "sample", VecStr{}, VecStr{"sample"}));
+	}));
+	ret.emplace_back(getRoute(seg("sampleAminoAcids", {"groupName", "subGroupName"}), [this, metaSubGroupOr404](const Session & session) {
+		metaSubGroupOr404(session, [this, &session](const std::string & group, const std::string & subGroup) {
+			respondJson(session, tableToJsonByRow(project_->sampleAminoAcids(group, subGroup), "sample", VecStr{}, VecStr{"sample"}));
 		});
 	}));
 

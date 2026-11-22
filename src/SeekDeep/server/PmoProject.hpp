@@ -152,6 +152,19 @@ public:
 	 */
 	const table & aminoAcidChanges(const std::string & group = "", const std::string & subGroup = "");
 
+	/**@brief The amino acids each sample has at each typed protein position, like AAChangesInfo from variantCallOnSeqAndProtein but only the amino acids the sample has
+	 *
+	 * Uses the same target per sample and position as aminoAcidChanges(). reads is the sample's reads for the amino acid,
+	 * within_sample_freq is that over the sample's reads at the position (split by haplotypes when there are no reads).
+	 * Rows go by sample, then position, then the reference first and the rest by frequency.
+	 * There's a Gene column with the alternative gene names when any variant has one.
+	 *
+	 * @param group the meta field to take samples from, empty for all library samples
+	 * @param subGroup the value of that field
+	 * @return the table, computed once per sub group along with aminoAcidChanges()
+	 */
+	const table & sampleAminoAcids(const std::string & group = "", const std::string & subGroup = "");
+
 	/**@brief haplotypeRainbow() for a chosen set of samples and targets, not cached
 	 *
 	 * @param samples library samples to include, kept in the project's sample order, unknown names are skipped
@@ -165,6 +178,13 @@ public:
 	 * @param targets targets to include, unknown names are skipped
 	 */
 	[[nodiscard]] table aminoAcidChangesFor(const VecStr & samples, const VecStr & targets) const;
+
+	/**@brief sampleAminoAcids() for a chosen set of samples and targets, only positions in those targets, not cached
+	 *
+	 * @param samples library samples to include, kept in the project's sample order, unknown names are skipped
+	 * @param targets targets to include, unknown names are skipped
+	 */
+	[[nodiscard]] table sampleAminoAcidsFor(const VecStr & samples, const VecStr & targets) const;
 
 	static constexpr uint32_t maxSampleDistanceSamples = 3000; /**< the most samples sampleDistances() takes*/
 
@@ -244,11 +264,16 @@ private:
 	std::map<std::string, std::map<std::string, std::map<std::string, TargetTables>>> tablesBySubGroup_;
 	std::map<std::string, std::map<std::string, table>> groupInfoByTarget_;
 	std::map<std::pair<std::string, std::string>, Json::Value> rainbows_; /**< by group and sub group*/
-	std::map<std::pair<std::string, std::string>, table> aminoAcidChanges_; /**< by group and sub group*/
+	struct AminoAcidTables {
+		table changes_; /**< aminoAcidChanges()*/
+		table samples_; /**< sampleAminoAcids()*/
+	};
+	std::map<std::pair<std::string, std::string>, AminoAcidTables> aminoAcidTables_; /**< by group and sub group*/
+	const AminoAcidTables & aminoAcidTables(const std::string & group, const std::string & subGroup);
 
 	//targets limits to those targets, empty for all
 	[[nodiscard]] Json::Value genHaplotypeRainbow(const VecStr & samples, const std::set<std::string> & targets = {}) const;
-	[[nodiscard]] table genAminoAcidChanges(const VecStr & samples, const std::set<std::string> & targets = {}) const;
+	[[nodiscard]] AminoAcidTables genAminoAcidTables(const VecStr & samples, const std::set<std::string> & targets = {}) const;
 	//the known library samples among samples in the project's order, and the known targets among targets
 	[[nodiscard]] VecStr knownLibrarySamples(const VecStr & samples) const;
 	[[nodiscard]] std::set<std::string> knownTargets(const VecStr & targets) const;

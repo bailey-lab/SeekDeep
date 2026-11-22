@@ -1625,9 +1625,42 @@ $(document).ready(function(){
 	}).catch(logRequestError);
 	prsentDivGifLoading();
 	var aminoAcidStub = ("aminoAcids" + (groupUrl ? "_" + groupName + "_" + subGroupName : "_allSamples")).replace(/[^A-Za-z0-9_.-]/g, "_");
-	var showAminoAcids = function(aminoAcids, isSelection){
-		d3.select("#aminoAcidTable").selectAll("*").remove();
-		new njhTable("#aminoAcidTable", aminoAcids, aminoAcidStub + (isSelection ? "_selected" : ""), false);
+	var sampleAminoAcidStub = aminoAcidStub.replace(/^aminoAcids/, "sampleAminoAcids");
+	var sampleAminoAcidTab = null;
+	var aminoAcidTabs = {}; /**< by div*/
+	//redraw a table keeping its column searches
+	var redrawTable = function(divId, tableData, stub){
+		//destroy the old one so its window resize handler goes too
+		if(aminoAcidTabs[divId]){
+			aminoAcidTabs[divId].datTable.destroy();
+		}
+		var searches = {};
+		d3.selectAll(divId + " .njhTableColumnSearch input").each(function(){
+			if("" !== this.value){
+				searches[this.getAttribute("data-col")] = this.value;
+			}
+		});
+		d3.select(divId).selectAll("*").remove();
+		var tab = new njhTable(divId, tableData, stub, false);
+		aminoAcidTabs[divId] = tab;
+		d3.selectAll(divId + " .njhTableColumnSearch input").each(function(){
+			var col = this.getAttribute("data-col");
+			if(undefined !== searches[col]){
+				this.value = searches[col];
+				$(this).trigger("input");
+			}
+		});
+		return tab;
+	};
+	var showAminoAcids = function(aminoAcids, sampleAminoAcids, isSelection){
+		redrawTable("#aminoAcidTable", aminoAcids, aminoAcidStub + (isSelection ? "_selected" : ""));
+		sampleAminoAcidTab = redrawTable("#sampleAminoAcidTable", sampleAminoAcids, sampleAminoAcidStub + (isSelection ? "_selected" : ""));
+	};
+	//the amino acid tables for what's shown, all samples and targets on the page or a selection
+	var getAminoAcids = function(post){
+		return Promise.all(post
+			? [postJSON('/' + rName + '/aminoAcidChangesSelected', post), postJSON('/' + rName + '/sampleAminoAcidsSelected', post)]
+			: [getJSON('/' + rName + '/aminoAcidChanges' + (groupUrl ? "/" + groupUrl : "")), getJSON('/' + rName + '/sampleAminoAcids' + (groupUrl ? "/" + groupUrl : ""))]);
 	};
 	Promise.all([
 		getJSON('/' + rName + '/haplotypeRainbow' + (groupUrl ? "/" + groupUrl : "")),
@@ -1656,7 +1689,8 @@ $(document).ready(function(){
 		//shown a page at a time with a filter, njhPagedList in seqServer tableFuncs.js
 		var sampleSelector = new njhPagedList("#rainbowSelection", {names: allSamples, searchTexts: sampleSearch, mode: "checkbox", title: "Samples", onChange: onSelectionChange});
 		var targetSelector = new njhPagedList("#rainbowSelection", {names: allTargets, mode: "checkbox", title: "Targets", onChange: onSelectionChange});
-		updateButton.on("click", function(){
+		//afterUpdate is called once the plot and tables are redrawn
+		var updatePlot = function(afterUpdate){
 			var samples = sampleSelector.selected();
 			var targets = targetSelector.selected();
 			if(0 === samples.length || 0 === targets.length){
@@ -1672,19 +1706,23 @@ $(document).ready(function(){
 				? postJSON('/' + rName + '/haplotypeRainbowSelected', post)
 				: getJSON('/' + rName + '/haplotypeRainbow' + (groupUrl ? "/" + groupUrl : ""))];
 			if(hasAminoAcids){
-				requests.push(isSelection
-					? postJSON('/' + rName + '/aminoAcidChangesSelected', post)
-					: getJSON('/' + rName + '/aminoAcidChanges' + (groupUrl ? "/" + groupUrl : "")));
+				requests.push(getAminoAcids(isSelection ? post : null));
 			}
 			Promise.all(requests).then(function(updated){
 				rainbow.setData(updated[0], selectionNote);
 				distances.update();
 				if(hasAminoAcids){
-					showAminoAcids(updated[1], isSelection);
+					showAminoAcids(updated[1][0], updated[1][1], isSelection);
+				}
+				if(afterUpdate){
+					afterUpdate();
 				}
 			}).catch(logRequestError).then(function(){
 				removeAllDivGifLoading();
 			});
+		};
+		updateButton.on("click", function(){
+			updatePlot();
 		});
 		//only PMOs with protein variants have amino acid calls
 		if(!hasAminoAcids){
@@ -1696,8 +1734,37 @@ $(document).ready(function(){
 			.text("Every amino acid at each typed position, the reference first. AlleleFrequency is the mean within sample read frequency over the samples typed at the position (SampleTotal), "
 				+ "SamplePrevalence is the fraction of those samples with the amino acid, AlleleCount and AlleleTotal count sample haplotypes.");
 		addDiv("#mainContent", "aminoAcidTable");
-		return getJSON('/' + rName + '/aminoAcidChanges' + (groupUrl ? "/" + groupUrl : "")).then(function(aminoAcids){
-			showAminoAcids(aminoAcids, false);
+		addPanelOnlyHead("#mainContent", "Amino Acids by Sample");
+		addDiv("#mainContent", "sampleAminoAcidNote");
+		d3.select("#sampleAminoAcidNote").append("p")
+			.text("The amino acids each sample has at each typed position, using the same target as the table above. reads is the sample's reads for the amino acid "
+				+ "and within_sample_freq is that over the sample's reads at the position. Search a column, e.g. AA_Change for K76T, "
+				+ "then Download Filtered to save the matching rows, or show only those samples in the plot.");
+		var showSamplesRow = d3.select("#sampleAminoAcidNote").append("div");
+		var showSamplesMessage;
+		showSamplesRow.append("button").attr("class", "btn btn-primary btn-sm")
+			.text("Show only these samples in the plot")
+			.attr("title", "check only the samples in the rows matching the column searches, then update the plot")
+			.on("click", function(){
+				if(null === sampleAminoAcidTab){
+					return;
+				}
+				var rows = sampleAminoAcidTab.datTable.rows({search: "applied"}).data().toArray();
+				var samples = Array.from(new Set(rows.map(function(row){ return String(row["sample"]); })));
+				if(0 === samples.length){
+					showSamplesMessage.style("color", "#C00000").text("no rows match the searches");
+					return;
+				}
+				var checked = sampleSelector.setChecked(samples);
+				showSamplesMessage.style("color", null).text("showing " + checked + " samples");
+				updatePlot(function(){
+					document.getElementById("rainbowPlot").scrollIntoView({behavior: "smooth"});
+				});
+			});
+		showSamplesMessage = showSamplesRow.append("span").style("margin-left", "8px");
+		addDiv("#mainContent", "sampleAminoAcidTable");
+		return getAminoAcids(null).then(function(tables){
+			showAminoAcids(tables[0], tables[1], false);
 		});
 	}).catch(logRequestError).then(function(){
 		removeAllDivGifLoading();

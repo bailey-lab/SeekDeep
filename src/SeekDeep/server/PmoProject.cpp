@@ -982,7 +982,7 @@ bool PmoProject::hasAminoAcidCalls() const {
 	return hasAminoAcidCalls_;
 }
 
-table PmoProject::genAminoAcidChanges(const VecStr & samples, const std::set<std::string> & targets) const {
+PmoProject::AminoAcidTables PmoProject::genAminoAcidTables(const VecStr & samples, const std::set<std::string> & targets) const {
 	//a position is a transcript and 1-based amino acid position
 	using Position = std::pair<std::string, uint32_t>;
 	struct AlleleCounts {
@@ -1050,6 +1050,12 @@ table PmoProject::genAminoAcidChanges(const VecStr & samples, const std::set<std
 			}
 		}
 	}
+	AminoAcidTables ret;
+	ret.samples_ = table(VecStr{"sample", "Gene_ID", "Gene_Transcript_ID", "AA_Change", "reference_AA_pos", "reference_AA", "AA", "is_reference",
+			"reads", "within_sample_freq"});
+	if (hasGeneNames_) {
+		ret.samples_.columnNames_.insert(ret.samples_.columnNames_.begin() + 2, "Gene");
+	}
 	for (const auto & sample : samples) {
 		for (const auto & position : genSampleCalls(sample)) {
 			auto bestSearch = position.second.find(mainTarget.at(position.first));
@@ -1077,20 +1083,42 @@ table PmoProject::genAminoAcidChanges(const VecStr & samples, const std::set<std
 			++posCounts.samples_;
 			posCounts.haps_ += bestHaps;
 			posCounts.targets_.emplace(bestSearch->first);
+			std::map<std::string, double> fracs;
 			for (const auto & allele : best) {
 				auto & counts = posCounts.alleles_[allele.first];
 				counts.haps_ += allele.second.haps_;
 				++counts.samples_;
 				//haplotypes without reads count equally
-				counts.fracSum_ += bestReads > 0 ? allele.second.reads_ / static_cast<double>(bestReads) : allele.second.haps_ / static_cast<double>(bestHaps);
+				const double frac = bestReads > 0 ? allele.second.reads_ / static_cast<double>(bestReads) : allele.second.haps_ / static_cast<double>(bestHaps);
+				counts.fracSum_ += frac;
+				fracs[allele.first] = frac;
+			}
+			//the reference first then the most frequent
+			auto aas = njh::getVecOfMapKeys(fracs);
+			std::stable_sort(aas.begin(), aas.end(), [&posCounts, &fracs](const std::string & first, const std::string & second) {
+				if ((first == posCounts.refAA_) != (second == posCounts.refAA_)) {
+					return first == posCounts.refAA_;
+				}
+				return fracs.at(first) > fracs.at(second);
+			});
+			for (const auto & aa : aas) {
+				const bool isRef = aa == posCounts.refAA_;
+				ret.samples_.content_.emplace_back(toVecStr(sample, posCounts.gene_, position.first.first,
+						njh::pasteAsStr(posCounts.refAA_, position.first.second, isRef ? "" : aa),
+						position.first.second, posCounts.refAA_, aa, isRef ? "TRUE" : "FALSE",
+						best.at(aa).reads_, fracs.at(aa)));
+				if (hasGeneNames_) {
+					ret.samples_.content_.back().insert(ret.samples_.content_.back().begin() + 2, posCounts.geneName_.empty() ? "NA" : posCounts.geneName_);
+				}
 			}
 		}
 	}
 
-	table ret(VecStr{"Gene_ID", "Gene_Transcript_ID", "AA_Change", "reference_AA_pos", "reference_AA", "AA", "is_reference",
+	auto & changes = ret.changes_;
+	changes = table(VecStr{"Gene_ID", "Gene_Transcript_ID", "AA_Change", "reference_AA_pos", "reference_AA", "AA", "is_reference",
 			"AlleleCount", "AlleleFrequency", "AlleleTotal", "SampleCount", "SamplePrevalence", "SampleTotal", "CoveredBy"});
 	if (hasGeneNames_) {
-		ret.columnNames_.insert(ret.columnNames_.begin() + 1, "Gene");
+		changes.columnNames_.insert(changes.columnNames_.begin() + 1, "Gene");
 	}
 	for (auto & position : positions) {
 		auto & posCounts = position.second;
@@ -1109,32 +1137,44 @@ table PmoProject::genAminoAcidChanges(const VecStr & samples, const std::set<std
 		for (const auto & aa : aas) {
 			const auto & counts = posCounts.alleles_.at(aa);
 			const bool isRef = aa == posCounts.refAA_;
-			ret.content_.emplace_back(toVecStr(posCounts.gene_, position.first.first,
+			changes.content_.emplace_back(toVecStr(posCounts.gene_, position.first.first,
 					njh::pasteAsStr(posCounts.refAA_, position.first.second, isRef ? "" : aa),
 					position.first.second, posCounts.refAA_, aa, isRef ? "TRUE" : "FALSE",
 					counts.haps_, counts.fracSum_ / posCounts.samples_, posCounts.haps_,
 					counts.samples_, counts.samples_ / static_cast<double>(posCounts.samples_), posCounts.samples_,
 					njh::conToStr(posCounts.targets_, "::")));
 			if (hasGeneNames_) {
-				ret.content_.back().insert(ret.content_.back().begin() + 1, posCounts.geneName_.empty() ? "NA" : posCounts.geneName_);
+				changes.content_.back().insert(changes.content_.back().begin() + 1, posCounts.geneName_.empty() ? "NA" : posCounts.geneName_);
 			}
 		}
 	}
 	return ret;
 }
 
-const table & PmoProject::aminoAcidChanges(const std::string & group, const std::string & subGroup) {
+const PmoProject::AminoAcidTables & PmoProject::aminoAcidTables(const std::string & group, const std::string & subGroup) {
 	std::lock_guard<std::mutex> lock(tablesMut_);
 	const auto key = std::make_pair(group, subGroup);
-	auto search = aminoAcidChanges_.find(key);
-	if (aminoAcidChanges_.end() != search) {
+	auto search = aminoAcidTables_.find(key);
+	if (aminoAcidTables_.end() != search) {
 		return search->second;
 	}
-	return aminoAcidChanges_.emplace(key, genAminoAcidChanges(group.empty() ? librarySamples_ : metaSubGroupSampleNames(group, subGroup))).first->second;
+	return aminoAcidTables_.emplace(key, genAminoAcidTables(group.empty() ? librarySamples_ : metaSubGroupSampleNames(group, subGroup))).first->second;
+}
+
+const table & PmoProject::aminoAcidChanges(const std::string & group, const std::string & subGroup) {
+	return aminoAcidTables(group, subGroup).changes_;
+}
+
+const table & PmoProject::sampleAminoAcids(const std::string & group, const std::string & subGroup) {
+	return aminoAcidTables(group, subGroup).samples_;
 }
 
 table PmoProject::aminoAcidChangesFor(const VecStr & samples, const VecStr & targets) const {
-	return genAminoAcidChanges(knownLibrarySamples(samples), knownTargets(targets));
+	return genAminoAcidTables(knownLibrarySamples(samples), knownTargets(targets)).changes_;
+}
+
+table PmoProject::sampleAminoAcidsFor(const VecStr & samples, const VecStr & targets) const {
+	return genAminoAcidTables(knownLibrarySamples(samples), knownTargets(targets)).samples_;
 }
 
 }  // namespace njhseq
