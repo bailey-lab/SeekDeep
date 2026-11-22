@@ -1051,11 +1051,13 @@ PmoProject::AminoAcidTables PmoProject::genAminoAcidTables(const VecStr & sample
 		}
 	}
 	AminoAcidTables ret;
-	ret.samples_ = table(VecStr{"sample", "Gene_ID", "Gene_Transcript_ID", "AA_Change", "reference_AA_pos", "reference_AA", "AA", "is_reference",
-			"reads", "within_sample_freq"});
+	//the column names are set before making the table so its column positions are right
+	VecStr sampleCols{"sample", "Gene_ID", "Gene_Transcript_ID", "AA_Change", "reference_AA_pos", "reference_AA", "AA", "is_reference",
+			"reads", "within_sample_freq"};
 	if (hasGeneNames_) {
-		ret.samples_.columnNames_.insert(ret.samples_.columnNames_.begin() + 2, "Gene");
+		sampleCols.insert(sampleCols.begin() + 2, "Gene");
 	}
+	ret.samples_ = table(sampleCols);
 	for (const auto & sample : samples) {
 		for (const auto & position : genSampleCalls(sample)) {
 			auto bestSearch = position.second.find(mainTarget.at(position.first));
@@ -1114,12 +1116,13 @@ PmoProject::AminoAcidTables PmoProject::genAminoAcidTables(const VecStr & sample
 		}
 	}
 
-	auto & changes = ret.changes_;
-	changes = table(VecStr{"Gene_ID", "Gene_Transcript_ID", "AA_Change", "reference_AA_pos", "reference_AA", "AA", "is_reference",
-			"AlleleCount", "AlleleFrequency", "AlleleTotal", "SampleCount", "SamplePrevalence", "SampleTotal", "CoveredBy"});
+	VecStr changesCols{"Gene_ID", "Gene_Transcript_ID", "AA_Change", "reference_AA_pos", "reference_AA", "AA", "is_reference",
+			"AlleleCount", "AlleleFrequency", "AlleleTotal", "SampleCount", "SamplePrevalence", "SampleTotal", "CoveredBy"};
 	if (hasGeneNames_) {
-		changes.columnNames_.insert(changes.columnNames_.begin() + 1, "Gene");
+		changesCols.insert(changesCols.begin() + 1, "Gene");
 	}
+	auto & changes = ret.changes_;
+	changes = table(changesCols);
 	for (auto & position : positions) {
 		auto & posCounts = position.second;
 		if (0 == posCounts.samples_) {

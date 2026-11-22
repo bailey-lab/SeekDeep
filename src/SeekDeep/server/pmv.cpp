@@ -58,6 +58,30 @@ void pmv::respondJson(const Session & session, const Json::Value & ret) {
 	session->close(restbed::OK, body, headers);
 }
 
+std::shared_ptr<const table> pmv::sampleAminoAcidsFor(const Json::Value & post) {
+	if (post.isMember("samples")) {
+		const auto toStrVec = [](const Json::Value & vals) {
+			return njh::json::jsonArrayToVec<std::string>(vals, [](const Json::Value & val) {return val.asString();});
+		};
+		const auto samples = toStrVec(post["samples"]);
+		const auto targets = toStrVec(post["targets"]);
+		const auto key = njh::conToStr(samples, "\n") + "\t" + njh::conToStr(targets, "\n");
+		std::lock_guard<std::mutex> lock(selectedSampleAminoAcidsMut_);
+		if (nullptr == selectedSampleAminoAcids_ || key != selectedSampleAminoAcidsKey_) {
+			selectedSampleAminoAcids_ = std::make_shared<const table>(project_->sampleAminoAcidsFor(samples, targets));
+			selectedSampleAminoAcidsKey_ = key;
+		}
+		return selectedSampleAminoAcids_;
+	}
+	const auto group = post.get("group", "").asString();
+	const auto subGroup = post.get("subGroup", "").asString();
+	if (!group.empty() && !project_->hasMetaSubGroup(group, subGroup)) {
+		return nullptr;
+	}
+	//the project keeps the group tables, so no ownership
+	return std::shared_ptr<const table>(std::shared_ptr<const table>{}, &project_->sampleAminoAcids(group, subGroup));
+}
+
 void pmv::respondNotFound(const Session & session, const std::string & message) {
 	std::cerr << message << std::endl;
 	session->close(restbed::NOT_FOUND, message, {{"Content-Length", estd::to_string(message.size())}, {"Connection", "close"}});
@@ -386,8 +410,41 @@ std::vector<std::shared_ptr<restbed::Resource>> pmv::getAllResources() {
 	ret.emplace_back(postRoute(seg("aminoAcidChangesSelected", {}), [this, toStrVec](const Session & session, const Json::Value & post) {
 		respondJson(session, tableToJsonByRow(project_->aminoAcidChangesFor(toStrVec(post["samples"]), toStrVec(post["targets"])), "AA_Change"));
 	}));
-	ret.emplace_back(postRoute(seg("sampleAminoAcidsSelected", {}), [this, toStrVec](const Session & session, const Json::Value & post) {
-		respondJson(session, tableToJsonByRow(project_->sampleAminoAcidsFor(toStrVec(post["samples"]), toStrVec(post["targets"])), "sample", VecStr{}, VecStr{"sample"}));
+	//the sampleAminoAcids table searched, sorted and paged on the server, posted as the table (see sampleAminoAcidsFor()) plus a TableQuery
+	const VecStr sampleAminoAcidNumericCols{"reference_AA_pos", "reads", "within_sample_freq"};
+	ret.emplace_back(postRoute(seg("sampleAminoAcidsPage", {}), [this, sampleAminoAcidNumericCols](const Session & session, const Json::Value & post) {
+		auto tab = sampleAminoAcidsFor(post);
+		if (nullptr == tab) {
+			respondNotFound(session, "no such sub group as " + post.get("subGroup", "").asString() + " of " + post.get("group", "").asString());
+			return;
+		}
+		auto out = TableQuery::fromJson(post).page(*tab, sampleAminoAcidNumericCols);
+		out["columnNames"] = njh::json::toJson(tab->columnNames_);
+		out["numericColNames"] = njh::json::toJson(sampleAminoAcidNumericCols);
+		respondJson(session, out);
+	}));
+	//the samples in the matching rows
+	ret.emplace_back(postRoute(seg("sampleAminoAcidsSamples", {}), [this, sampleAminoAcidNumericCols](const Session & session, const Json::Value & post) {
+		auto tab = sampleAminoAcidsFor(post);
+		if (nullptr == tab) {
+			respondNotFound(session, "no such sub group as " + post.get("subGroup", "").asString() + " of " + post.get("group", "").asString());
+			return;
+		}
+		Json::Value out;
+		out["samples"] = njh::json::toJson(TableQuery::fromJson(post).uniqueValues(*tab, sampleAminoAcidNumericCols, "sample"));
+		respondJson(session, out);
+	}));
+	//the matching rows as tab delimited text
+	ret.emplace_back(postRoute(seg("sampleAminoAcidsDownload", {}), [this, sampleAminoAcidNumericCols](const Session & session, const Json::Value & post) {
+		auto tab = sampleAminoAcidsFor(post);
+		if (nullptr == tab) {
+			respondNotFound(session, "no such sub group as " + post.get("subGroup", "").asString() + " of " + post.get("group", "").asString());
+			return;
+		}
+		auto body = TableQuery::fromJson(post).tsv(*tab, sampleAminoAcidNumericCols);
+		auto headers = HeaderFactory::initiatePlainTxtHeader(body);
+		headers.emplace("Connection", "close");
+		session->close(restbed::OK, body, headers);
 	}));
 	//between sample distances and clustering on them for a chosen set of samples and targets, posted as
 	//{"samples":[...], "targets":[...], "measure":"ccc|rmse|jaccard", "cutOff":0.95, "minNeighbors":5, "minLociCoverage":0.9}
@@ -449,15 +506,6 @@ std::vector<std::shared_ptr<restbed::Resource>> pmv::getAllResources() {
 			respondJson(session, tableToJsonByRow(project_->aminoAcidChanges(group, subGroup), "AA_Change"));
 		});
 	}));
-	ret.emplace_back(getRoute(seg("sampleAminoAcids", {}), [this](const Session & session) {
-		respondJson(session, tableToJsonByRow(project_->sampleAminoAcids(), "sample", VecStr{}, VecStr{"sample"}));
-	}));
-	ret.emplace_back(getRoute(seg("sampleAminoAcids", {"groupName", "subGroupName"}), [this, metaSubGroupOr404](const Session & session) {
-		metaSubGroupOr404(session, [this, &session](const std::string & group, const std::string & subGroup) {
-			respondJson(session, tableToJsonByRow(project_->sampleAminoAcids(group, subGroup), "sample", VecStr{}, VecStr{"sample"}));
-		});
-	}));
-
 	//sample
 	ret.emplace_back(getRoute(seg("sampleMainPage", {"target", "sampleName"}), [this](const Session & session) {
 		auto target = pathPar(session, "target");

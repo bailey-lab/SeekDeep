@@ -51,6 +51,16 @@ private:
 
 	static const std::string pat_name_;
 
+	//the last chosen samples and targets' sampleAminoAcids table, so paging through it doesn't recalculate it
+	std::mutex selectedSampleAminoAcidsMut_;
+	std::string selectedSampleAminoAcidsKey_;
+	std::shared_ptr<const table> selectedSampleAminoAcids_;
+	/**@brief the sampleAminoAcids table a query is on: {"samples":[...], "targets":[...]} for a chosen set, else {"group":"", "subGroup":""}, no group for all samples
+	 *
+	 * @return nullptr for an unknown group
+	 */
+	std::shared_ptr<const table> sampleAminoAcidsFor(const Json::Value & post);
+
 	static std::string pathPar(const Session & session, const std::string & name);
 	static void respondJson(const Session & session, const Json::Value & ret);
 	static void respondNotFound(const Session & session, const std::string & message);

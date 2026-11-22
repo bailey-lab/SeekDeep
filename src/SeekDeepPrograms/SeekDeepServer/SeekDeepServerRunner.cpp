@@ -154,6 +154,8 @@ int SeekDeepServerRunner::pmoViewer(const njh::progutils::CmdArgs & inputCommand
 	settings->set_port(corePars.port_);
 	settings->set_default_header("Connection", "close");
 	settings->set_bind_address(corePars.bindAddress_);
+	//requests are answered one at a time, so the ones waiting behind a slow table (e.g. the first one for a large PMO) need longer than restbed's 5 second default
+	settings->set_connection_timeout(std::chrono::seconds(120));
 	restbed::Service service;
 	service.set_error_handler(errorHandler);
 	for(const auto & resource : resources){
