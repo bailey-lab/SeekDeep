@@ -43,17 +43,19 @@ public:
 
 	std::map<std::string, std::map<std::string, ExpectedSample>> targets_; /**< target -> sample -> what's expected*/
 
-	/**@brief one allele of a strain that has more than one allele at a target (e.g. a copy number variant with different sequences)
+	/**@brief one allele of a strain at a target where the strain has more than one copy or more than one allele (e.g. a copy number variant)
 	 */
 	struct StrainAllele {
 		std::string allele_; /**< the name of the sequence in the target's expected seqs fasta*/
-		double relativeCopies_{1}; /**< the strain's abundance is split between its alleles by this*/
+		double copies_{1}; /**< copies of this allele per genome, the allele's share of the template is its strain's relative abundance times this*/
 	};
 	using StrainAlleles = std::map<std::string, std::map<std::string, std::vector<StrainAllele>>>;/**< target -> strain -> alleles*/
 
-	/**@brief read in the alleles for strains with more than one allele at a target
+	/**@brief read in the alleles and copy numbers of strains with more than one copy or allele at a target
 	 *
-	 * @param fnp tab delimited with columns target, strain, allele and optionally relative_copies (defaults to 1)
+	 * Strains not listed for a target have one copy of an allele named after the strain.
+	 *
+	 * @param fnp tab delimited with columns target, strain, allele and optionally copies (the copies of that allele per genome, defaults to 1)
 	 */
 	[[nodiscard]] static StrainAlleles readStrainAlleles(const bfs::path & fnp);
 
@@ -78,6 +80,7 @@ public:
 	/**@brief build from the mixture tables
 	 *
 	 * Expected seqs are trimmed by trimFront_ and trimBack_, then the ones that are all Ns are dropped (along with their strain if it has no other alleles).
+	 * Each allele's within sample frequency is its strain's relative abundance times its copies from strainAllelesFnp_, made to sum to 1 within the sample.
 	 *
 	 * @param pars the inputs
 	 * @param targets the targets to set up, each needs a fasta in the expected seqs directory
@@ -86,7 +89,7 @@ public:
 
 	/**@brief build from an expected PMO
 	 *
-	 * Library samples are the control samples and their specimen names are the mixture names, the detected microhaplotypes are the
+	 * Library samples are the control samples and their specimen's mix_name field (or specimen name if it doesn't have one) is the mixture name, the detected microhaplotypes are the
 	 * expected alleles with reads as pseudo counts that become within sample frequencies, the allele name is the
 	 * microhaplotype_name and the strain is the "strain" extra field (the allele name if missing). A sample with no results for a target
 	 * isn't benchmarked for that target, one with an empty list of microhaplotypes is expected to have nothing.
@@ -102,6 +105,9 @@ public:
 	};
 
 	/**@brief write out as an expected PMO, one representative microhaplotype per allele name and target, one specimen per mixture
+	 *
+	 * Specimen names have characters the PMO doesn't allow replaced by _ and keep the mixture name in a mix_name field.
+	 * Throws if a control sample, target or the panel name has characters the PMO doesn't allow.
 	 */
 	[[nodiscard]] pmo::PortableMicrohaplotypeObject toPmo(const ToPmoPars & pars) const;
 

@@ -23,8 +23,9 @@ int SeekDeepUtilsRunner::mixturesToExpectedPmo(const njh::progutils::CmdArgs & i
 	setUp.processVerbose();
 	setUp.processDebug();
 	setUp.description_ = "Make an expected PMO of what each control sample should have for benchmarkMultiTarAmpControlMixtures --expectedPmoFnp. "
-											 "Library samples are the control samples and their specimen is their mixture. Each strain's allele is a representative microhaplotype named by the allele with the strain as an extra field. "
-											 "A sample's reads are pseudo counts that add up to about --pseudoCountTotal, split by the mixture's relative abundances and then by a strain's alleles from --strainAllelesFnp. "
+											 "Library samples are the control samples and their specimen is their mixture, a specimen name has characters the PMO doesn't allow replaced by _ and keeps the mixture name in a mix_name field. "
+											 "Each strain's allele is a representative microhaplotype named by the allele with the strain as an extra field. "
+											 "A sample's reads are pseudo counts that add up to about --pseudoCountTotal, each allele's share is its strain's relative abundance times its copies from --strainAllelesFnp (1 if not listed). "
 											 "Identical alleles are kept separate here, the benchmark combines them within each sample.";
 	setUp.setOption(mixPars.samplesToMixFnp_, "--sampleToMixture",
 									"Sample To Mixture, 2 columns 1)sample, 2)MixName, can have a target column (--targetNameColName) along with --mixtureSetUp to have different samples and mixtures per target", true);
@@ -33,7 +34,7 @@ int SeekDeepUtilsRunner::mixturesToExpectedPmo(const njh::progutils::CmdArgs & i
 	setUp.setOption(mixPars.expectedSeqsDirFnp_, "--expectedSeqsDirFnp",
 									"Expected Seqs directory of fasta files, one per target named <target>.fasta or <target>.fasta.gz, sequences named by strain or by allele from --strainAllelesFnp", true);
 	setUp.setOption(mixPars.strainAllelesFnp_, "--strainAllelesFnp",
-									"Optional, for strains with more than one allele at a target (e.g. a copy number variant with different sequences), tab delimited with columns target, strain, allele and optionally relative_copies (default 1)");
+									"Optional, for strains with more than one copy or allele at a target (e.g. a copy number variant), tab delimited with columns target, strain, allele and optionally copies (copies of that allele per genome, default 1), the alleles are named in the --expectedSeqsDirFnp fasta, each allele's share of the template is its strain's relative abundance times its copies, strains not listed have one copy named after the strain");
 	setUp.setOption(mixPars.targetNameColName_, "--targetNameColName", "the target column in the mixture tables if they're split by target");
 	setUp.setOption(mixPars.trimFront_, "--trimFront", "trim this many bases from the front of every expected seq, e.g. to match a pipeline that trims the edges of the insert");
 	setUp.setOption(mixPars.trimBack_, "--trimBack", "trim this many bases from the back of every expected seq, e.g. to match a pipeline that trims the edges of the insert");

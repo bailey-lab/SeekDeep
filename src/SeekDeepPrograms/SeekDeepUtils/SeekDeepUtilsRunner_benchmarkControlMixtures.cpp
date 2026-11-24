@@ -249,7 +249,7 @@ int SeekDeepUtilsRunner::benchmarkMultiTarAmpControlMixtures(
 									"Expected Seqs directory of fasta files, in this directory should be a fasta file with the name of each target, needed unless using --expectedPmoFnp");
 	bfs::path strainAllelesFnp;
 	setUp.setOption(strainAllelesFnp, "--strainAllelesFnp",
-									"Optional, for strains with more than one allele at a target (e.g. a copy number variant with different sequences), tab delimited with columns target, strain, allele and optionally relative_copies (default 1), the alleles are named in the --expectedSeqsDirFnp fasta and the strain's abundance is split between them by relative_copies");
+									"Optional, for strains with more than one copy or allele at a target (e.g. a copy number variant), tab delimited with columns target, strain, allele and optionally copies (copies of that allele per genome, default 1), the alleles are named in the --expectedSeqsDirFnp fasta, each allele's share of the template is its strain's relative abundance times its copies, strains not listed have one copy named after the strain");
 	uint32_t trimFront = 0;
 	uint32_t trimBack = 0;
 	setUp.setOption(trimFront, "--trimFront", "trim this many bases from the front of every expected seq from --expectedSeqsDirFnp, e.g. to match a pipeline that trims the edges of the insert");
@@ -517,6 +517,8 @@ int SeekDeepUtilsRunner::benchmarkMultiTarAmpControlMixtures(
 		for (const auto &target: expected.targetNames()) {
 			if (passTargetFilter(target)) {
 				expectedTargets.emplace_back(target);
+			} else {
+				expected.targets_.erase(target);
 			}
 		}
 		VecStr noExpectations;

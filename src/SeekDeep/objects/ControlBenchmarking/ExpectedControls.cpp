@@ -9,11 +9,47 @@
 #include <njhseq/objects/dataContainers/tables.h>
 #include <njhseq/IO/SeqIO/SeqInput.hpp>
 
+#include <regex>
+
 namespace njhseq {
 
 namespace {
 const std::string MIX_BY_TARGET_FIELD = "mix_by_target";
+const std::string MIX_NAME_FIELD = "mix_name";
 const std::string STRAIN_FIELD = "strain";
+
+//the characters the PMO schema allows in each kind of name
+const std::regex SPECIMEN_NAME_CHAR{R"([A-z\-._0-9(),/ ])"};
+const std::regex LIBRARY_SAMPLE_NAME_PAT{R"(^[A-z\-._0-9 ]+$)"};
+const std::regex TARGET_NAME_PAT{R"(^[A-z\-._0-9]+$)"};
+
+//the name with every character the PMO schema doesn't allow in a specimen name replaced by _
+std::string toSpecimenName(const std::string & name) {
+	std::string ret = name;
+	for (auto & letter : ret) {
+		if (!std::regex_match(std::string(1, letter), SPECIMEN_NAME_CHAR)) {
+			letter = '_';
+		}
+	}
+	return ret;
+}
+
+//throw listing the names that don't match the PMO schema's pattern
+void checkNamesThrow(const std::set<std::string> & names, const std::regex & pattern, const std::string & what,
+										 const std::string & allowed, const std::string & funcName) {
+	VecStr bad;
+	for (const auto & name : names) {
+		if (!std::regex_match(name, pattern)) {
+			bad.emplace_back(name);
+		}
+	}
+	if (!bad.empty()) {
+		std::stringstream ss;
+		ss << funcName << ", error " << "the following " << what << " can't be used in a PMO, they can only have "
+			 << allowed << ": " << njh::conToStr(bad, ", ") << "\n";
+		throw std::runtime_error{ss.str()};
+	}
+}
 
 bfs::path targetFastaFnp(const bfs::path & dir, const std::string & target) {
 	auto fnp = njh::files::make_path(dir, target + ".fasta");
@@ -68,7 +104,13 @@ std::vector<ExpectedControls::ExpectedHap> ExpectedControls::ExpectedSample::col
 ExpectedControls::StrainAlleles ExpectedControls::readStrainAlleles(const bfs::path & fnp) {
 	table tab(fnp, "\t", true);
 	tab.checkForColumnsThrow(VecStr{"target", "strain", "allele"}, __PRETTY_FUNCTION__);
-	bool hasCopies = njh::in(std::string("relative_copies"), tab.columnNames_);
+	bool hasCopies = njh::in(std::string("copies"), tab.columnNames_);
+	if (!hasCopies && njh::in(std::string("relative_copies"), tab.columnNames_)) {
+		std::stringstream ss;
+		ss << __PRETTY_FUNCTION__ << ", error " << fnp << " has a relative_copies column, the column should be copies, "
+			 << "the number of copies of each allele per genome" << "\n";
+		throw std::runtime_error{ss.str()};
+	}
 	StrainAlleles ret;
 	for (const auto & row : tab) {
 		const auto & target = row[tab.getColPos("target")];
@@ -76,12 +118,12 @@ ExpectedControls::StrainAlleles ExpectedControls::readStrainAlleles(const bfs::p
 		StrainAllele allele;
 		allele.allele_ = row[tab.getColPos("allele")];
 		if (hasCopies) {
-			allele.relativeCopies_ = njh::StrToNumConverter::stoToNum<double>(row[tab.getColPos("relative_copies")]);
+			allele.copies_ = njh::StrToNumConverter::stoToNum<double>(row[tab.getColPos("copies")]);
 		}
-		if (allele.relativeCopies_ <= 0) {
+		if (allele.copies_ <= 0) {
 			std::stringstream ss;
-			ss << __PRETTY_FUNCTION__ << ", error " << "relative_copies needs to be greater than 0, " << target << " " << strain
-				 << " " << allele.allele_ << ": " << allele.relativeCopies_ << "\n";
+			ss << __PRETTY_FUNCTION__ << ", error " << "copies needs to be greater than 0, " << target << " " << strain
+				 << " " << allele.allele_ << ": " << allele.copies_ << "\n";
 			throw std::runtime_error{ss.str()};
 		}
 		auto & alleles = ret[target][strain];
@@ -261,16 +303,17 @@ ExpectedControls ExpectedControls::fromMixtures(const FromMixturesPars & pars, c
 		for (const auto & sample : bencher->getSamples()) {
 			ExpectedSample expected;
 			expected.mix_ = bencher->samplesToMix_.at(sample);
+			//each allele's template is its strain's relative abundance times its copies, then these are made to sum to 1
+			double totalTemplate = 0;
 			for (const auto & strainFrac : bencher->mixSetups_.at(expected.mix_).relativeAbundances_) {
-				const auto & alleles = allelesByStrain.at(strainFrac.first);
-				double totalCopies = 0;
-				for (const auto & allele : alleles) {
-					totalCopies += allele.relativeCopies_;
-				}
-				for (const auto & allele : alleles) {
+				for (const auto & allele : allelesByStrain.at(strainFrac.first)) {
 					expected.alleles_.emplace_back(ExpectedAllele{allele.allele_, strainFrac.first, seqByName.at(allele.allele_),
-																												strainFrac.second * allele.relativeCopies_ / totalCopies});
+																												strainFrac.second * allele.copies_});
+					totalTemplate += strainFrac.second * allele.copies_;
 				}
+			}
+			for (auto & allele : expected.alleles_) {
+				allele.frac_ /= totalTemplate;
 			}
 			std::sort(expected.alleles_.begin(), expected.alleles_.end(), [](const ExpectedAllele & first, const ExpectedAllele & second) {
 				return first.name_ < second.name_;
@@ -292,7 +335,13 @@ ExpectedControls ExpectedControls::fromPmo(const pmo::PortableMicrohaplotypeObje
 		for (const auto & sampleResults : run.library_samples_) {
 			const auto & library = pmoObj.library_sample_info_.at(sampleResults.library_sample_id_);
 			const auto & sample = library.library_sample_name_;
-			const auto & specimenName = pmoObj.specimen_info_.at(library.specimen_id_).specimen_name_;
+			//the mixture is the specimen's mix_name field if it has one, otherwise its name
+			const auto & specimen = pmoObj.specimen_info_.at(library.specimen_id_);
+			std::string specimenName = specimen.specimen_name_;
+			auto mixName = specimen.extras_.find(MIX_NAME_FIELD);
+			if (specimen.extras_.end() != mixName && mixName->second.is_string()) {
+				specimenName = mixName->second.get<std::string>();
+			}
 			auto mixByTarget = library.extras_.find(MIX_BY_TARGET_FIELD);
 			for (const auto & targetResults : sampleResults.target_results_) {
 				const auto & target = targetNameByMhapsId.at(targetResults.mhaps_target_id_);
@@ -363,6 +412,19 @@ pmo::PortableMicrohaplotypeObject ExpectedControls::toPmo(const ToPmoPars & pars
 	ret.pmo_header_.generation_method_ = generationMethod;
 
 	auto targets = targetNames();
+	std::set<std::string> allSamples;
+	for (const auto & target : targets_) {
+		for (const auto & sample : target.second) {
+			allSamples.emplace(sample.first);
+		}
+	}
+	checkNamesThrow(std::set<std::string>(targets.begin(), targets.end()), TARGET_NAME_PAT, "target names",
+									"letters, digits, - . and _", __PRETTY_FUNCTION__);
+	checkNamesThrow(std::set<std::string>{pars.panelName_}, TARGET_NAME_PAT, "panel names",
+									"letters, digits, - . and _", __PRETTY_FUNCTION__);
+	checkNamesThrow(allSamples, LIBRARY_SAMPLE_NAME_PAT, "control sample names",
+									"letters, digits, - . _ and spaces", __PRETTY_FUNCTION__);
+
 	pmo::ReactionInfo reaction;
 	reaction.reaction_name_ = "full";
 	std::map<std::string, uint32_t> targetIds;
@@ -424,13 +486,23 @@ pmo::PortableMicrohaplotypeObject ExpectedControls::toPmo(const ToPmoPars & pars
 			mixByTargetBySample[sample.first][target.first] = sample.second.mix_;
 		}
 	}
+	//specimen names have the characters the PMO doesn't allow replaced by _ (with a numbered suffix if that makes two the same),
+	//a specimen whose name had to change keeps the mixture's name in its mix_name field
 	std::map<std::string, uint32_t> specimenIds;
-	auto specimenId = [&ret, &specimenIds](const std::string & name) {
+	std::set<std::string> specimenNames;
+	auto specimenId = [&ret, &specimenIds, &specimenNames](const std::string & name) {
 		auto search = specimenIds.find(name);
 		if (specimenIds.end() == search) {
 			search = specimenIds.emplace(name, ret.specimen_info_.size()).first;
 			pmo::SpecimenInfo specimen;
-			specimen.specimen_name_ = name;
+			specimen.specimen_name_ = toSpecimenName(name);
+			for (uint32_t suffix = 2; njh::in(specimen.specimen_name_, specimenNames); ++suffix) {
+				specimen.specimen_name_ = njh::pasteAsStr(toSpecimenName(name), "_", suffix);
+			}
+			specimenNames.emplace(specimen.specimen_name_);
+			if (specimen.specimen_name_ != name) {
+				specimen.extras_[MIX_NAME_FIELD] = name;
+			}
 			ret.specimen_info_.emplace_back(specimen);
 		}
 		return search->second;
