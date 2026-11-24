@@ -11,6 +11,7 @@
 
 #include "SeekDeep/objects/ControlBenchmarking/ControlMixSetUp.hpp"
 #include "SeekDeep/objects/ControlBenchmarking/ControlBencher.hpp"
+#include "SeekDeep/objects/ControlBenchmarking/ExpectedControls.hpp"
 
 
 

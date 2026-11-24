@@ -46,6 +46,7 @@ SeekDeepUtilsRunner::SeekDeepUtilsRunner() :
 					addFunc("nanoporeAmpliconReadQC", nanoporeAmpliconReadQC, false),
 					addFunc("benchmarkTarAmpControlMixtures", benchmarkTarAmpControlMixtures, false),
 					addFunc("benchmarkMultiTarAmpControlMixtures", benchmarkMultiTarAmpControlMixtures, false),
+					addFunc("mixturesToExpectedPmo", mixturesToExpectedPmo, false),
 					addFunc("gatherInfoOnTargetedAmpliconSeqFile", gatherInfoOnTargetedAmpliconSeqFile, false),
 					addFunc("getPossibleSampleNamesFromRawInput", getPossibleSampleNamesFromRawInput, false),
 					addFunc("SampleBarcodeFileToSeekDeepInput", SampleBarcodeFileToSeekDeepInput, false),

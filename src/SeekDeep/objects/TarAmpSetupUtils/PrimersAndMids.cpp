@@ -99,7 +99,7 @@ PrimersAndMids::PrimersAndMids(const bfs::path & idFileFnp) : idFile_(idFileFnp)
 		std::stringstream ss;
 		ss << __PRETTY_FUNCTION__ << ": error the id file "
 				<< njh::bashCT::boldRed(idFile_.string())
-				<< " should start with either target, gene, or id (case insensitive)\n";
+				<< " should start with either target, target_name, gene, or id (case insensitive)\n";
 		ss << "line: " << firstLine << "\n";
 		throw std::runtime_error { ss.str() };
 				}
@@ -116,7 +116,8 @@ PrimersAndMids::PrimersAndMids(const bfs::path & idFileFnp) : idFile_(idFileFnp)
 
 		if (lowerLineToks.size() > 1 &&
 				("gene" == lowerLineToks[0]
-				|| "target" == lowerLineToks[0])) {
+				|| "target" == lowerLineToks[0]
+				|| "target_name" == lowerLineToks[0])) {
 			readingPrimers = true;
 			readingMids = false;
 				} else if (lowerLineToks.size() > 1 && "id" == lowerLineToks[0]) {

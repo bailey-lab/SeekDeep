@@ -8,7 +8,9 @@
 
 #include "SeekDeepUtilsRunner.hpp"
 #include "SeekDeep/objects/ControlBenchmarking.h"
+#include "SeekDeep/objects/ControlBenchmarking/ExpectedControls.hpp"
 #include <njhseq/objects/dataContainers/tables/TableReader.hpp>
+#include <njhseq/objects/BioDataObject/pmo.h>
 
 namespace njhseq {
 
@@ -223,9 +225,11 @@ int SeekDeepUtilsRunner::benchmarkMultiTarAmpControlMixtures(
 	seqSetUp setUp(inputCommands);
 	setUp.processVerbose();
 	setUp.processDebug();
+	bfs::path pmoFnp;
 	setUp.setOption(resultsFnp, "--resultsFnp",
-									"results tab delimited file, each row is a haplotype, should have at least 5 columns, 1) sample (--sampleColName), 2)within sample freq (--withinSampleFreqColName), 3)within sample read count (--withinSampleReadCntColName), 4)haplotype pop ID (--popHapIdColName), 5)target name column (--targetNameColName), optionally 4th col with hap sequence (--popHapSeqColName) or read in from --popSeqsDirFnp",
-									true);
+									"results tab delimited file, each row is a haplotype, should have at least 5 columns, 1) sample (--sampleColName), 2)within sample freq (--withinSampleFreqColName), 3)within sample read count (--withinSampleReadCntColName), 4)haplotype pop ID (--popHapIdColName), 5)target name column (--targetNameColName), optionally 4th col with hap sequence (--popHapSeqColName) or read in from --popSeqsDirFnp, this or --pmoFnp is required");
+	setUp.setOption(pmoFnp, "--pmoFnp",
+									"results as a PMO (portable microhaplotype object) json file, can be gzipped, samples are the library sample names, haplotypes are the representative microhaplotypes (named by microhaplotype_name if present) and within sample freq is reads over the sample's total reads for that target, use instead of --resultsFnp");
 	setUp.setOption(selectTargets, "--selectTargets", "only analyze these select targets", false);
 	setUp.setOption(excludeTargets, "--excludeTargets", "exclude these Targets", false);
 
@@ -242,18 +246,45 @@ int SeekDeepUtilsRunner::benchmarkMultiTarAmpControlMixtures(
 	setUp.setOption(popSeqsDirFnp, "--popSeqsDirFnp",
 									"Population Sequences, in this directory should be a fasta file with the name of each target");
 	setUp.setOption(expectedSeqsDirFnp, "--expectedSeqsDirFnp",
-									"Expected Seqs directory of fasta files, in this directory should be a fasta file with the name of each target",
-									true);
+									"Expected Seqs directory of fasta files, in this directory should be a fasta file with the name of each target, needed unless using --expectedPmoFnp");
+	bfs::path strainAllelesFnp;
+	setUp.setOption(strainAllelesFnp, "--strainAllelesFnp",
+									"Optional, for strains with more than one allele at a target (e.g. a copy number variant with different sequences), tab delimited with columns target, strain, allele and optionally relative_copies (default 1), the alleles are named in the --expectedSeqsDirFnp fasta and the strain's abundance is split between them by relative_copies");
+	uint32_t trimFront = 0;
+	uint32_t trimBack = 0;
+	setUp.setOption(trimFront, "--trimFront", "trim this many bases from the front of every expected seq from --expectedSeqsDirFnp, e.g. to match a pipeline that trims the edges of the insert");
+	setUp.setOption(trimBack, "--trimBack", "trim this many bases from the back of every expected seq from --expectedSeqsDirFnp, e.g. to match a pipeline that trims the edges of the insert");
+	bfs::path expectedPmoFnp;
+	setUp.setOption(expectedPmoFnp, "--expectedPmoFnp",
+									"What each control sample is expected to have as a PMO (can be gzipped), use instead of --sampleToMixture, --mixtureSetUp and --expectedSeqsDirFnp, library samples are the control samples, their specimen names the mixture names and their detected microhaplotypes the expected alleles with reads as pseudo counts for the within sample frequencies, make one with mixturesToExpectedPmo");
 	setUp.setOption(metaFnp, "--metaFnp", "meta data for the control samples");
 	setUp.setOption(popSeqsRegexPatRemoval, "--popSeqsRegexPatRemoval",
 									"optional regex pattern to process the input pop sequences from --popSeqsFnp to make it match up with the input results folder");
+	if (resultsFnp.empty() == pmoFnp.empty()) {
+		setUp.failed_ = true;
+		setUp.addWarning("need exactly one of --resultsFnp or --pmoFnp");
+	}
+	if (!pmoFnp.empty() && !popSeqsDirFnp.empty()) {
+		setUp.failed_ = true;
+		setUp.addWarning("--popSeqsDirFnp can't be used with --pmoFnp, the PMO already has the haplotype sequences");
+	}
 
 	setUp.setOption(conBenchPars.samplesToMixFnp_, "--sampleToMixture",
-									"Sample To Mixture, 2 columns 1)sample, 2)MixName", true);
+									"Sample To Mixture, 2 columns 1)sample, 2)MixName, needed unless using --expectedPmoFnp");
 	setUp.setOption(conBenchPars.mixSetUpFnp_, "--mixtureSetUp",
-									"Mixture Set Up, 3 columns 1)MixName, 2)strain, 3)relative_abundance", true);
-	setUp.setOption(skipMissingSamples, "--skipMissingSamples", "Skip Samples if they are missing");
-	setUp.setOption(fillInMissingSamples, "--fillInMissingSamples", "Fill in missing Samples with placeholders");
+									"Mixture Set Up, 3 columns 1)MixName, 2)strain, 3)relative_abundance, needed unless using --expectedPmoFnp");
+	if (expectedPmoFnp.empty()) {
+		if (expectedSeqsDirFnp.empty() || conBenchPars.samplesToMixFnp_.empty() || conBenchPars.mixSetUpFnp_.empty()) {
+			setUp.failed_ = true;
+			setUp.addWarning("need --expectedPmoFnp or all of --sampleToMixture, --mixtureSetUp and --expectedSeqsDirFnp");
+		}
+	} else if (!expectedSeqsDirFnp.empty() || !conBenchPars.samplesToMixFnp_.empty() ||
+						 !conBenchPars.mixSetUpFnp_.empty() || !strainAllelesFnp.empty() || trimFront > 0 || trimBack > 0) {
+		setUp.failed_ = true;
+		setUp.addWarning("--expectedPmoFnp can't be used with --sampleToMixture, --mixtureSetUp, --expectedSeqsDirFnp, --strainAllelesFnp, --trimFront or --trimBack, trim when making the expected PMO with mixturesToExpectedPmo");
+	}
+	setUp.setOption(skipMissingSamples, "--skipMissingSamples", "Skip control samples that have no results for a target instead of stopping, they're listed in missingSamples.txt");
+	setUp.setOption(fillInMissingSamples, "--fillInMissingSamples", "Add control samples that have no results for a target to the output with 0 recovered haplotypes, needs --skipMissingSamples");
 
 	setUp.setOption(columnName, "--newColumnName",
 									"Name of a new Column to add to table, can be comma delimited to add multiple");
@@ -267,9 +298,17 @@ int SeekDeepUtilsRunner::benchmarkMultiTarAmpControlMixtures(
 	setUp.startARunLog(setUp.pars_.directoryName_);
 
 
-	njh::files::checkExistenceThrow({resultsFnp, expectedSeqsDirFnp,
-																	 conBenchPars.samplesToMixFnp_, conBenchPars.mixSetUpFnp_},
-																	__PRETTY_FUNCTION__);
+	const bfs::path inputFnp = pmoFnp.empty() ? resultsFnp : pmoFnp;
+	if (expectedPmoFnp.empty()) {
+		njh::files::checkExistenceThrow({inputFnp, expectedSeqsDirFnp,
+																		 conBenchPars.samplesToMixFnp_, conBenchPars.mixSetUpFnp_},
+																		__PRETTY_FUNCTION__);
+		if (!strainAllelesFnp.empty()) {
+			njh::files::checkExistenceThrow(std::vector<bfs::path>{strainAllelesFnp}, __PRETTY_FUNCTION__);
+		}
+	} else {
+		njh::files::checkExistenceThrow(std::vector<bfs::path>{inputFnp, expectedPmoFnp}, __PRETTY_FUNCTION__);
+	}
 
 
 	std::unique_ptr<MultipleGroupMetaData> metaGroupData;
@@ -283,20 +322,9 @@ int SeekDeepUtilsRunner::benchmarkMultiTarAmpControlMixtures(
 
 	std::set<std::string> targetNamesSet;
 
-	VecStr requiredColumns{sampleColName, withinSampleReadCntColName,
-												 withinSampleFreqColName, withinSampleReadCntColName,
-												 popHapIdColName,
-												 targetNameColName};
-	if (!exists(popSeqsDirFnp)) {
-		requiredColumns.emplace_back(popHapSeqColName);
-	}
 	uint64_t maxLen = 0;
 	//population seqs;
 	std::unordered_map<std::string, std::vector<seqInfo>> popSeqs;
-	auto sampInfoFnp = resultsFnp;
-	TableReader sampInfoReader(TableIOOpts::genTabFileIn(sampInfoFnp, true));
-	sampInfoReader.header_.checkForColumnsThrow(requiredColumns, __PRETTY_FUNCTION__);
-	VecStr row;
 	std::unordered_map<std::string, std::unordered_set<std::string>> allSamplesInOutput;
 	std::unordered_map<std::string, std::unordered_map<std::string, std::vector<seqInfo>>> allResultSeqs;
 
@@ -306,41 +334,21 @@ int SeekDeepUtilsRunner::benchmarkMultiTarAmpControlMixtures(
 		       (!excludeTargets.empty() && njh::notIn(target, excludeTargets));
 	};
 
-	while (sampInfoReader.getNextRow(row)) {
-		auto target = row[sampInfoReader.header_.getColPos(targetNameColName)];
-		//check if only including select targets or excluding targets
-		if(!passTargetFilter (target)) {
-			continue;
-		}
+	//add one haplotype call for a sample, calls with the same sequence in the same sample are combined
+	auto addHap = [&](const std::string & target, const std::string & sample, const std::string & h_popUID,
+										const std::string & hapSeq, double readCnt, double frac) {
 		targetNamesSet.emplace(target);
-		auto sample = row[sampInfoReader.header_.getColPos(sampleColName)];
-
-		auto c_ReadCnt = njh::StrToNumConverter::stoToNum<double>(
-						row[sampInfoReader.header_.getColPos(withinSampleReadCntColName)]);
-		auto c_AveragedFrac = njh::StrToNumConverter::stoToNum<double>(
-						row[sampInfoReader.header_.getColPos(withinSampleFreqColName)]);
-		auto readCnt = njh::StrToNumConverter::stoToNum<double>(
-						row[sampInfoReader.header_.getColPos(withinSampleReadCntColName)]);
-
-		auto h_popUID = row[sampInfoReader.header_.getColPos(popHapIdColName)];
 		auto hapName = njh::pasteAsStr(sample, "__", h_popUID);
-		std::string hapSeq;
-		if (popSeqsDirFnp.empty()) {
-			hPopUID_to_hConsensus[target][h_popUID] = row[sampInfoReader.header_.getColPos(popHapSeqColName)];
-			hapSeq = row[sampInfoReader.header_.getColPos(popHapSeqColName)];
-		} else {
-			hapSeq = njh::mapAt(njh::mapAt(hPopUID_to_hConsensus, target), h_popUID);
-		}
 		seqInfo clus(hapName, hapSeq);
-		clus.cnt_ = c_ReadCnt;
-		clus.frac_ = c_AveragedFrac;
+		clus.cnt_ = readCnt;
+		clus.frac_ = frac;
 		bool add = true;
 		for (auto &seq: allResultSeqs[target][sample]) {
 			if (seq.seq_ == clus.seq_) {
 				add = false;
-				seq.cnt_ += c_ReadCnt;
-				seq.frac_ += c_AveragedFrac;
-				readCountsPerHapPerSample[target][sample][hapName] += readCnt;
+				seq.cnt_ += readCnt;
+				seq.frac_ += frac;
+				readCountsPerHapPerSample[target][sample][seq.name_] += readCnt;
 				break;
 			}
 		}
@@ -353,12 +361,144 @@ int SeekDeepUtilsRunner::benchmarkMultiTarAmpControlMixtures(
 		cNameToPopUID[target][hapName] = h_popUID;
 		hPopUIDPopSamps[target][h_popUID].emplace(sample);
 		allSamplesInOutput[target].emplace(sample);
-	}
-	if (!exists(popSeqsDirFnp)) {
-		for (const auto &tarPopHaps: hPopUID_to_hConsensus) {
-			for (const auto &popHap: tarPopHaps.second) {
-				popSeqs[tarPopHaps.first].emplace_back(popHap.first, popHap.second);
+	};
+
+	if (!pmoFnp.empty()) {
+		auto pmoObj = pmo::readPmo(pmoFnp);
+		//a target can be in representative_microhaplotypes more than once, mhaps_target_id is the position in that list and mhap_id the position within that entry
+		std::vector<std::string> targetNameByMhapsId;
+		for (const auto &representatives: pmoObj.representative_microhaplotypes_.targets_) {
+			const auto &target = pmoObj.target_info_.at(representatives.target_id_).target_name_;
+			targetNameByMhapsId.emplace_back(target);
+			if (!passTargetFilter(target)) {
+				continue;
 			}
+			for (const auto mhapPos: iter::range(representatives.microhaplotypes_.size())) {
+				const auto &mhap = representatives.microhaplotypes_[mhapPos];
+				auto name = mhap.microhaplotype_name_.has_value()
+										? mhap.microhaplotype_name_.value()
+										: njh::pasteAsStr(target, ".", targetNameByMhapsId.size() - 1, ".", mhapPos);
+				hPopUID_to_hConsensus[target][name] = mhap.seq_;
+			}
+		}
+		auto mhapName = [&](uint32_t mhapsTargetId, uint32_t mhapId) {
+			const auto &mhap = pmoObj.representative_microhaplotypes_.targets_.at(mhapsTargetId).microhaplotypes_.at(mhapId);
+			return mhap.microhaplotype_name_.has_value()
+						 ? mhap.microhaplotype_name_.value()
+						 : njh::pasteAsStr(targetNameByMhapsId.at(mhapsTargetId), ".", mhapsTargetId, ".", mhapId);
+		};
+		//only the first set of results for a sample and target is used, later ones are counted and reported as a warning
+		std::map<std::string, std::set<std::string>> targetsDoneBySample;
+		std::map<std::string, uint32_t> repeatedResults;
+		for (const auto &run: pmoObj.detected_microhaplotypes_) {
+			for (const auto &sampleResults: run.library_samples_) {
+				const auto &sample = pmoObj.library_sample_info_.at(sampleResults.library_sample_id_).library_sample_name_;
+				for (const auto &targetResults: sampleResults.target_results_) {
+					const auto &target = targetNameByMhapsId.at(targetResults.mhaps_target_id_);
+					if (!passTargetFilter(target)) {
+						continue;
+					}
+					if (!targetsDoneBySample[sample].emplace(target).second) {
+						++repeatedResults[sample];
+						continue;
+					}
+					double totalReads = 0;
+					for (const auto &mhap: targetResults.mhaps_) {
+						totalReads += mhap.reads_;
+					}
+					for (const auto &mhap: targetResults.mhaps_) {
+						auto name = mhapName(targetResults.mhaps_target_id_, mhap.mhap_id_);
+						addHap(target, sample, name, njh::mapAt(njh::mapAt(hPopUID_to_hConsensus, target), name),
+									 mhap.reads_, totalReads > 0 ? mhap.reads_ / totalReads : 0);
+					}
+				}
+			}
+		}
+		for (const auto &repeated: repeatedResults) {
+			std::cerr << __PRETTY_FUNCTION__ << ", warning, " << repeated.first << " has more than one set of results for "
+								<< repeated.second << " targets in " << pmoFnp << ", only using the first of each" << std::endl;
+		}
+	} else {
+		//population seqs from --popSeqsDirFnp are read the first time their target comes up in the table
+		std::set<std::string> popSeqsLoaded;
+		auto loadPopSeqs = [&](const std::string & target) {
+			if (!popSeqsLoaded.emplace(target).second) {
+				return;
+			}
+			auto popSeqsFnp = njh::files::make_path(popSeqsDirFnp, target + ".fasta");
+			if (!exists(popSeqsFnp)) {
+				popSeqsFnp = njh::files::make_path(popSeqsDirFnp, target + ".fasta.gz");
+			}
+			if (!exists(popSeqsFnp)) {
+				std::stringstream ss;
+				ss << __PRETTY_FUNCTION__ << ", error " << "error, could not find population seqs file for target: " << target
+					 << ", should be " << njh::files::make_path(popSeqsDirFnp, target + ".fasta") << " or "
+					 << njh::files::make_path(popSeqsDirFnp, target + ".fasta.gz") << "\n";
+				throw std::runtime_error{ss.str()};
+			}
+			SeqInput reader{SeqIOOptions(popSeqsFnp, SeqIOOptions::getInFormatFromFnp(popSeqsFnp))};
+			reader.openIn();
+			seqInfo seq;
+			while (reader.readNextRead(seq)) {
+				readVec::getMaxLength(seq, maxLen);
+				seq.name_ = std::regex_replace(seq.name_, std::regex{popSeqsRegexPatRemoval}, "");
+				hPopUID_to_hConsensus[target][seq.name_] = seq.seq_;
+			}
+		};
+		VecStr requiredColumns{sampleColName, withinSampleReadCntColName,
+													 withinSampleFreqColName, withinSampleReadCntColName,
+													 popHapIdColName,
+													 targetNameColName};
+		if (!exists(popSeqsDirFnp)) {
+			requiredColumns.emplace_back(popHapSeqColName);
+		}
+		TableReader sampInfoReader(TableIOOpts::genTabFileIn(resultsFnp, true));
+		sampInfoReader.header_.checkForColumnsThrow(requiredColumns, __PRETTY_FUNCTION__);
+		VecStr row;
+		while (sampInfoReader.getNextRow(row)) {
+			auto target = row[sampInfoReader.header_.getColPos(targetNameColName)];
+			//check if only including select targets or excluding targets
+			if (!passTargetFilter(target)) {
+				continue;
+			}
+			auto sample = row[sampInfoReader.header_.getColPos(sampleColName)];
+			auto readCnt = njh::StrToNumConverter::stoToNum<double>(
+							row[sampInfoReader.header_.getColPos(withinSampleReadCntColName)]);
+			auto frac = njh::StrToNumConverter::stoToNum<double>(
+							row[sampInfoReader.header_.getColPos(withinSampleFreqColName)]);
+			auto h_popUID = row[sampInfoReader.header_.getColPos(popHapIdColName)];
+			std::string hapSeq;
+			if (popSeqsDirFnp.empty()) {
+				hapSeq = row[sampInfoReader.header_.getColPos(popHapSeqColName)];
+				hPopUID_to_hConsensus[target][h_popUID] = hapSeq;
+			} else {
+				loadPopSeqs(target);
+				const auto &targetSeqs = hPopUID_to_hConsensus[target];
+				auto search = targetSeqs.find(h_popUID);
+				if (targetSeqs.end() == search) {
+					VecStr foundNames;
+					for (const auto &popSeq: targetSeqs) {
+						foundNames.emplace_back(popSeq.first);
+					}
+					njh::naturalSortNameSet(foundNames);
+					if (foundNames.size() > 10) {
+						foundNames.resize(10);
+						foundNames.emplace_back("...");
+					}
+					std::stringstream ss;
+					ss << __PRETTY_FUNCTION__ << ", error " << "couldn't find " << h_popUID << " for target " << target
+						 << " in " << popSeqsDirFnp << " after removing --popSeqsRegexPatRemoval " << popSeqsRegexPatRemoval
+						 << " from the names, found: " << njh::conToStr(foundNames, ", ") << "\n";
+					throw std::runtime_error{ss.str()};
+				}
+				hapSeq = search->second;
+			}
+			addHap(target, sample, h_popUID, hapSeq, readCnt, frac);
+		}
+	}
+	for (const auto &tarPopHaps: hPopUID_to_hConsensus) {
+		for (const auto &popHap: tarPopHaps.second) {
+			popSeqs[tarPopHaps.first].emplace_back(popHap.first, popHap.second);
 		}
 	}
 	if(targetNamesSet.empty()) {
@@ -369,100 +509,60 @@ int SeekDeepUtilsRunner::benchmarkMultiTarAmpControlMixtures(
 	auto targetNames = std::vector<std::string>(targetNamesSet.begin(), targetNamesSet.end());
 	njh::naturalSortNameSet(targetNames);
 
-	//benchers
-	std::map<std::string, std::unique_ptr<ControlBencher>> benchers;
-
-	table sampleToMixTab(conBenchPars.samplesToMixFnp_, "\t", true);
-	table mixSetUpTab(conBenchPars.mixSetUpFnp_, "\t", true);
-
-	std::map<std::string, table> sampleToMixSplitTab;
-	std::map<std::string, table> mixSetUpSplitTab;
-
-	if (njh::in(targetNameColName, sampleToMixTab.columnNames_) &&
-			njh::in(targetNameColName, mixSetUpTab.columnNames_)) {
-		sampleToMixSplitTab = sampleToMixTab.splitTableOnColumn(targetNameColName);
-		mixSetUpSplitTab = mixSetUpTab.splitTableOnColumn(targetNameColName);
-		auto sampleToMixSplitTab_targetNames = njh::getVecOfMapKeys(sampleToMixSplitTab);
-		auto mixSetUpSplitTab_targetNames = njh::getVecOfMapKeys(mixSetUpSplitTab);
-
-		VecStr inSampToMix;
-		VecStr inMixSetup;
-		VecStr shared;
-		njh::decompose_sets(sampleToMixSplitTab_targetNames.begin(), sampleToMixSplitTab_targetNames.end(),
-												mixSetUpSplitTab_targetNames.begin(), mixSetUpSplitTab_targetNames.end(),
-												std::back_inserter(inSampToMix),
-												std::back_inserter(inMixSetup),
-												std::back_inserter(shared));
-		VecStr warnings;
-		if (!inSampToMix.empty()) {
-			warnings.emplace_back(
-							njh::pasteAsStr("error, found the following targets in ", conBenchPars.samplesToMixFnp_, " but not in ",
-															conBenchPars.mixSetUpFnp_,
-															"\n", njh::conToStr(inSampToMix, ",")));
+	//what each control sample is expected to have
+	ExpectedControls expected;
+	if (!expectedPmoFnp.empty()) {
+		expected = ExpectedControls::fromPmo(pmo::readPmo(expectedPmoFnp));
+		VecStr expectedTargets;
+		for (const auto &target: expected.targetNames()) {
+			if (passTargetFilter(target)) {
+				expectedTargets.emplace_back(target);
+			}
 		}
-		if (!inMixSetup.empty()) {
-			warnings.emplace_back(
-							njh::pasteAsStr("error, found the following targets in ", conBenchPars.mixSetUpFnp_, " but not in ",
-															conBenchPars.samplesToMixFnp_,
-															"\n", njh::conToStr(inMixSetup, ",")));
-		}
-		if (!warnings.empty()) {
-			std::stringstream ss;
-			ss << __PRETTY_FUNCTION__ << ", error " << " found the following errors" << "\n";
-			throw std::runtime_error{ss.str()};
-		}
-		targetNames = shared;
-		njh::naturalSortNameSet(targetNames);
-	}
-	if (mixSetUpSplitTab.empty()) {
+		VecStr noExpectations;
 		for (const auto &target: targetNames) {
-			benchers[target] = std::make_unique<ControlBencher>(conBenchPars);
+			if (!njh::in(target, expectedTargets)) {
+				noExpectations.emplace_back(target);
+			}
 		}
+		if (!noExpectations.empty()) {
+			std::cerr << __PRETTY_FUNCTION__ << ", warning, " << "no expected results in " << expectedPmoFnp
+								<< " for the following targets so they won't be benchmarked: " << njh::conToStr(noExpectations, ",")
+								<< std::endl;
+		}
+		targetNames = expectedTargets;
 	} else {
-		for (const auto &target: targetNames) {
-			benchers[target] = std::make_unique<ControlBencher>(
-							njh::mapAt(mixSetUpSplitTab, target),
-							njh::mapAt(sampleToMixSplitTab, target)
-			);
-		}
-	}
-
-
-
-	if (exists(popSeqsDirFnp)) {
-		seqInfo seq;
-		for (const auto &target: targetNames) {
-			if (!bfs::exists(njh::files::make_path(popSeqsDirFnp, target + ".fasta")) &&
-					!bfs::exists(njh::files::make_path(popSeqsDirFnp, target + ".fasta.gz"))
-							) {
-				std::stringstream ss;
-				ss << __PRETTY_FUNCTION__ << ", error " << "error, could not find population seqs file for target: " << target
-					 << ", should be " << njh::files::make_path(popSeqsDirFnp, target + ".fasta") << " or "
-					 << njh::files::make_path(popSeqsDirFnp, target + ".fasta.gz") << "\n";
-				throw std::runtime_error{ss.str()};
-			}
-			auto popSeqsFnp = njh::files::make_path(popSeqsDirFnp, target + ".fasta");
-			if (!exists(popSeqsFnp)) {
-				popSeqsFnp = njh::files::make_path(popSeqsDirFnp, target + ".fasta.gz");
-			}
-			SeqInput reader{SeqIOOptions(popSeqsFnp, SeqIOOptions::getInFormatFromFnp(popSeqsFnp))};
-			reader.openIn();
-			while (reader.readNextRead(seq)) {
-				readVec::getMaxLength(seq, maxLen);
-				seq.name_ = std::regex_replace(seq.name_, std::regex{popSeqsRegexPatRemoval}, "");
-				hPopUID_to_hConsensus[target][seq.name_] = seq.seq_;
+		ExpectedControls::FromMixturesPars mixPars;
+		mixPars.samplesToMixFnp_ = conBenchPars.samplesToMixFnp_;
+		mixPars.mixSetUpFnp_ = conBenchPars.mixSetUpFnp_;
+		mixPars.expectedSeqsDirFnp_ = expectedSeqsDirFnp;
+		mixPars.strainAllelesFnp_ = strainAllelesFnp;
+		mixPars.targetNameColName_ = targetNameColName;
+		mixPars.trimFront_ = trimFront;
+		mixPars.trimBack_ = trimBack;
+		//if the mixture tables are split by target, use their targets
+		auto tableTargets = ExpectedControls::mixtureTableTargets(mixPars);
+		if (!tableTargets.empty()) {
+			targetNames.clear();
+			for (const auto &target: tableTargets) {
+				if (passTargetFilter(target)) {
+					targetNames.emplace_back(target);
+				}
 			}
 		}
+		expected = ExpectedControls::fromMixtures(mixPars, targetNames);
 	}
+	if (targetNames.empty()) {
+		std::stringstream ss;
+		ss << __PRETTY_FUNCTION__ << ", error " << "no targets to benchmark, if excluding or selecting only specific targets there may now be no targets" << "\n";
+		throw std::runtime_error{ss.str()};
+	}
+	maxLen = std::max<uint64_t>(maxLen, expected.maxSeqLen());
 
 	//check for samples in analysis
-	std::unordered_map<std::string, std::set<std::string>> missingSamples;
-	std::unordered_map<std::string, std::set<std::string>> controlSamples;
+	std::map<std::string, std::set<std::string>> missingSamples;
 	for (const auto &target: targetNames) {
-		auto currentControlSamples = benchers[target]->getSamples();
-		controlSamples[target].insert(currentControlSamples.begin(), currentControlSamples.end());
-		for (const auto &sname: currentControlSamples) {
-			//if (!analysisMaster.hasSample(sname)) {
+		for (const auto &sname: expected.samples(target)) {
 			if (!njh::in(sname, allSamplesInOutput[target])) {
 				missingSamples[target].emplace(sname);
 			}
@@ -472,135 +572,34 @@ int SeekDeepUtilsRunner::benchmarkMultiTarAmpControlMixtures(
 	if (!skipMissingSamples && !missingSamples.empty()) {
 		std::stringstream ss;
 		ss << __PRETTY_FUNCTION__ << ", error "
-			 << "missing the following samples in " << resultsFnp << " for targets" << "\n";
+			 << "missing the following samples in " << inputFnp << " for targets" << "\n";
 		for (const auto &missing: missingSamples) {
 			ss << "tar: " << missing.first << ", samples: " << njh::conToStrEndSpecial(missing.second, ", ", " and ") << "\n";
 		}
-
 		throw std::runtime_error{ss.str()};
 	} else if (skipMissingSamples && !missingSamples.empty()) {
 		OutOptions outOptsMissing(njh::files::make_path(setUp.pars_.directoryName_, "missingSamples.txt"));
 		OutputStream outMissing(outOptsMissing);
 		outMissing << "target\tsample" << std::endl;
-		for (const auto &missing: missingSamples) {
-			for (const auto &samp: missing.second) {
-				outMissing << missing.first << "\t" << samp << std::endl;
-			}
-		}
-	}
-
-
-
-	//read in expected seqs
-	std::unordered_map<std::string, std::vector<std::shared_ptr<seqInfo>>> initialExpSeqs;
-	for (const auto &target: targetNames) {
-		if (!bfs::exists(njh::files::make_path(expectedSeqsDirFnp, target + ".fasta")) &&
-				!bfs::exists(njh::files::make_path(expectedSeqsDirFnp, target + ".fasta.gz"))
-						) {
-			std::stringstream ss;
-			ss << __PRETTY_FUNCTION__ << ", error " << "error, could not find population seqs file for target: " << target
-				 << ", should be " << njh::files::make_path(expectedSeqsDirFnp, target + ".fasta") << " or "
-				 << njh::files::make_path(expectedSeqsDirFnp, target + ".fasta.gz") << "\n";
-			throw std::runtime_error{ss.str()};
-		}
-		auto expectedSeqsFnp = njh::files::make_path(expectedSeqsDirFnp, target + ".fasta");
-		if (!exists(expectedSeqsFnp)) {
-			expectedSeqsFnp = njh::files::make_path(expectedSeqsDirFnp, target + ".fasta.gz");
-		}
-		SeqInput expSeqsSeqIn{SeqIOOptions(expectedSeqsFnp, SeqIOOptions::getInFormatFromFnp(expectedSeqsFnp))};
-		initialExpSeqs[target] = expSeqsSeqIn.readAllReadsPtrs<seqInfo>();
-	}
-
-
-
-	//check the needed expected names
-	std::map<std::string, std::map<std::string, uint32_t>> initialExpSeqsPositions;
-	std::map<std::string, std::map<std::string, std::string>> expSeqsKey;
-	std::map<std::string, std::map<std::string, VecStr>> matchingExpectedSeqs;
-	std::map<std::string, std::vector<std::shared_ptr<seqInfo>>> expSeqs;
-	std::map<std::string, std::map<std::string, uint32_t> > finalExpSeqsPositions;
-
-	for (const auto &target: targetNames) {
-		VecStr removeSeqs;
-		std::set<std::string> expNames;
-
-		for (const auto &expSeq: initialExpSeqs[target]) {
-
-			if (std::all_of(expSeq->seq_.begin(), expSeq->seq_.end(),
-											[](const char base) {
-												return 'N' == base || 'n' == base;
-											})) {
-				removeSeqs.emplace_back(expSeq->name_);
+		for (const auto &target: targetNames) {
+			if (!njh::in(target, missingSamples)) {
 				continue;
 			}
-
-			if (njh::in(expSeq->name_, expNames)) {
-				std::stringstream ss;
-				ss << __PRETTY_FUNCTION__ << ", error " << " already have expected sequence named " << expSeq->name_ << "\n";
-				throw std::runtime_error{ss.str()};
+			for (const auto &samp: missingSamples.at(target)) {
+				outMissing << target << "\t" << samp << std::endl;
 			}
-
-			expNames.emplace(expSeq->name_);
-			bool found = false;
-			for (const auto otherSeqPos: iter::range(expSeqs[target].size())) {
-				const auto &otherSeq = expSeqs[target][otherSeqPos];
-				if (otherSeq->seq_ == expSeq->seq_) {
-					found = true;
-					otherSeq->name_ += "," + expSeq->name_;
-					initialExpSeqsPositions[target][expSeq->name_] = otherSeqPos;
-					break;
-				}
-			}
-
-			if (!found) {
-				//if not found add
-				//add position of the expected seq
-				initialExpSeqsPositions[target][expSeq->name_] = expSeqs[target].size();
-				expSeqs[target].emplace_back(std::make_shared<seqInfo>(*expSeq));
-			}
-		}
-
-		//remove ref seqs that were zero;
-		benchers[target]->removeStrains(removeSeqs);
-
-
-
-		//
-
-		for (const auto expSeqPos: iter::range(expSeqs[target].size())) {
-			readVec::getMaxLength(expSeqs[target][expSeqPos], maxLen);
-			expSeqsKey[target][expSeqs[target][expSeqPos]->name_] = expSeqs[target][expSeqPos]->name_;
-			finalExpSeqsPositions[target][expSeqs[target][expSeqPos]->name_] = expSeqPos;
-		}
-		try {
-			benchers[target]->checkForStrainsThrow(expNames, __PRETTY_FUNCTION__);
-		} catch (std::exception & e) {
-			std::stringstream ss;
-			ss << __PRETTY_FUNCTION__ << ", error for: " << target << "\n" << e.what() << "\n";
-			throw std::runtime_error{ss.str()};
 		}
 	}
-	bfs::copy(njh::files::normalize(conBenchPars.samplesToMixFnp_), njh::files::make_path(setUp.pars_.directoryName_, "samplesToMix.tsv"));
-	if (njh::in(targetNameColName, sampleToMixTab.columnNames_) &&
-			njh::in(targetNameColName, mixSetUpTab.columnNames_)) {
-		//all benches are basically the same so just use the beginning
-		OutputStream mixOut(njh::files::make_path(setUp.pars_.directoryName_, "mixSetUps.tsv"));
-		table allMixTab;
-		auto tarBenchNames = njh::getVecOfMapKeys(benchers);
-		njh::naturalSortNameSet(tarBenchNames);
-		for (const auto &tarBenchName: tarBenchNames) {
-			auto mixTab = benchers.at(tarBenchName)->genMixSetUpsInSamplesTab();
-			mixTab.addColumn(VecStr{tarBenchName}, targetNameColName);
-			if (allMixTab.empty()) {
-				allMixTab = mixTab;
-			} else {
-				allMixTab.rbind(mixTab, false);
-			}
-		}
-		allMixTab.outPutContents(mixOut, "\t");
+
+	if (expectedPmoFnp.empty()) {
+		bfs::copy(njh::files::normalize(conBenchPars.samplesToMixFnp_), njh::files::make_path(setUp.pars_.directoryName_, "samplesToMix.tsv"));
 	} else {
-		benchers.begin()->second->writeMixSetUpsInSamples(
-						njh::files::make_path(setUp.pars_.directoryName_, "mixSetUps.tsv"));
+		OutputStream samplesToMixOut(njh::files::make_path(setUp.pars_.directoryName_, "samplesToMix.tsv"));
+		expected.genSamplesToMixTab().outPutContents(samplesToMixOut, "\t");
+	}
+	{
+		OutputStream mixOut(njh::files::make_path(setUp.pars_.directoryName_, "mixSetUps.tsv"));
+		expected.genMixSetUpsTab(targetNameColName).outPutContents(mixOut, "\t");
 	}
 
 	OutputStream falseHaplotypesToExpClassified(
@@ -612,9 +611,7 @@ int SeekDeepUtilsRunner::benchmarkMultiTarAmpControlMixtures(
 	falseHaplotypesToOtherResultsClassified
 					<< "AnalysisName\tsample\tmix\tInputReadName\treadCnt\tfrac\tOtherName\tOtherReadCnt\tOtherFrac\tratio\tOtherMajor\tOtherMatchesExpected\tOtherExpectedMatchName\tIdentityScore\tbestMatchScore\tmismatches\toneBaseIndels\ttwoBaseIndels\tlargeIndels\ttotalErrors";
 
-
 	OutputStream haplotypesClassified(njh::files::make_path(setUp.pars_.directoryName_, "classifiedHaplotypes.tsv"));
-	//haplotypesClassified << "AnalysisName\tsample\tmix\tInputReadName\tHapPopUID\tHapSampleCount\treadCnt\tfrac\tmatchExpected\texpectedRef\texpectedFrac\tMajorOrMinor\tmatchingPopulation\tPopName";
 	haplotypesClassified
 					<< "AnalysisName\tsample\tmix\tInputReadName\tHapPopUID\tHapSampleCount\treadCnt\tfrac\tmatchExpected\texpectedRef\texpectedFrac\tMajorOrMinor";
 	OutputStream performanceOut(njh::files::make_path(setUp.pars_.directoryName_, "performancePerTarget.tsv"));
@@ -658,23 +655,68 @@ int SeekDeepUtilsRunner::benchmarkMultiTarAmpControlMixtures(
 	performanceOut << std::endl;
 	falseHaplotypesToExpClassified << std::endl;
 	falseHaplotypesToOtherResultsClassified << std::endl;
+
+	//the meta data and new columns that end every row
+	auto addExtraColumns = [&](std::ostream &out, const std::string &sname) {
+		if (nullptr != metaGroupData) {
+			for (const auto &meta: metalevels) {
+				out << "\t" << metaGroupData->groupData_[meta]->getGroupForSample(sname);
+			}
+		}
+		for (const auto &ele: newColumnEleToks) {
+			out << "\t" << ele;
+		}
+		out << std::endl;
+	};
+
+	//per sample expected haplotypes, the expected alleles with the same sequence combined
+	struct CurrentExpected {
+		std::vector<seqInfo> seqs_;
+		std::map<std::string, double> fracs_;
+		std::map<std::string, std::string> majorClass_;
+		std::map<std::string, std::string> nameKey_;
+
+		[[nodiscard]] double frac(const std::string &name) const {
+			auto search = fracs_.find(name);
+			return fracs_.end() == search ? 0 : search->second;
+		}
+
+		[[nodiscard]] std::string majorOrMinor(const std::string &name) const {
+			auto search = majorClass_.find(name);
+			return majorClass_.end() == search ? std::string("") : search->second;
+		}
+	};
+	auto getCurrentExpected = [&expected](const std::string &target, const std::string &sname) {
+		CurrentExpected ret;
+		double maxExpFrac = 0;
+		for (const auto &hap: expected.targets_.at(target).at(sname).collapsed()) {
+			ret.seqs_.emplace_back(hap.name_, hap.seq_);
+			ret.fracs_[hap.name_] = hap.frac_;
+			ret.nameKey_[hap.name_] = hap.name_;
+			maxExpFrac = std::max(maxExpFrac, hap.frac_);
+		}
+		for (const auto &expFrac: ret.fracs_) {
+			ret.majorClass_[expFrac.first] = expFrac.second == maxExpFrac ? "major" : "minor";
+		}
+		return ret;
+	};
+
 	aligner alignerObj(maxLen, gapScoringParameters(5, 1, 0, 0, 0, 0));
 	alignerObj.weighHomopolymers_ = setUp.pars_.colOpts_.iTOpts_.weighHomopolyer_;
 	alignerObj.countEndGaps_ = setUp.pars_.colOpts_.alignOpts_.countEndGaps_;
 	alignerObj.processAlnInfoInput(setUp.pars_.alnInfoDirName_, false);
 	for (const auto &target: targetNames) {
-		if(setUp.pars_.verbose_){
+		if (setUp.pars_.verbose_) {
 			std::cout << "target: " << target << std::endl;
 		}
 
-		for (const auto &sname: njh::mapAt(controlSamples,target )) {
-			//skip completely missing
-			if (skipMissingSamples && njh::in(sname, missingSamples)) {
+		for (const auto &sname: expected.samples(target)) {
+			//missing samples are only here with --skipMissingSamples, --fillInMissingSamples adds them below
+			if (njh::in(sname, missingSamples[target])) {
 				continue;
 			}
-
+			const auto &mix = expected.targets_.at(target).at(sname).mix_;
 			const std::vector<seqInfo> &resultSeqs = allResultSeqs[target][sname];
-
 
 			std::map<std::string, uint32_t> resSeqToPos;
 			double maxResFrac = 0;
@@ -684,141 +726,53 @@ int SeekDeepUtilsRunner::benchmarkMultiTarAmpControlMixtures(
 					maxResFrac = resultSeqs[pos].frac_;
 				}
 			}
-
-
-			//get current expected seqs
-			std::map<std::string, double> currentExpectedSeqsFrac;
-			double maxExpFrac = 0;
-			std::map<std::string, VecStr> expectedSeqNameToCurrentSeqsKey;
-
-
-			for (const auto &expSeqFrac: benchers[target]->mixSetups_.at(
-							benchers[target]->samplesToMix_.at(sname)).relativeAbundances_) {
-				currentExpectedSeqsFrac[expSeqs[target][initialExpSeqsPositions[target][expSeqFrac.first]]->name_] += expSeqFrac.second;
-				expectedSeqNameToCurrentSeqsKey[expSeqs[target][initialExpSeqsPositions[target][expSeqFrac.first]]->name_].emplace_back(
-								expSeqFrac.first);
-			}
-			for (auto &key: expectedSeqNameToCurrentSeqsKey) {
-//			std::cout << "key: " << key.first << std::endl;
-//			std::cout << "\t" << njh::conToStr(key.second, ",") << std::endl;
-				njh::sort(key.second);
-			}
-
-
-			for (const auto &expFrac: currentExpectedSeqsFrac) {
-				if (expFrac.second > maxExpFrac) {
-					maxExpFrac = expFrac.second;
-				}
-			}
-
-
-			std::map<std::string, std::string> expectedToMajorClass;
-			for (const auto &expFrac: currentExpectedSeqsFrac) {
-				if (expFrac.second == maxExpFrac) {
-					expectedToMajorClass[expFrac.first] = "major";
-				} else {
-					expectedToMajorClass[expFrac.first] = "minor";
-				}
-			}
 			std::map<std::string, std::string> resultsToMajorClass;
 			for (const auto &res: resultSeqs) {
-				if (res.frac_ == maxResFrac) {
-					resultsToMajorClass[res.name_] = "major";
-				} else {
-					resultsToMajorClass[res.name_] = "minor";
-				}
+				resultsToMajorClass[res.name_] = res.frac_ == maxResFrac ? "major" : "minor";
 			}
 
-
-			std::vector<std::shared_ptr<seqInfo>> currentExpectedSeqs;
-			currentExpectedSeqs.reserve(currentExpectedSeqsFrac.size());
-			for (const auto &finalExp: currentExpectedSeqsFrac) {
-				currentExpectedSeqs.emplace_back(expSeqs[target][finalExpSeqsPositions[target][finalExp.first]]);
-			}
-
-			auto res = njhseq::ControlBencher::benchmark(resultSeqs, currentExpectedSeqs,
-																									 currentExpectedSeqsFrac,
-																									 expSeqsKey[target], alignerObj, allowableError);
+			auto current = getCurrentExpected(target, sname);
+			auto res = njhseq::ControlBencher::benchmark(resultSeqs, current.seqs_, current.fracs_, current.nameKey_,
+																									 alignerObj, allowableError);
 			double total = 0;
-
-
 
 			//haplotype classification
 			for (const auto &seq: resultSeqs) {
 				total += readCountsPerHapPerSample[target][sname][seq.name_];
+				const auto &matchingExpected = res.resSeqToExpSeq_[seq.name_];
 				haplotypesClassified << target
 														 << "\t" << sname
-														 << "\t" << benchers[target]->samplesToMix_[sname]
+														 << "\t" << mix
 														 << "\t" << seq.name_
 														 << "\t" << cNameToPopUID[target][seq.name_]
 														 << "\t" << hPopUIDPopSamps[target][cNameToPopUID[target][seq.name_]].size()
 														 << "\t" << readCountsPerHapPerSample[target][sname][seq.name_]
 														 << "\t" << seq.frac_
-														 << "\t" << (res.resSeqToExpSeq_[seq.name_].empty() ? "FALSE" : "TRUE")
-														 << "\t"
-														 << njh::conToStr(expectedSeqNameToCurrentSeqsKey[res.resSeqToExpSeq_[seq.name_]], ",")
-														 << "\t" << currentExpectedSeqsFrac[res.resSeqToExpSeq_[seq.name_]]
-														 << "\t" << expectedToMajorClass[res.resSeqToExpSeq_[seq.name_]];
-
-				std::string matchingPop;
-				for (const auto &popSeq: popSeqs[target]) {
-					if (popSeq.seq_ == seq.seq_) {
-						matchingPop = popSeq.name_;
-						break;
-					}
-				}
-//			haplotypesClassified
-//							<< "\t" << (matchingPop.empty() ? "TRUE" : "FALSE")
-//							<< "\t" << matchingPop;
-				if (nullptr != metaGroupData) {
-					for (const auto &meta: metalevels) {
-						haplotypesClassified << "\t" << metaGroupData->groupData_[meta]->getGroupForSample(sname);
-					}
-				}
-				if (!newColumnToks.empty()) {
-					for (const auto &ele: newColumnEleToks) {
-						haplotypesClassified << "\t" << ele;
-					}
-				}
-				haplotypesClassified << std::endl;
+														 << "\t" << (matchingExpected.empty() ? "FALSE" : "TRUE")
+														 << "\t" << matchingExpected
+														 << "\t" << current.frac(matchingExpected)
+														 << "\t" << current.majorOrMinor(matchingExpected);
+				addExtraColumns(haplotypesClassified, sname);
 			}
 			for (const auto &missing: res.missingExpecteds_) {
 				haplotypesClassified << target
 														 << "\t" << sname
-														 << "\t" << benchers[target]->samplesToMix_[sname]
+														 << "\t" << mix
 														 << "\t" << "NA"
 														 << "\t" << "NA"
 														 << "\t" << "NA"
 														 << "\t" << "NA"
 														 << "\t" << "NA"
 														 << "\t" << "NA"
-														 << "\t" << njh::conToStr(expectedSeqNameToCurrentSeqsKey[missing], ",")
-														 << "\t" << currentExpectedSeqsFrac[missing]
-														 << "\t" << expectedToMajorClass[missing];
-
-//			haplotypesClassified
-//							<< "\t" << "NA"
-//							<< "\t" << "NA";
-				if (nullptr != metaGroupData) {
-					for (const auto &meta: metalevels) {
-						haplotypesClassified << "\t" << metaGroupData->groupData_[meta]->getGroupForSample(sname);
-					}
-				}
-				if (!newColumnToks.empty()) {
-					for (const auto &ele: newColumnEleToks) {
-						haplotypesClassified << "\t" << ele;
-					}
-				}
-				haplotypesClassified << std::endl;
+														 << "\t" << missing
+														 << "\t" << current.frac(missing)
+														 << "\t" << current.majorOrMinor(missing);
+				addExtraColumns(haplotypesClassified, sname);
 			}
 			//performance
-			VecStr missingExpectedDecoded;
-			for (const auto &missing: res.missingExpecteds_) {
-				missingExpectedDecoded.emplace_back(njh::conToStr(expectedSeqNameToCurrentSeqsKey[missing], ","));
-			}
 			performanceOut << target
 										 << "\t" << sname
-										 << "\t" << benchers[target]->samplesToMix_[sname]
+										 << "\t" << mix
 										 << "\t" << total
 										 << "\t" << res.recoveredHaps_
 										 << "\t" << res.falseHaps_
@@ -826,21 +780,9 @@ int SeekDeepUtilsRunner::benchmarkMultiTarAmpControlMixtures(
 										 << "\t" << res.expectedHapCnt_
 										 << "\t" << res.hapRecoveryRate()
 										 << "\t" << res.falseHapRate()
-										 << "\t" << njh::conToStr(missingExpectedDecoded, ";")
+										 << "\t" << njh::conToStr(res.missingExpecteds_, ";")
 										 << "\t" << res.RMSE();
-			if (nullptr != metaGroupData) {
-				for (const auto &meta: metalevels) {
-					performanceOut << "\t" << metaGroupData->groupData_[meta]->getGroupForSample(sname);
-				}
-			}
-			if (!newColumnToks.empty()) {
-				for (const auto &ele: newColumnEleToks) {
-					performanceOut << "\t" << ele;
-				}
-			}
-			performanceOut << std::endl;
-
-
+			addExtraColumns(performanceOut, sname);
 
 			//further classification of false haplotypes to expected
 			for (const auto &falseHap: res.falseHapsCompsToExpected) {
@@ -853,13 +795,13 @@ int SeekDeepUtilsRunner::benchmarkMultiTarAmpControlMixtures(
 				for (const auto &exp: falseHap.second) {
 					falseHaplotypesToExpClassified << target
 																				 << "\t" << sname
-																				 << "\t" << benchers[target]->samplesToMix_[sname]
+																				 << "\t" << mix
 																				 << "\t" << falseHap.first
 																				 << "\t" << readCountsPerHapPerSample[target][sname][falseHap.first]
 																				 << "\t" << resultSeqs[resSeqToPos[falseHap.first]].frac_
 																				 << "\t" << exp.first
-																				 << "\t" << currentExpectedSeqsFrac[exp.first]
-																				 << "\t" << expectedToMajorClass[exp.first]
+																				 << "\t" << current.frac(exp.first)
+																				 << "\t" << current.majorOrMinor(exp.first)
 																				 << "\t" << exp.second.distances_.eventBasedIdentityHq_
 																				 << "\t"
 																				 << (exp.second.distances_.eventBasedIdentityHq_ == bestScore ? "TRUE"
@@ -870,17 +812,7 @@ int SeekDeepUtilsRunner::benchmarkMultiTarAmpControlMixtures(
 																				 << "\t" << exp.second.twoBaseIndel_
 																				 << "\t" << exp.second.largeBaseIndel_
 																				 << "\t" << exp.second.distances_.getNumOfEvents(true);
-					if (nullptr != metaGroupData) {
-						for (const auto &meta: metalevels) {
-							falseHaplotypesToExpClassified << "\t" << metaGroupData->groupData_[meta]->getGroupForSample(sname);
-						}
-					}
-					if (!newColumnToks.empty()) {
-						for (const auto &ele: newColumnEleToks) {
-							falseHaplotypesToExpClassified << "\t" << ele;
-						}
-					}
-					falseHaplotypesToExpClassified << std::endl;
+					addExtraColumns(falseHaplotypesToExpClassified, sname);
 				}
 			}
 
@@ -895,7 +827,7 @@ int SeekDeepUtilsRunner::benchmarkMultiTarAmpControlMixtures(
 				for (const auto &other: falseHap.second) {
 					falseHaplotypesToOtherResultsClassified << target
 																									<< "\t" << sname
-																									<< "\t" << benchers[target]->samplesToMix_[sname]
+																									<< "\t" << mix
 																									<< "\t" << falseHap.first
 																									<< "\t" << readCountsPerHapPerSample[target][sname][falseHap.first]
 																									<< "\t" << resultSeqs[resSeqToPos[falseHap.first]].frac_
@@ -919,142 +851,48 @@ int SeekDeepUtilsRunner::benchmarkMultiTarAmpControlMixtures(
 																									<< "\t" << other.second.twoBaseIndel_
 																									<< "\t" << other.second.largeBaseIndel_
 																									<< "\t" << other.second.distances_.getNumOfEvents(true);
-					if (nullptr != metaGroupData) {
-						for (const auto &meta: metalevels) {
-							falseHaplotypesToOtherResultsClassified << "\t"
-																											<< metaGroupData->groupData_[meta]->getGroupForSample(sname);
-						}
-					}
-					if (!newColumnToks.empty()) {
-						for (const auto &ele: newColumnEleToks) {
-							falseHaplotypesToOtherResultsClassified << "\t" << ele;
-						}
-					}
-					falseHaplotypesToOtherResultsClassified << std::endl;
+					addExtraColumns(falseHaplotypesToOtherResultsClassified, sname);
 				}
 			}
 		}
 
-
 		if (fillInMissingSamples) {
 			for (const auto &sname: missingSamples[target]) {
-
-				const std::vector<seqInfo> &resultSeqs = allResultSeqs[target][sname];
-
-				std::map<std::string, uint32_t> resSeqToPos;
-				double maxResFrac = 0;
-				for (const auto pos: iter::range(resultSeqs.size())) {
-					resSeqToPos[resultSeqs[pos].name_] = pos;
-					if (resultSeqs[pos].frac_ > maxResFrac) {
-						maxResFrac = resultSeqs[pos].frac_;
-					}
-				}
-				//get current expected seqs
-				std::map<std::string, double> currentExpectedSeqsFrac;
-				double maxExpFrac = 0;
-				std::map<std::string, VecStr> expectedSeqNameToCurrentSeqsKey;
-
-
-				for (const auto &expSeqFrac: benchers[target]->mixSetups_.at(
-								benchers[target]->samplesToMix_.at(sname)).relativeAbundances_) {
-					currentExpectedSeqsFrac[expSeqs[target][initialExpSeqsPositions[target][expSeqFrac.first]]->name_] += expSeqFrac.second;
-					expectedSeqNameToCurrentSeqsKey[expSeqs[target][initialExpSeqsPositions[target][expSeqFrac.first]]->name_].emplace_back(
-									expSeqFrac.first);
-				}
-				for (auto &key: expectedSeqNameToCurrentSeqsKey) {
-					njh::sort(key.second);
-				}
-				for (const auto &expFrac: currentExpectedSeqsFrac) {
-					if (expFrac.second > maxExpFrac) {
-						maxExpFrac = expFrac.second;
-					}
-				}
-
-				std::map<std::string, std::string> expectedToMajorClass;
-				for (const auto &expFrac: currentExpectedSeqsFrac) {
-					if (expFrac.second == maxExpFrac) {
-						expectedToMajorClass[expFrac.first] = "major";
-					} else {
-						expectedToMajorClass[expFrac.first] = "minor";
-					}
-				}
-				std::map<std::string, std::string> resultsToMajorClass;
-				for (const auto &res: resultSeqs) {
-					if (res.frac_ == maxResFrac) {
-						resultsToMajorClass[res.name_] = "major";
-					} else {
-						resultsToMajorClass[res.name_] = "minor";
-					}
-				}
-
-
-
-				std::vector<std::shared_ptr<seqInfo>> currentExpectedSeqs;
-				currentExpectedSeqs.reserve(currentExpectedSeqsFrac.size());
-				for (const auto &finalExp: currentExpectedSeqsFrac) {
-					currentExpectedSeqs.push_back(expSeqs[target][finalExpSeqsPositions[target][finalExp.first]]);
-				}
-				VecStr missingExpectedDecoded;
-				for (const auto &missing: currentExpectedSeqs) {
-					missingExpectedDecoded.emplace_back(njh::conToStr(expectedSeqNameToCurrentSeqsKey[missing->name_], ","));
-				}
+				const auto &mix = expected.targets_.at(target).at(sname).mix_;
+				auto current = getCurrentExpected(target, sname);
+				auto expectedNames = readVec::getNames(current.seqs_);
 				//performance
 				performanceOut << target
 											 << "\t" << sname
-											 << "\t" << benchers[target]->samplesToMix_[sname]
+											 << "\t" << mix
 											 << "\t" << 0
 											 << "\t" << 0
 											 << "\t" << 0
 											 << "\t" << 0
-											 << "\t" << currentExpectedSeqs.size()
+											 << "\t" << current.seqs_.size()
 											 << "\t" << 0
 											 << "\t" << 0
-											 << "\t" << njh::conToStr(missingExpectedDecoded, ";")
+											 << "\t" << njh::conToStr(expectedNames, ";")
 											 << "\t" << 0;
-				if (nullptr != metaGroupData) {
-					for (const auto &meta: metalevels) {
-						performanceOut << "\t" << metaGroupData->groupData_[meta]->getGroupForSample(sname);
-					}
-				}
-				if (!newColumnToks.empty()) {
-					for (const auto &ele: newColumnEleToks) {
-						performanceOut << "\t" << ele;
-					}
-				}
-				performanceOut << std::endl;
-				for (const auto &missing: readVec::getNames(currentExpectedSeqs)) {
+				addExtraColumns(performanceOut, sname);
+				for (const auto &missing: expectedNames) {
 					haplotypesClassified << target
 															 << "\t" << sname
-															 << "\t" << benchers[target]->samplesToMix_[sname]
+															 << "\t" << mix
 															 << "\t" << "NA"
 															 << "\t" << "NA"
 															 << "\t" << "NA"
 															 << "\t" << "NA"
 															 << "\t" << "NA"
 															 << "\t" << "NA"
-															 << "\t" << njh::conToStr(expectedSeqNameToCurrentSeqsKey[missing], ",")
-															 << "\t" << currentExpectedSeqsFrac[missing]
-															 << "\t" << expectedToMajorClass[missing];
-
-//				haplotypesClassified
-//								<< "\t" << "NA"
-//								<< "\t" << "NA";
-					if (nullptr != metaGroupData) {
-						for (const auto &meta: metalevels) {
-							haplotypesClassified << "\t" << metaGroupData->groupData_[meta]->getGroupForSample(sname);
-						}
-					}
-					if (!newColumnToks.empty()) {
-						for (const auto &ele: newColumnEleToks) {
-							haplotypesClassified << "\t" << ele;
-						}
-					}
-					haplotypesClassified << std::endl;
+															 << "\t" << missing
+															 << "\t" << current.frac(missing)
+															 << "\t" << current.majorOrMinor(missing);
+					addExtraColumns(haplotypesClassified, sname);
 				}
 			}
 		}
 	}
-
 
 	OutputStream qmdOut(njh::files::make_path(setUp.pars_.directoryName_, "process.qmd"));
 	qmdOut << plotMultiTargetResultsQmd << std::endl;

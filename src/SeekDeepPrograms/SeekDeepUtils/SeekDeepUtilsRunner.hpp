@@ -50,6 +50,7 @@ class SeekDeepUtilsRunner : public njh::progutils::ProgramRunner {
   static int benchmarkControlMixturesOnProcessedClustersDir(const njh::progutils::CmdArgs & inputCommands);
   static int benchmarkTarAmpControlMixtures(const njh::progutils::CmdArgs & inputCommands);
   static int benchmarkMultiTarAmpControlMixtures(const njh::progutils::CmdArgs & inputCommands);
+  static int mixturesToExpectedPmo(const njh::progutils::CmdArgs & inputCommands);
 
   static int gatherInfoOnTargetedAmpliconSeqFile(const njh::progutils::CmdArgs & inputCommands);
 
