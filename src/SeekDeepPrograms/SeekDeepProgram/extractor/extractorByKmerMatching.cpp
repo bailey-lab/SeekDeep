@@ -25,7 +25,7 @@ struct MultihitSplitter {
 		uint32_t minKmers_ = 20;      ///< unique k-mer hits a stretch needs to count as an amplicon
 		uint32_t maxGap_ = 100;       ///< largest gap between unique k-mer hits within one stretch
 		uint32_t primerSlop_ = 20;    ///< sequence kept past the longest primer on each side of a stretch
-		std::string oneEnd_ = "none"; ///< reads demultiplexed on one end: split none of them, keep the amplicon nearest that barcode, or keep all
+		std::string oneEnd_ = "all"; ///< reads demultiplexed on one end: split none of them, keep the amplicon nearest that barcode, or keep all
 	};
 
 	struct Segment {
@@ -152,7 +152,8 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
   setUp.setOption(splitPars.primerSlop_, "--multihitSplitPrimerSlop", "Sequence kept on each side of a stretch past the longest primer, so the primers are still found", false, "Multihit Split");
   setUp.setOption(splitPars.oneEnd_, "--multihitSplitOneEnd",
       "Multihit reads demultiplexed on one end's barcode (barcodeEnds=1 in the name): none leaves them as multihit, nearest keeps only the amplicon nearest that barcode (needs assignedOn and direction in the name), all keeps every piece. "
-      "One end multihit reads are often from other samples: in ligation Pool 1 they put 268-444 reads on 5 targets in the no template controls even keeping only the nearest piece, and in run 2 pieces past the nearest were ~5% from the other panel. Reads without barcodeEnds are always split", false, "Multihit Split");
+      "Pieces of one end reads are tagged barcodeEnds=1, so they only add to a sample-target that also has both ends reads (processClusters --minBothEndsBarcodeReads); some of these pieces come from other samples' molecules, and without that filter they put 268-444 reads on 5 targets in ligation Pool 1's no template controls. "
+      "With the filter, all kept the controls clean and raised final reads by 38% (run 2), 67% (Pool 1) and 13% (Pool 2). Reads without barcodeEnds are always split", false, "Multihit Split");
   if(!njh::in(splitPars.oneEnd_, VecStr{"none", "nearest", "all"})){
     std::stringstream ss;
     ss << __PRETTY_FUNCTION__ << ", error " << "--multihitSplitOneEnd should be none, nearest or all, not " << splitPars.oneEnd_ << "\n";
