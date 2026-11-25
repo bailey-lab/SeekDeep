@@ -29,6 +29,13 @@ int SeekDeepUtilsRunner::gatherInfoOnTargetedAmpliconSeqFile(
 
   setUp.setOption(investPars.testNumber, "--testNumber", "Just use this number of reads of the top of the file");
 	setUp.setOption(tar_amp_pars.numberOfFilesToInvestigate, "--numberOfFilesToInvestigate", "Number of files to investigate when adding additional recommended flags", false, "Extra Commands");
+	uint32_t minReadsPerFileToInvestigate = 1000;
+	setUp.setOption(minReadsPerFileToInvestigate, "--minReadsPerFileToInvestigate",
+			"Leave files with fewer reads than this out of the random pick of --numberOfFilesToInvestigate files (0 keeps all). "
+			"Unused barcodes and empty controls are mostly near empty files, in ligation Pools 1 and 2 they were 71-74 of 91-94 files (at most 259 reads, real samples at least 176k), "
+			"so a random pick of 20 files gave ~20k reads and whether --primerWithinStart was recommended came down to chance. "
+			"Large files are kept even if they're mostly artifact (e.g. primer dimers), the pick among the files left is still random. "
+			"If no file has this many reads all of them are used", false, "Extra Commands");
 	investPars.randomSeedSet_ = setUp.setOption(investPars.randomSeed_, "--seed", "Seed for randomly picking the files and reads to investigate, so runs can be repeated");
 
 	setUp.setOption(investPars.dontCollapsePossibleMIDs, "--dontCollapsePossibleMIDs",
@@ -134,6 +141,9 @@ int SeekDeepUtilsRunner::gatherInfoOnTargetedAmpliconSeqFile(
 	};
 	auto masterInvestigator = std::make_shared<TarAmpSeqInvestigator>(investPars);
 	std::mutex masterInvesMut;
+	//files left out of the random pick for having fewer than minReadsPerFileToInvestigate reads, file and reads counted
+	VecStr smallFilesLeftOut;
+	bool allFilesSmall = false;
 	if (tar_amp_pars.inputDir.empty()) {
 		masterInvestigator = investigate(setUp.pars_.ioOptions_, investPars);
 	} else {
@@ -179,6 +189,37 @@ int SeekDeepUtilsRunner::gatherInfoOnTargetedAmpliconSeqFile(
 				filesToInvestigate.emplace_back(file.second, SeqIOOptions::getInFormatFromFnpExcludePaired(file.second), false);
 			}
 		}
+		//leave near empty files (unused barcodes, empty controls) out of the random pick, counting stops once a file has enough reads
+		if(minReadsPerFileToInvestigate > 0){
+			std::vector<SeqIOOptions> bigEnough;
+			for(const auto & opts : filesToInvestigate){
+				uint64_t count = 0;
+				SeqInput reader(opts);
+				reader.openIn();
+				if(opts.isPairedIn()){
+					PairedRead seq;
+					while(count < minReadsPerFileToInvestigate && reader.readNextRead(seq)){
+						++count;
+					}
+				}else{
+					seqInfo seq;
+					while(count < minReadsPerFileToInvestigate && reader.readNextRead(seq)){
+						++count;
+					}
+				}
+				if(count >= minReadsPerFileToInvestigate){
+					bigEnough.emplace_back(opts);
+				}else{
+					smallFilesLeftOut.emplace_back(njh::pasteAsStr(opts.firstName_.string(), "\t", count));
+				}
+			}
+			if(bigEnough.empty()){
+				allFilesSmall = true;
+				smallFilesLeftOut.clear();
+			}else{
+				filesToInvestigate = bigEnough;
+			}
+		}
 		//investigate numberOfFilesToInvestigate files picked at random, or all of them if there are fewer
 		std::shuffle(filesToInvestigate.begin(), filesToInvestigate.end(), rgen.mtGen_);
 		if (filesToInvestigate.size() > tar_amp_pars.numberOfFilesToInvestigate) {
@@ -207,6 +248,18 @@ int SeekDeepUtilsRunner::gatherInfoOnTargetedAmpliconSeqFile(
 	masterInvestigator->writeOutTables(setUp.pars_.directoryName_, true);
 
 	std::stringstream ss;
+	if(!tar_amp_pars.inputDir.empty() && minReadsPerFileToInvestigate > 0){
+		if(allFilesSmall){
+			ss << "No file had at least " << minReadsPerFileToInvestigate << " reads, so all files were in the random pick" << std::endl;
+		}else{
+			ss << "Files left out of the random pick for having fewer than " << minReadsPerFileToInvestigate << " reads: " << smallFilesLeftOut.size() << std::endl;
+		}
+		OutputStream smallFilesOut(njh::files::make_path(setUp.pars_.directoryName_, "filesLeftOutOfPick.tsv"));
+		smallFilesOut << "file\treads" << std::endl;
+		for(const auto & line : smallFilesLeftOut){
+			smallFilesOut << line << std::endl;
+		}
+	}
 	auto possibleRevComp = masterInvestigator->reverseComplementLikely();
 	auto possiblePrecedingRandomeBases = masterInvestigator->hasPossibleRandomPrecedingBases(masterInvestigator->ids_.getMaxMIDSize());
 	ss << "Has Possible Reverse Complement directed reads: " << njh::boolToStr(possibleRevComp) << std::endl;

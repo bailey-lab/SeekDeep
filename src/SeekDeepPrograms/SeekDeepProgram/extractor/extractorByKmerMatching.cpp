@@ -154,6 +154,18 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
       "Multihit reads demultiplexed on one end's barcode (barcodeEnds=1 in the name): none leaves them as multihit, nearest keeps only the amplicon nearest that barcode (needs assignedOn and direction in the name), all keeps every piece. "
       "Pieces of one end reads are tagged barcodeEnds=1, so they only add to a sample-target that also has both ends reads (processClusters --minBothEndsBarcodeReads); some of these pieces come from other samples' molecules, and without that filter they put 268-444 reads on 5 targets in ligation Pool 1's no template controls. "
       "With the filter, all kept the controls clean and raised final reads by 38% (run 2), 67% (Pool 1) and 13% (Pool 2). Reads without barcodeEnds are always split", false, "Multihit Split");
+  bool noKmerStretchTrim = false;
+  setUp.setOption(noKmerStretchTrim, "--noKmerStretchTrim",
+      "Don't trim reads of one target to that target's stretch of the read. By default a read assigned to a single target is cut back to the stretch "
+      "covered by k-mers unique to that target (the same stretches the multihit split finds) plus the target's primer and --kmerStretchTrimSlop on each side, "
+      "so sequence that belongs to no target, e.g. a human off-target product ligated onto the amplicon, no longer keeps the primers outside the primer search window. "
+      "Only reads that wouldn't pass as they are (primers, length and quality) get trimmed, so a read that passes without trimming is never changed. "
+      "On 200k reads, ligation Pool 2 passed 32.5% more reads with it (as many as --primerWithinStart 2000), mostly amplicons with human sequence ligated on, and run 3 (PCR barcoding) 0.5% more", false, "K-mer Stretch Trim");
+  const bool kmerStretchTrim = !noKmerStretchTrim;
+  uint32_t kmerStretchTrimSlop = 40;
+  setUp.setOption(kmerStretchTrimSlop, "--kmerStretchTrimSlop",
+      "Bases kept past each primer when trimming to a target's k-mer stretch, for reads whose first or last unique k-mer is further in because of sequencing errors. "
+      "The primer ends up about this far into the trimmed read, so it is capped at --primerWithinStart to keep the primers inside the search window", false, "K-mer Stretch Trim");
   if(!njh::in(splitPars.oneEnd_, VecStr{"none", "nearest", "all"})){
     std::stringstream ss;
     ss << __PRETTY_FUNCTION__ << ", error " << "--multihitSplitOneEnd should be none, nearest or all, not " << splitPars.oneEnd_ << "\n";
@@ -254,7 +266,7 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
   std::vector<uint32_t> matcherToSplitIdx(kmerTargetNames.size(), 0);
   std::vector<uint32_t> splitMaxSpan;
   const SimpleKmerHash splitHasher;
-  if(splitPars.split_){
+  if(splitPars.split_ || kmerStretchTrim){
     splitIndex = KmerSetInvertedIndex::get(ids.allKmersPerTarget_);
     std::unordered_map<std::string, uint32_t> splitIdxByName;
     for(uint32_t idx = 0; idx < splitIndex->setNames_.size(); ++idx){
@@ -273,6 +285,20 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
     }
   }
 
+
+  //for trimming to a target's k-mer stretch, the longest forward and reverse primer of each target, the primers sit just outside the stretch
+  std::unordered_map<std::string, std::pair<uint32_t, uint32_t>> primerLensPerTarget;
+  for(const auto & primer : ids.pDeterminator_->primers_){
+    auto & lens = primerLensPerTarget[primer.first];
+    for(const auto & fwd : primer.second.fwds_){
+      lens.first = std::max<uint32_t>(lens.first, len(fwd.info_));
+    }
+    for(const auto & rev : primer.second.revs_){
+      lens.second = std::max<uint32_t>(lens.second, len(rev.info_));
+    }
+  }
+  //the primer is about the slop into the trimmed read, it has to stay inside the primer search window
+  kmerStretchTrimSlop = std::min<uint32_t>(kmerStretchTrimSlop, corePars.pDetPars.primerWithin_);
 
   // set up input
   seqInfo seq;
@@ -301,6 +327,10 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
   std::unordered_map<std::string, uint32_t> piecesPerSet;
   std::unordered_map<std::string, uint32_t> piecesPerSetRevComp;
   uint64_t multihitSplitFoldback = 0;
+  //reads of one target trimmed to the target's k-mer stretch, per target, and the bases cut off
+  std::unordered_map<std::string, uint64_t> kmerTrimmedPerSet;
+  uint64_t kmerTrimmedFrontBases = 0;
+  uint64_t kmerTrimmedBackBases = 0;
 
   VecStr names = ids.getTargets();
   MultiSeqIO seqOut;
@@ -394,7 +424,13 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
                                       &maxPrimerSize,
                                       &piecesPerSet,
                                       &piecesPerSetRevComp,
-                                      &multihitSplitFoldback
+                                      &multihitSplitFoldback,
+                                      &kmerStretchTrim,
+                                      &kmerStretchTrimSlop,
+                                      &primerLensPerTarget,
+                                      &kmerTrimmedPerSet,
+                                      &kmerTrimmedFrontBases,
+                                      &kmerTrimmedBackBases
                                       ]() {
     auto maxMidSize = ids.getMaxMIDSize() + 2;
     seqInfo seq;
@@ -403,6 +439,9 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
     std::unordered_map<std::string, uint32_t> piecesPerSetCurrent;
     std::unordered_map<std::string, uint32_t> piecesPerSetRevCompCurrent;
     uint64_t multihitSplitFoldbackCurrent = 0;
+    std::unordered_map<std::string, uint64_t> kmerTrimmedPerSetCurrent;
+    uint64_t kmerTrimmedFrontBasesCurrent = 0;
+    uint64_t kmerTrimmedBackBasesCurrent = 0;
 
 
     ExtractionStator masterCountsCurrent;
@@ -690,6 +729,69 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
         extractorCase = ExtractionStator::extractCase::INVERSECHIMERA;
         seq.on_ = false;
       }
+      //sequence of no target on either side of the amplicon (e.g. a human off-target product ligated onto it) pushes the primers
+      //out of the primer search window, so cut the read back to the winner's stretch of unique k-mers plus its primers and some slop;
+      //the read is already in the winner's forward direction, a read with no stretch (too few unique k-mers) is left as is
+      if(seq.on_ && kmerStretchTrim){
+        std::vector<char> allowed(splitIndex->setNames_.size(), 0);
+        allowed[matcherToSplitIdx[kmerMatch.winnerIdx]] = 1;
+        const auto segments = MultihitSplitter::findSegments(seq.seq_, *splitIndex, splitHasher, extractionKmer, allowed, splitMaxSpan, splitPars);
+        uint32_t stretchStart = std::numeric_limits<uint32_t>::max();
+        uint32_t stretchEnd = 0;
+        //several stretches in the same direction (an error dense patch, or copies of the target) are kept together, only the outside is trimmed
+        for(const auto & seg : segments){
+          if(!seg.revComp_){
+            stretchStart = std::min(stretchStart, seg.start_);
+            stretchEnd = std::max(stretchEnd, seg.end_);
+          }
+        }
+        if(stretchEnd > 0){
+          const auto & primerLens = primerLensPerTarget.at(winnerSet);
+          const uint32_t frontPad = primerLens.first + kmerStretchTrimSlop;
+          const uint32_t backPad = primerLens.second + kmerStretchTrimSlop;
+          const uint32_t trimStart = stretchStart > frontPad ? stretchStart - frontPad : 0;
+          const uint32_t trimEnd = std::min<uint64_t>(len(seq), static_cast<uint64_t>(stretchEnd) + backPad);
+          bool trim = trimStart > 0 || trimEnd < len(seq);
+          if(trim){
+            //a read that would pass as it is (both primers, then the length and quality checks) isn't touched, so trimming never changes or
+            //loses a read that passes without it (on short amplicons the first unique k-mer can start well past the primer and the trim would clip it).
+            //Finding both primers alone isn't enough, a reverse primer matched by chance in the extra sequence extracts a read that's too long
+            auto untrimmed = seq;
+            bool passesAsIs = winnerSet == ids.pDeterminator_->determineForwardPrimer(untrimmed, corePars.pDetPars, *currentAlignerObj, VecStr{winnerSet});
+            if(passesAsIs){
+              untrimmed.reverseComplementRead(false, true);
+              passesAsIs = winnerSet == ids.pDeterminator_->determineWithReversePrimer(untrimmed, corePars.backEndpDetPars, *currentAlignerObj, VecStr{winnerSet});
+            }
+            if(passesAsIs){
+              ids.targets_.at(winnerSet).lenCuts_->minLenChecker_.checkRead(untrimmed);
+              if(untrimmed.on_){
+                ids.targets_.at(winnerSet).lenCuts_->maxLenChecker_.checkRead(untrimmed);
+              }
+              if(untrimmed.on_){
+                qualChecker->checkRead(untrimmed);
+              }
+              passesAsIs = untrimmed.on_;
+            }
+            trim = !passesAsIs;
+          }
+          if(trim){
+            ++kmerTrimmedPerSetCurrent[winnerSet];
+            kmerTrimmedFrontBasesCurrent += trimStart;
+            kmerTrimmedBackBasesCurrent += len(seq) - trimEnd;
+            seq = seq.getSubRead(trimStart, trimEnd - trimStart);
+            //like a multihit piece, the amplicon no longer reaches the cut end, so that end's barcode doesn't vouch for it and the read
+            //doesn't count as support from both ends (processClusters --minBothEndsBarcodeReads); kept at 2, rescued molecules joined to
+            //another sample's molecule put DHFR and CRT calls (18-25 reads) in run 2 and run 3 diversity panel samples
+            if(MetaDataInName::nameHasMetaData(seq.name_)){
+              MetaDataInName trimmedMeta(seq.name_);
+              if(trimmedMeta.containsMeta("barcodeEnds") && "2" == trimmedMeta.getMeta("barcodeEnds")){
+                trimmedMeta.addMeta("barcodeEnds", 1, true);
+                trimmedMeta.resetMetaInName(seq.name_);
+              }
+            }
+          }
+        }
+      }
       extractTarget(seq, winnerSet, extractorCase);
     }
     {
@@ -711,6 +813,11 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
         piecesPerSetRevComp[count.first] += count.second;
       }
       multihitSplitFoldback += multihitSplitFoldbackCurrent;
+      for(const auto & count : kmerTrimmedPerSetCurrent){
+        kmerTrimmedPerSet[count.first] += count.second;
+      }
+      kmerTrimmedFrontBases += kmerTrimmedFrontBasesCurrent;
+      kmerTrimmedBackBases += kmerTrimmedBackBasesCurrent;
     }
   };
 
@@ -740,6 +847,7 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
   outCounts << "\ttotalFailed\ttotalFailedFrac";
   outCounts << "\tpassed\tpassedFrac";
   outCounts << "\tfromMultihitSplit";
+  outCounts << "\tkmerStretchTrimmed";
   outCounts << std::endl;
 
 
@@ -802,6 +910,7 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
     outCounts << "\t" << masterCounts.counts_[setName][false].good_ + masterCounts.counts_[setName][true].good_
               << "\t" << (totalExtracted == 0 ? 0 : static_cast<double>(masterCounts.counts_[setName][false].good_ + masterCounts.counts_[setName][true].good_) / static_cast<double>(totalExtracted))
               << "\t" << fromMultihitSplit
+              << "\t" << kmerTrimmedPerSet[setName]
               << std::endl;
     totalReadsPassedAllFilters += masterCounts.counts_[setName][false].good_ + masterCounts.counts_[setName][true].good_;
   }
@@ -835,10 +944,11 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
         << "\t" << 0
         << "\t" << 0
         << "\t" << 0
+        << "\t" << 0
               << std::endl;
   }
 
-  outStats << "sampleName\ttotalReadsProcessed\tfailedMinLen_" << corePars.smallFragmentCutoff << "\tfailedMinLenFrac\tfailedMaxLen_" << corePars.largeFragmentCutOff << "\tfailedMaxLenFrac\tundetermined\tundeterminedFrac\tmultihit\tmultihitFrac\textracted\textractedFrac\textractedForward\textractedForwardFrac\tpassed\tpassedFrac\tmultihitSplit\tmultihitSplitFrac\tpiecesFromMultihitSplit\tmultihitSplitFoldback" << std::endl;
+  outStats << "sampleName\ttotalReadsProcessed\tfailedMinLen_" << corePars.smallFragmentCutoff << "\tfailedMinLenFrac\tfailedMaxLen_" << corePars.largeFragmentCutOff << "\tfailedMaxLenFrac\tundetermined\tundeterminedFrac\tmultihit\tmultihitFrac\textracted\textractedFrac\textractedForward\textractedForwardFrac\tpassed\tpassedFrac\tmultihitSplit\tmultihitSplitFrac\tpiecesFromMultihitSplit\tmultihitSplitFoldback\tkmerStretchTrimmed\tkmerStretchTrimmedFrontBases\tkmerStretchTrimmedBackBases" << std::endl;
   //reads that hit several targets and were split into pieces, the pieces are counted in extracted and passed
   const uint64_t totalMultihitSplit = readsPerSet["multihitSplit"];
   uint64_t totalPiecesFromMultihitSplit = 0;
@@ -847,6 +957,10 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
   }
   for(const auto & count : piecesPerSetRevComp){
     totalPiecesFromMultihitSplit += count.second;
+  }
+  uint64_t totalKmerTrimmed = 0;
+  for(const auto & count : kmerTrimmedPerSet){
+    totalKmerTrimmed += count.second;
   }
   uint32_t grand_total_reads = totalReadsProcessed + masterCounts.smallFrags_ + masterCounts.largeFrags_;
   outStats << sampleName
@@ -869,6 +983,9 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
            << "\t" << static_cast<double>(totalMultihitSplit) / static_cast<double>(totalReadsProcessed)
            << "\t" << totalPiecesFromMultihitSplit
            << "\t" << multihitSplitFoldback
+           << "\t" << totalKmerTrimmed
+           << "\t" << kmerTrimmedFrontBases
+           << "\t" << kmerTrimmedBackBases
            << std::endl;
 
   if(ids.containsMids()){
