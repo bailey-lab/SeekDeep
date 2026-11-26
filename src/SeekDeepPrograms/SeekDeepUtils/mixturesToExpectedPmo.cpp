@@ -81,7 +81,7 @@ int SeekDeepUtilsRunner::mixturesToExpectedPmo(const njh::progutils::CmdArgs & i
 				continue;
 			}
 			const auto & info = ids.targets_.at(target).info_;
-			pmoPars.primers_[target] = {info.forwardPrimerRaw_, info.reversePrimerRaw_};
+			pmoPars.primers_[target] = {PrimersAndMids::combinePrimerAlternatives(info.forwardPrimerRaw_), PrimersAndMids::combinePrimerAlternatives(info.reversePrimerRaw_)};
 		}
 		if (!noPrimers.empty()) {
 			std::cerr << __PRETTY_FUNCTION__ << ", warning, " << "no primers in " << primersFnp

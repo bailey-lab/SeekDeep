@@ -169,6 +169,13 @@ public:
 
 	[[nodiscard]] uint32_t getMaxMIDSize() const;
 
+	/**
+	 * @brief A primer as one sequence, e.g. for a PMO, primers given as comma separated alternatives are combined into a degenerate sequence
+	 * @param rawPrimer the primer as given in the primers file, alternatives can have degenerate bases but have to be the same length
+	 * @return the primer as given when it has no alternatives, otherwise the upper case degenerate sequence
+	 */
+	[[nodiscard]] static std::string combinePrimerAlternatives(const std::string & rawPrimer);
+
 };
 
 }  // namespace njhseq

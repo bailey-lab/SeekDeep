@@ -62,8 +62,8 @@ int SeekDeepRunner::processClusters(const njh::progutils::CmdArgs & inputCommand
 			throw std::runtime_error{ss.str()};
 		}
 		const auto & primerInfo = primers.targets_.at(primerTarget).info_;
-		pmoPars.forwardPrimer_ = primerInfo.forwardPrimerRaw_;
-		pmoPars.reversePrimer_ = primerInfo.reversePrimerRaw_;
+		pmoPars.forwardPrimer_ = PrimersAndMids::combinePrimerAlternatives(primerInfo.forwardPrimerRaw_);
+		pmoPars.reversePrimer_ = PrimersAndMids::combinePrimerAlternatives(primerInfo.reversePrimerRaw_);
 		pmoPars.panelName_ = pars.pmoPanelName;
 		pmoPars.programName_ = "SeekDeep processClusters";
 		pmoPars.programVersion_ = pars.pmoProgramVersion;

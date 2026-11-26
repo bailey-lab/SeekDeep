@@ -705,5 +705,49 @@ uint32_t PrimersAndMids::getMaxMIDSize() const{
 	return maxSize;
 }
 
+std::string PrimersAndMids::combinePrimerAlternatives(const std::string & rawPrimer){
+	if(std::string::npos == rawPrimer.find(',')){
+		return rawPrimer;
+	}
+	VecStr alternatives;
+	for(const auto & tok : njh::tokenizeString(njh::strToUpperRet(rawPrimer), ",")){
+		if(!tok.empty()){
+			alternatives.emplace_back(tok);
+		}
+	}
+	if(alternatives.size() <= 1){
+		return alternatives.empty() ? std::string{} : alternatives.front();
+	}
+	//the bases each code stands for as bits, A=1, C=2, G=4, T=8, and the code for each combination of bits
+	const std::unordered_map<char, uint8_t> baseBits{
+		{'A', 1}, {'C', 2}, {'G', 4}, {'T', 8}, {'U', 8},
+		{'M', 3}, {'R', 5}, {'S', 6}, {'V', 7}, {'W', 9}, {'Y', 10}, {'H', 11}, {'K', 12}, {'D', 13}, {'B', 14}, {'N', 15}};
+	const std::string codeForBits = "?ACMGRSVTWYHKDBN";
+	const auto primerLen = alternatives.front().size();
+	std::vector<uint8_t> bitsPerPosition(primerLen, 0);
+	for(const auto & alt : alternatives){
+		if(alt.size() != primerLen){
+			std::stringstream ss;
+			ss << __PRETTY_FUNCTION__ << ", error " << "the alternatives in primer " << rawPrimer << " aren't all the same length, they can't be combined into one sequence" << "\n";
+			throw std::runtime_error { ss.str() };
+		}
+		for(uint32_t pos = 0; pos < primerLen; ++pos){
+			const auto bits = baseBits.find(alt[pos]);
+			if(baseBits.end() == bits){
+				std::stringstream ss;
+				ss << __PRETTY_FUNCTION__ << ", error " << "unrecognized base " << alt[pos] << " in primer " << rawPrimer << "\n";
+				throw std::runtime_error { ss.str() };
+			}
+			bitsPerPosition[pos] |= bits->second;
+		}
+	}
+	std::string combined;
+	combined.reserve(primerLen);
+	for(const auto bits : bitsPerPosition){
+		combined.push_back(codeForBits[bits]);
+	}
+	return combined;
+}
+
 
 }  // namespace njhseq

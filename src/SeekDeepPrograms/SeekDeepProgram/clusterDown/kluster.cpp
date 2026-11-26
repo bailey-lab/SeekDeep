@@ -30,7 +30,7 @@ struct KmerClusteringRatePars {
   uint32_t repCutOff = 1;
   double freqCutOff = 0.005;
   std::string sizeCutOffStr = "5%,3";
-  // std::string sizeCutOffStr = "0.05%,3";
+  // std::string sizeCutOffStr = "0.5%,3";
 
   double idCutOff = .90;
   bool byScore = false;
