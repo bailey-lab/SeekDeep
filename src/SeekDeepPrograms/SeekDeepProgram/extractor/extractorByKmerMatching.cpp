@@ -471,6 +471,27 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
       lens.second = std::max<uint32_t>(lens.second, len(rev.info_));
     }
   }
+  //the unique k-mer hits needed to find a target's stretch for the trim, by index order. Targets too short to have --multihitSplitMinKmers
+  //k-mer positions between their primers need half their positions instead (at least 5), the insert length is estimated as the middle of the
+  //target's length cutoffs minus its primers
+  std::vector<MultihitSplitter::Pars> trimSegmentPars;
+  if(nullptr != splitIndex){
+    trimSegmentPars.assign(splitIndex->setNames_.size(), splitPars);
+    for(uint32_t idx = 0; idx < splitIndex->setNames_.size(); ++idx){
+      const auto & name = splitIndex->setNames_[idx];
+      if(!njh::in(name, ids.targets_) || nullptr == ids.targets_.at(name).lenCuts_ || !njh::in(name, primerLensPerTarget)){
+        continue;
+      }
+      const auto & lenCuts = *ids.targets_.at(name).lenCuts_;
+      const auto & primerLens = primerLensPerTarget.at(name);
+      const uint64_t ampliconLen = (static_cast<uint64_t>(lenCuts.minLenChecker_.minLen_) + lenCuts.maxLenChecker_.maxLen_) / 2;
+      const uint64_t primersLen = primerLens.first + primerLens.second;
+      const uint64_t positions = ampliconLen > primersLen + extractionKmer ? ampliconLen - primersLen - extractionKmer + 1 : 1;
+      if(positions < splitPars.minKmers_){
+        trimSegmentPars[idx].minKmers_ = std::max<uint32_t>(5, (positions + 1) / 2);
+      }
+    }
+  }
   //how far in the primers are searched for in reads that were cut to their target. The cut leaves the primer about the slop into the read (plus the
   //difference between the longest primer, which split reads are cut with, and the shortest), a window smaller than that loses most of the split
   //reads, e.g. --primerWithinStart 24 passed 48 pieces per 100 reads of PRJNA1188139 instead of 146. Never less than the default window
@@ -610,6 +631,7 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
                                       &splitIndex,
                                       &splitHasher,
                                       &splitMaxSpan,
+                                      &trimSegmentPars,
                                       &matcherToSplitIdx,
                                       &extractionKmer,
                                       &maxPrimerSize,
@@ -983,7 +1005,7 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
       if(seq.on_ && (kmerStretchTrim || trimToRegions)){
         std::vector<char> allowed(splitIndex->setNames_.size(), 0);
         allowed[matcherToSplitIdx[kmerMatch.winnerIdx]] = 1;
-        const auto segments = MultihitSplitter::findSegments(seq.seq_, *splitIndex, splitHasher, extractionKmer, allowed, splitMaxSpan, splitPars);
+        const auto segments = MultihitSplitter::findSegments(seq.seq_, *splitIndex, splitHasher, extractionKmer, allowed, splitMaxSpan, trimSegmentPars[matcherToSplitIdx[kmerMatch.winnerIdx]]);
         uint32_t stretchStart = std::numeric_limits<uint32_t>::max();
         uint32_t stretchEnd = 0;
         //several stretches in the same direction (an error dense patch, or copies of the target) are kept together, only the outside is trimmed
