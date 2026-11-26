@@ -295,6 +295,10 @@ int SeekDeepRunner::extractorPairedEnd(const njh::progutils::CmdArgs & inputComm
 	}
 	//close mid outs;
 	readerOuts.closeOutAll();
+	// close these now, filteredOff/ is removed at the end unless --keepFilteredOff and on NFS a file still open
+	// when it's deleted leaves a .nfs placeholder behind that stops the directory from being removed
+	smallFragMentOut.closeOut();
+	startsWtihBadQualOut.closeOut();
 
 
 	std::ofstream renameKeyFile;
