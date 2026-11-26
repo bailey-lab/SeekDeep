@@ -339,10 +339,16 @@ void SeekDeepSetUp::setUpExtractor(extractorPars & pars) {
 				<< "extractionStats.tab.txt: This has info how the whole extraction went"
 				<< std::endl;
 		std::cout
-				<< "seqFiles: Extracted files will be named [PrimerName][MIDNAME].fast(a/q), if not multiplexed then just [PrimerName].fast(a/q)"
+				<< "allFailedPrimerCounts.tab.txt: The counts of the reads per forward and reverse primer found when they weren't the same target (reverse primer NA when the forward primer wasn't found)"
 				<< std::endl;
 		std::cout
-				<< "filteredOff: Reads that failed filtering will be found in this directory along with reads that don't match any supplied barcodes and/or primers"
+				<< "the reports are laid out like extractorPairedEnd's, minus its pair processing columns"
+				<< std::endl;
+		std::cout
+				<< "seqFiles: Extracted files will be named [PrimerName][MIDNAME].fast(a/q), if not multiplexed then [PrimerName][sampleName] or just [PrimerName] without --sampleName"
+				<< std::endl;
+		std::cout
+				<< "filteredOff: with --keepFilteredOff, reads that failed filtering will be found in this directory along with reads that don't match any supplied barcodes and/or primers"
 				<< std::endl;
 		exit(1);
 	}

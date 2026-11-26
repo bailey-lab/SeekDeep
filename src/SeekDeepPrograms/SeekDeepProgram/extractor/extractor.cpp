@@ -109,7 +109,7 @@ int SeekDeepRunner::extractor(const njh::progutils::CmdArgs & inputCommands) {
 	SeqOutput startsWtihBadQualOut(startsWtihBadQualOpts);
 
 	uint32_t smallFragmentCount = 0;
-	// uint32_t startsWithBadQualCount = 0;
+	uint32_t startsWithBadQualCount = 0;
 	uint64_t maxReadSize = 0;
 	uint32_t count = 0;
 	MultiSeqIO readerOuts;
@@ -117,6 +117,37 @@ int SeekDeepRunner::extractor(const njh::progutils::CmdArgs & inputCommands) {
 	std::map<std::string, std::pair<uint32_t, uint32_t>> counts;
 	std::unordered_map<std::string, uint32_t>  failBarCodeCounts;
 	std::unordered_map<std::string, uint32_t>  failBarCodeCountsPossibleContamination;
+
+	// the input's name for the reports, the file name minus its extension, as extractorPairedEnd does
+	std::string seqName = bfs::basename(setUp.pars_.ioOptions_.firstName_);
+	if(njh::endsWith(seqName, ".gz")){
+		seqName = seqName.substr(0, seqName.rfind(".gz"));
+	}
+	if(njh::endsWith(seqName, ".fasta")){
+		seqName = seqName.substr(0, seqName.rfind(".fasta"));
+	}
+	if(njh::endsWith(seqName, ".fastq")){
+		seqName = seqName.substr(0, seqName.rfind(".fastq"));
+	}
+	// read counts for extractionStats.tab.txt and extractionProfile.tab.txt, laid out like extractorPairedEnd's
+	uint32_t unrecognizedPrimers = 0; // the forward primer wasn't found, or it was but the reverse primer wasn't
+	uint32_t mismatchedPrimers = 0; // the reverse primer found isn't the forward primer's
+	uint32_t contaminationCount = 0;
+	uint32_t qualityFilters = 0; // failed the length, N or quality filters
+	uint32_t smallReadCountFilteredOff = 0; // in a MID with too few reads to filter (--filterOffSmallReadCounts)
+	uint32_t used = 0;
+	// key = extraction name (target plus MID or sample name)
+	std::set<std::string> allNames;
+	std::unordered_map<std::string, std::string> name_to_target_key;
+	std::unordered_map<std::string, uint32_t> matchingPrimerCounts;
+	std::unordered_map<std::string, uint32_t> goodFinal;
+	std::unordered_map<std::string, uint32_t> badMinLen;
+	std::unordered_map<std::string, uint32_t> badMaxLen;
+	std::unordered_map<std::string, uint32_t> badQual;
+	std::unordered_map<std::string, uint32_t> badNs;
+	std::unordered_map<std::string, uint32_t> possibleContaminationCounts;
+	// key1 = MID (or "all"), key2 = forward primer, key3 = reverse primer, value = lengths of the reads
+	std::map<std::string, std::map<std::string, std::map<std::string, std::vector<uint32_t>>>> failedPrimer;
 
 	if (ids.containsMids()) {
 		for (const auto & mid : ids.mDeterminator_->mids_) {
@@ -180,7 +211,7 @@ int SeekDeepRunner::extractor(const njh::progutils::CmdArgs & inputCommands) {
 			readVecTrimmer::trimAtFirstQualScore(seq->seqBase_, pars.trimAtQualCutOff);
 			if(0 == len(*seq)){
 				startsWtihBadQualOut.openWrite(seq);
-				// ++startsWithBadQualCount;
+				++startsWithBadQualCount;
 				continue;
 			}
 		}
@@ -352,8 +383,6 @@ int SeekDeepRunner::extractor(const njh::progutils::CmdArgs & inputCommands) {
 	if (pars.filterOffSmallReadCounts) {
 		smallDir = njh::files::makeDir(setUp.pars_.directoryName_, njh::files::MkdirPar("smallReadCounts", false));
 	}
-  ExtractionStator stats({count, readsNotMatchedToBarcode,
-      readsNotMatchedToBarcodePossContam, smallFragmentCount, 0});
 	std::map<std::string, uint32_t> goodCounts;
 
 	for (const auto & barcodeFile : barcodeFiles) {
@@ -387,6 +416,7 @@ int SeekDeepRunner::extractor(const njh::progutils::CmdArgs & inputCommands) {
 			while (barcodeIn.readNextRead(read)) {
 				barcodeIn.openWrite(read);
 			}
+			smallReadCountFilteredOff += counts[barcodeName].first + counts[barcodeName].second;
 			continue;
 		}
 		if (setUp.pars_.verbose_) {
@@ -477,7 +507,9 @@ int SeekDeepRunner::extractor(const njh::progutils::CmdArgs & inputCommands) {
 					}
 				}
 				if ("unrecognized" == frontPrimerName) {
-					stats.increaseFailedForward(barcodeName, seq->seqBase_.name_);
+					++unrecognizedPrimers;
+					// the reverse primer isn't looked for once the forward one isn't found
+					failedPrimer[barcodeName][frontPrimerName]["NA"].emplace_back(len(*seq));
 					midReaderOuts.openWrite("unrecognized", seq);
 					continue;
 				}
@@ -517,8 +549,12 @@ int SeekDeepRunner::extractor(const njh::progutils::CmdArgs & inputCommands) {
 				}
 
 				if (!seq->seqBase_.on_ || frontPrimerName != backPrimerName) {
-					stats.increaseCounts(fullname, seq->seqBase_.name_,
-							ExtractionStator::extractCase::BADREVERSE);
+					if("unrecognized" == backPrimerName || frontPrimerName == backPrimerName){
+						++unrecognizedPrimers;
+					}else{
+						++mismatchedPrimers;
+					}
+					failedPrimer[barcodeName][frontPrimerName][backPrimerName].emplace_back(len(*seq));
 					if("unrecognized" == backPrimerName){
 						seq->seqBase_.name_.append("_badReverse");
 					}else{
@@ -528,6 +564,11 @@ int SeekDeepRunner::extractor(const njh::progutils::CmdArgs & inputCommands) {
 					continue;
 				}
 			}
+
+			//the primers match
+			allNames.emplace(fullname);
+			name_to_target_key[fullname] = targetName;
+			++matchingPrimerCounts[fullname];
 
 			//look for possible contamination
 			if (!njh::mapAt(ids.targets_, targetName).refKInfos_.empty() ) {
@@ -543,8 +584,8 @@ int SeekDeepRunner::extractor(const njh::progutils::CmdArgs & inputCommands) {
 					seq->seqBase_.on_ = false;
 				}
 				if (!seq->seqBase_.on_) {
-					stats.increaseCounts(fullname, seq->seqBase_.name_,
-							ExtractionStator::extractCase::CONTAMINATION);
+						++possibleContaminationCounts[fullname];
+						++contaminationCount;
 					midReaderOuts.openWrite(fullname + "contamination", seq);
 					continue;
 				}
@@ -554,8 +595,8 @@ int SeekDeepRunner::extractor(const njh::progutils::CmdArgs & inputCommands) {
 			ids.targets_.at(targetName).lenCuts_->minLenChecker_.checkRead(seq->seqBase_);
 
 			if (!seq->seqBase_.on_) {
-				stats.increaseCounts(fullname, seq->seqBase_.name_,
-						ExtractionStator::extractCase::MINLENBAD);
+					++badMinLen[fullname];
+					++qualityFilters;
 				midReaderOuts.openWrite(fullname + "bad", seq);
 				continue;
 			}
@@ -564,8 +605,8 @@ int SeekDeepRunner::extractor(const njh::progutils::CmdArgs & inputCommands) {
 			//contains n
 			nChecker.checkRead(seq->seqBase_);
 			if (!seq->seqBase_.on_) {
-				stats.increaseCounts(fullname, seq->seqBase_.name_,
-						ExtractionStator::extractCase::CONTAINSNS);
+					++badNs[fullname];
+					++qualityFilters;
 				midReaderOuts.openWrite(fullname + "bad", seq);
 				continue;
 			}
@@ -573,8 +614,8 @@ int SeekDeepRunner::extractor(const njh::progutils::CmdArgs & inputCommands) {
 			//max len
 			ids.targets_.at(targetName).lenCuts_->maxLenChecker_.checkRead(seq->seqBase_);
 			if (!seq->seqBase_.on_) {
-				stats.increaseCounts(fullname, seq->seqBase_.name_,
-						ExtractionStator::extractCase::MAXLENBAD);
+					++badMaxLen[fullname];
+					++qualityFilters;
 				midReaderOuts.openWrite(fullname + "bad", seq);
 				continue;
 			}
@@ -582,15 +623,15 @@ int SeekDeepRunner::extractor(const njh::progutils::CmdArgs & inputCommands) {
 			qualChecker->checkRead(seq->seqBase_);
 
 			if (!seq->seqBase_.on_) {
-				stats.increaseCounts(fullname, seq->seqBase_.name_,
-						ExtractionStator::extractCase::QUALITYFAILED);
+					++badQual[fullname];
+					++qualityFilters;
 				midReaderOuts.openWrite(fullname + "bad", seq);
 				continue;
 			}
 
 			if (seq->seqBase_.on_) {
-				stats.increaseCounts(fullname, seq->seqBase_.name_,
-						ExtractionStator::extractCase::GOOD);
+					++goodFinal[fullname];
+					++used;
 				if (pars.corePars_.rename) {
 					std::string oldName = njh::replaceString(seq->seqBase_.name_, "_Comp", "");
 					seq->seqBase_.name_ = fullname + "."
@@ -610,40 +651,64 @@ int SeekDeepRunner::extractor(const njh::progutils::CmdArgs & inputCommands) {
 		}
 	}
 
-	std::ofstream profileLog;
-	openTextFile(profileLog, setUp.pars_.directoryName_ + "extractionProfile.tab.txt",
-			".txt", false, false);
-	profileLog
-			<< "name\ttotalReadsExtracted\tgoodReadsExtracted\tforGood\trevGood\ttotalBadReads\t"
-					"badBackEndPrimer\tcontainsNs\tfailedMinLen" << "\tfailedMaxLen";
-
-	if (pars.corePars_.qPars_.checkingQFrac_) {
-		profileLog << "\tq" + estd::to_string(pars.corePars_.qPars_.qualCheck_) + "<"
-				<< pars.corePars_.qPars_.qualCheckCutOff_;
-	} else {
-		profileLog << "\tbadQualityWindow";
+	// the reports are laid out like extractorPairedEnd's, minus its pair processing (stitching) columns, so the same
+	// downstream code reads both
+	{
+		OutOptions allFailedPrimerCountsOpts(njh::files::make_path(setUp.pars_.directoryName_, "allFailedPrimerCounts.tab.txt"));
+		OutputStream allFailedPrimerCountsOut(allFailedPrimerCountsOpts);
+		// reversePrimer is NA when the forward primer wasn't found, the reverse primer isn't looked for then
+		allFailedPrimerCountsOut << "inputName\tsampleName\tMIDName\tforwardPrimer\treversePrimer\tcount\tMIDtotal\tavgLength" << "\n";
+		for(const auto & samp : failedPrimer){
+			for(const auto & forw : samp.second){
+				for(const auto & rev : forw.second){
+					allFailedPrimerCountsOut << seqName
+							<< "\t" << pars.corePars_.sampleName
+							<< "\t" << samp.first
+							<< "\t" << forw.first
+							<< "\t" << rev.first
+							<< "\t" << rev.second.size()
+							<< "\t" << counts[samp.first].first + counts[samp.first].second
+							<< "\t" << vectorMean(rev.second) << "\n";
+				}
+			}
+		}
 	}
-	profileLog << "\tcontamination\n";
-	stats.outStatsPerName(profileLog, "\t");
-	std::ofstream extractionStatsFile;
-	openTextFile(extractionStatsFile,
-			setUp.pars_.directoryName_ + "extractionStats.tab.txt", ".txt",
-			setUp.pars_.ioOptions_.out_);
-	extractionStatsFile
-			<< "TotalReads\tReadsNotMatchedBarcodes\tReadsNotMatchedBarcodesPosContamination\tSmallFragments(len<"
-			<< pars.corePars_.smallFragmentCutoff
-  << ")\tSmallFragments(len<"
-  << pars.corePars_.largeFragmentCutOff
-  << ")\tfailedFrontPrimer\tfailedQualityFiltering\tused";
-	extractionStatsFile << "\tcontamination";
-	extractionStatsFile << std::endl;
-	stats.outTotalStats(extractionStatsFile, "\t");
-	std::ofstream failedForwardFile;
-	openTextFile(failedForwardFile, setUp.pars_.directoryName_ + "failedForward.tab.txt",
-			".txt", false, false);
-	failedForwardFile << "MidName\ttotalFailed\tfailedInFor\tfailedInRev"
-			<< std::endl;
-	stats.outFailedForwardStats(failedForwardFile, "\t");
+
+	OutOptions extractionStatsOpts(njh::files::make_path(setUp.pars_.directoryName_, "extractionStats.tab.txt"));
+	OutputStream extractionStatsOut(extractionStatsOpts);
+	// smallFragments: shorter than --smallFragmentCutoff, or nothing left after --trimAtQual
+	// filteredOff: failed the length, N or quality filters, or in a MID with too few reads with --filterOffSmallReadCounts
+	extractionStatsOut << "inputName\tsampleName\tTotal\tsmallFragments\tfailedBarcode\tfailedPrimers\tmismatchedPrimers\tpossibleContamination\tfilteredOff\tused" << std::endl;
+	extractionStatsOut << seqName
+			<< "\t" << pars.corePars_.sampleName
+			<< "\t" << count
+			<< "\t" << getPercentageString(smallFragmentCount + startsWithBadQualCount, count)
+			<< "\t" << getPercentageString(readsNotMatchedToBarcode, count)
+			<< "\t" << getPercentageString(unrecognizedPrimers, count)
+			<< "\t" << getPercentageString(mismatchedPrimers, count)
+			<< "\t" << getPercentageString(contaminationCount + readsNotMatchedToBarcodePossContam, count)
+			<< "\t" << getPercentageString(qualityFilters + smallReadCountFilteredOff, count)
+			<< "\t" << getPercentageString(used, count) << std::endl;
+
+	OutOptions extractionProfileOpts(njh::files::make_path(setUp.pars_.directoryName_, "extractionProfile.tab.txt"));
+	OutputStream extractionProfileOut(extractionProfileOpts);
+	extractionProfileOut << "inputName\tsampleName\tname\ttarget\ttotalMatching\tgood\tbad\tfailedMinLen\tfailedMaxLen\tfailedQuality\tfailedNs\tfailedPossibleContamination" << std::endl;
+	for(const auto & name : allNames){
+		uint32_t totalBad = badQual[name] + badNs[name] + badMinLen[name] + badMaxLen[name] + possibleContaminationCounts[name];
+		extractionProfileOut << seqName
+				<< "\t" << pars.corePars_.sampleName
+				<< "\t" << name
+				<< "\t" << name_to_target_key[name]
+				<< "\t" << matchingPrimerCounts[name]
+				<< "\t" << getPercentageString(goodFinal[name], matchingPrimerCounts[name])
+				<< "\t" << getPercentageString(totalBad, matchingPrimerCounts[name])
+				<< "\t" << getPercentageString(badMinLen[name], totalBad)
+				<< "\t" << getPercentageString(badMaxLen[name], totalBad)
+				<< "\t" << getPercentageString(badQual[name], totalBad)
+				<< "\t" << getPercentageString(badNs[name], totalBad)
+				<< "\t" << getPercentageString(possibleContaminationCounts[name], totalBad)
+				<< std::endl;
+	}
 	if(ids.containsMids()){
 		std::ofstream failedBarcodeFile;
 		openTextFile(failedBarcodeFile, setUp.pars_.directoryName_ + "failedBarcode.tab.txt",
@@ -669,8 +734,34 @@ int SeekDeepRunner::extractor(const njh::progutils::CmdArgs & inputCommands) {
 		}
 	}
 
+	if(ids.containsMids()){
+		// the most common starts of the reads that didn't match a MID, as extractorPairedEnd reports
+		for(const auto & ext : VecStr{".fastq.gz", ".fastq", ".fasta.gz", ".fasta"}){
+			auto unRecBarFnp = njh::files::make_path(badDir, "unrecognizedBarcode_NO_MATCHING" + ext);
+			if(!bfs::exists(unRecBarFnp)){
+				continue;
+			}
+			bool gz = njh::endsWith(ext, ".gz");
+			auto unRecBarOpts = njh::beginsWith(ext, ".fastq")
+					? (gz ? SeqIOOptions::genFastqInGz(unRecBarFnp) : SeqIOOptions::genFastqIn(unRecBarFnp))
+					: (gz ? SeqIOOptions::genFastaInGz(unRecBarFnp) : SeqIOOptions::genFastaIn(unRecBarFnp));
+			auto outTable = getSeqPortionCounts(unRecBarOpts, 0, 20);
+			OutputStream countsOuts(njh::files::make_path(setUp.pars_.directoryName_, "top_mostCommonStarts_for_unrecognizedBarcodes.tab.txt"));
+			countsOuts << "inputName\tsampleName\tseq\tcount\tfractionOfUnrecognizedReads" << std::endl;
+			for(uint32_t row = 0; row < 10 && row < outTable.content_.size(); ++row){
+				countsOuts << seqName
+						<< "\t" << pars.corePars_.sampleName
+						<< "\t" << njh::conToStr(outTable.content_[row], "\t") << std::endl;
+			}
+			break;
+		}
+	}
+
 	if(!pars.corePars_.keepUnfilteredReads){
 		njh::files::rmDirForce(unfilteredReadsDir);
+	}
+	if(!pars.corePars_.keepFilteredOff){
+		njh::files::rmDirForce(filteredOffDir);
 	}
 	if (setUp.pars_.writingOutAlnInfo_) {
 		setUp.rLog_ << "Number of alignments done" << "\n";
