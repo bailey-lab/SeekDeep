@@ -275,7 +275,8 @@ struct processClustersPars {
   bfs::path pmoPrimersFnp; //! id file with the primers for this target
   std::string pmoPanelName; //! panel name for the PMO, defaults to the experiment name
   std::string pmoPrimerTarget; //! target to look up in pmoPrimersFnp, defaults to the experiment name
-  std::string pmoProgramVersion = "3.0.1"; //! SeekDeep version recorded in the PMO
+  static constexpr const char * defaultPmoProgramVersion = "3.0.1"; //! default for pmoProgramVersion, readable without building a processClustersPars
+  std::string pmoProgramVersion = defaultPmoProgramVersion; //! SeekDeep version recorded in the PMO
   PmoGenomePars pmoGenomePars; //! the genome for the PMO when variants are called
 
   bool onPerId = false;
