@@ -277,6 +277,10 @@ int SeekDeepRunner::extractor(const njh::progutils::CmdArgs & inputCommands) {
 	}
 	//close mid outs;
 	readerOuts.closeOutAll();
+	// close these now, filteredOff/ is removed at the end unless --keepFilteredOff and on NFS a file still open
+	// when it's deleted leaves a .nfs placeholder behind that stops the directory from being removed
+	smallFragMentOut.closeOut();
+	startsWtihBadQualOut.closeOut();
 
 	//if no length was supplied, calculate a min and max length off of the median read length
 	auto readLenMedian = vectorMedianRef(readLens);
