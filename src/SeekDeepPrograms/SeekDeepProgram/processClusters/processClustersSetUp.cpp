@@ -110,6 +110,7 @@ void SeekDeepSetUp::setUpMultipleSampleCluster(processClustersPars & pars) {
 			"Target to look up in --pmoPrimers when it isn't the same as --experimentName, e.g. when mates are analyzed separately", false, "Output");
 	setOption(pars.pmoPanelName, "--pmoPanelName",
 			"Panel name for the PMO, defaults to the experiment name", false, "Output");
+	pars.pmoProgramVersion = commands_.runnerVersion_;
 	setOption(pars.pmoProgramVersion, "--pmoProgramVersion",
 			"SeekDeep version to record in the PMO", false, "Output");
 	pars.pmoGenomePars.setOptions(*this);

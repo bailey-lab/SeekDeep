@@ -251,7 +251,9 @@ int SeekDeepUtilsRunner::ampliconReadQC(const njh::progutils::CmdArgs & inputCom
 		if(!gffDir.empty()){
 			targetInfoArgs["--gffdir"] = gffDir.string();
 		}
-		const njh::progutils::CmdArgs targetInfoCommands(inputCommands.masterProgram_, "genTargetInfoFromGenomes", targetInfoArgs, inputCommands.commandLine_, inputCommands.workingDir_);
+		njh::progutils::CmdArgs targetInfoCommands(inputCommands.masterProgram_, "genTargetInfoFromGenomes", targetInfoArgs, inputCommands.commandLine_, inputCommands.workingDir_);
+		targetInfoCommands.runnerName_ = inputCommands.runnerName_;
+		targetInfoCommands.runnerVersion_ = inputCommands.runnerVersion_;
 		SeekDeepUtilsRunner::genTargetInfoFromGenomes(targetInfoCommands);
 	}
 	ids.addOverLapStatuses(overlapStatusFnp.empty() ?

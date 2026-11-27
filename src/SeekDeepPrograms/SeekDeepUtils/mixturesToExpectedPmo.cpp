@@ -14,7 +14,7 @@ int SeekDeepUtilsRunner::mixturesToExpectedPmo(const njh::progutils::CmdArgs & i
 	ExpectedControls::FromMixturesPars mixPars;
 	ExpectedControls::ToPmoPars pmoPars;
 	pmoPars.programName_ = "SeekDeep mixturesToExpectedPmo";
-	pmoPars.programVersion_ = processClustersPars::defaultPmoProgramVersion;
+	pmoPars.programVersion_ = inputCommands.runnerVersion_;
 	bfs::path primersFnp;
 	std::set<std::string> selectTargets;
 	std::set<std::string> excludeTargets;
