@@ -541,15 +541,25 @@ void pcv::getPopSeqsPostHandler(std::shared_ptr<restbed::Session> session,
 			}
 			auto popUIDs = njh::json::jsonArrayToVec<std::string>(postData["popUIDs"],
 					[](const Json::Value & val) {return val.asString();});
-			seqsBySession_[sesUid]->cache_.at(projectName).reload();
-			seqsBySession_[sesUid]->cache_.at(projectName).toggleSeqs(
-					[&popUIDs](const readObject & seq) {
-						return njh::in(seq.seqBase_.getStubName(false), popUIDs);
-			});
-			//make sure seqs aren't empty, viewer doesn't know how to handle that, if it isn't make sure to remove the placeholder seq if it is there
-			seqsBySession_[sesUid]->cache_.at(projectName).ensureNonEmptyReads();
-			seqData = seqsBySession_[sesUid]->getJson(projectName);
-			seqData["sessionUID"] = njh::json::toJson(sesUid);
+			//nullptr if the session doesn't exist
+			auto seqCache = getSeqCacheSession(sesUid);
+			if (nullptr == seqCache) {
+				std::cerr << __PRETTY_FUNCTION__ << ": error, sessionUID: " << sesUid
+						<< " is not currently in seqsBySession_" << std::endl;
+			} else {
+				//lock the session's cache while editing its records
+				auto cacheLock = seqCache->lockCache();
+				auto & record = seqCache->cache_.at(projectName);
+				record.reload();
+				record.toggleSeqs(
+						[&popUIDs](const readObject & seq) {
+							return njh::in(seq.seqBase_.getStubName(false), popUIDs);
+				});
+				//make sure seqs aren't empty, viewer doesn't know how to handle that, if it isn't make sure to remove the placeholder seq if it is there
+				record.ensureNonEmptyReads();
+				seqData = seqCache->getJson(projectName);
+				seqData["sessionUID"] = njh::json::toJson(sesUid);
+			}
 
 		} else {
 			std::cerr << __PRETTY_FUNCTION__ << ": error, no such project as "
@@ -597,7 +607,7 @@ void pcv::getSampSeqsPostHandler(std::shared_ptr<restbed::Session> session,
 			if (collections_[projectName]->collection_->hasSample(sampleName)) {
 				collections_[projectName]->registerSampleSeqs(sampleName, *seqs_);
 				uint32_t sesUid = startSeqCacheSession();
-				seqData = seqsBySession_[sesUid]->getJson(
+				seqData = getSeqCacheSession(sesUid)->getJson(
 						projectName + "_" + sampleName);
 				seqData["sessionUID"] = njh::json::toJson(sesUid);
 			} else {
@@ -1141,21 +1151,30 @@ void pcv::groupGetPopSeqsPostHanlder(
 						}
 						auto popUIDs = njh::json::jsonArrayToVec<std::string>(postData["popUIDs"],
 								[](const Json::Value & val) {return val.asString();});
-						seqsBySession_[sesUid]->cache_.at(projectName).reload();
-						if (seqsBySession_[sesUid]->cache_.at(projectName).reads_->size()
-								!= popUIDs.size()) {
-							for (auto & seq : *seqsBySession_[sesUid]->cache_.at(projectName).reads_) {
-								if (njh::in(seq.seqBase_.getStubName(false), popUIDs)) {
-									seq.seqBase_.on_ = true;
-								} else {
-									seq.seqBase_.on_ = false;
+						//nullptr if the session doesn't exist
+						auto seqCache = getSeqCacheSession(sesUid);
+						if (nullptr == seqCache) {
+							std::cerr << __PRETTY_FUNCTION__ << ": error, sessionUID: " << sesUid
+									<< " is not currently in seqsBySession_" << std::endl;
+						} else {
+							//lock the session's cache while editing its records
+							auto cacheLock = seqCache->lockCache();
+							auto & record = seqCache->cache_.at(projectName);
+							record.reload();
+							if (record.reads_->size() != popUIDs.size()) {
+								for (auto & seq : *record.reads_) {
+									if (njh::in(seq.seqBase_.getStubName(false), popUIDs)) {
+										seq.seqBase_.on_ = true;
+									} else {
+										seq.seqBase_.on_ = false;
+									}
 								}
 							}
+							//make sure seqs aren't empty, viewer doesn't know how to handle that, if it isn't make sure to remove the placeholder seq if it is there
+							record.ensureNonEmptyReads();
+							ret = seqCache->getJson(projectName);
+							ret["sessionUID"] = njh::json::toJson(sesUid);
 						}
-						//make sure seqs aren't empty, viewer doesn't know how to handle that, if it isn't make sure to remove the placeholder seq if it is there
-						seqsBySession_[sesUid]->cache_.at(projectName).ensureNonEmptyReads();
-						ret = seqsBySession_[sesUid]->getJson(projectName);
-						ret["sessionUID"] = njh::json::toJson(sesUid);
 					}else{
 						std::cerr << __PRETTY_FUNCTION__ << ": error, no such sub group as " << subGroupName
 								<< " in group " << groupName << " in project " << projectName << ", options are "

@@ -116,6 +116,8 @@ std::shared_ptr<restbed::Resource> pmv::postRoute(const PathSegs & segs, std::fu
 }
 
 void pmv::registerSeqs(const std::string & uid, const std::string & fasta) {
+	//lock seqs_ so concurrent registrations get unique file names
+	auto seqsLock = seqs_->lockCache();
 	if (seqs_->containsRecord(uid)) {
 		return;
 	}
@@ -199,10 +201,23 @@ Json::Value pmv::popSeqsJson(const std::string & target, const Json::Value & pos
 	registerSeqs(target, project_->popSeqsFasta(target));
 	const uint32_t sesUid = postData.isMember("sessionUID") ? postData["sessionUID"].asUInt() : startSeqCacheSession();
 	auto popUIDs = njh::json::jsonArrayToSet<std::string>(postData["popUIDs"], [](const Json::Value & val) {return val.asString();});
-	auto & cache = seqsBySession_[sesUid]->cache_;
+	//nullptr if the session doesn't exist
+	auto seqCache = getSeqCacheSession(sesUid);
+	if (nullptr == seqCache) {
+		std::cerr << __PRETTY_FUNCTION__ << ": error, sessionUID: " << sesUid
+				<< " is not currently in seqsBySession_" << std::endl;
+		return Json::Value{};
+	}
+	//lock the session's cache while editing its records
+	auto cacheLock = seqCache->lockCache();
+	auto & cache = seqCache->cache_;
 	//sessions started before this target was registered won't have it yet
 	if (!njh::in(target, cache)) {
-		seqsBySession_[sesUid]->updateAddCache(target, seqs_->cache_.at(target).ioOpts_.opts_);
+		SeqIOOptions targetOpts = [this, &target]() {
+			auto seqsLock = seqs_->lockCache();
+			return seqs_->cache_.at(target).ioOpts_.opts_;
+		}();
+		seqCache->updateAddCache(target, targetOpts);
 	}
 	auto & record = cache.at(target);
 	record.reload();
@@ -211,7 +226,7 @@ Json::Value pmv::popSeqsJson(const std::string & target, const Json::Value & pos
 	});
 	//viewer doesn't know how to handle empty seqs
 	record.ensureNonEmptyReads();
-	auto ret = seqsBySession_[sesUid]->getJson(target);
+	auto ret = seqCache->getJson(target);
 	ret["sessionUID"] = njh::json::toJson(sesUid);
 	return ret;
 }
@@ -364,7 +379,7 @@ std::vector<std::shared_ptr<restbed::Resource>> pmv::getAllResources() {
 		auto uid = "pmoAllTargets_" + sample;
 		registerSeqs(uid, project_->sampleAcrossTargetsFasta(sample));
 		auto sesUid = startSeqCacheSession();
-		auto out = seqsBySession_[sesUid]->getJson(uid);
+		auto out = getSeqCacheSession(sesUid)->getJson(uid);
 		out["sessionUID"] = njh::json::toJson(sesUid);
 		respondJson(session, out);
 	}));
@@ -526,7 +541,7 @@ std::vector<std::shared_ptr<restbed::Resource>> pmv::getAllResources() {
 			auto uid = target + "_" + sample;
 			registerSeqs(uid, project_->sampleSeqsFasta(target, sample));
 			auto sesUid = startSeqCacheSession();
-			auto out = seqsBySession_[sesUid]->getJson(uid);
+			auto out = getSeqCacheSession(sesUid)->getJson(uid);
 			out["sessionUID"] = njh::json::toJson(sesUid);
 			respondJson(session, out);
 		});
