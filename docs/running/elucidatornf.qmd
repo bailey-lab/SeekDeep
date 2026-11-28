@@ -1,0 +1,164 @@
+---
+title: "Running with elucidatornf"
+---
+
+[elucidatornf](https://github.com/nickjhathaway/elucidatornf) is a set of Nextflow workflows that
+run SeekDeep from raw reads to final haplotypes. It is the recommended way to run SeekDeep. It
+works out the extraction settings from your primers and reference genomes, runs the samples in
+parallel, picks up where it left off with `-resume`, and writes the results as tables, a PMO and
+HTML reports.
+
+This page covers what you need to start a run. The
+[elucidatornf README](https://github.com/nickjhathaway/elucidatornf#readme) lists every option.
+
+## Setup
+
+You need [Nextflow](https://www.nextflow.io/docs/latest/install.html) 24.04.2 or newer and either
+Docker or Apptainer/Singularity. The workflows pull the container with SeekDeep in it, so you don't
+need to [install SeekDeep](../install.qmd) yourself.
+
+```bash
+git clone https://github.com/nickjhathaway/elucidatornf.git
+```
+
+## What you give it
+
+| Input | Flag | Notes |
+|---|---|---|
+| Reads | `--input_fastq_dir` | Illumina: paired `*_R1*.fastq.gz`/`*_R2*.fastq.gz`, one pair per sample. Nanopore: fastq files and/or unaligned bams from `dorado demux`. |
+| Primers | `--primers_fnp` | Tab-delimited with a header line, three columns: target name, forward primer, reverse primer, both written 5'→3' as ordered. |
+| Reference genomes | `--genome_dir` and `--gff_dir`, or `--download_plasmodium_genomes` | Used to find each target's reference sequences and expected lengths. For *Plasmodium*, `--download_plasmodium_genomes` fetches and indexes [plasmodium_genomes](https://github.com/nickjhathaway/plasmodium_genomes) for you. |
+| Read length (Illumina) | `--illumina_clustering_paired_end_length` | The length of each mate, e.g. `150` or `250`. Used to work out which targets the mates overlap enough to stitch. |
+| Output directory | `--outdir` | |
+| Container | `-profile docker` or `-profile apptainer` | |
+
+An example primers file:
+
+```tsv
+target	forward	reverse
+PFAMA1	CCATCAGGGAAATGTCCAGT	TTTCCTGCATGTCTTGAACA
+PFMSP1	AACTAGAAGCTTTAGAAGATGCA	ACATATGATTGGTTAAATCAAAG
+```
+
+### Samples, replicates and barcodes
+
+Each fastq pair (Illumina) or demultiplexed barcode (nanopore) becomes one sample, named after the
+file. A **sample key** (`--amplicon_sample_key_fnp`) changes that:
+
+- it renames inputs;
+- it marks inputs as PCR replicates of one sample, which are clustered separately and combined at
+  the population step (by default a haplotype has to be found in every replicate);
+- it splits inputs that pool several samples with in-line barcodes (MIDs).
+
+```tsv
+input	sample	replicate	fbarcode	rbarcode
+Run1_LibA	P001		ACGTACGTAC	TTGACCATGC
+Run1_LibA	P002		TGCATGCATG	CCAGTTGACA
+Run2_LibA	P001		ACGTACGTAC	TTGACCATGC
+Sample9	P009
+```
+
+`SeekDeep getPossibleSampleNamesFromRawInput` lists the input names a directory will give, and
+can write a starting sample key:
+
+```bash
+SeekDeep getPossibleSampleNamesFromRawInput --inputDir fastq/ --sampleKeyOut sampleKey.tsv
+```
+
+The [sample key guide](https://github.com/nickjhathaway/elucidatornf/blob/dev/docs/sample_key.md)
+covers the format, how replicates are named and combined, and the checks a key has to pass.
+
+Two related options: `--amplicon_samples_keep_file` processes only the samples listed in it.
+`--meta_fnp` attaches a metadata table (a `sample` column plus any others) to the results.
+
+## Illumina
+
+```bash
+nextflow run elucidatornf/illumina_clustering.nf \
+  --input_fastq_dir fastq/ \
+  --primers_fnp primers.tsv \
+  --download_plasmodium_genomes \
+  --plasmodium_genomes_dir /data/plasmodium_genomes \
+  --illumina_clustering_paired_end_length 150 \
+  --outdir results \
+  -profile docker
+```
+
+For non-*Plasmodium* targets, give `--genome_dir` and `--gff_dir` instead of
+`--download_plasmodium_genomes`.
+
+Targets too long for their mates to overlap are clustered as `<target>-R1` and `<target>-R2`.
+Single-end reads, such as SRA runs whose pairs were merged before upload, take
+`--illumina_single_end`.
+
+### Options worth knowing
+
+- `--illumina_clustering_min_sample_read_count` (default 50): replicates with fewer reads for a
+  target are left out of population clustering.
+- `--illumina_clustering_filter_extracted_reads`: drops extracted reads that don't share enough
+  k-mers with their target's reference sequences, such as host reads or primer dimers that carry
+  the right primers.
+- `--illumina_clustering_read_qc`: also runs [read QC](#read-qc).
+- `--do_variant_calling` with `--vc_primary_genome Pf3D7`: calls variants and amino acid changes
+  against a reference genome.
+- `--amplicon_clustering_pop_clustering_extra_args "..."`: passes extra flags to
+  [`processClusters`](../reference/seekdeep.qmd#processClusters).
+
+## Nanopore
+
+```bash
+nextflow run elucidatornf/nanopore_clustering.nf \
+  --input_fastq_dir demux/ \
+  --primers_fnp primers.tsv \
+  --download_plasmodium_genomes \
+  --plasmodium_genomes_dir /data/plasmodium_genomes \
+  --outdir results \
+  -profile docker
+```
+
+`--input_fastq_dir` is searched recursively. Bams are named by the `SM` of their read group (e.g.
+`barcode01`), and `unclassified` files are skipped. To combine several demux runs, point
+`--input_fastq_dir` at a directory holding each run's output and add
+`--nanopore_sample_name_prefix_top_dir`, which prefixes each sample name with its run directory.
+
+For amplicons that reads often don't cover end to end (rapid barcoding, long targets), reads can
+be trimmed to regions inside each target. Give the regions' primers with
+`--nanopore_trim_primers_fnp`, or use `--nanopore_extractor_use_inner_primers` to make them from
+the ends of each target. The amplified primers are then used only to tell which target a read
+comes from, to split reads of several amplicons joined together and to drop foldbacks.
+
+## Read QC {#read-qc}
+
+`illumina_read_qc.nf`, or `--illumina_clustering_read_qc` on a clustering run, runs
+[`SeekDeep ampliconReadQC`](../reference/seekdeeputils.qmd#ampliconReadQC). It puts every read
+pair into one category (`onTarget`, `primerDimer`, `shortProduct`, `kmerMismatch`,
+`mismatchedPrimers` and others) and uses BLAST to work out where unexpected products came from:
+another target in the panel, elsewhere in the target genome, the host, or adapter. It only
+reports and doesn't change which reads are kept. Results go to `readQC/`.
+
+Every Illumina clustering run also writes a primer dimer report,
+`extractionReports/allPrimerDimerCounts.tsv.gz`, with the primers each dimer is made of and their
+predicted dimerization scores.
+
+## What you get
+
+| Directory | What's in it |
+|---|---|
+| `finalResults/` | `allSelectedClustersInfo.tsv.gz` (final haplotypes per sample and target, with frequencies and read counts), `allele_data.tsv.gz`, `allSampleClustersInfo.tsv.gz` and `allPMO.json.gz` (everything as one [PMO](https://plasmogenepi.github.io/PMO_Docs/)) |
+| `extractionReports/` | Reads per sample and target at each extraction step, why reads failed, primer dimers, and `outSeekDeepExtractorFlags.txt` (the extractor flags the workflow chose) |
+| `primerInfo/` | The primers used and each target's reference sequences and locations in each genome |
+| `variantCalls/` | Variant and amino acid change reports, with `--do_variant_calling` |
+| `readQC/` | Read QC reports, with `--illumina_clustering_read_qc` |
+| `meta/` | `sample_name_key.tsv`: input, sample, replicate and barcodes for every sample with extracted reads |
+| `run/`, `pipeline_info/` | The parameters used, run times and Nextflow's execution reports |
+
+To browse the results, see [Viewing results](viewers.qmd).
+
+## Re-running and resources
+
+- Add `-resume` to pick up a run where it stopped. Steps whose inputs haven't changed are reused.
+- `--max_task_cpus`, `--max_task_memory` and `--max_executor_cpus` cap the resources used. They
+  are clamped to the machine by default.
+- On Nextflow 26.04 or newer, turn a boolean flag on by giving it bare (`--do_variant_calling`) and
+  off by leaving it out. `--do_variant_calling false` still turns it on, because the CLI value is
+  the string `"false"`.

@@ -271,6 +271,8 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	seqSetUp setUp(inputCommands);
 	setUp.processVerbose();
 	setUp.processDebug();
+	setUp.description_ = "Call nucleotide and amino acid variants on the haplotypes in a results table (e.g. processClusters selectedClustersInfo) by aligning each target's haplotypes to the genome and translating them over the genes they cover, "
+			"writes each target's calls plus combined genomic and protein VCFs and amino acid change tables to reports/ in the output directory";
 	setUp.setOption(doNotRequireFullKnownCoverage, "--doNotRequireFullKnownCoverage", "do Not Require Full Known Coverage e.g. will report covered by target if there is partial coverage");
 	requireFullKnownCoverage = !doNotRequireFullKnownCoverage;
 	setUp.setOption(aaSummaryRefInfoNextToAlt, "--aaSummaryRefInfoNextToAlt", "In AA Summary table place the Reference Info Next To Alternate info, rather than stacked");
@@ -313,7 +315,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 
 
 	setUp.setOption(resultsFnp, "--resultsFnp",
-									"results tab delimited file, each row is a haplotype, should have at least 5 columns, 1) sample (--sampleColName), 2)within sample freq (--withinSampleFreqColName), 3)within sample read count (--withinSampleReadCntColName), 4)haplotype pop ID (--popHapIdColName), 5)target name column (--targetNameColName), optionally 4th col with hap sequence (--popHapSeqColName) or read in from --popSeqsDirFnp",
+									"results tab delimited file, each row is a haplotype, should have at least 4 columns, 1) sample (--sampleColName), 2)within sample read count (--withinSampleReadCntColName), 3)haplotype pop ID (--popHapIdColName), 4)target name column (--targetNameColName), and a 5th col with the hap sequence (--popHapSeqColName) unless read in from --popSeqsDirFnp",
 									true);
 
 	setUp.setOption(sampleColName, "--sampleColName", "sample Column Name", false, "Results Column Names");
@@ -327,7 +329,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	setUp.setOption(popSeqsDirFnp, "--popSeqsDirFnp",
 									"Population Sequences, in this directory should be a fasta file with the name of each target");
 
-	setUp.setOption(metaFnp, "--metaFnp", "meta data for the control samples");
+	setUp.setOption(metaFnp, "--metaFnp", "meta data for the samples");
 	bfs::path pmoFnp;
 	PmoGenomePars pmoGenomePars;
 	bfs::path perTargetVariantCallsDir;
@@ -337,7 +339,7 @@ int SeekDeepUtilsRunner::variantCallOnSeqAndProtein(
 	setUp.setOption(pmoFnp, "--pmo", "A PMO with the haplotypes in --resultsFnp, the variant calls are added to its haplotypes by sequence and it's written to reports/allPMO.json.gz", false, "PMO");
 	pmoGenomePars.setOptions(setUp);
 	setUp.setOption(popSeqsRegexPatRemoval, "--popSeqsRegexPatRemoval",
-									"optional regex pattern to process the input pop sequences from --popSeqsFnp to make it match up with the input results folder");
+									"optional regex pattern to process the input pop sequences from --popSeqsDirFnp to make it match up with the input results folder");
 
 	setUp.processDirectoryOutputName("variantCalling_TODAY", true);
 	setUp.finishSetUp(std::cout);

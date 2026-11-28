@@ -26,6 +26,8 @@ int SeekDeepUtilsRunner::combineBasicResultsFiles(
 	seqSetUp setUp(inputCommands);
 	setUp.processVerbose();
 	setUp.processDebug();
+	setUp.description_ = "Combine several results tables (one row per sample, target and haplotype) into one, giving haplotypes with the same sequence within a target the same new ID (<target>.<n>, most common first), "
+			"writes a tsv with sample, target, haplotype ID, read count and sequence plus any --additionalColumns";
 	setUp.setOption(additionalColumns, "--additionalColumns", "additional Columns to include");
 
 	setUp.setOption(selectTargets, "--selectTargets", "Only analyze these select targets");
@@ -33,14 +35,14 @@ int SeekDeepUtilsRunner::combineBasicResultsFiles(
 
 
 	setUp.setOption(resultFnps, "--resultFnps",
-									"results tab delimited files, each row is a haplotype, should have at least 4 columns, 1) sample (--sampleColName), 2)within sample read count (--withinSampleReadCntColName), 3)haplotype pop ID (--popHapIdColName), 4)target name column (--targetNameColName), optionally 5th col with hap sequence (--popHapSeqColName) or read in from --popSeqsDirFnp",
+									"results tab delimited files, each row is a haplotype, should have at least 4 columns, 1) sample (--sampleColName), 2)within sample read count (--withinSampleReadCntColName), 3)target name column (--targetNameColName), 4)haplotype sequence (--popHapSeqColName), any haplotype ID column is ignored and new IDs are made",
 									true);
 
 	setUp.setOption(sampleColName, "--sampleColName", "sample Column Name", false, "Results Column Names");
 	setUp.setOption(withinSampleReadCntColName, "--withinSampleReadCntColName", "within Sample Read Cnt Col Column Name", false, "Results Column Names");
-	setUp.setOption(popHapIdColName, "--popHapIdColName", "popHapIdColName", false, "Results Column Names");
+	setUp.setOption(popHapIdColName, "--popHapIdColName", "Column name for the new haplotype IDs in the output", false, "Results Column Names");
 	setUp.setOption(popHapSeqColName, "--popHapSeqColName",
-									"population Haplotype Sequence Column Name, the seq to call variants on", false, "Results Column Names");
+									"population Haplotype Sequence Column Name, haplotypes with the same sequence in a target get the same ID", false, "Results Column Names");
 	setUp.setOption(targetNameColName, "--targetNameColName",
 									"target Name Column Name, the column name in the table which indicates the different targets", false, "Results Column Names");
 

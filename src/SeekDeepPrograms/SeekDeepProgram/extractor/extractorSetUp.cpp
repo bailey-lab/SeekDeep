@@ -137,7 +137,7 @@ void SeekDeepSetUp::setUpExtractorPairedEnd(ExtractorPairedEndPars & pars) {
 		}
 	}
 	setOption(pars.corePars_.primIdsPars.overlapStatusFnp_, "--overlapStatusFnp",
-			"A file with two columns, target,status; status column should contain 1 of 3 values (capitalization doesn't matter): r1BegOverR2End,r1EndOverR2Beg,NoOverlap. r1BegOverR2End=target size < read length (causes read through),r1EndOverR2Beg= target size > read length less than 2 x read length, NoOverlap=target size > 2 x read length", !setDefaultOverlapStatus, "Post Processing");
+			"A file with two columns, target,status, e.g. overlapStatuses.txt from genTargetInfoFromGenomes; status is one or more, comma separated, of R1BeginsInR2, R1EndsInR2, PerfectOverlap, NoOverlap or Auto (capitalization doesn't matter). R1BeginsInR2=target size < read length (causes read through), R1EndsInR2=target size > read length but less than 2 x read length, NoOverlap=target size > 2 x read length and can't be combined with the others", !setDefaultOverlapStatus, "Post Processing");
 
 	setOption(pars.pairProcessorParams_.primerDimmerSize_, "--primerDimerSize", "Size of r1 begins in r2 stitched reads that should be considered primer dimers");
 	setOption(pars.pairProcessorParams_.stitchCacheMaxEntries_, "--stitchCacheMaxEntries", "Max number of mate pairs to remember the alignment of so that they only have to be aligned once when stitching, 0 to not remember any, the output is the same either way");

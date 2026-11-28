@@ -157,13 +157,16 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
   bool rename = false;
   bool ignoreMissingKmerSets = false;
   SeekDeepSetUp setUp(inputCommands);
+  setUp.description_ = "Extract each target's reads from one sample's long reads (e.g. nanopore or pacbio) by the target k-mers they share, from genTargetInfoFromGenomes, "
+      "then check primers, length and quality, reads of several targets are split into one read per target. "
+      "Writes passing and failing reads per target plus extractionProfile.tab.txt and extractionStats.tab.txt to the output directory";
   setUp.setOption(ignoreMissingKmerSets, "--ignoreMissingKmerSets", "ignore Missing Kmer Sets");
 
   //id
   setUp.setOption(idFnp, "--ids,--id", "Primers file", true, "IDs");
 
-  setUp.setOption(lenCutOffsFnp, "--lenCutOffsFnp,--lenCutOffs", "length Cut Offs per target", true, "IDs");
-  setUp.setOption(uniqueKmersPerTargetFnp, "--uniqueKmersPerTarget", "unique Kmers Per Target", true, "IDs");
+  setUp.setOption(lenCutOffsFnp, "--lenCutOffsFnp,--lenCutOffs", "Length cut offs per target, e.g. forSeekDeep/lenCutOffs.txt from genTargetInfoFromGenomes", true, "IDs");
+  setUp.setOption(uniqueKmersPerTargetFnp, "--uniqueKmersPerTarget", "The per target k-mer table, e.g. forSeekDeep/uniqueKmers.tab.txt.gz or allKmers.tab.txt.gz from genTargetInfoFromGenomes", true, "IDs");
   bfs::path trimPrimersFnp;
   bfs::path trimKmersPerTargetFnp;
   bfs::path trimLenCutOffsFnp;

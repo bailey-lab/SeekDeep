@@ -70,6 +70,7 @@ int SeekDeepUtilsRunner::primersToFasta(const njh::progutils::CmdArgs & inputCom
 	seqSetUp setUp(inputCommands);
 	setUp.processVerbose();
 	setUp.processDebug();
+	setUp.description_ = "Write the primers in a SeekDeep primers file as fasta, named <target>-fwd and <target>-rev";
 	setUp.setOption(pars.idFile, "--primers", "Primers file", true);
 	setUp.processWritingOptions(outOptions.out_);
 	setUp.finishSetUp(std::cout);
@@ -121,6 +122,8 @@ int SeekDeepUtilsRunner::getPossibleSampleNamesFromRawInput(const njh::progutils
 	setUp.processDebug();
 
 	RawInputSampleNamesPars singleEndPars;
+	setUp.description_ = "Guess sample names from the raw read files in a directory, for Illumina a table of the samples and their input files with replicates grouped by --replicatePattern (and optionally a sample key for elucidatornf), "
+			"for nanopore/pacbio one row per file with the sample name it would get (bams by the SM of their read group)";
 	setUp.examples_.emplace_back("SeekDeep getPossibleSampleNamesFromRawInput --inputDir demux_dir --technology nanopore --recursive --prefixWithTopDir --out sampleNames.tsv #per file report for nanopore/pacbio, bams are named by the SM of their read group");
 	setUp.examples_.emplace_back("SeekDeep getPossibleSampleNamesFromRawInput --inputDir fastq --replicatePattern \"(.*)(-R[0-9]+)\" --sampleKeyOut sampleKey.tsv #also write a sample key for elucidatornf, Ctrl1-R1 and Ctrl1-R2 become replicates of Ctrl1");
 	setUp.setOption(pars.inputDir, "--inputDir", "Input Directory", true);
@@ -188,12 +191,14 @@ int SeekDeepUtilsRunner::getPossibleSampleNamesFromRawInput(const njh::progutils
 int SeekDeepUtilsRunner::dryRunQualityFiltering(
 		const njh::progutils::CmdArgs & inputCommands) {
 	seqSetUp setUp(inputCommands);
+	setUp.description_ = "Report how many reads in a file would fail a sliding quality window and a fraction of bases above a quality check, with stats on each read's fraction above --qualCheck, "
+			"without filtering anything, prints to the terminal";
 	setUp.processDefaultReader(true);
 	std::string qualWindow;
 	uint32_t qualityWindowLength;
 	uint32_t qualityWindowStep;
 	uint8_t qualityWindowThres;
-	if (setUp.setOption(qualWindow, "--qualWindow", "SlidingQualityWindow")) {
+	if (setUp.setOption(qualWindow, "--qualWindow", "Sliding quality window as length,step,threshold, reads fail if any window's mean quality is below threshold, default 50,5,25")) {
 		seqUtil::processQualityWindowString(qualWindow, qualityWindowLength,
 				qualityWindowStep, qualityWindowThres);
 	} else {
@@ -202,12 +207,10 @@ int SeekDeepUtilsRunner::dryRunQualityFiltering(
 		qualityWindowThres = 25;
 	}
 	uint32_t qualCheck = 30;
-	setUp.setOption(qualCheck, "--qualCheck", "Qual Check Level");
+	setUp.setOption(qualCheck, "--qualCheck", "Quality level for the fraction of bases above check");
 	double qualCheckCutOff = 0.90;
 	setUp.setOption(qualCheckCutOff, "--qualCheckCutOff",
 			"Cut Off for fraction of bases above qual check");
-	bool plot = false;
-	setUp.setOption(plot, "--plot", "Plot");
 	setUp.finishSetUp(std::cout);
 	SeqInput reader(setUp.pars_.ioOptions_);
 	reader.openIn();
@@ -643,11 +646,12 @@ int SeekDeepUtilsRunner::replaceUnderscores(
 	seqSetUp setUp(inputCommands);
 	setUp.processVerbose();
 	setUp.processDebug();
+	setUp.description_ = "Rename the files in --dir whose names match --pat, replacing underscores with --replacement (up to --upTo of them from the start of the name), with --debug it only prints the renames";
 	setUp.setOption(dir, "--dir", "Directory with the files to rename", true);
-	setUp.setOption(pat, "--pat,-p", "Rename files that match this pattern",
+	setUp.setOption(pat, "--pat,-p", "Rename files that match this regex pattern",
 			true);
 	setUp.setOption(upTo, "--upTo",
-			"Replace up this many underscores from the begging of the filename");
+			"Replace up to this many underscores from the beginning of the filename");
 	setUp.setOption(keepOriginals, "--keepOriginals",
 			"Keep a copy of the original files");
 	setUp.setOption(replacement, "--replacement",
@@ -761,11 +765,13 @@ int SeekDeepUtilsRunner::deRepPopClusDir(const njh::progutils::CmdArgs & inputCo
 	bfs::path inputDir = "./";
 	std::string appendName; //_derep
 	seqSetUp setUp(inputCommands);
-	setUp.setOption(outputName, "--outputName", "Output name");
-	setUp.setOption(add, "--add", "add to derep directory");
-	setUp.setOption(outputDir, "--outputDir", "output dir");
-	setUp.setOption(inputDir, "--inputDir", "input dir");
-	setUp.setOption(appendName, "--appendName", "add to derep files, e.g. _derep");
+	setUp.description_ = "Copy every clustering output file found under --inputDir (any file whose path contains --outputName, by default output.fasta and output.fastq) into --outputDir, "
+			"each in <grandparent>_<parent>/<parent>/ after the directories it was in, so per sample results from several runs end up side by side";
+	setUp.setOption(outputName, "--outputName", "Copy the files whose path contains this");
+	setUp.setOption(add, "--add", "Add to an existing --outputDir instead of making a new one");
+	setUp.setOption(outputDir, "--outputDir", "Output directory, defaults to derep in --inputDir");
+	setUp.setOption(inputDir, "--inputDir", "Directory to search, recursively, for the files to copy");
+	setUp.setOption(appendName, "--appendName", "Add this to the copied file names, e.g. _derep");
 
 	setUp.finishSetUp(std::cout);
 

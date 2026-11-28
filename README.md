@@ -14,16 +14,15 @@ Please cite the following citation:  Hathaway, Nicholas J., Christian M. Parobek
  See installing tab on [http://seekdeep.brown.edu/](http://seekdeep.brown.edu/) for full details for installing for each operating system.
 
 ## Dependecnies
-Need to have at least g++-7, or clang++-3.8 compiler, the default assumption is g++-7, can change what compilier is used by giving -CC and -CXX to ./congifure.py  
+Need a C++17 compiler. `./configure.py` uses `gcc`/`g++` on Linux (gcc 13 on Ubuntu 24.04) and `clang`/`clang++` on macOS by default. To use another compiler, give `-CC` and `-CXX` to `./configure.py` or set the `CC` and `CXX` environment variables.  
 Examples  
 
-For g++-7
+For a specific gcc
 
 ```bash  
-./configure.py -CC gcc-7 -CXX g++-7
+./configure.py -CC gcc-13 -CXX g++-13
 ```
 For clang  
-For Mac OsX make sure clang version is 7.0 or greater
 
 ```bash
 ./configure.py -CC clang -CXX clang++  
@@ -31,7 +30,7 @@ For Mac OsX make sure clang version is 7.0 or greater
 
 Also though SeekDeep does not use cmake, several of the libraries it uses do depend on cmake so it needs to be present.  
 
-## To Install latest version (defaults to g++-7 or defaults to clang on Mac)    
+## To Install latest version (defaults to g++ on Linux, clang on Mac)    
 ```bash
 git clone https://github.com/bailey-lab/SeekDeep.git   
 cd SeekDeep  

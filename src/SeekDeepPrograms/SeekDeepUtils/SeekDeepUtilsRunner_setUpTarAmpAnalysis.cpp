@@ -46,6 +46,8 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	setUp.processVerbose();
 	setUp.processDebug();
 	pars.debug = setUp.pars_.debug_;
+	setUp.description_ = "Set up a full targeted amplicon analysis from a directory of raw read files and a primers file, works out the sample names and writes the extractor, qluster (or kluster), "
+			"processClusters and popClusteringViewer commands for every sample and target into --outDir, with runAnalysis.sh to run them all";
 
 	setUp.setOption(pars.technology, "--technology",
 			"Sequencing Technology (should be " + njh::conToStrEndSpecial(acceptableTechs, ", ", " or ") + ")",
@@ -115,7 +117,7 @@ int SeekDeepUtilsRunner::setupTarAmpAnalysis(
 	}
 
 	setUp.setOption(pars.overlapStatusFnp, "--overlapStatusFnp",
-			"A file with two columns, target,status; status column should contain 1 of 3 values (capitalization doesn't matter): r1BegOverR2End,r1EndOverR2Beg,NoOverlap. r1BegOverR2End=target size < read length (causes read through),r1EndOverR2Beg= target size > read length less than 2 x read length, NoOverlap=target size > 2 x read length",
+			"A file with two columns, target,status, e.g. overlapStatuses.txt from genTargetInfoFromGenomes; status is one or more, comma separated, of R1BeginsInR2, R1EndsInR2, PerfectOverlap, NoOverlap or Auto (capitalization doesn't matter). R1BeginsInR2=target size < read length (causes read through), R1EndsInR2=target size > read length but less than 2 x read length, NoOverlap=target size > 2 x read length and can't be combined with the others",
 			pars.techIsIllumina() && !setDefaultOverlapStatus, "Illumina Stitching");
 
 	setUp.setOption(pars.targetsToIndexFnp, "--targetsToIndex",

@@ -58,13 +58,14 @@ int SeekDeepServerRunner::popClusteringViewer(const njh::progutils::CmdArgs & in
 	SeqAppCorePars corePars;
 	corePars.port_ = 9881;
 	corePars.name_ = "pcv";
+	setUp.description_ = "Start a local web server to browse processClusters results, one project per .config file (made by genProjectConfig) in --configDir, on port 9881 by default";
 	bfs::path configDir = "";
 	bfs::path resourceDirName = njh::files::make_path(SeekDeep_INSTALLDIR, "etc/serverResources").string();
 	setUp.setOption(resourceDirName, "--resourceDirName",
 			"Name of the resource Directory where the js and html is located",
 			!bfs::exists(resourceDirName));
 
-	setUp.setOption(configDir, "--configDir", "Name of the Master Result Directory", true);
+	setUp.setOption(configDir, "--configDir", "Directory of the project .config files made by genProjectConfig, each one is served as a project", true);
 
 	setUp.processDebug();
 	setUp.processVerbose();
@@ -122,6 +123,7 @@ int SeekDeepServerRunner::pmoViewer(const njh::progutils::CmdArgs & inputCommand
 	SeqAppCorePars corePars;
 	corePars.port_ = 9882;
 	corePars.name_ = "pmv";
+	setUp.description_ = "Start a local web server to browse a PMO (portable microhaplotype object) file by sample and target, with a haplotype rainbow page comparing samples, on port 9882 by default";
 	bfs::path pmoFnp = "";
 	bfs::path resourceDirName = njh::files::make_path(SeekDeep_INSTALLDIR, "etc/serverResources").string();
 	setUp.setOption(resourceDirName, "--resourceDirName",
@@ -176,9 +178,11 @@ int SeekDeepServerRunner::genProjectConfig(
 	std::string projectName = "";
 	std::string shortName = "";
 	bool debug = false;
+	setUp.description_ = "Write a project config file (<shortName>.config by default) pointing at a processClusters output directory, "
+			"put the configs of all the projects to serve in one directory and give it to popClusteringViewer --configDir";
 	setUp.setOption(projectName, "--projectName", "Name of the Project", true);
 	setUp.setOption(debug, "--debug", "Run In Debug Mode");
-	setUp.setOption(shortName, "--shortName", "Short Name for url for project, so only characters allowed in urls should bed used");
+	setUp.setOption(shortName, "--shortName", "Short Name for url for project, so only characters allowed in urls should be used");
 	if ("" == shortName) {
 		shortName = projectName;
 	}

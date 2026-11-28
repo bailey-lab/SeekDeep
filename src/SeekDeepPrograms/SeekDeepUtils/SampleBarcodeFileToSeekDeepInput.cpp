@@ -22,6 +22,8 @@ int SeekDeepUtilsRunner::SampleBarcodeFileToSeekDeepInput(
 	bfs::path sampleFnp = "";
 	OutOptions outStub(bfs::path("out"));
 	seqSetUp setUp(inputCommands);
+	setUp.description_ = "Turn a primers file and a per sample barcode file into the inputs for a barcoded (MID) run, "
+			"<out>_ids.tab.txt with the primers and barcodes and <out>_sampleNames.tab.txt with the sample names for each input file and barcode";
 	setUp.setOption(idFnp, "--id", "SeekDeep primers file, 3 columns 1)target,2)forward,3)reverse", true);
 	setUp.setOption(sampleFnp, "--sampleFnp", "Sample file 3 or 4 required columns 1)library,2)sample,3)fbarcode,4(optional))rbarcode."
 			"\n\t\t\t1) name of input file without extension/illumina info e.g. Sample1 for Sample1_S2_R1_001.fastq.gz"

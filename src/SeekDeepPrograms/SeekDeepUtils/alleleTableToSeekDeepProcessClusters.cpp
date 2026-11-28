@@ -31,7 +31,9 @@ int SeekDeepUtilsRunner::alleleTableToSeekDeepProcessClusters(
 	seqSetUp setUp(inputCommands);
 	setUp.processVerbose();
 	setUp.processDebug();
-	setUp.setOption(outputFnp, "--outputFnp", "name of the output directories");
+	setUp.description_ = "Turn an allele table from another pipeline (one row per sample, target and haplotype with its read count, e.g. MAD4HatTeR's allele data) "
+			"into the directory layout processClusters reads, popClustering/<target>/<sample>/<sample>/output.fasta.gz with each haplotype's read count in its name";
+	setUp.setOption(outputFnp, "--outputFnp", "name of the fasta file written in each sample's directory");
 	setUp.setOption(targetKeyFnp, "--targetKeyFnp", "target Key  Fnp, tab delimited assumed first column old name and second column new name, unless columns provided with targetKeyOldTargetNameColName and targetKeyNewTargetNameColName arguments");
 	setUp.setOption(targetKeyOldTargetNameColName, "--targetKeyOldTargetNameColName", "if renaming targets, target Key Old Target Name Col Name");
 	setUp.setOption(targetKeyNewTargetNameColName, "--targetKeyNewTargetNameColName", "if renaming targets, target Key New Target Name Col Name");
@@ -43,7 +45,7 @@ int SeekDeepUtilsRunner::alleleTableToSeekDeepProcessClusters(
 	setUp.setOption(excludeSamples, "--excludeSamples", "Exclude these select samples from analysis");
 
 	setUp.setOption(alleleTableFnp, "--alleleTableFnp",
-									"results tab delimited file, each row is a haplotype, should have at least 4 columns,  sample (--sampleColName),within sample read count (--withinSampleReadCntColName), haplotype sequnece (--popHapSeqColName), target name column (--targetNameColName)",
+									"results tab delimited file, each row is a haplotype, should have at least 4 columns,  sample (--sampleColName),within sample read count (--withinSampleReadCntColName), haplotype sequence (--hapSeqColName), target name column (--targetNameColName)",
 									true);
 	setUp.setOption(sampleColName, "--sampleColName", "sample Column Name", false, "Results Column Names");
 	setUp.setOption(withinSampleReadCntColName, "--withinSampleReadCntColName", "within Sample Read Cnt Col Column Name", false, "Results Column Names");

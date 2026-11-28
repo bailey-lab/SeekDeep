@@ -25,6 +25,8 @@ int SeekDeepUtilsRunner::benchmarkControlMixturesOnProcessedClustersDir(
 	seqSetUp setUp(inputCommands);
 	setUp.processVerbose();
 	setUp.processDebug();
+	setUp.description_ = "Benchmark one target's processClusters output directory against known control mixtures, classifying each control sample's haplotypes as expected or false "
+			"by comparing them to the expected strain sequences, writes classifiedHaplotypes.tsv, performancePerTarget.tsv and the false haplotypes compared to the expected and to the other haplotypes";
 	setUp.setOption(processClustersDir, "--processClustersDir", "Process Clusters Dir", true);
 	setUp.setOption(expectedSeqsFnp, "--expectedSeqsFnp", "Expected Seqs fasta file", true);
 	setUp.setOption(name, "--name", "Name to give the current analysis", true);

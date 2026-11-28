@@ -1,0 +1,68 @@
+---
+title: "Viewing results"
+---
+
+SeekDeep has two local web viewers. Each one starts a small web server on your machine that you
+open in a browser.
+
+| Viewer | Reads | Use it for |
+|---|---|---|
+| [`pmoViewer`](../reference/seekdeepserver.qmd#pmoViewer) | A PMO file (`allPMO.json.gz` from elucidatornf, or any PMO) | elucidatornf results, and PMOs from other pipelines |
+| [`popClusteringViewer`](../reference/seekdeepserver.qmd#popClusteringViewer) | A `processClusters` output directory | Running the SeekDeep commands yourself |
+
+Both servers listen only on `127.0.0.1` (this machine) by default. To view results on a remote
+machine, see [Viewing results on a server](#remote).
+
+## pmoViewer
+
+```bash
+SeekDeep pmoViewer --pmo results/finalResults/allPMO.json.gz
+```
+
+Then open <http://127.0.0.1:9882/pmv>. The server runs until you stop it (Ctrl-C).
+
+- `--port` changes the port (default `9882`), for example when it's already in use or you're
+  serving several PMOs at once.
+- `--name` changes the path at the end of the URL (default `pmv`).
+- `--numThreads` speeds up comparing samples on the haplotype page.
+
+## popClusteringViewer
+
+`popClusteringViewer` serves one or more `processClusters` output directories. Each one is
+described by a config file made with `genProjectConfig`, and the viewer serves every config file in
+a directory:
+
+```bash
+mkdir configs
+SeekDeep genProjectConfig --mainDir popClustering/ --projectName myProject --shortName myProject \
+  --out configs/myProject.config
+SeekDeep popClusteringViewer --configDir configs
+```
+
+Then open <http://127.0.0.1:9881/pcv>.
+
+- `--mainDir` is the directory `processClusters` wrote.
+- `--shortName` goes in the project's URL, so use only letters, numbers, `-` and `_`.
+- Add more config files to `configs/` to serve several projects from one server.
+- `--port` changes the port (default `9881`).
+
+## Viewing results on a server {#remote}
+
+Start the viewer on the server, then forward its port over SSH from your own machine and open the
+same URL locally:
+
+```bash
+# on your own machine
+ssh -N -L 9882:127.0.0.1:9882 you@server
+```
+
+To make the viewer reachable from other machines, give `--bindAddress 0.0.0.0`. It has no login,
+so only do this on a network you trust.
+
+With Docker, the viewer has to listen on all interfaces inside the container, and the port has to be
+published:
+
+```bash
+docker run --rm -p 9882:9882 -v "$PWD":/data -w /data nickjhathaway/elucidator:develop \
+  SeekDeep pmoViewer --pmo results/finalResults/allPMO.json.gz --bindAddress 0.0.0.0
+```

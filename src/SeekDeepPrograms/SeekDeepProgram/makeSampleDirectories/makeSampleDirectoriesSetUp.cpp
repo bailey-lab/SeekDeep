@@ -28,60 +28,18 @@ namespace njhseq {
 
 void SeekDeepSetUp::setUpMakeSampleDirectories(
 		makeSampleDirectoriesPars & pars) {
-	if (needsHelp()) {
-		std::stringstream tempStream;
-		tempStream << "makeSampleDirectoires" << std::endl;
-		tempStream << "Set up a directory tree for processClusters" << std::endl;
-		tempStream << "Commands, order not necessary, flags are case insensitive"
-				<< std::endl;
-		tempStream << "Required commands" << std::endl;
-		tempStream << "--file [option], name of the file of sample names to read in"
-				<< std::endl;
-		tempStream << "--dout [option], name of the main directory to create"
-				<< std::endl;
-		tempStream << "File should be tab delimited and a few examples are below"
-				<< std::endl;
-		tempStream << "File should have at least three columns" << std::endl;
-		tempStream << "Where first column is the name of the index or sff file "
-				"used, second column is the sample names, and all following "
-				"columns are the MIDs for that samples " << std::endl;
-		std::cout << cleanOut(tempStream.str(), width_, indent_);
-		tempStream.str(std::string());
-		std::cout << "Example with two replicates and two separate master indexes"
-				<< std::endl;
-		std::cout << "1\t090-00\tMID01\tMID02" << std::endl;
-		std::cout << "1\t090-24\tMID03\tMID04" << std::endl;
-		std::cout << "1\t090-48\tMID05\tMID06" << std::endl;
-		std::cout << "1\t090-72\tMID07\tMID08" << std::endl;
-		std::cout << "2\t095-00\tMID01\tMID02" << std::endl;
-		std::cout << "2\t095-24\tMID03\tMID04" << std::endl;
-		std::cout << "2\t095-48\tMID05\tMID06" << std::endl;
-		std::cout << "2\t095-72\tMID07\tMID08" << std::endl;
-		std::cout << std::endl;
-		std::cout << "Example with one replicate" << std::endl;
-		std::cout << "1\t090-00\tMID01" << std::endl;
-		std::cout << "1\t090-24\tMID02" << std::endl;
-		std::cout << "2\t095-00\tMID01" << std::endl;
-		std::cout << "2\t095-24\tMID02" << std::endl;
-		std::cout << std::endl;
-		std::cout << "Example with with mix amount of replicates" << std::endl;
-		std::cout << "1\t090-00\tMID01" << std::endl;
-		std::cout << "1\t090-24\tMID02" << std::endl;
-		std::cout << "2\t095-00\tMID01\tMID02" << std::endl;
-		std::cout << "2\t095-24\tMID03\tMID04" << std::endl;
-
-		std::cout << "examples, SeekDeep makesampleDirectories --file "
-				"names.tab.txt --dout clustering" << std::endl;
-		exit(0);
-	}
+	description_ = "Make the directory tree processClusters reads from a table of sample names, one directory per sample with a subdirectory per replicate, "
+			"plus locationByIndex/ with a file per index listing where each of its replicates went";
+	examples_.emplace_back("MASTERPROGRAM SUBPROGRAM --file names.tab.txt --dout clustering");
 	processVerbose();
 	setOption(pars.separatedDirs, "--separatedDirs",
-				"Create a separate directory for each index");
-	setOption(pars.sampleNameFilename, "--file", "Sample Names Filename", true);
+				"Create a separate directory for each index, with the sample directories under it");
+	setOption(pars.sampleNameFilename, "--file", "Tab (or whitespace) delimited sample names file, at least 3 columns: 1) index (or input file) name, 2) sample name, 3+) the replicate (e.g. MID) names for that sample, "
+			"e.g. a row of 1 090-00 MID01 MID02 is sample 090-00 with replicates MID01 and MID02 from index 1, rows starting with # are skipped", true);
 	setOption(pars_.directoryName_, "--dout", "Main Out Directory Name", true);
 	setOption(pars_.overWriteDir_, "--overWriteDir",
 			"If the directory already exists over write it");
-	if (!failed_) {
+	if (!failed_ && !needsHelp()) {
 		std::string newDirectoryName = "./"
 				+ njh::replaceString(njh::replaceString(pars_.directoryName_, "./", ""), "TODAY",
 						getCurrentDate()) + "/";

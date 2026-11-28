@@ -667,6 +667,8 @@ int SeekDeepRunner::kmerClusteringRate(const njh::progutils::CmdArgs & inputComm
   uint32_t maxReadAmountForDownsample = 50000;
   uint64_t randomSeed = std::numeric_limits<uint64_t>::max();
   seqSetUp setUp(inputCommands);
+  setUp.description_ = "Cluster one sample's reads of one target by k-mer similarity, the alternative to qluster for high error rate reads like nanopore and pacbio. "
+      "Writes the clusters to output (in the input's format) and outputInfo.tab.txt in the output directory, ready for processClusters";
   setUp.processDebug();
   setUp.processVerbose();
   pars.verbose = setUp.pars_.verbose_;

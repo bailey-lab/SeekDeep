@@ -1,0 +1,13 @@
+/* keep flag names on one line in the reference tables */
+td code {
+  /* !important: the code-overflow: wrap setting gives code white-space: pre-wrap with a more specific rule */
+  white-space: nowrap !important;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+/* wide diagrams can be opened at full size */
+figure img {
+  max-width: 100%;
+  height: auto;
+}

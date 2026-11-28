@@ -23,6 +23,8 @@ def main():
     args = parse_args()
     CC = genHelper.determineCC(args)
     CXX = genHelper.determineCXX(args)
+    # fail at configure time, with an explanation, rather than partway through building the dependencies
+    genHelper.requireCxxStandardSupport(CXX)
     external = "external"
     outname = "out"
     prefix = "./"

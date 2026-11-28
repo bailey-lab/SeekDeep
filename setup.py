@@ -947,27 +947,18 @@ class Packages():
 
     def __hts(self):
         name = "hts"
-        url = "https://github.com/samtools/htslib.git"
-        #buildCmd = "CC={CC} CXX={CXX} && autoheader && autoconf && ./configure --prefix={local_dir} && make -j {num_cores} && make install -j {num_cores}"
-        buildCmd = "CC={CC} CXX={CXX} && autoreconf -if && ./configure --prefix={local_dir} && make -j {num_cores} && make install -j {num_cores}"
-        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "git", "1.3.1")
-        if self.args.noInternet:
-            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
-                pack = pickle.load(inputPkl)
-                pack.defaultBuildCmd_ = buildCmd
-        elif os.path.exists(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl')):
-            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'rb') as inputPkl:
-                    pack = pickle.load(inputPkl)
-                    pack.defaultBuildCmd_ = buildCmd
-        else:
-            refs = pack.getGitRefs(url)
-            for ref in [b.replace("/", "__") for b in refs.branches] + refs.tags:
-                pack.addVersion(url, ref)
-                pack.versions_[ref].additionalLdFlags_ = ["-lz -lm -lpthread"]
-                #pack.versions_[ref].additionalLdFlags_ = ["-ldeflate -llzma -lbz2 -lz -lm  -lcurl -lcrypto"]
-            Utils.mkdir(os.path.join(self.dirMaster_.cache_dir, name))
-            with open(os.path.join(self.dirMaster_.cache_dir, name, name + '.pkl'), 'wb') as output:
-                pickle.dump(pack, output, pickle.HIGHEST_PROTOCOL)
+        # Built from the release tarballs rather than git: they ship a generated configure script, so autotools
+        # (autoreconf) aren't needed. elucidator only uses BGZF (its BGZFCPP wrapper), so the optional bzip2, lzma,
+        # libcurl and libdeflate support is turned off, which keeps the link flags to zlib and pthreads.
+        buildCmd = """CC={CC} CXX={CXX} ./configure --prefix={local_dir}
+            --disable-bz2 --disable-lzma --disable-libcurl --disable-gcs --disable-s3 --without-libdeflate
+            && make -j {num_cores}
+            && make install"""
+        buildCmd = " ".join(buildCmd.split())
+        pack = CPPLibPackage(name, buildCmd, self.dirMaster_, "file", "1.25")
+        for ver in ["1.25"]:
+            pack.addVersion("https://github.com/samtools/htslib/releases/download/{v}/htslib-{v}.tar.bz2".format(v=ver), ver)
+            pack.versions_[ver].additionalLdFlags_ = ["-lz -lm -lpthread"]
         return pack
 
     def __zlibng(self):
@@ -2822,6 +2813,18 @@ class Setup:
                 print ("Can't find commandline tool git")
             if failure:
                 raise Exception()
+        ok, output = genHelper.checkCxxStandardSupport(self.CXX)
+        if not ok:
+            version = genHelper.compilerVersion(self.CXX)
+            print(CT.boldRed("The c++ compiler " + CT.purple + self.CXX + (" (" + version + ")" if version else "") +
+                             CT.boldRed(" can't compile " + genHelper.cxxStandard + ", which is needed")))
+            print(genHelper.firstCompilerErrors(output))
+            if self.args.compfile:
+                print("Change CXX in " + self.args.compfile[0] + " to a newer compiler")
+            else:
+                print("Can supply another c++ compiler by using -CXX [option] or by defining bash environmental CXX ")
+            print("gcc 7 or newer, or clang 5 or newer, is needed for " + genHelper.cxxStandard)
+            raise Exception()
 
 
 

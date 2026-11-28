@@ -1,0 +1,69 @@
+---
+title: "SeekDeep"
+subtitle: "Single-base resolution haplotype calling for targeted amplicon sequencing"
+toc: false
+---
+
+SeekDeep takes targeted amplicon sequencing data from many samples and works out which haplotypes
+each sample carries, and at what frequency, down to single-base differences. It handles Illumina
+paired-end, Illumina single-end and nanopore reads, panels from a handful of targets to several
+hundred, and samples with or without PCR replicates and in-line barcodes (MIDs). It grew out of
+*Plasmodium* work, where infections are often polyclonal, but nothing in it is specific to
+*Plasmodium*.
+
+## How it works
+
+The analysis has three stages, each a SeekDeep command:
+
+1. **Extraction**: reads are sorted into targets by their primers (and into samples by MIDs, if
+   there are any) and filtered on length and quality. Illumina mates are stitched together where
+   the target is short enough to overlap.
+   `extractorPairedEnd`, `extractor` (single-end) and `extractorByKmerMatching` (nanopore).
+2. **Per-sample clustering**: each target in each sample is clustered into haplotypes, separating
+   real differences from sequencing and PCR errors.
+   `qluster` for Illumina, which uses the read quality scores, and `kluster` for nanopore, which uses k-mer similarity.
+3. **Population clustering**: haplotypes are compared across samples, replicates are combined so
+   that only haplotypes found in every replicate are kept, and the same haplotype is given the same
+   name in every sample.
+   `processClusters`.
+
+The results come out as tables and as a [Portable Microhaplotype Object
+(PMO)](https://plasmogenepi.github.io/PMO_Docs/). They can optionally include variant calls and
+amino acid changes against a reference genome (`variantCallOnSeqAndProtein`), and can be browsed in
+a [local viewer](running/viewers.qmd).
+
+## How to run it
+
+The recommended way to run SeekDeep is with the
+[elucidatornf](https://github.com/nickjhathaway/elucidatornf) Nextflow workflows. They chain these
+steps together, work out most extraction settings from your primers and reference genomes, run in
+Docker or Apptainer, and produce reports. See
+[Running with elucidatornf](running/elucidatornf.qmd).
+
+Every step can also be run directly as a SeekDeep command. The [command reference](reference/index.qmd)
+lists every command and flag.
+
+::: {.grid}
+
+::: {.g-col-12 .g-col-md-4}
+### [Install](install.qmd)
+Conda, Docker/Apptainer or a source build.
+:::
+
+::: {.g-col-12 .g-col-md-4}
+### [Run](running/elucidatornf.qmd)
+Illumina and nanopore runs with elucidatornf.
+:::
+
+::: {.g-col-12 .g-col-md-4}
+### [Reference](reference/index.qmd)
+Every command and flag, generated from the program itself.
+:::
+
+:::
+
+## Getting help
+
+Questions, bugs and feature requests go to
+[GitHub issues](https://github.com/bailey-lab/SeekDeep/issues). If you use SeekDeep in published
+work, please [cite it](citing.qmd).

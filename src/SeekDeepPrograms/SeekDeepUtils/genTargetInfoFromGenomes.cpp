@@ -77,6 +77,8 @@ int SeekDeepUtilsRunner::genTargetInfoFromGenomes(const njh::progutils::CmdArgs 
 	seqSetUp setUp(inputCommands);
 	setUp.processVerbose();
 	setUp.processDebug();
+	setUp.description_ = "Find each target's amplicon in a set of genomes by mapping its primers with bowtie2 and write the extracted sequences, plus forSeekDeep/ with refSeqs, lenCutOffs.txt, overlapStatuses.txt "
+			"and the per target k-mer tables (allKmers.tab.txt.gz, uniqueKmers.tab.txt.gz) used by extractor, setupTarAmpAnalysis and extractorByKmerMatching";
 	setUp.setOption(pars.primersFile, "--primers", "A file that contains three columns, target,forwardPrimer,reversePrimer 5` to 3` directions, same file as the input to SeekDeep", true);
 	pars.verbose_ = setUp.pars_.verbose_;
 	pars.debug_ = setUp.pars_.debug_;
@@ -84,10 +86,10 @@ int SeekDeepUtilsRunner::genTargetInfoFromGenomes(const njh::progutils::CmdArgs 
   countPars.numThreads_ = pars.pars.numThreads_;
 	setUp.setOption(pars.minOverlap, "--minOverlap", "Minimum overlap for stitching");
 
-  setUp.setOption(countPars.kmerLength_, "--uniqKmerLength", "kmer Length");
+  setUp.setOption(countPars.kmerLength_, "--uniqKmerLength", "k-mer length for the per target k-mer tables");
   setUp.setOption(countPars.allowableCharacters_, "--allowableCharactersForUniqKmer",
                   "Only count kmers with these allowable Characters");
-  setUp.setOption(countPars.entropyFilter_, "--entropyFilterForUniqKmer", "entropy Filter cut off, exclusive, will only keep kmers abovet this entropy level");
+  setUp.setOption(countPars.entropyFilter_, "--entropyFilterForUniqKmer", "entropy Filter cut off, exclusive, will only keep kmers above this entropy level");
 
 
   setUp.finishSetUp(std::cout);

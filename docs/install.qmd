@@ -1,0 +1,112 @@
+---
+title: "Installing SeekDeep"
+---
+
+There are three ways to get SeekDeep. If you're going to run it through
+[elucidatornf](running/elucidatornf.qmd) with Docker or Apptainer, you don't need to install it at
+all: the workflows pull a container that already has it.
+
+| | Best for | Platforms |
+|---|---|---|
+| [Conda / mamba](#conda) | Running SeekDeep commands directly | Linux x86-64, macOS (Apple silicon and Intel) |
+| [Docker / Apptainer](#containers) | elucidatornf runs, clusters, Windows (through Docker Desktop or WSL2) | Anywhere Docker or Apptainer runs |
+| [From source](#source) | Development, or platforms the packages don't cover | Linux, macOS |
+
+## Conda / mamba {#conda}
+
+SeekDeep ships in the `elucidator` package, together with
+[elucidator](https://github.com/nickjhathaway/elucidator) and
+[PathWeaver](https://github.com/bailey-lab/PathWeaver). It's published to its own channel on
+prefix.dev, and the tools it calls (muscle, minimap2, bowtie2, bwa, samtools, BLAST and others)
+come from conda-forge and bioconda.
+
+```bash
+mamba create -n seekdeep \
+  -c https://prefix.dev/nickjhathaway/elucidator -c conda-forge -c bioconda \
+  elucidator
+mamba activate seekdeep
+SeekDeep
+```
+
+`conda` works in place of `mamba` but is slower to solve. To update an existing environment:
+
+```bash
+mamba update -n seekdeep \
+  -c https://prefix.dev/nickjhathaway/elucidator -c conda-forge -c bioconda \
+  elucidator
+```
+
+## Docker / Apptainer {#containers}
+
+The `nickjhathaway/elucidator` image has SeekDeep, elucidator, PathWeaver and the tools they call.
+`develop` is the latest build, and every build is also tagged with its git commit, so pin a commit
+tag for runs you need to reproduce.
+
+```bash
+docker pull nickjhathaway/elucidator:develop
+docker run --rm -v "$PWD":/data -w /data nickjhathaway/elucidator:develop SeekDeep
+```
+
+On a cluster with Apptainer (or Singularity):
+
+```bash
+apptainer pull elucidator.sif docker://nickjhathaway/elucidator:develop
+apptainer exec elucidator.sif SeekDeep
+```
+
+elucidatornf picks the image itself: give it `-profile docker` or `-profile apptainer`.
+
+## From source {#source}
+
+You need a C++17 compiler (a recent clang or g++), `make`, `cmake`, `git`, Python 3 and
+libcurl headers. `setup.py` downloads and builds the C++ libraries SeekDeep depends on into
+`external/`, which takes a while the first time.
+
+```bash
+git clone https://github.com/bailey-lab/SeekDeep.git
+cd SeekDeep
+./configure.py
+./setup.py --compfile compfile.mk --outMakefile makefile-common.mk
+make -j 4
+```
+
+`./configure.py` picks the compiler from `-CC`/`-CXX` if given, then from the `CC`/`CXX`
+environment variables. Without either it uses `gcc`/`g++` on Linux (gcc 13 on Ubuntu 24.04, which
+is what SeekDeep is tested with) and `clang`/`clang++` on macOS. To use a specific compiler:
+
+```bash
+./configure.py -CC gcc-13 -CXX g++-13
+```
+
+The binary ends up in `bin/SeekDeep`. Add that directory to your `PATH`, for example in
+`~/.bashrc` or `~/.zshrc`:
+
+```bash
+export PATH="$HOME/SeekDeep/bin:$PATH"
+```
+
+The `master` branch is the latest release and `develop` has the newest changes.
+
+### Optional extras
+
+Tab completion for SeekDeep's flags:
+
+```bash
+./setup.py --addBashCompletion
+```
+
+Some steps call external tools (muscle, BLAST, bowtie2 and others). A source build doesn't install
+them, so install them yourself, for example from bioconda. The conda package and the container
+already include them.
+
+## Checking the install
+
+`SeekDeep` with no arguments lists every command, and `SeekDeep <command> --help` prints a
+command's flags. Commands and flags are not case sensitive.
+
+```bash
+SeekDeep
+SeekDeep extractorPairedEnd --help
+```
+
+The same help text is in the [command reference](reference/index.qmd).

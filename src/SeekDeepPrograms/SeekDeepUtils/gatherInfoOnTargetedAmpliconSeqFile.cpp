@@ -23,6 +23,8 @@ int SeekDeepUtilsRunner::gatherInfoOnTargetedAmpliconSeqFile(
 	seqSetUp setUp(inputCommands);
 	setUp.processVerbose();
 	setUp.processDebug();
+	setUp.description_ = "Check a sample of reads from one file, or from a directory of files, against a primers file: which primers are found and in which direction, the bases in front of them (possible barcodes) and what's unrecognized, "
+			"then recommend extractor flags, written to message.txt and outSeekDeepExtractorFlags.txt in the output directory along with the count tables";
 	tar_amp_pars.numberOfFilesToInvestigate = 20;
 	investPars.testNumber = 5000;
   setUp.setOption(investPars.max_len_to_investigate, "--max_len_to_investigate", "don't investigate sequences above this length");

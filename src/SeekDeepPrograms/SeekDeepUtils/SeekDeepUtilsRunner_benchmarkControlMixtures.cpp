@@ -225,9 +225,11 @@ int SeekDeepUtilsRunner::benchmarkMultiTarAmpControlMixtures(
 	seqSetUp setUp(inputCommands);
 	setUp.processVerbose();
 	setUp.processDebug();
+	setUp.description_ = "Benchmark the results of many targets, as a results table or a PMO, against known control mixtures: for each control sample and target, classify its haplotypes as expected or false "
+			"and report how many expected haplotypes were recovered and how far off their frequencies are, writes classifiedHaplotypes.tsv, performancePerTarget.tsv and the false haplotype tables";
 	bfs::path pmoFnp;
 	setUp.setOption(resultsFnp, "--resultsFnp",
-									"results tab delimited file, each row is a haplotype, should have at least 5 columns, 1) sample (--sampleColName), 2)within sample freq (--withinSampleFreqColName), 3)within sample read count (--withinSampleReadCntColName), 4)haplotype pop ID (--popHapIdColName), 5)target name column (--targetNameColName), optionally 4th col with hap sequence (--popHapSeqColName) or read in from --popSeqsDirFnp, this or --pmoFnp is required");
+									"results tab delimited file, each row is a haplotype, should have at least 5 columns, 1) sample (--sampleColName), 2)within sample freq (--withinSampleFreqColName), 3)within sample read count (--withinSampleReadCntColName), 4)haplotype pop ID (--popHapIdColName), 5)target name column (--targetNameColName), and a 6th col with the hap sequence (--popHapSeqColName) unless read in from --popSeqsDirFnp, this or --pmoFnp is required");
 	setUp.setOption(pmoFnp, "--pmoFnp",
 									"results as a PMO (portable microhaplotype object) json file, can be gzipped, samples are the library sample names, haplotypes are the representative microhaplotypes (named by microhaplotype_name if present) and within sample freq is reads over the sample's total reads for that target, use instead of --resultsFnp");
 	setUp.setOption(selectTargets, "--selectTargets", "only analyze these select targets", false);
@@ -259,7 +261,7 @@ int SeekDeepUtilsRunner::benchmarkMultiTarAmpControlMixtures(
 									"What each control sample is expected to have as a PMO (can be gzipped), use instead of --sampleToMixture, --mixtureSetUp and --expectedSeqsDirFnp, library samples are the control samples, their specimen names the mixture names and their detected microhaplotypes the expected alleles with reads as pseudo counts for the within sample frequencies, make one with mixturesToExpectedPmo");
 	setUp.setOption(metaFnp, "--metaFnp", "meta data for the control samples");
 	setUp.setOption(popSeqsRegexPatRemoval, "--popSeqsRegexPatRemoval",
-									"optional regex pattern to process the input pop sequences from --popSeqsFnp to make it match up with the input results folder");
+									"optional regex pattern to process the input pop sequences from --popSeqsDirFnp to make it match up with the input results folder");
 	if (resultsFnp.empty() == pmoFnp.empty()) {
 		setUp.failed_ = true;
 		setUp.addWarning("need exactly one of --resultsFnp or --pmoFnp");
@@ -1090,8 +1092,10 @@ int SeekDeepUtilsRunner::benchmarkTarAmpControlMixtures(
 	seqSetUp setUp(inputCommands);
 	setUp.processVerbose();
 	setUp.processDebug();
+	setUp.description_ = "Benchmark one target's results table (one row per sample haplotype, e.g. processClusters selectedClustersInfo) against known control mixtures, "
+			"the single target version of benchmarkMultiTarAmpControlMixtures, writes the same classified haplotype and performance tables";
 	setUp.setOption(resultsFnp, "--resultsFnp",
-									"results tab delimited file, each row is a haplotype, should have at least 4 columns, 1) sample (--sampleColName), 2)within sample freq (--withinSampleFreqColName), 3)within sample read count (--withinSampleReadCntColName), 4)haplotype pop ID (--popHapIdColName), optionally 4th col with hap sequence (--popHapSeqColName) or read in from --popSeqsFnp",
+									"results tab delimited file, each row is a haplotype, should have at least 4 columns, 1) sample (--sampleColName), 2)within sample freq (--withinSampleFreqColName), 3)within sample read count (--withinSampleReadCntColName), 4)haplotype pop ID (--popHapIdColName), and a 5th col with the hap sequence (--popHapSeqColName) unless read in from --popSeqsFnp",
 									true);
 
 	setUp.setOption(sampleColName, "--sampleColName", "sample Column Name", false, "Results Column Names");

@@ -1,0 +1,16 @@
+---
+title: "Citing SeekDeep"
+nocite: |
+  @Hathaway2017-ib
+---
+
+If you use SeekDeep in published work, please cite:
+
+::: {#refs}
+:::
+
+Please also give the SeekDeep version you used (`SeekDeep` with no arguments prints it). If you
+ran it through elucidatornf, give the elucidatornf commit or release as well.
+
+SeekDeep is developed by the [Bailey Lab](https://github.com/bailey-lab). The source code is on
+[GitHub](https://github.com/bailey-lab/SeekDeep), under the [license](https://github.com/bailey-lab/SeekDeep/blob/master/LICENSE) in the repository.

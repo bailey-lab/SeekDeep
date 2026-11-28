@@ -1,0 +1,52 @@
+project:
+  type: website
+  output-dir: _site
+
+website:
+  title: "SeekDeep"
+  description: "Targeted amplicon analysis for Illumina and nanopore data"
+  site-url: https://bailey-lab.github.io/SeekDeep/
+  repo-url: https://github.com/bailey-lab/SeekDeep
+  repo-subdir: docs
+  repo-branch: master
+  repo-actions: [edit, issue]
+  search: true
+  page-navigation: true
+  navbar:
+    left:
+      - href: index.qmd
+        text: Home
+      - href: install.qmd
+        text: Install
+      - text: Running
+        menu:
+          - href: running/elucidatornf.qmd
+          - href: running/viewers.qmd
+      - text: Concepts
+        menu:
+          - href: concepts/illumina-paired-end.qmd
+      - href: reference/index.qmd
+        text: Reference
+      - href: citing.qmd
+        text: Citing
+    right:
+      - icon: github
+        href: https://github.com/bailey-lab/SeekDeep
+        aria-label: SeekDeep on GitHub
+  page-footer:
+    left: "SeekDeep, [Bailey Lab](https://github.com/bailey-lab)"
+    right: "Built with [Quarto](https://quarto.org/)"
+
+format:
+  html:
+    theme:
+      light: flatly
+      dark: darkly
+    css: styles.css
+    toc: true
+    toc-depth: 3
+    anchor-sections: true
+    code-copy: true
+    code-overflow: wrap
+    highlight-style: github
+    bibliography: references.bib
