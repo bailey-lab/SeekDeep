@@ -231,7 +231,10 @@ int SeekDeepUtilsRunner::benchmarkMultiTarAmpControlMixtures(
 	setUp.setOption(resultsFnp, "--resultsFnp",
 									"results tab delimited file, each row is a haplotype, should have at least 5 columns, 1) sample (--sampleColName), 2)within sample freq (--withinSampleFreqColName), 3)within sample read count (--withinSampleReadCntColName), 4)haplotype pop ID (--popHapIdColName), 5)target name column (--targetNameColName), and a 6th col with the hap sequence (--popHapSeqColName) unless read in from --popSeqsDirFnp, this or --pmoFnp is required");
 	setUp.setOption(pmoFnp, "--pmoFnp",
-									"results as a PMO (portable microhaplotype object) json file, can be gzipped, samples are the library sample names, haplotypes are the representative microhaplotypes (named by microhaplotype_name if present) and within sample freq is reads over the sample's total reads for that target, use instead of --resultsFnp");
+									"results as a PMO (portable microhaplotype object) json file, can be gzipped, samples are the library sample names, haplotypes are the representative microhaplotypes (named by microhaplotype_name if present) and within sample freq is the haplotype's umis (or reads, see --useReads) over the sample's total for that target, use instead of --resultsFnp");
+	bool useReads = false;
+	setUp.setOption(useReads, "--useReads",
+									"with --pmoFnp, use the detected microhaplotypes' reads rather than their umis for the counts and within sample freqs, umis are used by default when the PMO has them");
 	setUp.setOption(selectTargets, "--selectTargets", "only analyze these select targets", false);
 	setUp.setOption(excludeTargets, "--excludeTargets", "exclude these Targets", false);
 
@@ -269,6 +272,10 @@ int SeekDeepUtilsRunner::benchmarkMultiTarAmpControlMixtures(
 	if (!pmoFnp.empty() && !popSeqsDirFnp.empty()) {
 		setUp.failed_ = true;
 		setUp.addWarning("--popSeqsDirFnp can't be used with --pmoFnp, the PMO already has the haplotype sequences");
+	}
+	if (useReads && pmoFnp.empty()) {
+		setUp.failed_ = true;
+		setUp.addWarning("--useReads only applies to --pmoFnp, a results table's counts come from --withinSampleReadCntColName");
 	}
 
 	setUp.setOption(conBenchPars.samplesToMixFnp_, "--sampleToMixture",
@@ -389,6 +396,42 @@ int SeekDeepUtilsRunner::benchmarkMultiTarAmpControlMixtures(
 						 ? mhap.microhaplotype_name_.value()
 						 : njh::pasteAsStr(targetNameByMhapsId.at(mhapsTargetId), ".", mhapsTargetId, ".", mhapId);
 		};
+		//counts are umis if any detected microhaplotype has them (then all of them need to) unless --useReads, otherwise reads
+		auto hasUmis = [](const pmo::MicrohaplotypeForTarget & mhap) {
+			return mhap.umis_.has_value() && mhap.umis_.value() != std::numeric_limits<uint32_t>::max();
+		};
+		bool useUmis = false;
+		if (!useReads) {
+			uint64_t withUmis = 0;
+			uint64_t withoutUmis = 0;
+			for (const auto &run: pmoObj.detected_microhaplotypes_) {
+				for (const auto &sampleResults: run.library_samples_) {
+					for (const auto &targetResults: sampleResults.target_results_) {
+						if (!passTargetFilter(targetNameByMhapsId.at(targetResults.mhaps_target_id_))) {
+							continue;
+						}
+						for (const auto &mhap: targetResults.mhaps_) {
+							if (hasUmis(mhap)) {
+								++withUmis;
+							} else {
+								++withoutUmis;
+							}
+						}
+					}
+				}
+			}
+			if (withUmis > 0 && withoutUmis > 0) {
+				std::stringstream ss;
+				ss << __PRETTY_FUNCTION__ << ", error " << withUmis << " detected microhaplotypes in " << pmoFnp << " have umis but "
+					 << withoutUmis << " don't (missing or NA), can't mix umis and reads, use --useReads to use reads for all of them" << "\n";
+				throw std::runtime_error{ss.str()};
+			}
+			useUmis = withUmis > 0;
+		}
+		auto mhapCount = [&useUmis](const pmo::MicrohaplotypeForTarget & mhap) -> double {
+			return useUmis ? mhap.umis_.value() : mhap.reads_;
+		};
+		std::cout << "using " << (useUmis ? "umis" : "reads") << " from " << pmoFnp << " for haplotype counts and within sample freqs" << std::endl;
 		//only the first set of results for a sample and target is used, later ones are counted and reported as a warning
 		std::map<std::string, std::set<std::string>> targetsDoneBySample;
 		std::map<std::string, uint32_t> repeatedResults;
@@ -404,14 +447,14 @@ int SeekDeepUtilsRunner::benchmarkMultiTarAmpControlMixtures(
 						++repeatedResults[sample];
 						continue;
 					}
-					double totalReads = 0;
+					double total = 0;
 					for (const auto &mhap: targetResults.mhaps_) {
-						totalReads += mhap.reads_;
+						total += mhapCount(mhap);
 					}
 					for (const auto &mhap: targetResults.mhaps_) {
 						auto name = mhapName(targetResults.mhaps_target_id_, mhap.mhap_id_);
 						addHap(target, sample, name, njh::mapAt(njh::mapAt(hPopUID_to_hConsensus, target), name),
-									 mhap.reads_, totalReads > 0 ? mhap.reads_ / totalReads : 0);
+									 mhapCount(mhap), total > 0 ? mhapCount(mhap) / total : 0);
 					}
 				}
 			}
