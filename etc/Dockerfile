@@ -39,9 +39,8 @@ RUN ssh-keyscan github.com >> ~/.ssh/known_hosts
 
 # install the desired version of github
 WORKDIR /opt
-RUN git clone https://github.com/bailey-lab/SeekDeep.git
+RUN git clone --recurse-submodules --shallow-submodules -b develop https://github.com/bailey-lab/SeekDeep.git
 WORKDIR /opt/SeekDeep
-RUN git checkout develop
 RUN ./setup.py  --libs SeekDeep:${SEEKDEEP_VERSION} --numCores ${CPU_COUNT} --overWrite --symlinkBin
 
 # clean up

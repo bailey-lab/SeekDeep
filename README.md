@@ -32,9 +32,9 @@ Also though SeekDeep does not use cmake, several of the libraries it uses do dep
 
 ## To Install latest version (defaults to g++ on Linux, clang on Mac)    
 ```bash
-git clone https://github.com/bailey-lab/SeekDeep.git   
+#--recursive also gets the cppSetupTools submodule (configure.py and setup.py fetch it too if it's missing)
+git clone --recursive -b master https://github.com/bailey-lab/SeekDeep.git   
 cd SeekDeep  
-git checkout master
 ./configure.py  
 ./setup.py --compfile compfile.mk --outMakefile makefile-common.mk
 make   
