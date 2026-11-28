@@ -141,6 +141,168 @@ struct TrimRegion {
 	}
 };
 
+/**
+ * @brief Cuts sequencing adapters out of reads, found by exact k-mers of the adapters in either direction
+ *
+ * Each adapter k-mer in a read places the whole adapter on the read (from where in the adapter the k-mer sits), placements that
+ * overlap are one adapter, and one with at least minKmerHits_ k-mers counts. The read is cut at every adapter found and the longest
+ * piece left is kept, e.g. a nanopore rapid kit read whose transposase cut inside an amplicon starts with the rapid adapter followed
+ * by part of the amplicon, which without the cut keeps the adapter in front of the amplicon's trimming region.
+ */
+struct AdapterTrimmer {
+	struct Pars {
+		bool trim_ = true;
+		uint32_t kmerLen_ = 16;     ///< bases in a row that have to match an adapter, at most 32
+		uint32_t minKmerHits_ = 2;  ///< adapter k-mers needed to call an adapter
+		VecStr adapters_;
+
+		Pars() {
+			adapters_ = VecStr{
+				//nanopore rapid adapter (rapid and rapid barcoding kits, e.g. SQK-RAD004, SQK-RBK004, SQK-RBK114), the part next to the insert
+				"GTTTTCGCATTTATCGTGAAACGCTTTCGCGTTTTTCGTGCGCCGCTTCA",
+				//nanopore ligation adapter, kit 14 (e.g. SQK-LSK114, SQK-NBD114)
+				"CCTGTACTTCGTTCAGTTACGTATTGCT",
+				//nanopore ligation adapter, kits 9 and 10 (e.g. SQK-LSK109, SQK-LSK110)
+				"AATGTACTTCGTTCAGTTACGTATTGCT",
+				//nanopore PCR barcoding tails (e.g. SQK-PBK004, EXP-PBC096), in front of the target primers
+				"TTAACCTTTCTGTTGGTGCTGATATTGC",
+				"TTAACCTACTTGCCTGTCGCTCTATCTTC",
+				//Illumina TruSeq adapters, for reads that run off of the end of a fragment
+				"AGATCGGAAGAGCACACGTCTGAACTCCAGTCA",
+				"AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGT",
+				"ACACTCTTTCCCTACACGACGCTCTTCCGATCT",
+				"GTGACTGGAGTTCAGACGTGTGCTCTTCCGATCT",
+				//Illumina Nextera mosaic end
+				"AGATGTGTATAAGAGACAG"
+			};
+		}
+	};
+
+	/**
+	 * @brief The part of a read to keep
+	 */
+	struct Kept {
+		bool adapterFound_{false};
+		uint32_t start_{0};
+		uint32_t end_{0};  ///< one past the last base
+	};
+
+	explicit AdapterTrimmer(Pars pars) : pars_(std::move(pars)) {
+		if (0 == pars_.kmerLen_ || pars_.kmerLen_ > 32) {
+			std::stringstream ss;
+			ss << __PRETTY_FUNCTION__ << ", error " << "adapter k-mer length should be 1 to 32, not " << pars_.kmerLen_ << "\n";
+			throw std::runtime_error { ss.str() };
+		}
+		for (const auto & adapter : pars_.adapters_) {
+			const auto upperAdapter = njh::strToUpperRet(adapter);
+			for (const auto & seq : {upperAdapter, seqUtil::reverseComplement(upperAdapter, "DNA")}) {
+				forEachKmer(seq, [this, &seq](uint64_t kmer, uint32_t pos) {
+					kmers_[kmer].emplace_back(Placement{pos, static_cast<uint32_t>(seq.size())});
+				});
+			}
+		}
+	}
+
+	[[nodiscard]] Kept find(const std::string & seq) const {
+		Kept ret;
+		ret.end_ = seq.size();
+		if (kmers_.empty()) {
+			return ret;
+		}
+		//where each adapter k-mer puts its adapter on the read
+		std::vector<std::pair<int64_t, int64_t>> spans;
+		forEachKmer(seq, [this, &spans](uint64_t kmer, uint32_t pos) {
+			const auto search = kmers_.find(kmer);
+			if (kmers_.end() != search) {
+				for (const auto & placement : search->second) {
+					const int64_t start = static_cast<int64_t>(pos) - static_cast<int64_t>(placement.offset_);
+					spans.emplace_back(start, start + placement.adapterLen_);
+				}
+			}
+		});
+		if (spans.empty()) {
+			return ret;
+		}
+		std::sort(spans.begin(), spans.end());
+		//overlapping placements are one adapter
+		std::vector<std::pair<uint32_t, uint32_t>> adapters;
+		int64_t curStart = spans.front().first;
+		int64_t curEnd = spans.front().second;
+		uint32_t curHits = 0;
+		const auto addCurrent = [&]() {
+			if (curHits >= pars_.minKmerHits_) {
+				adapters.emplace_back(static_cast<uint32_t>(std::max<int64_t>(0, curStart)),
+						static_cast<uint32_t>(std::min<int64_t>(static_cast<int64_t>(seq.size()), curEnd)));
+			}
+		};
+		for (const auto & span : spans) {
+			if (span.first >= curEnd) {
+				addCurrent();
+				curStart = span.first;
+				curEnd = span.second;
+				curHits = 0;
+			}
+			curEnd = std::max(curEnd, span.second);
+			++curHits;
+		}
+		addCurrent();
+		if (adapters.empty()) {
+			return ret;
+		}
+		//the longest piece between the adapters
+		ret.adapterFound_ = true;
+		ret.end_ = 0;
+		uint32_t pieceStart = 0;
+		for (size_t idx = 0; idx <= adapters.size(); ++idx) {
+			const uint32_t pieceEnd = idx < adapters.size() ? adapters[idx].first : static_cast<uint32_t>(seq.size());
+			if (pieceEnd > pieceStart && pieceEnd - pieceStart > ret.end_ - ret.start_) {
+				ret.start_ = pieceStart;
+				ret.end_ = pieceEnd;
+			}
+			if (idx < adapters.size()) {
+				pieceStart = std::max(pieceStart, adapters[idx].second);
+			}
+		}
+		return ret;
+	}
+
+	Pars pars_;
+
+private:
+	struct Placement {
+		uint32_t offset_;     ///< where the k-mer starts in the adapter
+		uint32_t adapterLen_;
+	};
+	std::unordered_map<uint64_t, std::vector<Placement>> kmers_;
+
+	/**
+	 * @brief Calls func(kmer, position) for each k-mer of only A, C, G and T, the k-mer packed 2 bits a base
+	 */
+	template<typename FUNC>
+	void forEachKmer(const std::string & seq, FUNC func) const {
+		const uint64_t mask = 32 == pars_.kmerLen_ ? std::numeric_limits<uint64_t>::max() : (uint64_t{1} << (2 * pars_.kmerLen_)) - 1;
+		uint64_t kmer = 0;
+		uint32_t basesInKmer = 0;
+		for (uint32_t pos = 0; pos < seq.size(); ++pos) {
+			uint64_t code = 0;
+			switch (seq[pos]) {
+				case 'A': case 'a': code = 0; break;
+				case 'C': case 'c': code = 1; break;
+				case 'G': case 'g': code = 2; break;
+				case 'T': case 't': code = 3; break;
+				default:
+					basesInKmer = 0;
+					kmer = 0;
+					continue;
+			}
+			kmer = ((kmer << 2) | code) & mask;
+			if (++basesInKmer >= pars_.kmerLen_) {
+				func(kmer, pos + 1 - pars_.kmerLen_);
+			}
+		}
+	}
+};
+
 }  // namespace
 
 int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &inputCommands) {
@@ -240,6 +402,24 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
   setUp.setOption(kmerStretchTrimSlop, "--kmerStretchTrimSlop",
       "Bases kept past each primer when trimming to a target's k-mer stretch, for reads whose first or last unique k-mer is further in because of sequencing errors. "
       "The primer ends up about this far into the trimmed read, reads that have been cut are always searched at least this far in", false, "K-mer Stretch Trim");
+  AdapterTrimmer::Pars adapterPars;
+  bool noAdapterTrim = false;
+  setUp.setOption(noAdapterTrim, "--noAdapterTrim",
+      "Don't cut adapters out of reads. By default every read is searched, in both directions, for the nanopore rapid, ligation and PCR barcoding adapters and the Illumina TruSeq and Nextera adapters "
+      "(or the --adapters given), cut at each adapter found and the longest piece kept, before the read is matched to a target. "
+      "Nanopore rapid kit reads whose transposase cut inside an amplicon start with the rapid adapter and part of the amplicon, without the cut these end up as false haplotypes that start with adapter", false, "Adapter Trim");
+  adapterPars.trim_ = !noAdapterTrim;
+  bfs::path adaptersFnp;
+  setUp.setOption(adaptersFnp, "--adapters", "A fasta of the adapter sequences to cut out of reads instead of the defaults", false, "Adapter Trim");
+  setUp.setOption(adapterPars.kmerLen_, "--adapterKmerLen", "How many bases in a row have to match an adapter (at most 32)", false, "Adapter Trim");
+  setUp.setOption(adapterPars.minKmerHits_, "--adapterMinKmerHits", "How many of an adapter's k-mers a read needs to have that adapter", false, "Adapter Trim");
+  if(!adaptersFnp.empty()){
+    adapterPars.adapters_.clear();
+    SeqInput adapterReader(SeqIOOptions::genFastaIn(adaptersFnp));
+    for(const auto & adapter : adapterReader.readAllReads<seqInfo>()){
+      adapterPars.adapters_.emplace_back(adapter.seq_);
+    }
+  }
   if(!njh::in(splitPars.oneEnd_, VecStr{"none", "nearest", "all"})){
     std::stringstream ss;
     ss << __PRETTY_FUNCTION__ << ", error " << "--multihitSplitOneEnd should be none, nearest or all, not " << splitPars.oneEnd_ << "\n";
@@ -542,6 +722,10 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
   std::unordered_map<std::string, uint64_t> kmerTrimmedPerSet;
   uint64_t kmerTrimmedFrontBases = 0;
   uint64_t kmerTrimmedBackBases = 0;
+  //reads with an adapter cut out, and the bases cut off
+  const AdapterTrimmer adapterTrimmer(adapterPars);
+  uint64_t adapterTrimmed = 0;
+  uint64_t adapterTrimmedBases = 0;
   //when trimming to regions, reads of the region's target that don't cover the region, per region, and reads that passed for at least one
   //region, per amplified target
   std::unordered_map<std::string, uint64_t> notCoveredPerRegion;
@@ -647,6 +831,9 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
                                       &kmerTrimmedPerSet,
                                       &kmerTrimmedFrontBases,
                                       &kmerTrimmedBackBases,
+                                      &adapterTrimmer,
+                                      &adapterTrimmed,
+                                      &adapterTrimmedBases,
                                       &outIds,
                                       &cutReadForwardPars,
                                       &cutReadBackPars,
@@ -667,6 +854,8 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
     std::unordered_map<std::string, uint64_t> kmerTrimmedPerSetCurrent;
     uint64_t kmerTrimmedFrontBasesCurrent = 0;
     uint64_t kmerTrimmedBackBasesCurrent = 0;
+    uint64_t adapterTrimmedCurrent = 0;
+    uint64_t adapterTrimmedBasesCurrent = 0;
     std::unordered_map<std::string, uint64_t> notCoveredPerRegionCurrent;
     std::unordered_map<std::string, uint64_t> readsPassingAnyRegionCurrent;
     auto trimRegionPars = splitPars;
@@ -847,6 +1036,16 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
       if (len(seq) > corePars.largeFragmentCutOff) {
         ++masterCountsCurrent.largeFrags_;
         continue;
+      }
+      //the read length cut offs are on the read as sequenced, a short amplicon whose read is under --minLenCutOff once its adapters are cut is
+      //still kept, the target's own length cut offs check what's left
+      if(adapterTrimmer.pars_.trim_){
+        const auto kept = adapterTrimmer.find(seq.seq_);
+        if(kept.adapterFound_){
+          ++adapterTrimmedCurrent;
+          adapterTrimmedBasesCurrent += len(seq) - (kept.end_ - kept.start_);
+          seq = seq.getSubRead(kept.start_, kept.end_ - kept.start_);
+        }
       }
       //all kmers per target pick the winner, kmers unique to a target count the targets hit
       kmerMatch.reset();
@@ -1098,6 +1297,8 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
       }
       kmerTrimmedFrontBases += kmerTrimmedFrontBasesCurrent;
       kmerTrimmedBackBases += kmerTrimmedBackBasesCurrent;
+      adapterTrimmed += adapterTrimmedCurrent;
+      adapterTrimmedBases += adapterTrimmedBasesCurrent;
       for(const auto & count : notCoveredPerRegionCurrent){
         notCoveredPerRegion[count.first] += count.second;
       }
@@ -1264,7 +1465,7 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
     outCounts << std::endl;
   }
 
-  outStats << "sampleName\ttotalReadsProcessed\tfailedMinLen_" << corePars.smallFragmentCutoff << "\tfailedMinLenFrac\tfailedMaxLen_" << corePars.largeFragmentCutOff << "\tfailedMaxLenFrac\tundetermined\tundeterminedFrac\tmultihit\tmultihitFrac\textracted\textractedFrac\textractedForward\textractedForwardFrac\tpassed\tpassedFrac\tmultihitSplit\tmultihitSplitFrac\tpiecesFromMultihitSplit\tmultihitSplitFoldback\tkmerStretchTrimmed\tkmerStretchTrimmedFrontBases\tkmerStretchTrimmedBackBases" << (trimToRegions ? "\treadsPassingAnyTrimRegion" : "") << std::endl;
+  outStats << "sampleName\ttotalReadsProcessed\tfailedMinLen_" << corePars.smallFragmentCutoff << "\tfailedMinLenFrac\tfailedMaxLen_" << corePars.largeFragmentCutOff << "\tfailedMaxLenFrac\tundetermined\tundeterminedFrac\tmultihit\tmultihitFrac\textracted\textractedFrac\textractedForward\textractedForwardFrac\tpassed\tpassedFrac\tmultihitSplit\tmultihitSplitFrac\tpiecesFromMultihitSplit\tmultihitSplitFoldback\tkmerStretchTrimmed\tkmerStretchTrimmedFrontBases\tkmerStretchTrimmedBackBases" << (trimToRegions ? "\treadsPassingAnyTrimRegion" : "") << "\tadapterTrimmed\tadapterTrimmedBases" << std::endl;
   //reads that hit several targets and were split into pieces, the pieces are counted in extracted and passed
   const uint64_t totalMultihitSplit = readsPerSet["multihitSplit"];
   uint64_t totalPiecesFromMultihitSplit = 0;
@@ -1309,6 +1510,8 @@ int SeekDeepRunner::extractorByKmerMatching(const njh::progutils::CmdArgs &input
     }
     outStats << "\t" << totalReadsPassingAnyRegion;
   }
+  outStats << "\t" << adapterTrimmed
+           << "\t" << adapterTrimmedBases;
   outStats << std::endl;
 
   if(ids.containsMids()){
