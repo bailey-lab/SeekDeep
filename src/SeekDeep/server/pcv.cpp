@@ -454,7 +454,7 @@ void pcv::getSampleInfoTabPostHandler(std::shared_ptr<restbed::Session> session,
 		const restbed::Bytes & body){
 	auto mess = messFac_->genLogMessage(__PRETTY_FUNCTION__);
 
-	const auto postData = njh::json::parse(std::string(body.begin(), body.end()));
+	const auto postData = bytesToJson(body);
 	njh::json::MemberChecker checker(postData);
 	Json::Value ret;
 	if (checker.failMemberCheck( { "sampNames" }, __PRETTY_FUNCTION__)) {
@@ -523,7 +523,7 @@ void pcv::getPopSeqsPostHandler(std::shared_ptr<restbed::Session> session,
 		const restbed::Bytes & body){
 	auto mess = messFac_->genLogMessage(__PRETTY_FUNCTION__);
 
-	const auto postData = njh::json::parse(std::string(body.begin(), body.end()));
+	const auto postData = bytesToJson(body);
 	njh::json::MemberChecker checker(postData);
 	Json::Value seqData;
 	if (checker.failMemberCheck( { "popUIDs" }, __PRETTY_FUNCTION__)) {
@@ -584,7 +584,7 @@ void pcv::getSampSeqsPostHandler(std::shared_ptr<restbed::Session> session,
 		const restbed::Bytes & body){
 	auto mess = messFac_->genLogMessage(__PRETTY_FUNCTION__);
 
-	const auto postData = njh::json::parse(std::string(body.begin(), body.end()));
+	const auto postData = bytesToJson(body);
 	njh::json::MemberChecker checker(postData);
 	Json::Value seqData;
 	if (checker.failMemberCheck( { "sampleName" }, __PRETTY_FUNCTION__)) {
@@ -640,7 +640,7 @@ void pcv::getPopInfoPostHandler(std::shared_ptr<restbed::Session> session,
 		const restbed::Bytes & body){
 	auto mess = messFac_->genLogMessage(__PRETTY_FUNCTION__);
 
-	const auto postData = njh::json::parse(std::string(body.begin(), body.end()));
+	const auto postData = bytesToJson(body);
 	njh::json::MemberChecker checker(postData);
 	Json::Value popInfo;
 	if (checker.failMemberCheck( { "popUIDs" }, __PRETTY_FUNCTION__)) {
@@ -680,7 +680,7 @@ void pcv::getHapIdTablePostHandler(std::shared_ptr<restbed::Session> session,
 		const restbed::Bytes & body){
 	auto mess = messFac_->genLogMessage(__PRETTY_FUNCTION__);
 
-	const auto postData = njh::json::parse(std::string(body.begin(), body.end()));
+	const auto postData = bytesToJson(body);
 	njh::json::MemberChecker checker(postData);
 	Json::Value ret;
 	if (checker.failMemberCheck( { "popUIDs", "samples" }, __PRETTY_FUNCTION__)) {
@@ -1033,7 +1033,7 @@ void pcv::groupGetSampleInfoTabPostHanlder(
 	std::string groupName = request->get_path_parameter("groupName");
 	std::string subGroupName = request->get_path_parameter("subGroupName");
 
-	const auto postData = njh::json::parse(std::string(body.begin(), body.end()));
+	const auto postData = bytesToJson(body);
 	njh::json::MemberChecker checker(postData);
 	Json::Value ret;
 	if (checker.failMemberCheck( { "sampNames" }, __PRETTY_FUNCTION__)) {
@@ -1122,7 +1122,7 @@ void pcv::groupGetPopSeqsPostHanlder(
 	std::string groupName = request->get_path_parameter("groupName");
 	std::string subGroupName = request->get_path_parameter("subGroupName");
 
-	const auto postData = njh::json::parse(std::string(body.begin(), body.end()));
+	const auto postData = bytesToJson(body);
 	njh::json::MemberChecker checker(postData);
 	Json::Value ret;
 	if (checker.failMemberCheck( { "popUIDs" }, __PRETTY_FUNCTION__)) {
@@ -1209,7 +1209,7 @@ void pcv::groupGetPopInfoPostHanlder(
 	std::string groupName = request->get_path_parameter("groupName");
 	std::string subGroupName = request->get_path_parameter("subGroupName");
 
-	const auto postData = njh::json::parse(std::string(body.begin(), body.end()));
+	const auto postData = bytesToJson(body);
 	njh::json::MemberChecker checker(postData);
 	Json::Value ret;
 	if (checker.failMemberCheck( { "popUIDs" }, __PRETTY_FUNCTION__)) {
@@ -1269,7 +1269,7 @@ void pcv::groupGetHapIdTablePostHanlder(
 	std::string groupName = request->get_path_parameter("groupName");
 	std::string subGroupName = request->get_path_parameter("subGroupName");
 
-	const auto postData = njh::json::parse(std::string(body.begin(), body.end()));
+	const auto postData = bytesToJson(body);
 	njh::json::MemberChecker checker(postData);
 	Json::Value ret;
 	if (checker.failMemberCheck( { "popUIDs", "samples" }, __PRETTY_FUNCTION__)) {

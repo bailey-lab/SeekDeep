@@ -109,7 +109,7 @@ std::shared_ptr<restbed::Resource> pmv::postRoute(const PathSegs & segs, std::fu
 		auto mess = messFac_->genLogMessage(__PRETTY_FUNCTION__);
 		size_t contentLength = session->get_request()->get_header("Content-Length", 0);
 		session->fetch(contentLength, std::function<void(Session, const restbed::Bytes &)>([handler](Session ses, const restbed::Bytes & body) {
-			handler(ses, njh::json::parse(std::string(body.begin(), body.end())));
+			handler(ses, bytesToJson(body));
 		}));
 	}));
 	return resource;
